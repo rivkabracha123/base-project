@@ -1,0 +1,374 @@
+{
+  "id": "p4",
+  "name": "Developer 4",
+  "title": "Connect the application to a real AI model",
+  "role": "Backend / AI connection",
+  "assignment": {
+    "userValue": "Support natural conversation while keeping AI output validated and replaceable.",
+    "build": [
+      "Configurable server-side OpenAI-compatible provider",
+      "Deterministic fixture provider and versioned prompts",
+      "Schema validation, safe input projection, retry, and guided fallback"
+    ],
+    "expectedOutput": "Validated buyer/seller extraction responses for B2 and S1.",
+    "acceptanceScenario": "Complete the same Hebrew and English flow with valid AI, malformed output, and the provider unavailable."
+  },
+  "rules": [
+    "The endpoint is OpenAI-compatible and configured server-side",
+    "All structured output is schema-validated",
+    "Guided input works when the free provider is unavailable"
+  ],
+  "dependencies": [
+    "Project-owner selected provider",
+    "B2 buyer instructions",
+    "S1 seller instructions"
+  ],
+  "failureModes": [
+    "Invalid output accepted",
+    "Rate limits breaking the journey",
+    "Contact details or images sent to the model"
+  ],
+  "excluded": [
+    "Provider research",
+    "AI-generated prices",
+    "Image interpretation"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain the prepared provider, safe inputs, schemas, and fallback",
+      "description": "Understand and document “Explain the prepared provider, safe inputs, schemas, and fallback.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain the prepared provider, safe inputs, schemas, and fallback\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain the prepared provider, safe inputs, schemas, and fallback” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Explain how the durable rules will be preserved: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain the prepared provider, safe inputs, schemas, and fallback",
+            "description": "Deliver this Week 1 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Explain the prepared provider, safe inputs, schemas, and fallback” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain the prepared provider, safe inputs, schemas, and fallback” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Build the configurable real and fixture providers",
+      "description": "Implement the smallest visible fixture-backed version of “Build the configurable real and fixture providers.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make validated buyer/seller extraction responses for B2 and S1. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nBuild the configurable real and fixture providers\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Build the configurable real and fixture providers”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Verify these durable rules in code and tests: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Build the configurable real and fixture providers",
+            "description": "Deliver this Week 2 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Build the configurable real and fixture providers” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Build the configurable real and fixture providers” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Validate structured buyer answers in Hebrew and English",
+      "description": "Add the main behavior for “Validate structured buyer answers in Hebrew and English.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nValidate structured buyer answers in Hebrew and English\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Validate structured buyer answers in Hebrew and English”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Verify these durable rules in code and tests: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Validate structured buyer answers in Hebrew and English",
+            "description": "Deliver this Week 3 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Validate structured buyer answers in Hebrew and English” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Validate structured buyer answers in Hebrew and English” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Validate seller answers and connect B2 and S1",
+      "description": "Connect “Validate seller answers and connect B2 and S1” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nValidate seller answers and connect B2 and S1\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Validate seller answers and connect B2 and S1”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Verify these durable rules in code and tests: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Validate seller answers and connect B2 and S1",
+            "description": "Deliver this Week 4 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Validate seller answers and connect B2 and S1” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Validate seller answers and connect B2 and S1” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Add retry and guided fallback for invalid or unavailable responses",
+      "description": "Complete the required user-facing behavior for “Add retry and guided fallback for invalid or unavailable responses.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd retry and guided fallback for invalid or unavailable responses\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add retry and guided fallback for invalid or unavailable responses”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Verify these durable rules in code and tests: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add retry and guided fallback for invalid or unavailable responses",
+            "description": "Deliver this Week 5 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Add retry and guided fallback for invalid or unavailable responses” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Add retry and guided fallback for invalid or unavailable responses” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test malformed output, outages, limits, and a measured baseline",
+      "description": "Test and stabilize “Test malformed output, outages, limits, and a measured baseline.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest malformed output, outages, limits, and a measured baseline\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test malformed output, outages, limits, and a measured baseline”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Verify these durable rules in code and tests: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test malformed output, outages, limits, and a measured baseline",
+            "description": "Deliver this Week 6 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Test malformed output, outages, limits, and a measured baseline” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test malformed output, outages, limits, and a measured baseline” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Document provider configuration, limits, and fallback",
+      "description": "Prepare “Document provider configuration, limits, and fallback” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDocument provider configuration, limits, and fallback\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Document provider configuration, limits, and fallback”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Verify these durable rules in code and tests: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Document provider configuration, limits, and fallback",
+            "description": "Deliver this Week 7 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Document provider configuration, limits, and fallback” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Document provider configuration, limits, and fallback” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate real AI and the same flow with AI unavailable",
+      "description": "Demonstrate “Demonstrate real AI and the same flow with AI unavailable” inside the complete application. Run complete the same Hebrew and English flow with valid AI, malformed output, and the provider unavailable. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Connect the application to a real AI model” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 4 (P4)\nOwned feature: Connect the application to a real AI model\nRole: Backend / AI connection\nUser value: Support natural conversation while keeping AI output validated and replaceable.\nExpected output: Validated buyer/seller extraction responses for B2 and S1.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate real AI and the same flow with AI unavailable\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate real AI and the same flow with AI unavailable”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner selected provider; B2 buyer instructions; S1 seller instructions.\n- Verify these durable rules in code and tests: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated; Guided input works when the free provider is unavailable.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Provider research\n- AI-generated prices\n- Image interpretation\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Invalid output accepted\n- Rate limits breaking the journey\n- Contact details or images sent to the model\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P4 provides one validated and replaceable AI boundary while B2 and S1 retain ownership of buyer and seller behavior.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Provider configuration and domain schemas",
+            "description": "Project-owner model configuration plus versioned prompts, safe input projections, schemas, and deterministic fixture responses from B2 and S1."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate real AI and the same flow with AI unavailable",
+            "description": "Deliver this Week 8 objective as part of the “Connect the application to a real AI model” assignment. Produce the owned output: Validated buyer/seller extraction responses for B2 and S1."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B2 buyer understanding and S1 seller intake",
+            "description": "Schema-validated structured responses, explicit provider errors, retries, and guided fallback outcomes."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Bilingual conversation with safe fallback",
+            "description": "Buyer and seller journeys can understand natural Hebrew or English without allowing malformed AI output to control search or valuation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "the project owner, B2, and S1 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “Provider configuration and domain schemas” through “Demonstrate real AI and the same flow with AI unavailable” into “B2 buyer understanding and S1 seller intake”.",
+          "Show how this week moves the product toward “Bilingual conversation with safe fallback” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate real AI and the same flow with AI unavailable” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: The endpoint is OpenAI-compatible and configured server-side; All structured output is schema-validated.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Invalid output accepted; Rate limits breaking the journey."
+        ]
+      }
+    }
+  ]
+}

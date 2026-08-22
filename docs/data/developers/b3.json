@@ -1,0 +1,375 @@
+{
+  "id": "b3",
+  "name": "Developer 3",
+  "title": "Turn the buyer request into explained search results",
+  "role": "Backend / orchestration",
+  "assignment": {
+    "userValue": "Produce explained matches or a useful no-result answer without inventing inventory.",
+    "build": [
+      "Typed criteria-to-search mapping",
+      "Hard-constraint preservation and user-approved relaxation",
+      "Match explanations, upcoming/history grouping, no-result recovery, and unmatched-demand capture"
+    ],
+    "expectedOutput": "Buyer result set and demand summary for B4 and P5.",
+    "acceptanceScenario": "Show strict matches, refine once, then demonstrate an unmatched request recorded for staff without silently relaxing it."
+  },
+  "rules": [
+    "Typed criteria map to P2 search",
+    "Budgets and strict filters survive refinement",
+    "Every result or no-result outcome is understandable"
+  ],
+  "dependencies": [
+    "B2 buyer criteria",
+    "P2 search API",
+    "B4 result contract",
+    "P5 unmatched-demand view"
+  ],
+  "failureModes": [
+    "Calling raw source data",
+    "Relaxing budget without permission",
+    "Inventing inventory for no-result recovery"
+  ],
+  "excluded": [
+    "General search engine",
+    "Result/detail presentation",
+    "Automated alerts"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain criteria-to-search boundary and unmatched demand",
+      "description": "Understand and document “Explain criteria-to-search boundary and unmatched demand.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain criteria-to-search boundary and unmatched demand\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain criteria-to-search boundary and unmatched demand” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Explain how the durable rules will be preserved: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain criteria-to-search boundary and unmatched demand",
+            "description": "Deliver this Week 1 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Explain criteria-to-search boundary and unmatched demand” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain criteria-to-search boundary and unmatched demand” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Convert criteria into a typed search request",
+      "description": "Implement the smallest visible fixture-backed version of “Convert criteria into a typed search request.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make buyer result set and demand summary for B4 and P5. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nConvert criteria into a typed search request\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Convert criteria into a typed search request”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Verify these durable rules in code and tests: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Convert criteria into a typed search request",
+            "description": "Deliver this Week 2 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Convert criteria into a typed search request” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Convert criteria into a typed search request” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Preserve budgets and hard filters through refinement",
+      "description": "Add the main behavior for “Preserve budgets and hard filters through refinement.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nPreserve budgets and hard filters through refinement\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Preserve budgets and hard filters through refinement”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Verify these durable rules in code and tests: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Preserve budgets and hard filters through refinement",
+            "description": "Deliver this Week 3 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Preserve budgets and hard filters through refinement” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Preserve budgets and hard filters through refinement” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Add match reasons, grouping, and safe no-result recovery",
+      "description": "Connect “Add match reasons, grouping, and safe no-result recovery” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd match reasons, grouping, and safe no-result recovery\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add match reasons, grouping, and safe no-result recovery”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Verify these durable rules in code and tests: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add match reasons, grouping, and safe no-result recovery",
+            "description": "Deliver this Week 4 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Add match reasons, grouping, and safe no-result recovery” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Add match reasons, grouping, and safe no-result recovery” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Finish orchestration, approved relaxation, and demand capture",
+      "description": "Complete the required user-facing behavior for “Finish orchestration, approved relaxation, and demand capture.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nFinish orchestration, approved relaxation, and demand capture\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Finish orchestration, approved relaxation, and demand capture”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Verify these durable rules in code and tests: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Finish orchestration, approved relaxation, and demand capture",
+            "description": "Deliver this Week 5 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Finish orchestration, approved relaxation, and demand capture” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Finish orchestration, approved relaxation, and demand capture” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test strict constraints, no results, refinement, and deterministic ranking",
+      "description": "Test and stabilize “Test strict constraints, no results, refinement, and deterministic ranking.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest strict constraints, no results, refinement, and deterministic ranking\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test strict constraints, no results, refinement, and deterministic ranking”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Verify these durable rules in code and tests: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test strict constraints, no results, refinement, and deterministic ranking",
+            "description": "Deliver this Week 6 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Test strict constraints, no results, refinement, and deterministic ranking” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test strict constraints, no results, refinement, and deterministic ranking” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Tune benchmarks and write the handoff",
+      "description": "Prepare “Tune benchmarks and write the handoff” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTune benchmarks and write the handoff\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Tune benchmarks and write the handoff”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Verify these durable rules in code and tests: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Tune benchmarks and write the handoff",
+            "description": "Deliver this Week 7 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Tune benchmarks and write the handoff” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Tune benchmarks and write the handoff” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate explained matches and useful unmatched demand",
+      "description": "Demonstrate “Demonstrate explained matches and useful unmatched demand” inside the complete application. Run show strict matches, refine once, then demonstrate an unmatched request recorded for staff without silently relaxing it. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Turn the buyer request into explained search results” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 3 (B3)\nOwned feature: Turn the buyer request into explained search results\nRole: Backend / orchestration\nUser value: Produce explained matches or a useful no-result answer without inventing inventory.\nExpected output: Buyer result set and demand summary for B4 and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate explained matches and useful unmatched demand\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate explained matches and useful unmatched demand”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B2 buyer criteria; P2 search API; B4 result contract; P5 unmatched-demand view.\n- Verify these durable rules in code and tests: Typed criteria map to P2 search; Budgets and strict filters survive refinement; Every result or no-result outcome is understandable.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- General search engine\n- Result/detail presentation\n- Automated alerts\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Calling raw source data\n- Relaxing budget without permission\n- Inventing inventory for no-result recovery\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B3 is the application-service bridge from reviewable buyer criteria to P2 search and B4 evidence presentation.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B2 criteria and P2 search API",
+            "description": "Typed BuyerCriteria with hard constraints plus deterministic searchable auction results and match metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate explained matches and useful unmatched demand",
+            "description": "Deliver this Week 8 objective as part of the “Turn the buyer request into explained search results” assignment. Produce the owned output: Buyer result set and demand summary for B4 and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B4 results and P5 unmatched demand",
+            "description": "Explained matches grouped as current or historical, approved refinements, selected lot IDs, or an honest demand summary."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Explained matches or useful no-result",
+            "description": "A buyer sees inventory that respects strict criteria, can refine intentionally, and can ask for help without fabricated results."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B2, P2, B4, and P5 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “B2 criteria and P2 search API” through “Demonstrate explained matches and useful unmatched demand” into “B4 results and P5 unmatched demand”.",
+          "Show how this week moves the product toward “Explained matches or useful no-result” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate explained matches and useful unmatched demand” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Typed criteria map to P2 search; Budgets and strict filters survive refinement.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Calling raw source data; Relaxing budget without permission."
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,375 @@
+{
+  "id": "s3",
+  "name": "Developer 3",
+  "title": "Find and explain similar past sales",
+  "role": "Backend / comparable evidence",
+  "assignment": {
+    "userValue": "Show real comparable sales and explain why each is credible or excluded.",
+    "build": [
+      "Candidate query from confirmed facts",
+      "Deterministic scoring, credibility threshold, and stable ranking",
+      "Match/exclusion reasons and evidence cards with original money and sources"
+    ],
+    "expectedOutput": "Selected and excluded ComparableEvidence for S4.",
+    "acceptanceScenario": "Show strong, weak, included, excluded, and unsold candidates while repeated input keeps the same order."
+  },
+  "rules": [
+    "Only credible realized sales count toward valuation",
+    "Ranking is deterministic and explains similarity",
+    "Unsold estimates never count as realized prices"
+  ],
+  "dependencies": [
+    "P1 historical sales",
+    "P2 taxonomy",
+    "S1 confirmed facts",
+    "S4 valuation input"
+  ],
+  "failureModes": [
+    "Weak similarity appearing credible",
+    "Unsold lots counting toward minimum",
+    "Identical input changing rank"
+  ],
+  "excluded": [
+    "Valuation calculation",
+    "Buyer search",
+    "AI-selected prices"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain credible comparables and deterministic scoring",
+      "description": "Understand and document “Explain credible comparables and deterministic scoring.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain credible comparables and deterministic scoring\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain credible comparables and deterministic scoring” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Explain how the durable rules will be preserved: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain credible comparables and deterministic scoring",
+            "description": "Deliver this Week 1 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Explain credible comparables and deterministic scoring” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain credible comparables and deterministic scoring” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Build a comparable query and scoring scaffold",
+      "description": "Implement the smallest visible fixture-backed version of “Build a comparable query and scoring scaffold.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make selected and excluded ComparableEvidence for S4. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nBuild a comparable query and scoring scaffold\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Build a comparable query and scoring scaffold”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Verify these durable rules in code and tests: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Build a comparable query and scoring scaffold",
+            "description": "Deliver this Week 2 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Build a comparable query and scoring scaffold” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Build a comparable query and scoring scaffold” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Rank credible realized sales with match reasons",
+      "description": "Add the main behavior for “Rank credible realized sales with match reasons.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nRank credible realized sales with match reasons\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Rank credible realized sales with match reasons”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Verify these durable rules in code and tests: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Rank credible realized sales with match reasons",
+            "description": "Deliver this Week 3 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Rank credible realized sales with match reasons” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Rank credible realized sales with match reasons” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Build evidence cards and connect the selected set to S4",
+      "description": "Connect “Build evidence cards and connect the selected set to S4” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nBuild evidence cards and connect the selected set to S4\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Build evidence cards and connect the selected set to S4”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Verify these durable rules in code and tests: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Build evidence cards and connect the selected set to S4",
+            "description": "Deliver this Week 4 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Build evidence cards and connect the selected set to S4” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Build evidence cards and connect the selected set to S4” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Finish sparse-data, outlier, and inclusion/exclusion behavior",
+      "description": "Complete the required user-facing behavior for “Finish sparse-data, outlier, and inclusion/exclusion behavior.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nFinish sparse-data, outlier, and inclusion/exclusion behavior\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Finish sparse-data, outlier, and inclusion/exclusion behavior”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Verify these durable rules in code and tests: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Finish sparse-data, outlier, and inclusion/exclusion behavior",
+            "description": "Deliver this Week 5 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Finish sparse-data, outlier, and inclusion/exclusion behavior” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Finish sparse-data, outlier, and inclusion/exclusion behavior” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test stable ranking, weak matches, unsold lots, and measured performance",
+      "description": "Test and stabilize “Test stable ranking, weak matches, unsold lots, and measured performance.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest stable ranking, weak matches, unsold lots, and measured performance\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test stable ranking, weak matches, unsold lots, and measured performance”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Verify these durable rules in code and tests: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test stable ranking, weak matches, unsold lots, and measured performance",
+            "description": "Deliver this Week 6 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Test stable ranking, weak matches, unsold lots, and measured performance” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test stable ranking, weak matches, unsold lots, and measured performance” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Document the method and known limits",
+      "description": "Prepare “Document the method and known limits” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDocument the method and known limits\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Document the method and known limits”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Verify these durable rules in code and tests: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Document the method and known limits",
+            "description": "Deliver this Week 7 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Document the method and known limits” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Document the method and known limits” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate strong, weak, included, and excluded comparables",
+      "description": "Demonstrate “Demonstrate strong, weak, included, and excluded comparables” inside the complete application. Run show strong, weak, included, excluded, and unsold candidates while repeated input keeps the same order. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Find and explain similar past sales” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 3 (S3)\nOwned feature: Find and explain similar past sales\nRole: Backend / comparable evidence\nUser value: Show real comparable sales and explain why each is credible or excluded.\nExpected output: Selected and excluded ComparableEvidence for S4.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate strong, weak, included, and excluded comparables\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate strong, weak, included, and excluded comparables”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 historical sales; P2 taxonomy; S1 confirmed facts; S4 valuation input.\n- Verify these durable rules in code and tests: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity; Unsold estimates never count as realized prices.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Valuation calculation\n- Buyer search\n- AI-selected prices\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Weak similarity appearing credible\n- Unsold lots counting toward minimum\n- Identical input changing rank\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S3 connects the seller-confirmed item to credible historical sales and explains every included or excluded comparable.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "S1 confirmed facts and P1 historical results",
+            "description": "The latest SellerItem revision plus canonical sold, unsold, incomplete, original-money, and source-lineage records."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate strong, weak, included, and excluded comparables",
+            "description": "Deliver this Week 8 objective as part of the “Find and explain similar past sales” assignment. Produce the owned output: Selected and excluded ComparableEvidence for S4."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S4 valuation",
+            "description": "Stable ranked ComparableEvidence with scores, match reasons, exclusions, original prices, and exact sources."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Visible comparable evidence",
+            "description": "A seller can inspect why past sales are relevant before any valuation range is calculated."
+          }
+        ],
+        "integrationCheckpoint": [
+          "S1, P1, P2, and S4 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “S1 confirmed facts and P1 historical results” through “Demonstrate strong, weak, included, and excluded comparables” into “S4 valuation”.",
+          "Show how this week moves the product toward “Visible comparable evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate strong, weak, included, and excluded comparables” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Only credible realized sales count toward valuation; Ranking is deterministic and explains similarity.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Weak similarity appearing credible; Unsold lots counting toward minimum."
+        ]
+      }
+    }
+  ]
+}

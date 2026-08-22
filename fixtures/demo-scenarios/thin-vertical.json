@@ -1,0 +1,5 @@
+{
+  "id": "thin-vertical-source-backed-lot",
+  "fixtureIds": ["lot-kestenbaum-54554-121421"],
+  "expectedOutcome": "The sample route displays the seeded lot and links to its exact source URL."
+}

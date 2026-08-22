@@ -1,0 +1,374 @@
+{
+  "id": "p2",
+  "name": "Developer 2",
+  "title": "Build the Hebrew and English auction search",
+  "role": "Backend / search",
+  "assignment": {
+    "userValue": "Return relevant auction lots without weakening a buyer’s strict constraints.",
+    "build": [
+      "Hebrew/English text search and aliases",
+      "Category, creator, period, medium, house, status, date, geography, currency, and price filters",
+      "Deterministic ranking, pagination, and concise match reasons"
+    ],
+    "expectedOutput": "A typed paginated search API consumed by B3.",
+    "acceptanceScenario": "Run the benchmark searches in both languages, preserve a strict budget, and explain every result or honest no-result outcome."
+  },
+  "rules": [
+    "PostgreSQL text search",
+    "Budgets and other strict filters stay strict",
+    "Ranking is deterministic and explainable"
+  ],
+  "dependencies": [
+    "P1 auction data",
+    "B3 buyer search use",
+    "S3 uses separate comparable scoring"
+  ],
+  "failureModes": [
+    "Aliases changing category meaning",
+    "Ranking weakening a budget",
+    "Unsupported searches appearing supported"
+  ],
+  "excluded": [
+    "Buyer conversation behavior",
+    "Seller comparable scoring",
+    "Paid embeddings"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain searchable fields and strict filters",
+      "description": "Understand and document “Explain searchable fields and strict filters.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain searchable fields and strict filters\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain searchable fields and strict filters” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Explain how the durable rules will be preserved: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain searchable fields and strict filters",
+            "description": "Deliver this Week 1 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “P1 canonical auction data” through “Explain searchable fields and strict filters” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain searchable fields and strict filters” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Search fixture lots by basic text",
+      "description": "Implement the smallest visible fixture-backed version of “Search fixture lots by basic text.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make a typed paginated search API consumed by B3. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nSearch fixture lots by basic text\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Search fixture lots by basic text”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Verify these durable rules in code and tests: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Search fixture lots by basic text",
+            "description": "Deliver this Week 2 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “P1 canonical auction data” through “Search fixture lots by basic text” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Search fixture lots by basic text” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Add category, creator, date, house, and price filters",
+      "description": "Add the main behavior for “Add category, creator, date, house, and price filters.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd category, creator, date, house, and price filters\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add category, creator, date, house, and price filters”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Verify these durable rules in code and tests: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add category, creator, date, house, and price filters",
+            "description": "Deliver this Week 3 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “P1 canonical auction data” through “Add category, creator, date, house, and price filters” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Add category, creator, date, house, and price filters” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Add Hebrew/English aliases and connect B3",
+      "description": "Connect “Add Hebrew/English aliases and connect B3” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd Hebrew/English aliases and connect B3\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add Hebrew/English aliases and connect B3”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Verify these durable rules in code and tests: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add Hebrew/English aliases and connect B3",
+            "description": "Deliver this Week 4 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “P1 canonical auction data” through “Add Hebrew/English aliases and connect B3” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Add Hebrew/English aliases and connect B3” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Finish deterministic ranking and match reasons",
+      "description": "Complete the required user-facing behavior for “Finish deterministic ranking and match reasons.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nFinish deterministic ranking and match reasons\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Finish deterministic ranking and match reasons”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Verify these durable rules in code and tests: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Finish deterministic ranking and match reasons",
+            "description": "Deliver this Week 5 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “P1 canonical auction data” through “Finish deterministic ranking and match reasons” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Finish deterministic ranking and match reasons” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test weak data, unsupported searches, strict budgets, and a measured baseline",
+      "description": "Test and stabilize “Test weak data, unsupported searches, strict budgets, and a measured baseline.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest weak data, unsupported searches, strict budgets, and a measured baseline\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test weak data, unsupported searches, strict budgets, and a measured baseline”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Verify these durable rules in code and tests: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test weak data, unsupported searches, strict budgets, and a measured baseline",
+            "description": "Deliver this Week 6 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “P1 canonical auction data” through “Test weak data, unsupported searches, strict budgets, and a measured baseline” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test weak data, unsupported searches, strict budgets, and a measured baseline” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Tune demo searches and document the taxonomy",
+      "description": "Prepare “Tune demo searches and document the taxonomy” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTune demo searches and document the taxonomy\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Tune demo searches and document the taxonomy”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Verify these durable rules in code and tests: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Tune demo searches and document the taxonomy",
+            "description": "Deliver this Week 7 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “P1 canonical auction data” through “Tune demo searches and document the taxonomy” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Tune demo searches and document the taxonomy” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate bilingual searches with filters",
+      "description": "Demonstrate “Demonstrate bilingual searches with filters” inside the complete application. Run run the benchmark searches in both languages, preserve a strict budget, and explain every result or honest no-result outcome. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Build the Hebrew and English auction search” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 2 (P2)\nOwned feature: Build the Hebrew and English auction search\nRole: Backend / search\nUser value: Return relevant auction lots without weakening a buyer’s strict constraints.\nExpected output: A typed paginated search API consumed by B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate bilingual searches with filters\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate bilingual searches with filters”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 auction data; B3 buyer search use; S3 uses separate comparable scoring.\n- Verify these durable rules in code and tests: PostgreSQL text search; Budgets and other strict filters stay strict; Ranking is deterministic and explainable.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Buyer conversation behavior\n- Seller comparable scoring\n- Paid embeddings\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Aliases changing category meaning\n- Ranking weakening a budget\n- Unsupported searches appearing supported\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P2 turns P1 canonical auction records into the shared search capability that B3 uses without weakening buyer constraints.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P1 canonical auction data",
+            "description": "Validated lots, sale status, original money, searchable facts, taxonomy fields, and exact source links."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate bilingual searches with filters",
+            "description": "Deliver this Week 8 objective as part of the “Build the Hebrew and English auction search” assignment. Produce the owned output: A typed paginated search API consumed by B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B3 buyer orchestration",
+            "description": "A typed paginated result set with preserved filters, deterministic ranking, and concise match reasons."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Relevant buyer discovery",
+            "description": "A buyer receives explainable current and historical results, or an honest no-result outcome, without silent budget relaxation."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, B3, and S3 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “P1 canonical auction data” through “Demonstrate bilingual searches with filters” into “B3 buyer orchestration”.",
+          "Show how this week moves the product toward “Relevant buyer discovery” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate bilingual searches with filters” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: PostgreSQL text search; Budgets and other strict filters stay strict.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Aliases changing category meaning; Ranking weakening a budget."
+        ]
+      }
+    }
+  ]
+}

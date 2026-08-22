@@ -1,0 +1,376 @@
+{
+  "id": "s5",
+  "name": "Developer 5",
+  "title": "Recommend auction houses and create the seller enquiry",
+  "role": "Full stack / leads",
+  "assignment": {
+    "userValue": "Give sellers supported auction-house options and submit a complete internal Monabid enquiry.",
+    "build": [
+      "Active-house ranking with supported reasons and alternatives",
+      "Seller choice/override and catalog-draft review",
+      "Contact validation, service consent, complete internal lead, and dashboard integration"
+    ],
+    "expectedOutput": "SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.",
+    "acceptanceScenario": "Show useful evidence before contact capture, allow a different house choice, and create an internal lead without contacting a house."
+  },
+  "rules": [
+    "Recommend only active prepared houses",
+    "Save reasons, alternatives, seller choice, and contact",
+    "Create an internal enquiry and never contact a house automatically"
+  ],
+  "dependencies": [
+    "P1 active houses",
+    "P3 contact/profile",
+    "S1 confirmed item",
+    "S4 valuation",
+    "P5 dashboard"
+  ],
+  "failureModes": [
+    "Unsupported commission or acceptance claims",
+    "Lead without name and email or phone",
+    "Recommendation overriding seller choice"
+  ],
+  "excluded": [
+    "Automatic external contact",
+    "Consignment acceptance",
+    "Full CRM"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain recommendation evidence, contact requirements, and status",
+      "description": "Understand and document “Explain recommendation evidence, contact requirements, and status.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain recommendation evidence, contact requirements, and status\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain recommendation evidence, contact requirements, and status” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Explain how the durable rules will be preserved: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain recommendation evidence, contact requirements, and status",
+            "description": "Deliver this Week 1 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Explain recommendation evidence, contact requirements, and status” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain recommendation evidence, contact requirements, and status” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Build a draft enquiry API with contact capture",
+      "description": "Implement the smallest visible fixture-backed version of “Build a draft enquiry API with contact capture.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make sellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nBuild a draft enquiry API with contact capture\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Build a draft enquiry API with contact capture”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Verify these durable rules in code and tests: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Build a draft enquiry API with contact capture",
+            "description": "Deliver this Week 2 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Build a draft enquiry API with contact capture” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Build a draft enquiry API with contact capture” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Rank active houses with understandable reasons",
+      "description": "Add the main behavior for “Rank active houses with understandable reasons.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nRank active houses with understandable reasons\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Rank active houses with understandable reasons”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Verify these durable rules in code and tests: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Rank active houses with understandable reasons",
+            "description": "Deliver this Week 3 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Rank active houses with understandable reasons” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Rank active houses with understandable reasons” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Build recommendation, alternatives, and seller-choice screens",
+      "description": "Connect “Build recommendation, alternatives, and seller-choice screens” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nBuild recommendation, alternatives, and seller-choice screens\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Build recommendation, alternatives, and seller-choice screens”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Verify these durable rules in code and tests: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Build recommendation, alternatives, and seller-choice screens",
+            "description": "Deliver this Week 4 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Build recommendation, alternatives, and seller-choice screens” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Build recommendation, alternatives, and seller-choice screens” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Add catalog draft and create the final internal lead",
+      "description": "Complete the required user-facing behavior for “Add catalog draft and create the final internal lead.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd catalog draft and create the final internal lead\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add catalog draft and create the final internal lead”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Verify these durable rules in code and tests: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add catalog draft and create the final internal lead",
+            "description": "Deliver this Week 5 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Add catalog draft and create the final internal lead” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Add catalog draft and create the final internal lead” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test unsupported claims, missing contact, choice, and dashboard integration",
+      "description": "Test and stabilize “Test unsupported claims, missing contact, choice, and dashboard integration.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest unsupported claims, missing contact, choice, and dashboard integration\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test unsupported claims, missing contact, choice, and dashboard integration”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Verify these durable rules in code and tests: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test unsupported claims, missing contact, choice, and dashboard integration",
+            "description": "Deliver this Week 6 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Test unsupported claims, missing contact, choice, and dashboard integration” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test unsupported claims, missing contact, choice, and dashboard integration” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Document the lead and recommendation workflow",
+      "description": "Prepare “Document the lead and recommendation workflow” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDocument the lead and recommendation workflow\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Document the lead and recommendation workflow”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Verify these durable rules in code and tests: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Document the lead and recommendation workflow",
+            "description": "Deliver this Week 7 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Document the lead and recommendation workflow” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Document the lead and recommendation workflow” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate a confirmed item becoming a Monabid enquiry",
+      "description": "Demonstrate “Demonstrate a confirmed item becoming a Monabid enquiry” inside the complete application. Run show useful evidence before contact capture, allow a different house choice, and create an internal lead without contacting a house. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Recommend auction houses and create the seller enquiry” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 5 (S5)\nOwned feature: Recommend auction houses and create the seller enquiry\nRole: Full stack / leads\nUser value: Give sellers supported auction-house options and submit a complete internal Monabid enquiry.\nExpected output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate a confirmed item becoming a Monabid enquiry\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate a confirmed item becoming a Monabid enquiry”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P1 active houses; P3 contact/profile; S1 confirmed item; S4 valuation; P5 dashboard.\n- Verify these durable rules in code and tests: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact; Create an internal enquiry and never contact a house automatically.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Automatic external contact\n- Consignment acceptance\n- Full CRM\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Unsupported commission or acceptance claims\n- Lead without name and email or phone\n- Recommendation overriding seller choice\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S5 completes the seller journey by presenting supported auction-house options and creating one internal Monabid enquiry.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Confirmed item, evidence, valuation, profile, and active houses",
+            "description": "S1 facts and catalog draft, S2 evidence IDs, S4 report or refusal, P3 contact consent, and P1 active-house metadata."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate a confirmed item becoming a Monabid enquiry",
+            "description": "Deliver this Week 8 objective as part of the “Recommend auction houses and create the seller enquiry” assignment. Produce the owned output: SellerLead for P5 containing item, evidence, valuation/refusal, recommendation, choice, contact, and history."
+          },
+          {
+            "label": "Hands off to",
+            "title": "P5 staff dashboard",
+            "description": "A complete SellerLead with recommendation reasons, alternatives, seller choice, item evidence, valuation or refusal, contact, status, and history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-led seller enquiry",
+            "description": "A seller sees useful evidence before contact capture, chooses an option, and submits internally without automatically contacting an auction house."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P1, P3, S1, S2, S4, and P5 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “Confirmed item, evidence, valuation, profile, and active houses” through “Demonstrate a confirmed item becoming a Monabid enquiry” into “P5 staff dashboard”.",
+          "Show how this week moves the product toward “Evidence-led seller enquiry” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate a confirmed item becoming a Monabid enquiry” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Recommend only active prepared houses; Save reasons, alternatives, seller choice, and contact.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Unsupported commission or acceptance claims; Lead without name and email or phone."
+        ]
+      }
+    }
+  ]
+}

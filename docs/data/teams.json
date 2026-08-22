@@ -1,0 +1,77 @@
+{
+  "data": {
+    "prefix": "p",
+    "name": "Make the Application Work",
+    "short": "Data & Platform",
+    "mission": "Bring prepared auction data into the application, make search and AI work, keep visitor information private, and give Monabid staff a review screen.",
+    "boundaries": [
+      "P1 receives prepared source snapshots and does not investigate external providers.",
+      "P2 owns general auction search; B3 owns how the buyer assistant uses it.",
+      "P3 owns anonymous profiles and privacy, not Buyer or Seller business behavior.",
+      "P4 owns the OpenAI-compatible connection and validation; B2 and S1 own their domain instructions.",
+      "P5 reads domain APIs and never reads Buyer or Seller tables directly."
+    ],
+    "dependencies": [
+      "Project owner: prepared fixtures, representative Bright Data decision, selected OpenAI-compatible provider, deployment path, and branded UI starter.",
+      "Buyer and Seller teams: minimum typed contracts, domain prompts, and dashboard-facing APIs."
+    ],
+    "map": "prepared fixtures → P1 consistent auction data → P2 search\nP3 private visitor profile → Buyer / Seller\nP4 real AI + test fixtures → B2 buyer understanding / S1 seller intake\nBuyer/Seller APIs → P5 staff dashboard",
+    "developerIds": [
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5"
+    ]
+  },
+  "buyer": {
+    "prefix": "b",
+    "name": "Help Buyers Find an Item",
+    "short": "Buyer",
+    "mission": "Help buyers speak in Hebrew or English, turn a vague need into accurate criteria, receive explained results, investigate source-backed evidence, and optionally ask Monabid for manual help after receiving value.",
+    "boundaries": [
+      "B1 owns conversation presentation; B2 owns understanding and revising criteria.",
+      "B3 uses P2 search but never reimplements it.",
+      "B4 owns result lists, item details, evidence navigation, and the post-value help action.",
+      "Contact is optional and requested only after useful results or a useful no-result explanation.",
+      "The reduced project has no saved alerts, scheduled matching, notifications, or email delivery."
+    ],
+    "dependencies": [
+      "P1/P2: consistent auction data, sources, and search.",
+      "P3/P4: anonymous profiles, contact/consent, and AI connection.",
+      "Project owner: prepared fixtures, BidSpirit examples, and approved UI components."
+    ],
+    "map": "B1 conversation → B2 understands and preserves criteria → B3 uses P2 search\nB3 explained matches or unmet demand → B4 results + details + evidence → optional P3 help request",
+    "developerIds": [
+      "b1",
+      "b2",
+      "b3",
+      "b4"
+    ]
+  },
+  "seller": {
+    "prefix": "s",
+    "name": "Help Sellers Understand and Submit an Item",
+    "short": "Seller",
+    "mission": "Help sellers describe an item, add photographs, see comparable sales and a safe valuation, choose an auction house, and create a Monabid enquiry.",
+    "boundaries": [
+      "S1 owns dialogue and seller confirmation.",
+      "S2 owns media, not AI conclusions.",
+      "S3 selects and explains comparables.",
+      "S4 calculates range and confidence from selected evidence.",
+      "S5 recommends houses and creates the final lead."
+    ],
+    "dependencies": [
+      "P1 auction houses and historical results; P3 private profile/contact fields; P4 AI connection.",
+      "Project owner: local-file deployment path, six-comparable seller fixtures, exchange-rate fixtures, and active-house metadata."
+    ],
+    "map": "S1 intake ↔ S2 private evidence → S3 comparable ranking → S4 range + confidence\nconfirmed item + valuation → S5 house recommendation + internal lead",
+    "developerIds": [
+      "s1",
+      "s2",
+      "s3",
+      "s4",
+      "s5"
+    ]
+  }
+}

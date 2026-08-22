@@ -1,0 +1,5 @@
+/shared.js
+  Cache-Control: no-cache
+
+/data/*
+  Cache-Control: no-cache

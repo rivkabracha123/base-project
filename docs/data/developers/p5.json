@@ -1,0 +1,375 @@
+{
+  "id": "p5",
+  "name": "Developer 5",
+  "title": "Build the Monabid staff dashboard",
+  "role": "Full stack",
+  "assignment": {
+    "userValue": "Give Monabid enough context to pursue buyer and seller deals manually.",
+    "build": [
+      "Buyer/seller lead lists and useful filters",
+      "Buyer criteria/results/unmatched demand/contact/consent detail",
+      "Seller facts/evidence/comparables/valuation/catalog detail",
+      "Status history, concise next action, and short activity notes"
+    ],
+    "expectedOutput": "A privacy-limited staff operations dashboard built through domain APIs.",
+    "acceptanceScenario": "Find a synthetic lead, understand the value already delivered and permission to contact, record outreach, and verify the history."
+  },
+  "rules": [
+    "Demonstration data is synthetic",
+    "Dashboard consumes domain APIs, never domain tables",
+    "Only information needed for review and manual follow-up is shown"
+  ],
+  "dependencies": [
+    "P3 profiles and consent",
+    "Buyer demand and shown results",
+    "Seller evidence, valuation, and lead APIs"
+  ],
+  "failureModes": [
+    "Public access to real seller evidence",
+    "Private data shown unnecessarily",
+    "Direct cross-domain database reads"
+  ],
+  "excluded": [
+    "Full CRM",
+    "CSV export and automated assignments/campaigns",
+    "Production staff authorization"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain staff review, privacy, statuses, and next actions",
+      "description": "Understand and document “Explain staff review, privacy, statuses, and next actions.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain staff review, privacy, statuses, and next actions\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain staff review, privacy, statuses, and next actions” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Explain how the durable rules will be preserved: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain staff review, privacy, statuses, and next actions",
+            "description": "Deliver this Week 1 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Explain staff review, privacy, statuses, and next actions” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain staff review, privacy, statuses, and next actions” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Build dashboard shell and buyer/seller lead lists",
+      "description": "Implement the smallest visible fixture-backed version of “Build dashboard shell and buyer/seller lead lists.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make a privacy-limited staff operations dashboard built through domain APIs. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nBuild dashboard shell and buyer/seller lead lists\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Build dashboard shell and buyer/seller lead lists”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Verify these durable rules in code and tests: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Build dashboard shell and buyer/seller lead lists",
+            "description": "Deliver this Week 2 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Build dashboard shell and buyer/seller lead lists” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Build dashboard shell and buyer/seller lead lists” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Show buyer criteria, results, unmatched demand, contact, and consent",
+      "description": "Add the main behavior for “Show buyer criteria, results, unmatched demand, contact, and consent.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nShow buyer criteria, results, unmatched demand, contact, and consent\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Show buyer criteria, results, unmatched demand, contact, and consent”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Verify these durable rules in code and tests: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Show buyer criteria, results, unmatched demand, contact, and consent",
+            "description": "Deliver this Week 3 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Show buyer criteria, results, unmatched demand, contact, and consent” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Show buyer criteria, results, unmatched demand, contact, and consent” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Show seller evidence, comparables, valuation/refusal, and catalog draft",
+      "description": "Connect “Show seller evidence, comparables, valuation/refusal, and catalog draft” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nShow seller evidence, comparables, valuation/refusal, and catalog draft\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Show seller evidence, comparables, valuation/refusal, and catalog draft”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Verify these durable rules in code and tests: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Show seller evidence, comparables, valuation/refusal, and catalog draft",
+            "description": "Deliver this Week 4 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Show seller evidence, comparables, valuation/refusal, and catalog draft” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Show seller evidence, comparables, valuation/refusal, and catalog draft” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Add filters, status history, next action, and short activity notes",
+      "description": "Complete the required user-facing behavior for “Add filters, status history, next action, and short activity notes.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd filters, status history, next action, and short activity notes\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add filters, status history, next action, and short activity notes”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Verify these durable rules in code and tests: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add filters, status history, next action, and short activity notes",
+            "description": "Deliver this Week 5 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Add filters, status history, next action, and short activity notes” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Add filters, status history, next action, and short activity notes” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test empty, error, privacy, larger fixtures, and transition history",
+      "description": "Test and stabilize “Test empty, error, privacy, larger fixtures, and transition history.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest empty, error, privacy, larger fixtures, and transition history\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test empty, error, privacy, larger fixtures, and transition history”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Verify these durable rules in code and tests: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test empty, error, privacy, larger fixtures, and transition history",
+            "description": "Deliver this Week 6 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Test empty, error, privacy, larger fixtures, and transition history” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test empty, error, privacy, larger fixtures, and transition history” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Improve responsive bilingual presentation and write the handoff",
+      "description": "Prepare “Improve responsive bilingual presentation and write the handoff” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nImprove responsive bilingual presentation and write the handoff\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Improve responsive bilingual presentation and write the handoff”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Verify these durable rules in code and tests: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Improve responsive bilingual presentation and write the handoff",
+            "description": "Deliver this Week 7 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Improve responsive bilingual presentation and write the handoff” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Improve responsive bilingual presentation and write the handoff” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate staff operating both lead journeys",
+      "description": "Demonstrate “Demonstrate staff operating both lead journeys” inside the complete application. Run find a synthetic lead, understand the value already delivered and permission to contact, record outreach, and verify the history. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Build the Monabid staff dashboard” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 5 (P5)\nOwned feature: Build the Monabid staff dashboard\nRole: Full stack\nUser value: Give Monabid enough context to pursue buyer and seller deals manually.\nExpected output: A privacy-limited staff operations dashboard built through domain APIs.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate staff operating both lead journeys\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate staff operating both lead journeys”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P3 profiles and consent; Buyer demand and shown results; Seller evidence, valuation, and lead APIs.\n- Verify these durable rules in code and tests: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables; Only information needed for review and manual follow-up is shown.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Full CRM\n- CSV export and automated assignments/campaigns\n- Production staff authorization\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Public access to real seller evidence\n- Private data shown unnecessarily\n- Direct cross-domain database reads\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P5 combines privacy-limited Buyer and Seller views into the operational workflow Monabid staff use for manual follow-up.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 consent plus Buyer and Seller lead views",
+            "description": "Buyer criteria, shown results or unmatched demand, seller facts and evidence, valuation or refusal, catalog draft, contact permission, and history."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate staff operating both lead journeys",
+            "description": "Deliver this Week 8 objective as part of the “Build the Monabid staff dashboard” assignment. Produce the owned output: A privacy-limited staff operations dashboard built through domain APIs."
+          },
+          {
+            "label": "Hands off to",
+            "title": "Monabid staff workflow",
+            "description": "Filtered lead lists, review detail, concise next action, valid status transitions, short activity notes, and retained history."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Evidence-to-action follow-up",
+            "description": "Staff understand the value already delivered, whether contact is permitted, and what manual action should happen next."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, B3, B4, and S5 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “P3 consent plus Buyer and Seller lead views” through “Demonstrate staff operating both lead journeys” into “Monabid staff workflow”.",
+          "Show how this week moves the product toward “Evidence-to-action follow-up” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate staff operating both lead journeys” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Demonstration data is synthetic; Dashboard consumes domain APIs, never domain tables.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Public access to real seller evidence; Private data shown unnecessarily."
+        ]
+      }
+    }
+  ]
+}

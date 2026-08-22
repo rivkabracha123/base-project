@@ -1,0 +1,374 @@
+{
+  "id": "b2",
+  "name": "Developer 2",
+  "title": "Understand what the buyer wants",
+  "role": "Backend / buyer conversation",
+  "assignment": {
+    "userValue": "Turn a vague request into accurate criteria the buyer can review and correct.",
+    "build": [
+      "Persistent BuyerCriteria state",
+      "Focused clarification for missing useful facts",
+      "Corrections, removals, conflicts, skipped questions, and guided fallback"
+    ],
+    "expectedOutput": "Revised criteria and next-question responses for B1 and B3.",
+    "acceptanceScenario": "Convert a vague request into expected criteria, then change one fact without erasing the budget or unrelated constraints."
+  },
+  "rules": [
+    "Questions focus on missing useful facts",
+    "New answers update rather than erase earlier criteria",
+    "Gender is never inferred and nonessential questions can be skipped"
+  ],
+  "dependencies": [
+    "P4 AI connection",
+    "B1 chat screen",
+    "B3 structured criteria"
+  ],
+  "failureModes": [
+    "Refinement erasing a budget",
+    "Conversation becoming a form",
+    "AI failure blocking guided input"
+  ],
+  "excluded": [
+    "Search execution",
+    "Result presentation",
+    "Profile registration"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain criteria, useful questions, and facts that must remain",
+      "description": "Understand and document “Explain criteria, useful questions, and facts that must remain.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain criteria, useful questions, and facts that must remain\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain criteria, useful questions, and facts that must remain” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with P4 AI connection; B1 chat screen; B3 structured criteria.\n- Explain how the durable rules will be preserved: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain criteria, useful questions, and facts that must remain",
+            "description": "Deliver this Week 1 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Explain criteria, useful questions, and facts that must remain” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain criteria, useful questions, and facts that must remain” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Extract a basic structured request from a fixture response",
+      "description": "Implement the smallest visible fixture-backed version of “Extract a basic structured request from a fixture response.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make revised criteria and next-question responses for B1 and B3. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExtract a basic structured request from a fixture response\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Extract a basic structured request from a fixture response”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P4 AI connection; B1 chat screen; B3 structured criteria.\n- Verify these durable rules in code and tests: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Extract a basic structured request from a fixture response",
+            "description": "Deliver this Week 2 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Extract a basic structured request from a fixture response” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Extract a basic structured request from a fixture response” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Ask focused questions for missing search facts",
+      "description": "Add the main behavior for “Ask focused questions for missing search facts.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAsk focused questions for missing search facts\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Ask focused questions for missing search facts”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P4 AI connection; B1 chat screen; B3 structured criteria.\n- Verify these durable rules in code and tests: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Ask focused questions for missing search facts",
+            "description": "Deliver this Week 3 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Ask focused questions for missing search facts” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Ask focused questions for missing search facts” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Update criteria across turns without erasing constraints",
+      "description": "Connect “Update criteria across turns without erasing constraints” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nUpdate criteria across turns without erasing constraints\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Update criteria across turns without erasing constraints”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P4 AI connection; B1 chat screen; B3 structured criteria.\n- Verify these durable rules in code and tests: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Update criteria across turns without erasing constraints",
+            "description": "Deliver this Week 4 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Update criteria across turns without erasing constraints” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Update criteria across turns without erasing constraints” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Finish review, correction, skipped questions, and guided fallback",
+      "description": "Complete the required user-facing behavior for “Finish review, correction, skipped questions, and guided fallback.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nFinish review, correction, skipped questions, and guided fallback\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Finish review, correction, skipped questions, and guided fallback”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P4 AI connection; B1 chat screen; B3 structured criteria.\n- Verify these durable rules in code and tests: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Finish review, correction, skipped questions, and guided fallback",
+            "description": "Deliver this Week 5 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Finish review, correction, skipped questions, and guided fallback” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Finish review, correction, skipped questions, and guided fallback” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test bilingual, conflict, removal, missing, and preservation cases",
+      "description": "Test and stabilize “Test bilingual, conflict, removal, missing, and preservation cases.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest bilingual, conflict, removal, missing, and preservation cases\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test bilingual, conflict, removal, missing, and preservation cases”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P4 AI connection; B1 chat screen; B3 structured criteria.\n- Verify these durable rules in code and tests: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test bilingual, conflict, removal, missing, and preservation cases",
+            "description": "Deliver this Week 6 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Test bilingual, conflict, removal, missing, and preservation cases” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test bilingual, conflict, removal, missing, and preservation cases” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Refine prompts and document the intent contract",
+      "description": "Prepare “Refine prompts and document the intent contract” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nRefine prompts and document the intent contract\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Refine prompts and document the intent contract”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P4 AI connection; B1 chat screen; B3 structured criteria.\n- Verify these durable rules in code and tests: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Refine prompts and document the intent contract",
+            "description": "Deliver this Week 7 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Refine prompts and document the intent contract” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Refine prompts and document the intent contract” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate vague intent becoming accurate reviewable criteria",
+      "description": "Demonstrate “Demonstrate vague intent becoming accurate reviewable criteria” inside the complete application. Run convert a vague request into expected criteria, then change one fact without erasing the budget or unrelated constraints. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Understand what the buyer wants” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Buyers Find an Item\nDeveloper: Developer 2 (B2)\nOwned feature: Understand what the buyer wants\nRole: Backend / buyer conversation\nUser value: Turn a vague request into accurate criteria the buyer can review and correct.\nExpected output: Revised criteria and next-question responses for B1 and B3.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate vague intent becoming accurate reviewable criteria\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate vague intent becoming accurate reviewable criteria”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: P4 AI connection; B1 chat screen; B3 structured criteria.\n- Verify these durable rules in code and tests: Questions focus on missing useful facts; New answers update rather than erase earlier criteria; Gender is never inferred and nonessential questions can be skipped.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Search execution\n- Result presentation\n- Profile registration\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Refinement erasing a budget\n- Conversation becoming a form\n- AI failure blocking guided input\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "B2 preserves and improves the buyer’s meaning across conversation turns before B3 sends a typed request to search.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "B1 buyer messages and P4 validated extraction",
+            "description": "Natural-language answers, prior BuyerCriteria, skipped questions, corrections, and guided fallback fields."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate vague intent becoming accurate reviewable criteria",
+            "description": "Deliver this Week 8 objective as part of the “Understand what the buyer wants” assignment. Produce the owned output: Revised criteria and next-question responses for B1 and B3."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1 questions and B3 criteria",
+            "description": "Reviewable BuyerCriteria, focused next questions, corrections, removals, conflicts, and explicit hard constraints."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Accurate buyer intent",
+            "description": "The search represents what the buyer actually asked for and refinements do not erase budgets or unrelated constraints."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, P4, and B3 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “B1 buyer messages and P4 validated extraction” through “Demonstrate vague intent becoming accurate reviewable criteria” into “B1 questions and B3 criteria”.",
+          "Show how this week moves the product toward “Accurate buyer intent” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate vague intent becoming accurate reviewable criteria” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Questions focus on missing useful facts; New answers update rather than erase earlier criteria.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Refinement erasing a budget; Conversation becoming a form."
+        ]
+      }
+    }
+  ]
+}

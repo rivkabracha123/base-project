@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment and runtime data
+.env
+.env.*
+!.env.example
+.local-storage/
+*.log
+
+# macOS metadata
+.DS_Store
+
+# Local hidden directories
+.*/
+
+# Repository configuration that must remain tracked
+!.github/
+!.github/**

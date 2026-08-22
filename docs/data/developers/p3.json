@@ -1,0 +1,375 @@
+{
+  "id": "p3",
+  "name": "Developer 3",
+  "title": "Build the private visitor profile",
+  "role": "Backend / privacy",
+  "assignment": {
+    "userValue": "Remember useful preferences and contact permission without forcing registration.",
+    "build": [
+      "Anonymous session-owned profile",
+      "Language, grammatical form, preferred name, optional contact, and separate consents",
+      "Contextual contact capture, profile review, update, deletion, and isolation"
+    ],
+    "expectedOutput": "Current-profile and contact/consent APIs for Buyer, Seller, and P5.",
+    "acceptanceScenario": "Use two browsers, update and delete one profile, and prove neither visitor can see or affect the other."
+  },
+  "rules": [
+    "A random session owns each anonymous profile",
+    "Service and marketing consent remain separate",
+    "Visitors can review, update, and delete their information"
+  ],
+  "dependencies": [
+    "B1 anonymous chat",
+    "B4 buyer help requests",
+    "S5 seller contact",
+    "P5 dashboard views"
+  ],
+  "failureModes": [
+    "One visitor seeing another profile",
+    "Contact data appearing in logs",
+    "Deleting one profile affecting another"
+  ],
+  "excluded": [
+    "Login, KYC, or bidder identity",
+    "Email verification",
+    "Buyer or Seller business behavior"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain anonymous sessions, preferences, privacy, and deletion",
+      "description": "Understand and document “Explain anonymous sessions, preferences, privacy, and deletion.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain anonymous sessions, preferences, privacy, and deletion\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain anonymous sessions, preferences, privacy, and deletion” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Explain how the durable rules will be preserved: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain anonymous sessions, preferences, privacy, and deletion",
+            "description": "Deliver this Week 1 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Explain anonymous sessions, preferences, privacy, and deletion” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain anonymous sessions, preferences, privacy, and deletion” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Create isolated profiles with language preference",
+      "description": "Implement the smallest visible fixture-backed version of “Create isolated profiles with language preference.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make current-profile and contact/consent APIs for Buyer, Seller, and P5. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nCreate isolated profiles with language preference\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Create isolated profiles with language preference”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Verify these durable rules in code and tests: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Create isolated profiles with language preference",
+            "description": "Deliver this Week 2 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Create isolated profiles with language preference” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Create isolated profiles with language preference” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Add name, grammatical form, contact details, and consent",
+      "description": "Add the main behavior for “Add name, grammatical form, contact details, and consent.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd name, grammatical form, contact details, and consent\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add name, grammatical form, contact details, and consent”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Verify these durable rules in code and tests: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add name, grammatical form, contact details, and consent",
+            "description": "Deliver this Week 3 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Add name, grammatical form, contact details, and consent” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Add name, grammatical form, contact details, and consent” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Connect the minimum fields needed by Buyer, Seller, and dashboard",
+      "description": "Connect “Connect the minimum fields needed by Buyer, Seller, and dashboard” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nConnect the minimum fields needed by Buyer, Seller, and dashboard\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Connect the minimum fields needed by Buyer, Seller, and dashboard”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Verify these durable rules in code and tests: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Connect the minimum fields needed by Buyer, Seller, and dashboard",
+            "description": "Deliver this Week 4 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Connect the minimum fields needed by Buyer, Seller, and dashboard” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Connect the minimum fields needed by Buyer, Seller, and dashboard” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Add profile review, update, and deletion",
+      "description": "Complete the required user-facing behavior for “Add profile review, update, and deletion.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd profile review, update, and deletion\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add profile review, update, and deletion”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Verify these durable rules in code and tests: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add profile review, update, and deletion",
+            "description": "Deliver this Week 5 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Add profile review, update, and deletion” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Add profile review, update, and deletion” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test isolation, unsafe logs, invalid sessions, and deletion",
+      "description": "Test and stabilize “Test isolation, unsafe logs, invalid sessions, and deletion.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest isolation, unsafe logs, invalid sessions, and deletion\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test isolation, unsafe logs, invalid sessions, and deletion”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Verify these durable rules in code and tests: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test isolation, unsafe logs, invalid sessions, and deletion",
+            "description": "Deliver this Week 6 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Test isolation, unsafe logs, invalid sessions, and deletion” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test isolation, unsafe logs, invalid sessions, and deletion” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Write the privacy and profile handoff",
+      "description": "Prepare “Write the privacy and profile handoff” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nWrite the privacy and profile handoff\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Write the privacy and profile handoff”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Verify these durable rules in code and tests: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Write the privacy and profile handoff",
+            "description": "Deliver this Week 7 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Write the privacy and profile handoff” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Write the privacy and profile handoff” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate two visitors whose information never crosses",
+      "description": "Demonstrate “Demonstrate two visitors whose information never crosses” inside the complete application. Run use two browsers, update and delete one profile, and prove neither visitor can see or affect the other. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Build the private visitor profile” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Make the Application Work\nDeveloper: Developer 3 (P3)\nOwned feature: Build the private visitor profile\nRole: Backend / privacy\nUser value: Remember useful preferences and contact permission without forcing registration.\nExpected output: Current-profile and contact/consent APIs for Buyer, Seller, and P5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate two visitors whose information never crosses\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate two visitors whose information never crosses”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: B1 anonymous chat; B4 buyer help requests; S5 seller contact; P5 dashboard views.\n- Verify these durable rules in code and tests: A random session owns each anonymous profile; Service and marketing consent remain separate; Visitors can review, update, and delete their information.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Login, KYC, or bidder identity\n- Email verification\n- Buyer or Seller business behavior\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- One visitor seeing another profile\n- Contact data appearing in logs\n- Deleting one profile affecting another\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "P3 provides the private anonymous profile and consent boundary shared by Buyer, Seller, and the staff dashboard.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "Anonymous browser session and visitor choices",
+            "description": "Language, grammatical form, profile changes, optional contact details, and explicit service or marketing consent choices."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate two visitors whose information never crosses",
+            "description": "Deliver this Week 8 objective as part of the “Build the private visitor profile” assignment. Produce the owned output: Current-profile and contact/consent APIs for Buyer, Seller, and P5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "B1, B4, S5, and P5",
+            "description": "Session-owned profile, reviewed contact fields, consent evidence, update and deletion behavior, and privacy-safe views."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Value before permission",
+            "description": "Visitors can receive useful results or seller evidence anonymously and request human help without exposing another visitor’s data."
+          }
+        ],
+        "integrationCheckpoint": [
+          "B1, B4, S5, and P5 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “Anonymous browser session and visitor choices” through “Demonstrate two visitors whose information never crosses” into “B1, B4, S5, and P5”.",
+          "Show how this week moves the product toward “Value before permission” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate two visitors whose information never crosses” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: A random session owns each anonymous profile; Service and marketing consent remain separate.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: One visitor seeing another profile; Contact data appearing in logs."
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "monabid",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:libs": "npm run build --workspace=@monabid/shared && npm run build --workspace=@monabid/ui",
+    "dev": "npm run build:libs && concurrently -n backend,client -c blue,magenta \"npm run dev:backend\" \"npm run dev:client\"",
+    "dev:backend": "npm run dev --workspace=@monabid/assistant-backend",
+    "dev:client": "npm run dev --workspace=@monabid/assistant-client",
+    "build": "npm run build:libs && npm run build --workspace=@monabid/assistant-backend && npm run build --workspace=@monabid/assistant-client",
+    "typecheck": "npm run build:libs && npm run typecheck --workspaces --if-present",
+    "test": "npm run build:libs && npm run test --workspaces --if-present",
+    "test:ci": "npm test",
+    "db:migrate": "npm run migration:run --workspace=@monabid/assistant-backend",
+    "db:revert": "npm run migration:revert --workspace=@monabid/assistant-backend",
+    "db:seed": "npm run build --workspace=@monabid/shared && npm run seed --workspace=@monabid/assistant-backend",
+    "db:reset": "npm run build --workspace=@monabid/shared && npm run reset --workspace=@monabid/assistant-backend",
+    "fixtures:validate": "npm run fixtures:validate --workspace=@monabid/shared",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: monabid_test
+          POSTGRES_USER: monabid
+          POSTGRES_PASSWORD: monabid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U monabid -d monabid_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      NODE_ENV: test
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+      DATABASE_URL: postgresql://monabid:monabid@localhost:5432/monabid_test
+      FIXTURE_SET: default
+      LOCAL_STORAGE_PATH: .local-storage/test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run fixtures:validate
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

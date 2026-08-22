@@ -1,0 +1,43 @@
+{
+  "stages": [
+    "EXPLAIN",
+    "START",
+    "BUILD",
+    "CONNECT",
+    "COMPLETE",
+    "TEST",
+    "PREPARE",
+    "DEMONSTRATE"
+  ],
+  "weekThemes": [
+    "Explain",
+    "Start",
+    "Build",
+    "Connect",
+    "Complete",
+    "Test",
+    "Prepare",
+    "Demonstrate"
+  ],
+  "teamOrder": [
+    "data",
+    "buyer",
+    "seller"
+  ],
+  "developerIds": [
+    "p1",
+    "p2",
+    "p3",
+    "p4",
+    "p5",
+    "b1",
+    "b2",
+    "b3",
+    "b4",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5"
+  ]
+}

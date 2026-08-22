@@ -1,0 +1,74 @@
+[
+  {
+    "id": "implementation-repository",
+    "name": "Prepared implementation repository",
+    "teams": [
+      "All"
+    ],
+    "whatTheyReceive": "One GitHub repository containing the standalone npm-workspaces structure, a working React 18 and Vite application, a working NestJS service, the initial shared TypeScript package, Docker Compose PostgreSQL, environment examples, root development commands, starter tests, CI, and the pull-request template.",
+    "usedFor": "A single implementation base so students start with product features rather than assembling frontend, backend, database, workspace, and review infrastructure.",
+    "readyWhen": "A clean clone installs, starts the frontend and backend, connects to PostgreSQL, runs migrations and starter tests, and passes the prepared CI workflow.",
+    "link": {
+      "href": null,
+      "label": "Open the implementation repository"
+    }
+  },
+  {
+    "id": "monabid-ui-kit",
+    "name": "Approved Monabid components and brand assets",
+    "teams": [
+      "All"
+    ],
+    "whatTheyReceive": "An approved folder inside the implementation repository containing the Monabid logo, colors, typography, layout tokens, RTL-ready primitives, and the conversation, result, item, chart, estimate, auction-house, catalog, evidence, and upload components selected for this project.",
+    "usedFor": "A consistent Monabid interface without requiring junior developers to recreate the design system or extract components themselves.",
+    "readyWhen": "The package is imported by the starter application and its supplied components have fixture-backed examples for the relevant main, loading, empty, error, mobile, Hebrew, and English states.",
+    "link": {
+      "href": null,
+      "label": "Open the Monabid UI package"
+    }
+  },
+  {
+    "id": "auction-data-pack",
+    "name": "Auction data and benchmark fixture pack",
+    "teams": [
+      "All"
+    ],
+    "whatTheyReceive": "Sanitized source-neutral auction-house, auction, lot, and sale-result fixtures; exact source lineage; the representative Bright Data sample and field decision; named buyer and seller benchmark scenarios; synthetic contact and photo evidence; and dated exchange-rate records used by the demonstrations.",
+    "usedFor": "P1 ingestion, P2 search, Buyer results, Seller comparables and valuation, privacy tests, staff-dashboard examples, and deterministic acceptance journeys without customer or bidder data.",
+    "readyWhen": "Fixture validation passes, every source-derived record is traceable, benchmark scenarios name their fixture IDs, and the pack covers sold, unsold, upcoming, missing-data, multiple-category, multiple-currency, supported-valuation, and refusal cases.",
+    "link": {
+      "href": null,
+      "label": "Open the auction data pack"
+    }
+  },
+  {
+    "id": "ai-service-access",
+    "name": "Selected OpenAI-compatible service access",
+    "teams": [
+      "Data & Platform",
+      "Buyer",
+      "Seller"
+    ],
+    "whatTheyReceive": "The approved provider base URL, model identifier, environment-variable names, secure credential handoff, known free-tier or usage limits, and the project-owner decision record. The project owner may use the awesome-freellm-apis directory to evaluate candidates.",
+    "usedFor": "P4’s Week 1 provider explanation and Hebrew/English smoke test, followed by P4’s provider adapter, schema validation, deterministic fixture provider, retry, and fallback work with B2 and S1.",
+    "readyWhen": "The selected endpoint is OpenAI-compatible, credentials are supplied outside the public repository, known limits are recorded, and P4 can run the limited Hebrew and English structured-output smoke test.",
+    "link": {
+      "href": null,
+      "label": "Open the AI provider decision"
+    }
+  },
+  {
+    "id": "deployment-environments",
+    "name": "Prepared public deployment environments",
+    "teams": [
+      "All"
+    ],
+    "whatTheyReceive": "A Cloudflare Pages frontend project, Render backend service, Render PostgreSQL database, protected environment configuration, health checks, and one public fixture-backed application URL.",
+    "usedFor": "Cross-team integration from Week 5 onward and the final public demonstration of all fourteen features.",
+    "readyWhen": "The integrated fixture-mode application deploys successfully, secrets stay server-side, health checks pass, and synthetic buyer, seller, and staff journeys are reachable from the public URL.",
+    "link": {
+      "href": null,
+      "label": "Open the deployed application"
+    }
+  }
+]

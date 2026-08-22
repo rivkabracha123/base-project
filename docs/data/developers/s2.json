@@ -1,0 +1,374 @@
+{
+  "id": "s2",
+  "name": "Developer 2",
+  "title": "Build safe local photo upload",
+  "role": "Full stack / storage",
+  "assignment": {
+    "userValue": "Let sellers safely supply visual evidence without exposing it to another visitor.",
+    "build": [
+      "Multiple local image upload with metadata/previews",
+      "Type, size, safe-name, ordering, deletion, and retry behavior",
+      "Profile-isolated access and deletion of unsubmitted evidence"
+    ],
+    "expectedOutput": "Isolated evidence references for S1 and S5.",
+    "acceptanceScenario": "Upload similarly named files in two sessions and prove one session cannot view or delete the other’s evidence."
+  },
+  "rules": [
+    "Files belong to one anonymous profile",
+    "Safe names, types, and size limits are enforced",
+    "Tests use temporary folders and synthetic evidence"
+  ],
+  "dependencies": [
+    "Project-owner local-file deployment path",
+    "P3 profile isolation",
+    "S1 and S5 evidence references"
+  ],
+  "failureModes": [
+    "Path traversal or unsafe files accepted",
+    "Deleting one profile’s photo affecting another",
+    "Storage failure losing the item draft"
+  ],
+  "excluded": [
+    "Image interpretation",
+    "R2 and signed URLs",
+    "Supporting documents"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Explain file safety, ownership, and local storage",
+      "description": "Understand and document “Explain file safety, ownership, and local storage.” Produce the feature flow, domain terms, inputs, outputs, dependencies, boundaries, one success fixture, one failure fixture, and unresolved questions for Miryam. Do not write feature code this week.",
+      "verification": "You are checking my direction before coding for Week 1 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nExplain file safety, ownership, and local storage\n\nACCEPTANCE CRITERIA\n- Explain the intended design for “Explain file safety, ownership, and local storage” without proposing feature code.\n- Identify the contracts and dependencies that must be confirmed with Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Explain how the durable rules will be preserved: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- List unresolved contract questions for Miryam before coding; do not invent missing provider or fixture facts.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR DIRECTION REVIEW | NEEDS CLARIFICATION\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This is a Week 1 direction check. Do not require implementation and do not write code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Explain file safety, ownership, and local storage",
+            "description": "Deliver this Week 1 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Agree on the direction and minimum contract before coding. Use one success example, one failure example, and record unresolved decisions for Miryam.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Explain file safety, ownership, and local storage” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The direction artifact names the input contract, output contract, success fixture, failure fixture, boundaries, and decisions still needed; no feature code is required.",
+          "The verification for “Explain file safety, ownership, and local storage” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    },
+    {
+      "week": 2,
+      "title": "Upload multiple images with metadata and previews",
+      "description": "Implement the smallest visible fixture-backed version of “Upload multiple images with metadata and previews.” Use the prepared contracts and components, keep the slice inside this feature’s boundary, and make isolated evidence references for S1 and S5. visible or callable.",
+      "verification": "You are verifying my implementation for Week 2 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nUpload multiple images with metadata and previews\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Upload multiple images with metadata and previews”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Verify these durable rules in code and tests: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Upload multiple images with metadata and previews",
+            "description": "Deliver this Week 2 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Publish the smallest fixture-backed output and prove the named consumer can call or render it through the agreed shape.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Upload multiple images with metadata and previews” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The smallest visible or callable version uses prepared fixtures and the named consumer can use its output without undocumented manual transformation.",
+          "The verification for “Upload multiple images with metadata and previews” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    },
+    {
+      "week": 3,
+      "title": "Add ordering, deletion, and clear success/error states",
+      "description": "Add the main behavior for “Add ordering, deletion, and clear success/error states.” Cover the normal user path with deterministic fixture data and preserve the durable rules and failure cases stated above.",
+      "verification": "You are verifying my implementation for Week 3 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nAdd ordering, deletion, and clear success/error states\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Add ordering, deletion, and clear success/error states”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Verify these durable rules in code and tests: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Add ordering, deletion, and clear success/error states",
+            "description": "Deliver this Week 3 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Run the normal path across the adjacent boundary with deterministic fixtures and confirm the main owned behavior reaches its consumer.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Add ordering, deletion, and clear success/error states” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The primary behavior works with deterministic data and preserves the relevant durable rules on both sides of the handoff.",
+          "The verification for “Add ordering, deletion, and clear success/error states” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    },
+    {
+      "week": 4,
+      "title": "Connect the evidence gallery to S1 corrections",
+      "description": "Connect “Connect the evidence gallery to S1 corrections” to only the listed dependencies. Agree on the minimum typed contract, add a fixture or mock, and complete one integration test without taking ownership of the other feature.",
+      "verification": "You are verifying my implementation for Week 4 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nConnect the evidence gallery to S1 corrections\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Connect the evidence gallery to S1 corrections”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Verify these durable rules in code and tests: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Connect the evidence gallery to S1 corrections",
+            "description": "Deliver this Week 4 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Freeze the minimum producer-consumer contract and pass one integration or contract test without taking ownership of the adjacent feature.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Connect the evidence gallery to S1 corrections” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The typed contract, shared fixture or mock, and one producer-consumer integration test are committed and passing.",
+          "The verification for “Connect the evidence gallery to S1 corrections” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    },
+    {
+      "week": 5,
+      "title": "Finish file limits, safe names/types, and isolated access",
+      "description": "Complete the required user-facing behavior for “Finish file limits, safe names/types, and isolated access.” Finish corrections, missing-data states, persistence, and the acceptance path; do not add stretch scope.",
+      "verification": "You are verifying my implementation for Week 5 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nFinish file limits, safe names/types, and isolated access\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Finish file limits, safe names/types, and isolated access”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Verify these durable rules in code and tests: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- Run unit tests for domain logic plus the relevant integration or contract test; report commands and outcomes.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Finish file limits, safe names/types, and isolated access",
+            "description": "Deliver this Week 5 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Run the complete required slice through the named input and output handoffs; finish missing-data, correction, persistence, and customer-facing states.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Finish file limits, safe names/types, and isolated access” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The required integrated slice reaches its customer or staff outcome without omitted states or stretch scope.",
+          "The verification for “Finish file limits, safe names/types, and isolated access” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    },
+    {
+      "week": 6,
+      "title": "Test invalid files, failures, deletion, and cross-profile access",
+      "description": "Test and stabilize “Test invalid files, failures, deletion, and cross-profile access.” Cover invalid input, missing data, privacy, accessibility, deterministic behavior, and service failure. Record reproducible commands and measured fixture results where relevant.",
+      "verification": "You are verifying my implementation for Week 6 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nTest invalid files, failures, deletion, and cross-profile access\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Test invalid files, failures, deletion, and cross-profile access”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Verify these durable rules in code and tests: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- Report measured fixture/baseline results for reliability or performance work. Do not substitute an invented threshold.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Test invalid files, failures, deletion, and cross-profile access",
+            "description": "Deliver this Week 6 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Exercise invalid input, missing data, privacy or accessibility risk, deterministic behavior, and service failure across the boundary; record reproducible results.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Test invalid files, failures, deletion, and cross-profile access” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "Failure and safety tests pass, measured results are reproducible where relevant, and logs or artifacts expose no private data or credentials.",
+          "The verification for “Test invalid files, failures, deletion, and cross-profile access” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    },
+    {
+      "week": 7,
+      "title": "Improve upload UX and write the storage handoff",
+      "description": "Prepare “Improve upload UX and write the storage handoff” for another developer to operate. Improve usability and bilingual copy, document configuration and known limits, and write the feature handoff against actual behavior.",
+      "verification": "You are verifying my implementation for Week 7 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nImprove upload UX and write the storage handoff\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Improve upload UX and write the storage handoff”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Verify these durable rules in code and tests: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- Verify user-facing copy, runbooks, known limitations, and handoff instructions against actual behavior.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Improve upload UX and write the storage handoff",
+            "description": "Deliver this Week 7 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Give the consumer the real configuration, fixtures, runbook, known limits, and handoff; confirm another developer can operate the feature.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Improve upload UX and write the storage handoff” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The handoff matches actual behavior and the consumer can run, diagnose, and explain the feature without the owner’s private knowledge.",
+          "The verification for “Improve upload UX and write the storage handoff” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    },
+    {
+      "week": 8,
+      "title": "Demonstrate upload, arrangement, viewing, and removal",
+      "description": "Demonstrate “Demonstrate upload, arrangement, viewing, and removal” inside the complete application. Run upload similarly named files in two sessions and prove one session cannot view or delete the other’s evidence. Show owned code, tests, fixtures, and handoff evidence; introduce no substantial new feature.",
+      "verification": "You are verifying my implementation for Week 8 of “Build safe local photo upload” in the Monabid Assistant project. Read the repository and the authoritative docs/decisions.md and docs/team-matrix.md.\n\nCONTEXT\nTeam: Help Sellers Understand and Submit an Item\nDeveloper: Developer 2 (S2)\nOwned feature: Build safe local photo upload\nRole: Full stack / storage\nUser value: Let sellers safely supply visual evidence without exposing it to another visitor.\nExpected output: Isolated evidence references for S1 and S5.\n\nRead the explicit assignment and this week's description on the team page before reviewing the implementation.\n\nEXACT WEEKLY GOAL\nDemonstrate upload, arrangement, viewing, and removal\n\nACCEPTANCE CRITERIA\n- Locate the implementation and tests for the exact weekly goal: “Demonstrate upload, arrangement, viewing, and removal”. Cite file paths and test names.\n- Demonstrate the goal with deterministic fixtures; CI must not call Bright Data, BidSpirit, Dibzel, a hosted LLM, external file storage, or email.\n- Verify the owned boundary and dependencies: Project-owner local-file deployment path; P3 profile isolation; S1 and S5 evidence references.\n- Verify these durable rules in code and tests: Files belong to one anonymous profile; Safe names, types, and size limits are enforced; Tests use temporary folders and synthetic evidence.\n- Confirm no substantial new feature was introduced; run the relevant acceptance scenario and verify handoff evidence.\n- Check that logs and test artifacts omit contact data, verification codes, signed URLs, credentials, and full conversations.\n\nEXPLICITLY OUT OF SCOPE\n- Image interpretation\n- R2 and signed URLs\n- Supporting documents\n- Any stretch goal unless all required work is complete and Miryam approved it.\n\nKNOWN FAILURE MODES TO CHECK\n- Path traversal or unsafe files accepted\n- Deleting one profile’s photo affecting another\n- Storage failure losing the item draft\n- Fabricated latency, quality, relevance, or accuracy thresholds. Where measurement is needed, require a reproducible fixture baseline and document the result.\n\nSTRICT OUTPUT STRUCTURE\nSUMMARY\n- Verdict: READY FOR REVIEW | NOT READY | BLOCKED\n- Weekly goal: one sentence\n\nCHECKLIST / EVIDENCE\n- [PASS | FAIL | UNCLEAR] Criterion 1: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 2: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 3: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 4: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 5: evidence with file path, test name, and command/result where applicable\n- [PASS | FAIL | UNCLEAR] Criterion 6: evidence with file path, test name, and command/result where applicable\n\nNOTES FOR MIRYAM\n- Decisions or questions: list or “None”\n- Known limitations: list or “None”\n- Out-of-scope changes found: list or “None”\n\nRULES\n- This report is intended for the PR description. Review only; do not fix code.\n- Do not claim PASS without evidence. Do not invent repository behavior, provider facts, or measurements.\n- Mark partial criteria FAIL and explain the missing part.",
+      "productContext": {
+        "introduction": "S2 supplies private visual evidence references without interpreting images or allowing one anonymous visitor to access another visitor’s files.",
+        "flow": [
+          {
+            "label": "Receives",
+            "title": "P3 profile session and seller uploads",
+            "description": "Synthetic image files, safe metadata, ordering actions, deletion requests, and storage success or failure outcomes."
+          },
+          {
+            "label": "Owns this week",
+            "title": "Demonstrate upload, arrangement, viewing, and removal",
+            "description": "Deliver this Week 8 objective as part of the “Build safe local photo upload” assignment. Produce the owned output: Isolated evidence references for S1 and S5."
+          },
+          {
+            "label": "Hands off to",
+            "title": "S1 corrections and S5 enquiry",
+            "description": "Profile-isolated evidence IDs, metadata, previews, stable ordering, deletion state, and explicit storage errors."
+          },
+          {
+            "label": "Complete journey contribution",
+            "title": "Private seller evidence",
+            "description": "A seller can organize evidence for item review and enquiry while files remain isolated and removable."
+          }
+        ],
+        "integrationCheckpoint": [
+          "P3, S1, and S5 complete this checkpoint: Demonstrate the owned feature inside the integrated acceptance journey and have the adjacent owner confirm the input and output evidence.",
+          "Trace one named fixture from “P3 profile session and seller uploads” through “Demonstrate upload, arrangement, viewing, and removal” into “S1 corrections and S5 enquiry”.",
+          "Show how this week moves the product toward “Private seller evidence” rather than stopping at an isolated component or service."
+        ],
+        "doneWhen": [
+          "The integrated scenario passes, owned tests and fixtures are visible, handoff evidence is current, and no substantial new feature was added.",
+          "The verification for “Demonstrate upload, arrangement, viewing, and removal” has repository, fixture, test, or direction evidence for every criterion.",
+          "The handoff preserves these rules: Files belong to one anonymous profile; Safe names, types, and size limits are enforced.",
+          "The work checks these boundary failures and leaves no undocumented downstream workaround: Path traversal or unsafe files accepted; Deleting one profile’s photo affecting another."
+        ]
+      }
+    }
+  ]
+}
