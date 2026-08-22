@@ -2,6 +2,24 @@
 
 Standalone bilingual auction-assistant foundation for the Monabid junior development project.
 
+**Project documentation:** https://monabid.giladweb.workers.dev/
+
+## What this repository contains
+
+This repository is the prepared development foundation, not the completed Monabid product. It gives the student team a working frontend, backend, database, shared contracts, tests, and deployment structure so they can begin with product features instead of assembling infrastructure.
+
+The included sample route proves one complete path:
+
+1. `fixtures/auction-data/lots.json` supplies a canonical auction lot.
+2. A TypeORM migration creates the PostgreSQL table, and the seed command inserts the fixture.
+3. NestJS returns the lot from `GET /api/lots/sample`.
+4. The React application validates and displays it at `/sample`.
+5. The item card links to the original auction source.
+
+The repository does not yet implement the buyer and seller conversations, photo intake, auction search, comparable selection, valuation, lead capture, staff dashboard, hosted AI integration, complete fixture pack, approved branded component library, or public application deployment. Those are separate owner deliverables or student-owned features described in the [project documentation](https://monabid.giladweb.workers.dev/).
+
+The private `.monabid-demo/` directory is reference material and is intentionally excluded from Git. Approved components must be reviewed and moved into `packages/ui` through the separate UI-kit deliverable rather than exposing the original design project.
+
 ## Prerequisites
 
 - Node.js 22+
