@@ -1,3 +1,4 @@
+
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 
 describe('criteriaToSearchRequest', () => {
@@ -43,22 +44,42 @@ describe('criteriaToSearchRequest', () => {
     expect(request.period).toBeUndefined();
     expect(request.maxPrice).toBeUndefined();
   });
-});
 
-it('preserves all optional search criteria', () => {
-  const criteria = {
-    format: 'manuscript',
-    geography: 'Israel',
-    keywords: ['Hebrew', 'rare'],
-    auctionHouse: 'Kestenbaum & Company',
-    language: 'en' as const,
-  };
+  it('preserves all optional search criteria', () => {
+    const criteria = {
+      format: 'manuscript',
+      geography: 'Israel',
+      keywords: ['Hebrew', 'rare'],
+      auctionHouse: 'Kestenbaum & Company',
+      language: 'en' as const,
+    };
 
-  expect(criteriaToSearchRequest(criteria)).toEqual({
-    format: 'manuscript',
-    geography: 'Israel',
-    keywords: ['Hebrew', 'rare'],
-    auctionHouse: 'Kestenbaum & Company',
-    language: 'en',
+    expect(criteriaToSearchRequest(criteria)).toEqual({
+      format: 'manuscript',
+      geography: 'Israel',
+      keywords: ['Hebrew', 'rare'],
+      auctionHouse: 'Kestenbaum & Company',
+      language: 'en',
+    });
+  });
+
+  it('preserves strict search filters', () => {
+    const criteria = {
+      category: 'rare_books',
+      creator: 'Yitzhak Abrabanel',
+      budgetMax: 1000,
+      geography: 'Israel',
+      auctionHouse: 'Kestenbaum & Company',
+      language: 'he' as const,
+    };
+
+    const request = criteriaToSearchRequest(criteria);
+
+    expect(request.category).toBe('rare_books');
+    expect(request.creator).toBe('Yitzhak Abrabanel');
+    expect(request.maxPrice).toBe(1000);
+    expect(request.geography).toBe('Israel');
+    expect(request.auctionHouse).toBe('Kestenbaum & Company');
   });
 });
+
