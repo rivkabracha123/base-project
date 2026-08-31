@@ -1,0 +1,12 @@
+{
+  "id": "seller-draft-enquiry-contact-capture",
+  "expectedOutcome": "The draft enquiry API accepts synthetic contact details with explicit service-contact consent.",
+  "request": {
+    "profileId": "profile-synthetic-seller-1",
+    "contact": {
+      "preferredName": "Synthetic Seller",
+      "email": "synthetic.seller@example.test"
+    },
+    "serviceConsent": true
+  }
+}
