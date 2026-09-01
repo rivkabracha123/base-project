@@ -1,0 +1,34 @@
+[
+  {
+    "id": "lead-1",
+    "type": "buyer",
+    "clientName": "ישראל ישראלי",
+    "status": "pending",
+    "requestDetails": "שאלה לגבי תהליך הצעת מחיר למכירה פומבית של פריטי יודאיקה",
+    "createdAt": "2026-08-31T10:00:00Z"
+  },
+  {
+    "id": "lead-2",
+    "type": "buyer",
+    "clientName": "דנה לוי",
+    "status": "pending",
+    "requestDetails": "בקשה לקבלת פרטים על תנאי התשלום לקَונים חדשים",
+    "createdAt": "2026-08-31T11:15:00Z"
+  },
+  {
+    "id": "lead-3",
+    "type": "seller",
+    "clientName": "שרה כהן",
+    "status": "in_progress",
+    "requestDetails": "בקשה להעלאת ספר פילוסופיה עתיק לקטלוג המכירה",
+    "createdAt": "2026-08-30T15:30:00Z"
+  },
+  {
+    "id": "lead-4",
+    "type": "seller",
+    "clientName": "יוסי מזרחי",
+    "status": "completed",
+    "requestDetails": "תיאום הערכת שווי לסט פריטי כסף ישנים",
+    "createdAt": "2026-08-29T09:45:00Z"
+  }
+]

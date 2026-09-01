@@ -8,6 +8,10 @@ import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
 import { StorageModule } from './storage/storage.module';
 
+// --- 1. הוספת ייבוא (Import) של הישות והמודול החדשים ---
+import { StaffOperationEntity } from './database/staff-operation.entity';
+import { StaffOperationsModule } from './staff-operations/staff-operations.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validationSchema: environmentSchema }),
@@ -16,7 +20,8 @@ import { StorageModule } from './storage/storage.module';
       useFactory: (config: ConfigService) => ({
         type: 'postgres' as const,
         url: config.getOrThrow<string>('DATABASE_URL'),
-        entities: [AuctionLotEntity],
+        // --- 2. הוספת הישות החדשה לרשימת ה-Entities של מסד הנתונים ---
+        entities: [AuctionLotEntity, StaffOperationEntity],
         migrations: [CreateAuctionLots1710000000000],
         synchronize: false,
       }),
@@ -24,6 +29,8 @@ import { StorageModule } from './storage/storage.module';
     HealthModule,
     LotsModule,
     StorageModule,
+    // --- 3. רישום המודול החדש במערך ה-imports של האפליקציה ---
+    StaffOperationsModule,
   ],
 })
 export class AppModule {}
