@@ -7,3 +7,4 @@ export * from './auction-lot';
 // Seller item draft types: the contract for Week 2 seller-intake flow
 // Includes Zod schemas for validation, TypeScript types, and documented field meanings
 export * from './seller-item-draft';
+export * from './comparable';

@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { environmentSchema } from './config/environment';
 import { AuctionLotEntity } from './database/auction-lot.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
+import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
@@ -36,6 +37,7 @@ import { StorageModule } from './storage/storage.module';
     }),
 
     // System health check endpoint
+    ComparablesModule,
     HealthModule,
 
     // Auction lots read/query operations
