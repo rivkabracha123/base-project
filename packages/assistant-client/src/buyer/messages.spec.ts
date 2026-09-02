@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseConversation } from './messages';
-import conversationFixture from '../../../../fixtures/demo-scenarios/buyer-conversation.json';
+import { mockConversation } from './mock-conversation';
 
 // Tests for parseConversation.
 describe('parseConversation', () => {
@@ -38,9 +38,9 @@ describe('parseConversation', () => {
 
   // Positive: a valid result-group message is kept; its lots field is a list of items per the auctionLotSchema contract.
   it('keeps a valid result-group message', () => {
-    // The message at index 3 in the sample conversation is the result-group — a single source of truth per item.
-    const resultGroup = conversationFixture.conversations.he[3];
-    if (resultGroup?.kind !== 'result-group') throw new Error('fixture: expected a result-group at index 3');
+    // שולפים את ה-lots מהודעת ה-result-group שבנתוני המוק, כדי לא לשכפל פריט מכירה שלם בטסט.
+    const resultGroup = mockConversation.he.find((message) => message.kind === 'result-group');
+    if (resultGroup?.kind !== 'result-group') throw new Error('mock: expected a result-group message');
     const input = [
       { kind: 'result-group', id: 'm5', at: '2026-01-01T10:00:15.000Z', title: 'פריטים דומים', lots: resultGroup.lots },
     ];
@@ -71,10 +71,10 @@ describe('parseConversation', () => {
     expect(parseConversation(input)).toEqual([valid]);
   });
 
-  // Integration: the sample conversation file passes the schema — every message in every language is kept.
-  it('accepts every message in the sample conversation fixture', () => {
+  // בדיקה: כל הודעה בנתוני המוק הדו-לשוניים עוברת את הסכימה — שום הודעה תקינה לא נזרקת.
+  it('accepts every message in the mock conversation', () => {
     for (const lang of ['he', 'en'] as const) {
-      const messages = conversationFixture.conversations[lang];
+      const messages = mockConversation[lang];
       expect(parseConversation(messages)).toHaveLength(messages.length);
     }
   });

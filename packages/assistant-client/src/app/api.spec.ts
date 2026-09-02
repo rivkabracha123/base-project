@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import conversationFixture from '../../../../fixtures/demo-scenarios/buyer-conversation.json';
+import { mockConversation } from '../buyer/mock-conversation';
 import { getConversation } from './api';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -8,7 +8,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('getConversation', () => {
   // Verifies it fetches a bilingual conversation, returns it unchanged, and calls the right URL with the language param.
   it('fetches and validates a real bilingual conversation from the backend', async () => {
-    const sample = conversationFixture.conversations.he;
+    const sample = mockConversation.he;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(sample), { status: 200 })));
 
     await expect(getConversation('he')).resolves.toEqual(sample);
