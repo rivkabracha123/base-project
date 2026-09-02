@@ -77,7 +77,8 @@ describe('SellerIntakeService', () => {
     });
   });
   // Test 4: Confirmed and uncertain facts are tracked separately
-  // Confirmed facts are safe for downstream use; uncertain facts require manual review before valuation  it('keeps uncertain or missing information separate from the trusted draft', () => {
+  // Confirmed facts are safe for downstream use; uncertain facts require manual review before valuation 
+   it('keeps uncertain or missing information separate from the trusted draft', () => {
     const service = new SellerIntakeService();
     const input = 'I have a painting. It is 60 x 80 cm and signed. I think it was made in the 1980s.';
     const reviewState = service.buildReviewState(input);
