@@ -3,9 +3,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { environmentSchema } from './config/environment';
 import { AuctionLotEntity } from './database/auction-lot.entity';
+import { UserProfileEntity } from './database/user-profile.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
+import { CreateUserProfiles1730000000000 } from './database/1730000000000-create-user-profiles';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
+import { ProfilesModule } from './profiles/profiles.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -16,13 +19,14 @@ import { StorageModule } from './storage/storage.module';
       useFactory: (config: ConfigService) => ({
         type: 'postgres' as const,
         url: config.getOrThrow<string>('DATABASE_URL'),
-        entities: [AuctionLotEntity],
-        migrations: [CreateAuctionLots1710000000000],
+        entities: [AuctionLotEntity, UserProfileEntity],
+        migrations: [CreateAuctionLots1710000000000, CreateUserProfiles1730000000000],
         synchronize: false,
       }),
     }),
     HealthModule,
     LotsModule,
+    ProfilesModule,
     StorageModule,
   ],
 })
