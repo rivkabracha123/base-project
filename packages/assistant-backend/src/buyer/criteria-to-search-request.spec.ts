@@ -1,85 +1,42 @@
-
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 
 describe('criteriaToSearchRequest', () => {
-  it('converts buyer criteria into a search request', () => {
+  it('creates a basic text search request with caller-supplied language', () => {
     const criteria = {
       category: 'rare_books',
       creator: 'Yitzhak Abrabanel',
-      period: '17th century',
-      budgetMax: 1000,
-      language: 'he' as const,
+      period: '15th century',
+      keywords: ['rare', 'Hebrew', 'books'],
+      missing: [],
     };
 
-    expect(criteriaToSearchRequest(criteria)).toEqual({
-      category: 'rare_books',
-      creator: 'Yitzhak Abrabanel',
-      period: '17th century',
-      maxPrice: 1000,
-      language: 'he',
-    });
-  });
-
-  it('preserves strict budget constraints', () => {
-    const criteria = {
-      category: 'rare_books',
-      budgetMax: 1000,
-      language: 'he' as const,
-    };
-
-    const request = criteriaToSearchRequest(criteria);
-
-    expect(request.maxPrice).toBe(1000);
-  });
-
-  it('does not invent missing criteria', () => {
-    const criteria = {
-      category: 'rare_books',
-      language: 'he' as const,
-    };
-
-    const request = criteriaToSearchRequest(criteria);
-
-    expect(request.creator).toBeUndefined();
-    expect(request.period).toBeUndefined();
-    expect(request.maxPrice).toBeUndefined();
-  });
-
-  it('preserves all optional search criteria', () => {
-    const criteria = {
-      format: 'manuscript',
-      geography: 'Israel',
-      keywords: ['Hebrew', 'rare'],
-      auctionHouse: 'Kestenbaum & Company',
-      language: 'en' as const,
-    };
-
-    expect(criteriaToSearchRequest(criteria)).toEqual({
-      format: 'manuscript',
-      geography: 'Israel',
-      keywords: ['Hebrew', 'rare'],
-      auctionHouse: 'Kestenbaum & Company',
+    expect(criteriaToSearchRequest(criteria, 'en')).toEqual({
+      query: 'Yitzhak Abrabanel rare Hebrew books',
       language: 'en',
     });
   });
 
-  it('preserves strict search filters', () => {
+  it('does not infer language from buyer criteria', () => {
+    const criteria = { missing: [], category: 'rare_books' };
+
+    expect(criteriaToSearchRequest(criteria, 'he')).toEqual({
+      query: '',
+      language: 'he',
+    });
+  });
+
+  it('preserves the approved optional search criteria', () => {
     const criteria = {
-      category: 'rare_books',
-      creator: 'Yitzhak Abrabanel',
-      budgetMax: 1000,
+      media: 'painting',
       geography: 'Israel',
-      auctionHouse: 'Kestenbaum & Company',
-      language: 'he' as const,
+      keywords: ['blue', 'modern'],
+      budget: { min: 500, max: 1200 },
+      missing: [],
     };
 
-    const request = criteriaToSearchRequest(criteria);
-
-    expect(request.category).toBe('rare_books');
-    expect(request.creator).toBe('Yitzhak Abrabanel');
-    expect(request.maxPrice).toBe(1000);
-    expect(request.geography).toBe('Israel');
-    expect(request.auctionHouse).toBe('Kestenbaum & Company');
+    expect(criteriaToSearchRequest(criteria, 'en')).toEqual({
+      query: 'blue modern',
+      language: 'en',
+    });
   });
 });
-

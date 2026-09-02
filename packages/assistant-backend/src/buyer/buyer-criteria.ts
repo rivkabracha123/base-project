@@ -1,11 +1,18 @@
+/** The buyer budget captured by the criteria flow. */
+export interface BuyerBudget {
+  min: number;
+  max: number;
+}
+
+/** Structured buyer intent received from B2. */
 export interface BuyerCriteria {
   category?: string;
   creator?: string;
   period?: string;
-  format?: string;
-  budgetMax?: number;
-  geography?: string;
+  media?: string;
   keywords?: string[];
-  auctionHouse?: string;
-  language: 'en' | 'he';
+  geography?: string;
+  budget?: BuyerBudget;
+  missing: string[];
+  nextQuestion?: string;
 }

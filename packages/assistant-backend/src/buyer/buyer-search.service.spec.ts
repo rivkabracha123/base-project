@@ -1,21 +1,20 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { BuyerSearchService } from './buyer-search.service';
 
 describe('BuyerSearchService', () => {
-  it('converts buyer criteria into a search request', () => {
+  it('creates a typed basic request from the committed auction fixture', () => {
+    const [lot] = JSON.parse(
+      readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),
+    ) as Array<{ title: { en: string }; category: string }>;
+    if (!lot) throw new Error('Expected a committed auction fixture');
+
     const service = new BuyerSearchService();
-
-    const criteria = {
-      category: 'rare_books',
-      creator: 'Yitzhak Abrabanel',
-      budgetMax: 1000,
-      language: 'he' as const,
-    };
-
-    expect(service.createSearchRequest(criteria)).toEqual({
-      category: 'rare_books',
-      creator: 'Yitzhak Abrabanel',
-      maxPrice: 1000,
-      language: 'he',
-    });
+    expect(
+      service.createSearchRequest(
+        { category: lot.category, creator: 'Yitzhak Abrabanel', missing: [] },
+        'en',
+      ),
+    ).toEqual({ query: 'Yitzhak Abrabanel', language: 'en' });
   });
 });
