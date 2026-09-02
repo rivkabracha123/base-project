@@ -7,6 +7,7 @@ import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
 import { StorageModule } from './storage/storage.module';
+import { AlomaShilatModule } from './aluma-shilat/aluma-shilat.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { StorageModule } from './storage/storage.module';
     HealthModule,
     LotsModule,
     StorageModule,
+    AlomaShilatModule,
   ],
 })
 export class AppModule {}
