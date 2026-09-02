@@ -20,7 +20,6 @@ import { SellerIntakeService } from './seller-intake.service';
 describe('SellerIntakeService', () => {
   // Load the deterministic fixture used by SellerIntakeAiMock
   const fixturePath = resolve(__dirname, '../../../../fixtures/demo-scenarios/seller-item-draft.json');
-  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));
 
   // Test 1: Input parsing enforces fact extraction without invention
   it('extracts only facts explicitly present in seller input', () => {
