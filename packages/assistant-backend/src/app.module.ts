@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { environmentSchema } from './config/environment';
 import { AuctionLotEntity } from './database/auction-lot.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
+import { AiModule } from './ai/ai.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
 import { StorageModule } from './storage/storage.module';
@@ -21,6 +22,7 @@ import { StorageModule } from './storage/storage.module';
         synchronize: false,
       }),
     }),
+    AiModule,
     HealthModule,
     LotsModule,
     StorageModule,
