@@ -3,7 +3,6 @@ import { ProfileLanguageLoader } from './app/ProfileLanguageLoader';
 import { AppHeader } from './components/AppHeader';
 import { SampleLotPage } from './app/SampleLotPage';
 // Avishag's task API page
-import { Task1AvishagPage } from './app/task1-avishag-/Task1AvishagPage';
 
 export function App() {
   return (
@@ -12,7 +11,6 @@ export function App() {
       <AppHeader />
       <Routes>
         <Route path="/sample" element={<SampleLotPage />} />
-        <Route path="/avishag-most-expensive" element={<Task1AvishagPage />} />
         <Route path="*" element={<Navigate to="/sample" replace />} />
       </Routes>
     </>
