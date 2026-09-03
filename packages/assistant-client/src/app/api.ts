@@ -3,6 +3,8 @@ import lotFixtures from '../../../../fixtures/auction-data/lots.json';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 
+// Fetches a sample lot either from fixtures or the backend API.
+// Keeps the UI deterministic in fixture mode and contract-safe in real mode.
 export async function getSampleLot(language: string, signal?: AbortSignal): Promise<AuctionLot> {
   if (import.meta.env.VITE_FIXTURE_MODE === 'true') {
     const [sampleLot] = auctionLotFixtureSchema.parse(lotFixtures);

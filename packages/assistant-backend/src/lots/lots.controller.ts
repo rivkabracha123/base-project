@@ -7,6 +7,7 @@ import { LotsService } from './lots.service';
 export class LotsController {
   constructor(private readonly lotsService: LotsService) {}
 
+  // Small fixture-backed endpoint for a minimal consumer proof.
   @Get('sample')
   sample(@Query() _query: LotQueryDto): Promise<AuctionLot> {
     return this.lotsService.findSample();
