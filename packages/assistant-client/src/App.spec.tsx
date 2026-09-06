@@ -20,10 +20,14 @@ const lot = {
   realizedPrice: { amount: 1200, currency: 'USD' },
 };
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe('sample route', () => {
   it('renders the fixture lot with its source link', async () => {
+    vi.stubEnv('VITE_FIXTURE_MODE', 'true');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(lot), { status: 200 })));
     const queryClient = createQueryClient();
     queryClient.setDefaultOptions({ queries: { retry: false } });
