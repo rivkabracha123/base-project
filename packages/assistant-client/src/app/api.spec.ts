@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getLotById } from './api';
+import { mockConversation } from '../buyer/mock-conversation';
+import { getConversation, getLotById } from './api';
 
 const lot = {
   id: 'lot-1',
@@ -19,7 +20,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-
 describe('getLotById', () => {
   it('returns a validated lot when the API finds the requested id', async () => {
     vi.stubEnv('VITE_FIXTURE_MODE', 'false');
@@ -33,14 +33,10 @@ describe('getLotById', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
 
     await expect(getLotById('missing', 'en')).rejects.toThrow('API request failed with status 404');
-import { mockConversation } from '../buyer/mock-conversation';
-import { getConversation } from './api';
+  });
+});
 
-afterEach(() => vi.unstubAllGlobals());
-
-// Tests for getConversation — fetches a conversation from the backend and validates it.
 describe('getConversation', () => {
-  // Verifies it fetches a bilingual conversation, returns it unchanged, and calls the right URL with the language param.
   it('fetches and validates a real bilingual conversation from the backend', async () => {
     const sample = mockConversation.he;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(sample), { status: 200 })));
@@ -52,8 +48,7 @@ describe('getConversation', () => {
     );
   });
 
-  // Verifies invalid messages returned by the API are dropped before they reach the rest of the code.
-  it('drops any invalid messages returned by the API before exposing them', async () => {
+  it('drops invalid messages returned by the API before exposing them', async () => {
     const validMessage = {
       kind: 'buyer',
       id: 'incoming-1',
