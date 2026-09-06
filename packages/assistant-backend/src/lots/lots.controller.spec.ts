@@ -49,7 +49,7 @@ describe('LotsController', () => {
     const result = await controller.search({});
 
     // Verify controller delegates empty query handling directly to the service
-    expect(lotsService.searchByText).toHaveBeenCalledWith(undefined, 'en', undefined, undefined);
+    expect(lotsService.searchByText).toHaveBeenCalledWith(undefined, 'he', undefined, undefined);
     expect(result).toEqual(mockEmptyResult);
   });
 });

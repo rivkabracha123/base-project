@@ -20,7 +20,7 @@ export class LotsService {
 
   async searchByText(
     query: string = '',
-    language: 'en' | 'he' = 'en',
+    language: 'en' | 'he' = 'he',
     page: number = 1,
     limit: number = 10
   ): Promise<PaginatedResult<AuctionLot>> {

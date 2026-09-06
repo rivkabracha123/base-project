@@ -13,7 +13,7 @@ export class LotsController {
    
     return this.lotsService.searchByText(
       query.query,
-      query.language ?? 'en',
+      query.language ?? 'he',
       query.page,
       query.limit
     );
