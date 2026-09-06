@@ -14,3 +14,15 @@ export async function getSampleLot(language: string, signal?: AbortSignal): Prom
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
   return auctionLotSchema.parse(await response.json());
 }
+
+export async function getLotById(id: string, language: string, signal?: AbortSignal): Promise<AuctionLot> {
+  if (import.meta.env.VITE_FIXTURE_MODE === 'true') {
+    const lot = auctionLotFixtureSchema.parse(lotFixtures).find((fixture) => fixture.id === id);
+    if (!lot) throw new Error('API request failed with status 404');
+    return lot;
+  }
+
+  const response = await fetch(`${apiBaseUrl}/lots/${encodeURIComponent(id)}?language=${encodeURIComponent(language)}`, { signal });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  return auctionLotSchema.parse(await response.json());
+}

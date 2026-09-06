@@ -23,7 +23,7 @@ const lot = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('sample route', () => {
-  it('renders a validated API lot with its source link', async () => {
+  it('renders the fixture lot with its source link', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(lot), { status: 200 })));
     const queryClient = createQueryClient();
     queryClient.setDefaultOptions({ queries: { retry: false } });
@@ -36,7 +36,7 @@ describe('sample route', () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByRole('heading', { name: 'Source-backed lot' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View exact source' })).toHaveAttribute('href', 'https://example.com/source');
+    expect(await screen.findByRole('heading', { name: 'Atereth Zekeinim by Yitzhak Abrabanel' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View exact source' })).toHaveAttribute('href', 'https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en');
   });
 });
