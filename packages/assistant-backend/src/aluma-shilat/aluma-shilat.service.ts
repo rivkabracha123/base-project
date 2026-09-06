@@ -1,15 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EXCHANGE_RATE_FIXTURES } from './aluma-shilat.fixtures';
 
-export type DemoLot = {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  saleDate: string;
-  status: 'upcoming' | 'sold' | 'unsold';
-};
-
+// Shape of one comparable sale accepted by calculateValuation.
 export type ComparableSaleInput = {
   id: string;
   saleDate: string;
@@ -20,12 +12,14 @@ export type ComparableSaleInput = {
   source: string;
 };
 
+// Shape of the full input passed to calculateValuation.
 export type ValuationInput = {
   itemId: string;
   itemVersion: string;
   comparables: ComparableSaleInput[];
 };
 
+// Shape of the immutable report calculateValuation returns, for either a refusal or a supported result.
 export type ValuationResult = {
   status: 'refusal' | 'supported';
   reason?: string;
@@ -53,8 +47,10 @@ export type ValuationResult = {
   }>;
 };
 
+// Responsible for: the ILS conversion rate used everywhere in this file.
 const BASE_CURRENCY = 'ILS';
 
+// Responsible for: looking up a dated exchange rate for one sale.
 // Returns null when no dated fixture rate exists, instead of silently assuming 1:1.
 const getFxRate = (currency: string, saleDate: string): number | null => {
   if (currency === BASE_CURRENCY) {
@@ -64,6 +60,7 @@ const getFxRate = (currency: string, saleDate: string): number | null => {
   return EXCHANGE_RATE_FIXTURES[currency]?.[saleDate] ?? null;
 };
 
+// Responsible for: making a report fully immutable, including nested objects and arrays.
 // Object.freeze is shallow; this recursively freezes nested objects and arrays too.
 const deepFreeze = <T>(value: T): T => {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -75,20 +72,11 @@ const deepFreeze = <T>(value: T): T => {
 
 @Injectable()
 export class AlomaShilatService {
-  private readonly demoLots: DemoLot[] = [
-    {
-      id: 'demo-1',
-      title: 'Demo Lot - Aloma Shilat',
-      description: 'A demo lot created locally in the backend for the TDD exercise.',
-      category: 'books',
-      saleDate: '2026-09-01',
-      status: 'upcoming',
-    },
-  ];
-
   async calculateValuation(input: ValuationInput): Promise<ValuationResult> {
+    // Responsible for: keeping only sales credible enough to count as evidence.
     const credibleSales = input.comparables.filter((item) => item.status === 'sold');
 
+    // Responsible for: refusing outright when there isn't even the minimum number of credible sales.
     if (credibleSales.length < 3) {
       return deepFreeze({
         status: 'refusal',
@@ -100,6 +88,7 @@ export class AlomaShilatService {
       });
     }
 
+    // Responsible for: attaching a dated FX rate to each sale, and separating out any that have none.
     const ratedSales = credibleSales.map((sale) => ({
       sale,
       rate: getFxRate(sale.currency, sale.saleDate),
@@ -109,6 +98,7 @@ export class AlomaShilatService {
       (item): item is { sale: ComparableSaleInput; rate: number } => item.rate !== null,
     );
 
+    // Responsible for: refusing when too many sales lost their rate, leaving too little usable evidence.
     if (usableSales.length < 3) {
       return deepFreeze({
         status: 'refusal',
@@ -121,6 +111,7 @@ export class AlomaShilatService {
       });
     }
 
+    // Responsible for: converting every usable sale to ILS and detecting outliers to exclude from the range.
     const normalizedSales = usableSales.map((item) => ({
       sale: item.sale,
       priceInIls: item.sale.soldPrice * item.rate,
@@ -142,6 +133,7 @@ export class AlomaShilatService {
         asOfDate: item.sale.saleDate,
       }));
 
+    // Responsible for: refusing when the remaining evidence is too spread out or too thin to trust.
     if (hasInsufficientQuality) {
       return deepFreeze({
         status: 'refusal',
@@ -158,6 +150,7 @@ export class AlomaShilatService {
       });
     }
 
+    // Responsible for: computing the equal weights, the ILS range, and the confidence score for the final report.
     const retainedPrices = retainedSales.map((item) => item.priceInIls);
     const equalWeight = 1 / retainedSales.length;
     const weights = retainedSales.map((item) => ({ id: item.sale.id, weight: equalWeight }));
@@ -187,19 +180,4 @@ export class AlomaShilatService {
     });
   }
 
-  async findDemoLot(): Promise<DemoLot> {
-    const lot = this.demoLots[0];
-    if (!lot) {
-      throw new NotFoundException('No demo lots are available');
-    }
-    return lot;
-  }
-
-  async findDemoLotById(id: string): Promise<DemoLot> {
-    const lot = this.demoLots.find((item) => item.id === id);
-    if (!lot) {
-      throw new NotFoundException(`Demo lot ${id} was not found`);
-    }
-    return lot;
-  }
 }

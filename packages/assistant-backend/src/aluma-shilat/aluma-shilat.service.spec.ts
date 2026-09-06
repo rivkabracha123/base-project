@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+// Test file: runs and verifies the AlomaShilatService valuation logic (executed via jest).
 import { AlomaShilatService, type ValuationInput } from './aluma-shilat.service';
 
 type ComparableSale = NonNullable<ValuationInput['comparables']>[number];
@@ -42,21 +42,6 @@ describe('AlomaShilatService', () => {
 
   beforeEach(() => {
     service = new AlomaShilatService();
-  });
-
-  // Demo lot retrieval - known ID
-  it('returns a local demo lot payload for a known id', async () => {
-    await expect(service.findDemoLotById('demo-1')).resolves.toMatchObject({
-      id: 'demo-1',
-      title: 'Demo Lot - Aloma Shilat',
-      category: 'books',
-      status: 'upcoming',
-    });
-  });
-
-  // Demo lot retrieval - unknown ID throws error
-  it('throws a not found error for an unknown demo id', async () => {
-    await expect(service.findDemoLotById('missing-id')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   describe('calculateValuation', () => {

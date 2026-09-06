@@ -1,3 +1,4 @@
+// Integration test: builds a real NestJS module and proves the controller + DTO validation work together.
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -5,6 +6,7 @@ import { AlomaShilatController } from './aluma-shilat.controller';
 import { ValuationInputDto } from './aluma-shilat.dto';
 import { AlomaShilatService } from './aluma-shilat.service';
 
+// Shared valid payload (3 sold comparables) reused and tweaked by the tests below.
 const supportedPayload = {
   itemId: 'lot-integration-1',
   itemVersion: 'v1',
@@ -42,6 +44,7 @@ const supportedPayload = {
 describe('AlomaShilatController (integration)', () => {
   let controller: AlomaShilatController;
 
+  // Builds a real controller + service via NestJS's testing module before every test.
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AlomaShilatController],
@@ -51,6 +54,7 @@ describe('AlomaShilatController (integration)', () => {
     controller = moduleRef.get(AlomaShilatController);
   });
 
+  // Goal: prove a fully valid request passes DTO validation and returns a supported report.
   it('accepts a valid valuation request body and returns a supported report', async () => {
     const dto = plainToInstance(ValuationInputDto, supportedPayload);
     const errors = await validate(dto);
@@ -65,6 +69,7 @@ describe('AlomaShilatController (integration)', () => {
     });
   });
 
+  // Goal: prove a valid request with too few comparables still passes validation but the service refuses.
   it('accepts a valid valuation request body and returns a refusal report when evidence is insufficient', async () => {
     const dto = plainToInstance(ValuationInputDto, {
       ...supportedPayload,
@@ -81,6 +86,7 @@ describe('AlomaShilatController (integration)', () => {
     });
   });
 
+  // Goal: prove an invalid enum value is rejected by validation before the service ever runs.
   it('rejects a request body with an invalid comparable status before it reaches the service', async () => {
     const dto = plainToInstance(ValuationInputDto, {
       ...supportedPayload,
@@ -95,6 +101,7 @@ describe('AlomaShilatController (integration)', () => {
     expect(errors.length).toBeGreaterThan(0);
   });
 
+  // Goal: prove a request missing required fields is rejected by validation before the service ever runs.
   it('rejects a request body missing required fields before it reaches the service', async () => {
     const dto = plainToInstance(ValuationInputDto, {
       itemVersion: 'v1',
