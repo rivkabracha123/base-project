@@ -3,6 +3,7 @@ import { AppHeader } from './components/AppHeader';
 import { LotPage } from './app/LotPage';
 import { SampleLotPage } from './app/SampleLotPage';
 import { ResultsPage } from './components/ResultPage';
+import { BuyerChat } from './buyer/BuyerChat';
 
 export function App() {
   return (
@@ -13,6 +14,8 @@ export function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/lots/:id" element={<LotPage />} />
         <Route path="*" element={<Navigate to="/results" replace />} />
+        <Route path="/chat" element={<BuyerChat />} />
+        <Route path="*" element={<Navigate to="/sample" replace />} />
       </Routes>
     </>
   );
