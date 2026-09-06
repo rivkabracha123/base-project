@@ -1,4 +1,5 @@
 import { LotsController } from './lots.controller';
+import { LotsService } from './lots.service';
 
 describe('LotsController', () => {
   it('exposes the import report through the W2 boundary', async () => {
@@ -15,9 +16,7 @@ describe('LotsController', () => {
     );
 
     await expect(controller.report()).resolves.toEqual(report);
-import { LotsService } from './lots.service';
-
-describe('LotsController', () => {
+  });
 
   it('delegates search requests to LotsService.searchByText with pagination parameters', async () => {
     // Mock service returns a paginated structure
@@ -33,7 +32,7 @@ describe('LotsController', () => {
       searchByText: jest.fn().mockResolvedValue(mockPaginatedResult),
     } as unknown as LotsService;
 
-    const controller = new LotsController(lotsService);
+    const controller = new LotsController(lotsService, {} as never);
 
     const result = await controller.search({
       query: 'manuscript',
@@ -60,7 +59,7 @@ describe('LotsController', () => {
       searchByText: jest.fn().mockResolvedValue(mockEmptyResult),
     } as unknown as LotsService;
 
-    const controller = new LotsController(lotsService);
+    const controller = new LotsController(lotsService, {} as never);
 
     const result = await controller.search({});
 
