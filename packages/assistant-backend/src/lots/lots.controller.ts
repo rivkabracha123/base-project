@@ -3,6 +3,7 @@ import type { AuctionLot } from '@monabid/shared';
 import { LotQueryDto } from './lot-query.dto';
 import { LotsImportReportService } from './lots-import-report.service';
 import { LotsService } from './lots.service';
+import { PaginatedResult } from './paginated-result.interface';
 
 @Controller('lots')
 export class LotsController {
@@ -10,6 +11,17 @@ export class LotsController {
     private readonly lotsService: LotsService,
     private readonly importReports: LotsImportReportService,
   ) {}
+
+  @Get()
+  search(@Query() query: LotQueryDto): Promise<PaginatedResult<AuctionLot>> {
+   
+    return this.lotsService.searchByText(
+      query.query,
+      query.language ?? 'he',
+      query.page,
+      query.limit
+    );
+  }
 
   @Get('sample')
   sample(@Query() _query: LotQueryDto): Promise<AuctionLot> {
