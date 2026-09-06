@@ -20,6 +20,14 @@ export type AiGenerateResponse = {
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
+  structuredAnswer: {
+    language: 'he' | 'en';
+    intent: string;
+    category: string;
+    missingFacts: string[];
+    hasContactDetails: boolean;
+    hasImages: boolean;
+  };
 };
 
 //constructor
