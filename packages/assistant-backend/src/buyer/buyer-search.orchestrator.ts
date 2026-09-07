@@ -22,30 +22,31 @@ export interface BuyerSearchInput {
 }
 
 export type BuyerSearchOutcome =
-  | { kind: 'results'; searchRequest: SearchRequest; items: AuctionLot[] }
+  | { kind: 'results'; searchRequest: BuyerSearchRequest; items: AuctionLot[] }
   | { kind: 'unmatched'; view: BuyerUnmatchedDemandDashboardView };
 
-/** Orchestrates the Week 2 buyer request through P2 and the downstream handoffs. */
+// Converts the received buyer criteria into a typed P2 query and carries the whole criteria object - budget and every hard filter - onto the B4 results and P5 unmatched-demand handoffs, unchanged.
 export class BuyerSearchOrchestrator {
+  // Takes the P2 text-search dependency and the request-building service.
   constructor(
     private readonly p2: P2TextSearch,
     private readonly buyerSearch = new BuyerSearchService(),
   ) {}
 
-  /** Returns fixture-backed results or a privacy-safe P5 no-result view. */
+  // Runs the P2 text search and returns its results or a privacy-safe no-result view, each carrying the received criteria unchanged.
   async search(input: BuyerSearchInput): Promise<BuyerSearchOutcome> {
     const searchRequest = this.buyerSearch.createSearchRequest(input.criteria, input.language);
     const items = await this.p2.searchByText(searchRequest.query, searchRequest.language);
-
-    if (items.length > 0) {
-      return { kind: 'results', searchRequest, items };
-    }
 
     const fullRequest: BuyerSearchRequest = {
       criteria: input.criteria,
       language: input.language,
       hardConstraints: [],
     };
+
+    if (items.length > 0) {
+      return { kind: 'results', searchRequest: fullRequest, items };
+    }
 
     return {
       kind: 'unmatched',
