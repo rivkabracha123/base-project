@@ -8,9 +8,18 @@ import { SellerLeadEntity } from './database/seller-lead.entity';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
+import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
 import { StorageModule } from './storage/storage.module';
 
+/**
+ * Root application module for the Monabid Assistant backend.
+ *
+ * This module orchestrates the entire application lifecycle:
+ * - Environment configuration with Zod validation
+ * - PostgreSQL database connection via TypeORM
+ * - Business domain modules (health, lots, seller-intake, seller-leads, storage)
+ */
 export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
   return {
     type: 'postgres',
@@ -30,6 +39,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     }),
     HealthModule,
     LotsModule,
+    SellerIntakeModule,
     SellerLeadsModule,
     StorageModule,
   ],
