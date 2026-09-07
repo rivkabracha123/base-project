@@ -4,8 +4,11 @@ import { TypeOrmModule, type TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { environmentSchema } from './config/environment';
 import { AuctionLotEntity } from './database/auction-lot.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
+import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
 import { SellerLeadEntity } from './database/seller-lead.entity';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
+import { AlomaShilatModule } from './aluma-shilat/aluma-shilat.module';
+import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
@@ -25,7 +28,11 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     type: 'postgres',
     url: config.getOrThrow<string>('DATABASE_URL'),
     entities: [AuctionLotEntity, SellerLeadEntity],
-    migrations: [CreateAuctionLots1710000000000, CreateSellerLeads1788220800000],
+    migrations: [
+      CreateAuctionLots1710000000000,
+      CreateMonabidBasicSchema1710000000001,
+      CreateSellerLeads1788220800000,
+    ],
     synchronize: false,
   };
 }
@@ -37,11 +44,13 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       inject: [ConfigService],
       useFactory: databaseOptions,
     }),
+    ComparablesModule,
     HealthModule,
     LotsModule,
     SellerIntakeModule,
     SellerLeadsModule,
     StorageModule,
+    AlomaShilatModule,
   ],
 })
 export class AppModule {}
