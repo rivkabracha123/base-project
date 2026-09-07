@@ -1,9 +1,15 @@
-import { IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { isBuyerHandoffContract, type BuyerHandoffContract } from './buyer-handoff';
+import { isSellerHandoffContract, type SellerHandoffContract } from './seller-handoff';
+
+export type AiRole = 'buyer' | 'seller';
 
 export class GenerateAiRequestDto {
   @IsString()
   prompt!: string;
+
+  @IsEnum(['buyer', 'seller'])
+  role!: AiRole;
 
   @IsOptional()
   @IsEnum(['he', 'en'])
@@ -13,7 +19,7 @@ export class GenerateAiRequestDto {
 
 //shape buyer answer that the AI get
 
-export type StructuredBuyerAnswer = BuyerHandoffContract;
+export type StructuredAnswer = BuyerHandoffContract | SellerHandoffContract;
 
 //shape of the response that AI return
 export class GenerateAiResponseDto {
@@ -31,7 +37,7 @@ export class GenerateAiResponseDto {
 
   confidence!: 'low' | 'medium';
 
-  structuredAnswer!: StructuredBuyerAnswer;
+  structuredAnswer!: StructuredAnswer;
 }
 
 //check if the response is valid and has the correct shape
@@ -70,5 +76,5 @@ export function isGenerateAiResponseDto(value: unknown): value is GenerateAiResp
     return false;
   }
 
-  return isBuyerHandoffContract(response.structuredAnswer);
+  return isBuyerHandoffContract(response.structuredAnswer) || isSellerHandoffContract(response.structuredAnswer);
 }

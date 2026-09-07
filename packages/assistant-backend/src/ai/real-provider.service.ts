@@ -1,5 +1,8 @@
+import type { AiRole, StructuredAnswer } from './ai.dto';
+
 export type RealProviderRequest = {
   prompt: string;
+  role?: AiRole;
   language?: 'he' | 'en';
   baseUrl?: string;
   modelName?: string;
@@ -15,6 +18,7 @@ export type RealProviderResponse = {
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
+  structuredAnswer: StructuredAnswer;
 };
 //inser the input to AI provider
 
@@ -40,7 +44,12 @@ export class RealProviderService {
       },
       body: JSON.stringify({
         model: modelName,
+        response_format: { type: 'json_object' },
         messages: [
+          {
+            role: 'system',
+            content: `Return JSON matching the validated ${input.role ?? 'buyer'} handoff contract. Do not include contact details or image data.`,
+          },
           {
             role: 'user',
             content: input.prompt,
@@ -60,20 +69,27 @@ export class RealProviderService {
       choices?: Array<{ message?: { content?: string } }>;
     };
 
-    const message = data.choices?.[0]?.message?.content ?? 'No content returned';
-    const prompt = input.prompt ?? '';
-    const normalizedPrompt = prompt.toLowerCase();
-    const hasBlue = normalizedPrompt.includes('כחולה') || normalizedPrompt.includes('blue');
-    const confidence: RealProviderResponse['confidence'] = hasBlue ? 'medium' : 'low';
+    const message = data.choices?.[0]?.message?.content;
+    if (!message) {
+      throw new Error('Real provider returned no content.');
+    }
+
+    let parsed: Omit<RealProviderResponse, 'provider' | 'mode' | 'content'>;
+    try {
+      parsed = JSON.parse(message) as Omit<RealProviderResponse, 'provider' | 'mode' | 'content'>;
+    } catch {
+      throw new Error('Real provider returned non-JSON content.');
+    }
 
     return {
       provider: 'real',
       mode: 'real',
       content: message,
-      summary: hasBlue ? 'המשתמש מחפש פריט קשור לצבע כחול' : 'המשתמש סיפק בקשה כללית',
-      recommendation: hasBlue ? 'הצג פריטים דומים עם צבע כחול או בקש פרטים נוספים' : 'הצג אפשרויות רלוונטיות נוספות',
-      nextAction: hasBlue ? 'בקש מידע נוסף על תקציב או שנת ייצור' : 'בקש פרטים נוספים כדי להדריך טוב יותר',
-      confidence,
+      summary: parsed.summary,
+      recommendation: parsed.recommendation,
+      nextAction: parsed.nextAction,
+      confidence: parsed.confidence,
+      structuredAnswer: parsed.structuredAnswer,
     };
   }
 }

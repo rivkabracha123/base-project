@@ -4,7 +4,6 @@ import { AiService } from './ai.service';
 //check the content between the controller and the service
 
 //the fixture provider is mock for the test
-
 describe('AiController', () => {
   it('forwards a generation request to the AI service', async () => {
     const service = {
@@ -26,6 +25,7 @@ describe('AiController', () => {
     await expect(
       controller.generate({
         prompt: 'טבעת כחולה משנת 2021',
+        role: 'buyer',
         language: 'he',
       }),
     ).resolves.toEqual({
@@ -40,6 +40,7 @@ describe('AiController', () => {
 
     expect(service.generate).toHaveBeenCalledWith({
       prompt: 'טבעת כחולה משנת 2021',
+      role: 'buyer',
       language: 'he',
     });
   });

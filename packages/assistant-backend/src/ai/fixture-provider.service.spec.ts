@@ -63,6 +63,26 @@ describe('FixtureProviderService', () => {
     expect(result.structuredAnswer?.hasImages).toBe(false);
     expect(isGenerateAiResponseDto(result)).toBe(true);
   });
+//test for valid answer
+  it('returns a valid seller answer structure for the seller handoff', async () => {
+    const service = new FixtureProviderService();
+
+    const result = await service.generate({
+      prompt: 'I have a blue painting to sell',
+      role: 'seller',
+      language: 'en',
+    });
+
+    expect(result.structuredAnswer).toEqual(
+      expect.objectContaining({
+        role: 'seller',
+        category: 'paintings',
+        item: expect.objectContaining({ title: 'Blue item' }),
+        missingFacts: ['dimensions', 'condition', 'provenance'],
+      }),
+    );
+    expect(isGenerateAiResponseDto(result)).toBe(true);
+  });
 
   //test Checks that an invalid structured answer is rejected before being passed forward 
 

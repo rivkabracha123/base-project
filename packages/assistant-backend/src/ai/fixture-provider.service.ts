@@ -1,5 +1,8 @@
+import type { AiRole } from './ai.dto';
+
 export type FixtureProviderRequest = {
   prompt: string;
+  role?: AiRole;
   language?: 'he' | 'en';
 };
 
@@ -12,12 +15,22 @@ export type FixtureProviderResponse = {
   nextAction: string;
   confidence: 'low' | 'medium';
   structuredAnswer: {
+    role: AiRole;
     language: 'he' | 'en';
     intent: string;
     category: string;
     missingFacts: string[];
     hasContactDetails: boolean;
     hasImages: boolean;
+    item?: {
+      title?: string;
+      dimensions?: string;
+      condition?: string;
+      markings?: string;
+      signature?: string;
+      provenance?: string;
+      notes?: string[];
+    };
   };
 };
 
@@ -28,6 +41,7 @@ export class FixtureProviderService {
     const prompt = input.prompt ?? '';
     const normalizedPrompt = prompt.toLowerCase();
     const language = input.language ?? 'he';
+    const role = input.role ?? 'buyer';
 
     const hasBlue = normalizedPrompt.includes('כחולה') || normalizedPrompt.includes('blue');
     const yearMatch = prompt.match(/\b(19|20)\d{2}\b/);
@@ -39,14 +53,26 @@ export class FixtureProviderService {
     const nextAction = hasBlue ? 'בקש מידע נוסף על תקציב והזדמנות לרכישה' : 'בקש פרטים נוספים כדי להדריך טוב יותר';
     const confidence: FixtureProviderResponse['confidence'] = hasBlue ? 'medium' : 'low';
 
-    const structuredAnswer = {
-      language,
-      intent: hasBlue ? 'Find a blue item with a matching time period and budget.' : 'Review a general buyer request for more useful details.',
-      category: hasBlue ? 'rings' : 'general',
-      missingFacts: hasBlue ? ['budget', 'desired size', 'condition'] : ['item type', 'budget', 'preferred year'],
-      hasContactDetails: false,
-      hasImages: false,
-    };
+    const structuredAnswer = role === 'seller'
+      ? {
+          role: 'seller' as const,
+          language,
+          intent: 'Prepare an item for auction review.',
+          category: hasBlue ? 'paintings' : 'general',
+          item: { title: hasBlue ? 'Blue item' : undefined },
+          missingFacts: hasBlue ? ['dimensions', 'condition', 'provenance'] : ['item title', 'category', 'dimensions'],
+          hasContactDetails: false,
+          hasImages: false,
+        }
+      : {
+          role: 'buyer' as const,
+          language,
+          intent: hasBlue ? 'Find a blue item with a matching time period and budget.' : 'Review a general buyer request for more useful details.',
+          category: hasBlue ? 'rings' : 'general',
+          missingFacts: hasBlue ? ['budget', 'desired size', 'condition'] : ['item type', 'budget', 'preferred year'],
+          hasContactDetails: false,
+          hasImages: false,
+        };
 
     if (language === 'en') {
       return {
@@ -60,9 +86,11 @@ export class FixtureProviderService {
         structuredAnswer: {
           ...structuredAnswer,
           language: 'en',
-          intent: hasBlue ? 'Find a blue ring matching the requested period and budget.' : 'Review a general buyer request and ask for missing details.',
-          category: hasBlue ? 'rings' : 'general',
-          missingFacts: hasBlue ? ['budget', 'size', 'condition'] : ['item type', 'budget', 'year'],
+          ...(role === 'buyer' ? {
+            intent: hasBlue ? 'Find a blue ring matching the requested period and budget.' : 'Review a general buyer request and ask for missing details.',
+            category: hasBlue ? 'rings' : 'general',
+            missingFacts: hasBlue ? ['budget', 'size', 'condition'] : ['item type', 'budget', 'year'],
+          } : {}),
         },
       };
     }
@@ -78,9 +106,11 @@ export class FixtureProviderService {
       structuredAnswer: {
         ...structuredAnswer,
         language: 'he',
-        intent: hasBlue ? 'מצא טבעת כחולה המתאימה לתקופה ולתקציב המבוקש.' : 'עיין בבקשת קונה כללית ואל תבקש פרטים חסרים.',
-        category: hasBlue ? 'טבעות' : 'כללי',
-        missingFacts: hasBlue ? ['תקציב', 'גודל', 'מצב'] : ['סוג הפריט', 'תקציב', 'שנת ייצור'],
+        ...(role === 'buyer' ? {
+          intent: hasBlue ? 'מצא טבעת כחולה המתאימה לתקופה ולתקציב המבוקש.' : 'עיין בבקשת קונה כללית ואל תבקש פרטים חסרים.',
+          category: hasBlue ? 'טבעות' : 'כללי',
+          missingFacts: hasBlue ? ['תקציב', 'גודל', 'מצב'] : ['סוג הפריט', 'תקציב', 'שנת ייצור'],
+        } : {}),
       },
     };
   }

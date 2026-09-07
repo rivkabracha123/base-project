@@ -3,15 +3,19 @@ import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService } from './fixture-provider.service';
 import { ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
+import type { AiRole, StructuredAnswer } from './ai.dto';
 
+//request
 export type AiGenerateRequest = {
   prompt: string;
+  role?: AiRole;
   language?: 'he' | 'en';
   baseUrl?: string;
   modelName?: string;
   apiKey?: string;
 };
 
+//response
 export type AiGenerateResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
@@ -20,18 +24,10 @@ export type AiGenerateResponse = {
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
-  structuredAnswer: {
-    language: 'he' | 'en';
-    intent: string;
-    category: string;
-    missingFacts: string[];
-    hasContactDetails: boolean;
-    hasImages: boolean;
-  };
+  structuredAnswer: StructuredAnswer;
 };
 
 //constructor
-
 @Injectable()
 export class AiService {
   constructor(
@@ -58,7 +54,7 @@ export class AiService {
 
     //send a prompt and make sure that the result equals the provider shape
 
-    const result = await gateway.generate(input, configuredProviders);
+    const result = await gateway.generate({ ...input, role: input.role ?? 'buyer' }, configuredProviders);
 
     if (!isGenerateAiResponseDto(result)) {
       throw new Error('AI service received an invalid response shape from the provider gateway.');

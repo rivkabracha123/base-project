@@ -1,10 +1,125 @@
 import { FixtureProviderService } from './fixture-provider.service';
 import { ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
+import { isSellerHandoffContract } from './seller-handoff';
 
-//1 test - select the enabled provider (first try real)
-
+// test 1 - seller fixture response
 describe('ProviderGatewayService', () => {
+  it('connects a seller fixture response to the validated seller consumer contract', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const realProvider = { generate: jest.fn() } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate(
+      { prompt: 'I have a blue painting to sell', role: 'seller', language: 'en' },
+      [{ kind: 'fixture', enabled: true }],
+    );
+
+    expect(result.provider).toBe('fixture');
+    expect(isSellerHandoffContract(result.structuredAnswer)).toBe(true);
+    expect(result.structuredAnswer).toEqual(
+      expect.objectContaining({ role: 'seller', category: 'paintings' }),
+    );
+  });
+
+  // test 2 - seller real response
+
+  it('accepts a real seller response that matches the seller contract', async () => {
+    const fixtureProvider = { generate: jest.fn() } as unknown as FixtureProviderService;
+    const realProvider = {
+      generate: jest.fn().mockResolvedValue({
+        provider: 'real',
+        mode: 'real',
+        content: 'real seller reply',
+        summary: 'פריט מוכן לעיבוד',
+        recommendation: 'בקשו פרטים נוספים על מקור ונסיבות',
+        nextAction: 'המשיכו בבדיקת מצב הפריט',
+        confidence: 'medium',
+        structuredAnswer: {
+          role: 'seller',
+          language: 'he',
+          intent: 'Prepare this item for auction review.',
+          category: 'paintings',
+          item: {
+            title: 'ציור נוף',
+            dimensions: '60x80 ס"מ',
+            condition: 'מצב טוב',
+            provenance: 'משפחה',
+          },
+          missingFacts: ['חתימה', 'מסמכים'],
+          hasContactDetails: false,
+          hasImages: false,
+        },
+      }),
+    } as unknown as RealProviderService;
+
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate(
+      { prompt: 'יש לי ציור שמוכר', role: 'seller', language: 'he' },
+      [
+        { kind: 'fixture', enabled: true },
+        {
+          kind: 'real',
+          enabled: true,
+          baseUrl: 'https://example.com/v1',
+          modelName: 'gpt-4o-mini',
+          apiKey: 'token',
+        },
+      ],
+    );
+
+    expect(result.provider).toBe('real');
+    expect(isSellerHandoffContract(result.structuredAnswer)).toBe(true);
+    expect(result.structuredAnswer).toEqual(
+      expect.objectContaining({ role: 'seller', category: 'paintings' }),
+    );
+  });
+
+  // test 3 - no contact details or image data
+  it('does not expose contact details, URLs, or image payloads in the provider response', async () => {
+    const fixtureProvider = {
+      generate: jest.fn().mockResolvedValue({
+        provider: 'fixture',
+        mode: 'fixture',
+        content: 'safe fixture response',
+        summary: 'תגובה בטוחה',
+        recommendation: 'הצג פריטים רלוונטיים',
+        nextAction: 'בקש פרטים נוספים',
+        confidence: 'low',
+        structuredAnswer: {
+          role: 'seller',
+          language: 'he',
+          intent: 'Prepare this item for auction review.',
+          category: 'paintings',
+          item: {
+            title: 'ציור נוף',
+            condition: 'מצב טוב',
+          },
+          missingFacts: ['חתימה', 'מסמכים'],
+          hasContactDetails: false,
+          hasImages: false,
+        },
+      }),
+    } as unknown as FixtureProviderService;
+    const realProvider = { generate: jest.fn() } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate(
+      { prompt: 'יש לי ציור שמוכר', role: 'seller', language: 'he' },
+      [{ kind: 'fixture', enabled: true }],
+    );
+
+    const serialized = JSON.stringify(result);
+
+    expect(serialized).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    expect(serialized).not.toMatch(/\b\d{3}[- ]?\d{3}[- ]?\d{4}\b/);
+    expect(serialized).not.toMatch(/https?:\/\//i);
+    expect(serialized).not.toMatch(/data:image\//i);
+    expect(serialized).not.toMatch(/base64/i);
+  });
+
+  // test 4 - use the real provider
   it('uses the real provider when it is enabled and configured', async () => {
     const fixtureProvider = { generate: jest.fn() } as unknown as FixtureProviderService;
     const realProvider = {
@@ -17,6 +132,7 @@ describe('ProviderGatewayService', () => {
         nextAction: 'בקש פרטים נוספים',
         confidence: 'medium',
         structuredAnswer: {
+          role: 'buyer',
           language: 'he',
           intent: 'Find a blue ring matching the requested period and budget.',
           category: 'rings',
@@ -57,7 +173,7 @@ describe('ProviderGatewayService', () => {
     );
   });
 
-  //test 2 - fallback to fixture provider because error
+  // test 5 - fallback after provider error
 
   it('falls back to the fixture provider when the real provider fails', async () => {
     const fixtureProvider = {
@@ -87,7 +203,7 @@ describe('ProviderGatewayService', () => {
     expect(fixtureProvider.generate).toHaveBeenCalledWith({ prompt: 'טבעת כחולה', language: 'he' });
   });
 
-  //test 3 - no real provider enabled so use fixture provider
+  // test 6 - use fixture without real provider
 
   it('uses the fixture provider when no real provider is enabled', async () => {
     const fixtureProvider = {
@@ -117,7 +233,7 @@ describe('ProviderGatewayService', () => {
     expect(realProvider.generate).not.toHaveBeenCalled();
   });
 
-  //test 4 - real provider enabled but missing config
+  // test 7 - fallback when real config is missing
 
   it('does not enable the real provider when its configuration is incomplete', async () => {
     const fixtureProvider = {
@@ -147,7 +263,7 @@ describe('ProviderGatewayService', () => {
     expect(realProvider.generate).not.toHaveBeenCalled();
   });
 
-  //test 5 - fixture provieder because real provider returns invalid response
+  // test 8 - fallback after invalid real response
 
   it('falls back to the fixture provider when the real provider returns an invalid response', async () => {
     const fixtureProvider = {
@@ -181,7 +297,7 @@ describe('ProviderGatewayService', () => {
     expect(fixtureProvider.generate).toHaveBeenCalledWith({ prompt: 'טבעת כחולה', language: 'he' });
   });
 
-  //test 6 - real provider returns valid  response
+  // test 9 - accept a valid real response
   it('accepts a product-style response with summary, recommendation, nextAction, and confidence', async () => {
     const fixtureProvider = { generate: jest.fn() } as unknown as FixtureProviderService;
     const realProvider = {
@@ -194,6 +310,7 @@ describe('ProviderGatewayService', () => {
         nextAction: 'בקש מידע נוסף מהמשתמש',
         confidence: 'medium',
         structuredAnswer: {
+          role: 'buyer',
           language: 'he',
           intent: 'Find a blue ring matching the requested period and budget.',
           category: 'rings',
@@ -218,7 +335,7 @@ describe('ProviderGatewayService', () => {
     expect(result.confidence).toBe('medium');
   });
 
-  //test 7 - real provider returns malformed payload shape
+  // test 10 - fallback after malformed payload
 
   it('falls back when the real provider returns a malformed payload shape', async () => {
     const fixtureProvider = {

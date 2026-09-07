@@ -1,5 +1,6 @@
 // Define and validate the buyer handoff contract
 export type BuyerHandoffContract = {
+  role: 'buyer';
   language: 'he' | 'en';
   intent: string;
   category: string;
@@ -16,6 +17,7 @@ export function isBuyerHandoffContract(value: unknown): value is BuyerHandoffCon
   const handoff = value as Record<string, unknown>;
 
   return (
+    handoff.role === 'buyer' &&
     (handoff.language === 'he' || handoff.language === 'en') &&
     typeof handoff.intent === 'string' &&
     handoff.intent.trim().length > 0 &&

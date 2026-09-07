@@ -1,6 +1,7 @@
 import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService, type FixtureProviderRequest, type FixtureProviderResponse } from './fixture-provider.service';
 import { RealProviderService, type RealProviderRequest, type RealProviderResponse } from './real-provider.service';
+import type { AiRole } from './ai.dto';
 
 export type ProviderConfig = {
   kind: 'fixture' | 'real';
@@ -11,6 +12,7 @@ export type ProviderConfig = {
 };
 
 export type ProviderGatewayRequest = FixtureProviderRequest & {
+  role?: AiRole;
   baseUrl?: string;
   modelName?: string;
   apiKey?: string;
@@ -49,6 +51,7 @@ export class ProviderGatewayService {
     if (enabledReal && !hasValidRealConfig) {
       return this.dependencies.fixtureProvider.generate({
         prompt: input.prompt,
+        role: input.role,
         language: input.language,
       });
     }
@@ -74,6 +77,7 @@ export class ProviderGatewayService {
       } catch (error) {
         const fallback = this.dependencies.fixtureProvider.generate({
           prompt: input.prompt,
+          role: input.role,
           language: input.language,
         });
 
@@ -83,6 +87,7 @@ export class ProviderGatewayService {
 
     return this.dependencies.fixtureProvider.generate({
       prompt: input.prompt,
+      role: input.role,
       language: input.language,
     });
   }
