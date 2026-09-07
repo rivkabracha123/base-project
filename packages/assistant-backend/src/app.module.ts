@@ -3,7 +3,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { environmentSchema } from './config/environment';
 import { AuctionLotEntity } from './database/auction-lot.entity';
+import { SellerEntity } from './database/seller.entity';
+import { SellerItemEntity } from './database/seller-item.entity';
+import { ItemEvidenceEntity } from './database/item-evidence.entity';
+import { ItemFactEntity } from './database/item-fact.entity';
+import { ItemRevisionEntity } from './database/item-revision.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
+import { CreateSellerIntakeTables1720000000000 } from './database/1720000000000-create-seller-intake-tables';
 import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
@@ -30,8 +36,8 @@ import { StorageModule } from './storage/storage.module';
       useFactory: (config: ConfigService) => ({
         type: 'postgres' as const,
         url: config.getOrThrow<string>('DATABASE_URL'),
-        entities: [AuctionLotEntity],
-        migrations: [CreateAuctionLots1710000000000],
+        entities: [AuctionLotEntity, SellerEntity, SellerItemEntity, ItemEvidenceEntity, ItemFactEntity, ItemRevisionEntity],
+        migrations: [CreateAuctionLots1710000000000, CreateSellerIntakeTables1720000000000],
         synchronize: false,
       }),
     }),
