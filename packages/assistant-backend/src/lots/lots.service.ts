@@ -1,9 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { AuctionLot } from '@monabid/shared';
+import type { AuctionLot, PaginatedResult } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
-import { PaginatedResult } from './paginated-result.interface';
 
 @Injectable()
 export class LotsService {
@@ -56,6 +55,11 @@ export class LotsService {
 
     // Calculate pagination parameters
     const offset = (page - 1) * limit;
+
+    // A stable, deterministic order so pages never overlap or drop rows.
+    // Relevance ranking replaces this ordering in a later week; the tie-break
+    // on the primary key must remain regardless.
+    qb.orderBy('lot.id', 'ASC');
 
     // Apply pagination and fetch items with total matching count
     const [entities, total] = await qb

@@ -1,8 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import type { AuctionLot } from '@monabid/shared';
+import type { AuctionLot, PaginatedResult } from '@monabid/shared';
 import { LotQueryDto } from './lot-query.dto';
 import { LotsService } from './lots.service';
-import { PaginatedResult } from './paginated-result.interface';
 
 @Controller('lots')
 export class LotsController {
