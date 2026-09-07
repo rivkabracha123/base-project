@@ -7,17 +7,20 @@ import { PaginatedResult } from './paginated-result.interface';
 
 @Injectable()
 export class LotsService {
+  // Reads canonical lots from the database without remapping source metadata.
   constructor(
     @InjectRepository(AuctionLotEntity)
     private readonly lots: Repository<AuctionLotEntity>,
   ) {}
 
+  // Returns the earliest valid fixture lot as a stable sample payload.
   async findSample(): Promise<AuctionLot> {
     const [entity] = await this.lots.find({ order: { createdAt: 'ASC' }, take: 1 });
     if (!entity) throw new NotFoundException('No fixture lots are available');
     return entity.payload;
   }
 
+  // Fetches one canonical lot by stable id for detail views and evidence screens.
   async searchByText(
     query: string = '',
     language: 'en' | 'he' = 'he',
