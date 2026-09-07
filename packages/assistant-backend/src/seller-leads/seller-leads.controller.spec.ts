@@ -27,4 +27,25 @@ describe('SellerLeadsController', () => {
   it('exposes the draft enquiry route under the seller-leads path', () => {
     expect(Reflect.getMetadata(PATH_METADATA, SellerLeadsController)).toBe('seller-leads');
   });
+
+  it('lists draft enquiries for the staff dashboard in the agreed shape', async () => {
+    const list = jest.fn().mockResolvedValue([
+      {
+        id: 'lead-1',
+        profileId: enquiry.profileId,
+        contact: enquiry.contact,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]);
+    const controller = new SellerLeadsController({ list } as unknown as SellerLeadsService);
+
+    await expect(controller.list()).resolves.toEqual([
+      {
+        id: 'lead-1',
+        profileId: enquiry.profileId,
+        contact: enquiry.contact,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+  });
 });

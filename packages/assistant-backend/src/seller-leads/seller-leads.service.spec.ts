@@ -22,15 +22,17 @@ function createHarness() {
   const logger = { log: record, error: record, warn: record, debug: record, verbose: record } as LoggerService;
 
   const saved: Record<string, unknown>[] = [];
+  const stored: SellerLeadEntity[] = [];
   const repository = {
     create: jest.fn((lead: Record<string, unknown>) => lead),
     save: jest.fn(async (lead: Record<string, unknown>) => {
       saved.push(lead);
       return { id: 'lead-1', ...lead };
     }),
+    find: jest.fn(async () => [...stored]),
   } as unknown as Repository<SellerLeadEntity>;
 
-  return { logged, saved, repository, service: new SellerLeadsService(repository, logger) };
+  return { logged, saved, stored, repository, service: new SellerLeadsService(repository, logger) };
 }
 
 describe('SellerLeadsService', () => {
@@ -70,5 +72,35 @@ describe('SellerLeadsService', () => {
         phone: enquiry.contact.phone,
       },
     });
+  });
+
+  it('lists the drafted enquiries newest first for the staff dashboard', async () => {
+    const { service, stored, repository } = createHarness();
+    stored.push({
+      id: 'lead-1',
+      profileId: enquiry.profileId,
+      contact: enquiry.contact,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    await expect(service.list()).resolves.toEqual(stored);
+    expect(repository.find).toHaveBeenCalledWith({ order: { createdAt: 'DESC' } });
+  });
+
+  it('does not write the preferred name, email, or phone to the log when listing', async () => {
+    const { service, stored, logged } = createHarness();
+    stored.push({
+      id: 'lead-1',
+      profileId: enquiry.profileId,
+      contact: enquiry.contact,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    await service.list();
+
+    const output = JSON.stringify(logged);
+    expect(output).not.toContain(enquiry.contact.preferredName);
+    expect(output).not.toContain(enquiry.contact.email);
+    expect(output).not.toContain(enquiry.contact.phone);
   });
 });

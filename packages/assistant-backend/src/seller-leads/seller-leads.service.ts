@@ -23,4 +23,8 @@ export class SellerLeadsService {
 
     return lead;
   }
+
+  async list(): Promise<SellerLeadEntity[]> {
+    return this.sellerLeads.find({ order: { createdAt: 'DESC' } });
+  }
 }
