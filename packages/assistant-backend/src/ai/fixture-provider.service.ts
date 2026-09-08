@@ -19,9 +19,19 @@ export type FixtureProviderResponse = {
     language: 'he' | 'en';
     intent: string;
     category: string;
-    missingFacts: string[];
+    creators?: string[];
+    periods?: string[];
+    price?: { min?: number; max?: number; currency?: string };
+    keywords?: string[];
+    geography?: string[];
     hasContactDetails: boolean;
     hasImages: boolean;
+    confirmedFacts?: string[];
+    uncertainFacts?: string[];
+    sellerConfirmation?: {
+      required: boolean;
+      status: 'pending' | 'confirmed' | 'rejected';
+    };
     item?: {
       title?: string;
       dimensions?: string;
@@ -65,6 +75,12 @@ export class FixtureProviderService {
           category: hasPainting ? 'paintings' : 'general',
           item: { title: hasPainting ? (language === 'he' ? 'ציור כחול' : 'Blue item') : undefined },
           missingFacts: hasPainting ? ['dimensions', 'condition', 'provenance'] : ['item title', 'category', 'dimensions'],
+          confirmedFacts: [],
+          uncertainFacts: hasPainting ? ['title'] : [],
+          sellerConfirmation: {
+            required: true,
+            status: 'pending' as const,
+          },
           hasContactDetails: false,
           hasImages: false,
         }
@@ -73,12 +89,9 @@ export class FixtureProviderService {
           language,
           intent: hasBlue ? 'Find a blue item with a matching time period and budget.' : 'Review a general buyer request for more useful details.',
           category: hasBlue ? 'rings' : 'general',
-          missingFacts: [
-            ...(hasItemType ? [] : ['item type']),
-            ...(hasBudget ? [] : ['budget']),
-            ...(hasYear ? [] : ['preferred year']),
-            ...(hasBlue ? ['desired size', 'condition'] : []),
-          ],
+          ...(hasBlue ? { category: 'rings', keywords: ['blue'] } : {}),
+          ...(hasYear ? { periods: [year] } : {}),
+          ...(hasBudget ? { price: { max: 5000, currency: 'ILS' } } : {}),
           hasContactDetails: false,
           hasImages: false,
         };
@@ -98,13 +111,6 @@ export class FixtureProviderService {
           ...(role === 'buyer' ? {
             intent: hasBlue ? 'Find a blue ring matching the requested period and budget.' : 'Review a general buyer request and ask for missing details.',
             category: hasBlue ? 'rings' : 'general',
-            missingFacts: hasBlue
-              ? [...(hasBudget ? [] : ['budget']), ...(hasYear ? [] : ['year']), 'size', 'condition']
-              : [
-                  ...(hasItemType ? [] : ['item type']),
-                  ...(hasBudget ? [] : ['budget']),
-                  ...(hasYear ? [] : ['year']),
-                ],
           } : {}),
         },
       };
@@ -124,13 +130,6 @@ export class FixtureProviderService {
         ...(role === 'buyer' ? {
           intent: hasBlue ? 'מצא טבעת כחולה המתאימה לתקופה ולתקציב המבוקש.' : 'עיין בבקשת קונה כללית ואל תבקש פרטים חסרים.',
           category: hasBlue ? 'טבעות' : 'כללי',
-          missingFacts: hasBlue
-            ? [...(hasBudget ? [] : ['תקציב']), ...(hasYear ? [] : ['שנה']), 'גודל', 'מצב']
-            : [
-                ...(hasItemType ? [] : ['סוג הפריט']),
-                ...(hasBudget ? [] : ['תקציב']),
-                ...(hasYear ? [] : ['שנת ייצור']),
-              ],
         } : {}),
       },
     };

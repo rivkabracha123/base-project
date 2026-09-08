@@ -34,15 +34,14 @@ describe('FixtureProviderService', () => {
         hasImages: false,
       }),
     );
-    expect(result.structuredAnswer?.missingFacts).toEqual(expect.any(Array));
-    expect(result.structuredAnswer?.missingFacts).not.toContain('תקציב');
-    expect(result.structuredAnswer?.missingFacts).not.toContain('שנת ייצור');
+    expect(result.structuredAnswer?.periods).toEqual(['2021']);
+    expect(result.structuredAnswer?.price).toEqual({ max: 5000, currency: 'ILS' });
     expect(result.structuredAnswer?.hasContactDetails).toBe(false);
     expect(result.structuredAnswer?.hasImages).toBe(false);
     expect(isGenerateAiResponseDto(result)).toBe(true);
   });
-  //test Checks that provided Hebrew buyer facts are removed from missingFacts
-  it('does not mark provided facts as missing for a Hebrew buyer', async () => {
+  //test Checks that provided Hebrew buyer facts are extracted
+  it('extracts provided facts for a Hebrew buyer', async () => {
     const result = await new FixtureProviderService().generate({
       prompt: 'אני מחפש טבעת כחולה משנת 2021 בתקציב עד 5000 שקל',
       role: 'buyer',
@@ -52,7 +51,9 @@ describe('FixtureProviderService', () => {
     expect(result.structuredAnswer).toEqual(expect.objectContaining({
       role: 'buyer',
       category: 'טבעות',
-      missingFacts: ['גודל', 'מצב'],
+      periods: ['2021'],
+      price: { max: 5000, currency: 'ILS' },
+      keywords: ['blue'],
     }));
   });
 
