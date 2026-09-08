@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+// Canonical money and lot shape used across backend and frontend.
+// Keeps IDs, source lineage, and money values strict and traceable before data reaches consumers.
 export const moneySchema = z.object({
   amount: z.number().nonnegative(),
   currency: z.string().regex(/^[A-Z]{3}$/),
@@ -35,6 +37,8 @@ export const auctionLotSchema = z.object({
   imageUrl: z.string().url().optional(),
 });
 
+// Fixture batch contract: a valid file must contain at least one canonical lot.
+// Rejects incomplete records, invalid money values, and broken source metadata.
 export const auctionLotFixtureSchema = z.array(auctionLotSchema).min(1);
 
 export type Money = z.infer<typeof moneySchema>;
