@@ -19,7 +19,12 @@ function makeEntity(lot: AuctionLot): AuctionLotEntity {
 
 const soldRareBook: AuctionLot = {
   id: 'ctrl-lot-sold',
-  source: { provider: 'demo', recordId: '1', url: 'https://example.com/1', retrievedAt: '2025-01-01T00:00:00.000Z' },
+  source: {
+    provider: 'demo',
+    recordId: '1',
+    url: 'https://example.com/1',
+    retrievedAt: '2025-01-01T00:00:00.000Z',
+  },
   auctionHouse: { id: 'h1', name: 'House' },
   auctionTitle: 'Auction',
   lotNumber: '1',
@@ -48,18 +53,27 @@ describe('ComparablesController (contract)', () => {
     })
       .overrideProvider(getRepositoryToken(AuctionLotEntity))
       .useValue({
-        find: jest.fn().mockResolvedValue([makeEntity(soldRareBook), makeEntity(unsoldRareBook)]),
+        find: jest
+          .fn()
+          .mockResolvedValue([
+            makeEntity(soldRareBook),
+            makeEntity(unsoldRareBook),
+          ]),
       })
       .compile();
 
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
-    // Listen on an OS-assigned loopback port instead of using supertest, so the
-    // real HTTP pipeline (pipes, status codes, JSON body) is exercised with only
-    // Node's built-in global fetch — no extra test dependency required.
+
+    // Listen on an OS-assigned loopback port so the real HTTP pipeline
+    // (pipes, status codes, JSON body) is exercised with Node's fetch.
     await app.listen(0, '127.0.0.1');
     baseUrl = await app.getUrl();
   });
@@ -68,20 +82,35 @@ describe('ComparablesController (contract)', () => {
     await app.close();
   });
 
-  function postQuery(body: unknown): Promise<Response> {
-    return fetch(`${baseUrl}/api/comparables/query`, {
+  async function postQuery(body: unknown) {
+    const response = await fetch(`${baseUrl}/api/comparables/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+
+    const text = await response.text();
+    let json: unknown = undefined;
+
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = undefined;
+      }
+    }
+
+    return {
+      status: response.status,
+      body: json,
+    };
   }
 
   it('POST /api/comparables/query returns 200 with a schema-conforming body', async () => {
     const response = await postQuery({ category: 'rare_books' });
 
     expect(response.status).toBe(200);
-    const body: unknown = await response.json();
-    expect(() => comparableEvidenceSchema.parse(body)).not.toThrow();
+    expect(() => comparableEvidenceSchema.parse(response.body)).not.toThrow();
   });
 
   it('rejects an empty category string with 400', async () => {
@@ -97,7 +126,10 @@ describe('ComparablesController (contract)', () => {
   });
 
   it('rejects unknown fields with 400 (forbidNonWhitelisted)', async () => {
-    const response = await postQuery({ category: 'rare_books', extra: 'yes' });
+    const response = await postQuery({
+      category: 'rare_books',
+      extra: 'yes',
+    });
 
     expect(response.status).toBe(400);
   });
@@ -106,9 +138,11 @@ describe('ComparablesController (contract)', () => {
     const response = await postQuery({ category: 'rare_books' });
 
     expect(response.status).toBe(200);
-    const body = comparableEvidenceSchema.parse(await response.json());
+
+    const body = comparableEvidenceSchema.parse(response.body);
+
     expect(body.included).toHaveLength(1);
     expect(body.included[0]!.lot.id).toBe('ctrl-lot-sold');
-    expect(body.excluded.map(s => s.lot.id)).toContain('ctrl-lot-unsold');
+    expect(body.excluded.map((s) => s.lot.id)).toContain('ctrl-lot-unsold');
   });
 });
