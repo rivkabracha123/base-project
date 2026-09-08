@@ -11,6 +11,14 @@ export type FixtureProviderResponse = {
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
+  structuredAnswer: {
+    language: 'he' | 'en';
+    intent: string;
+    category: string;
+    missingFacts: string[];
+    hasContactDetails: boolean;
+    hasImages: boolean;
+  };
 };
 
 //take the ansewer from the fixture provider and return it in the expected format
@@ -31,6 +39,15 @@ export class FixtureProviderService {
     const nextAction = hasBlue ? 'בקש מידע נוסף על תקציב והזדמנות לרכישה' : 'בקש פרטים נוספים כדי להדריך טוב יותר';
     const confidence: FixtureProviderResponse['confidence'] = hasBlue ? 'medium' : 'low';
 
+    const structuredAnswer = {
+      language,
+      intent: hasBlue ? 'Find a blue item with a matching time period and budget.' : 'Review a general buyer request for more useful details.',
+      category: hasBlue ? 'rings' : 'general',
+      missingFacts: hasBlue ? ['budget', 'desired size', 'condition'] : ['item type', 'budget', 'preferred year'],
+      hasContactDetails: false,
+      hasImages: false,
+    };
+
     if (language === 'en') {
       return {
         provider: 'fixture',
@@ -40,6 +57,13 @@ export class FixtureProviderService {
         recommendation,
         nextAction,
         confidence,
+        structuredAnswer: {
+          ...structuredAnswer,
+          language: 'en',
+          intent: hasBlue ? 'Find a blue ring matching the requested period and budget.' : 'Review a general buyer request and ask for missing details.',
+          category: hasBlue ? 'rings' : 'general',
+          missingFacts: hasBlue ? ['budget', 'size', 'condition'] : ['item type', 'budget', 'year'],
+        },
       };
     }
 
@@ -51,6 +75,13 @@ export class FixtureProviderService {
       recommendation,
       nextAction,
       confidence,
+      structuredAnswer: {
+        ...structuredAnswer,
+        language: 'he',
+        intent: hasBlue ? 'מצא טבעת כחולה המתאימה לתקופה ולתקציב המבוקש.' : 'עיין בבקשת קונה כללית ואל תבקש פרטים חסרים.',
+        category: hasBlue ? 'טבעות' : 'כללי',
+        missingFacts: hasBlue ? ['תקציב', 'גודל', 'מצב'] : ['סוג הפריט', 'תקציב', 'שנת ייצור'],
+      },
     };
   }
 }
