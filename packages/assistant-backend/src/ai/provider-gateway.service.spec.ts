@@ -16,6 +16,14 @@ describe('ProviderGatewayService', () => {
         recommendation: 'הצג אפשרות רלוונטית',
         nextAction: 'בקש פרטים נוספים',
         confidence: 'medium',
+        structuredAnswer: {
+          language: 'he',
+          intent: 'Find a blue ring matching the requested period and budget.',
+          category: 'rings',
+          missingFacts: ['budget', 'size', 'condition'],
+          hasContactDetails: false,
+          hasImages: false,
+        },
       }),
     } as unknown as RealProviderService;
 
@@ -185,6 +193,14 @@ describe('ProviderGatewayService', () => {
         recommendation: 'הצג אפשרויות דומות',
         nextAction: 'בקש מידע נוסף מהמשתמש',
         confidence: 'medium',
+        structuredAnswer: {
+          language: 'he',
+          intent: 'Find a blue ring matching the requested period and budget.',
+          category: 'rings',
+          missingFacts: ['budget', 'size', 'condition'],
+          hasContactDetails: false,
+          hasImages: false,
+        },
       }),
     } as unknown as RealProviderService;
 
