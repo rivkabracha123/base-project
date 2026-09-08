@@ -14,6 +14,7 @@ import { LotsModule } from './lots/lots.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
 import { StorageModule } from './storage/storage.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 /**
  * Root application module for the Monabid Assistant backend.
@@ -50,6 +51,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     SellerIntakeModule,
     SellerLeadsModule,
     StorageModule,
+    UploadsModule,
     AlomaShilatModule,
   ],
 })
