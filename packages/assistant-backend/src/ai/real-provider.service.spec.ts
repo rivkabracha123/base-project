@@ -1,4 +1,4 @@
-import { RealProviderService } from './real-provider.service';
+import { RealProviderService, sanitizePrompt } from './real-provider.service';
 //test real provider service
 describe('RealProviderService', () => {
   it('calls the OpenAI-compatible endpoint and returns the model content', async () => {
@@ -48,5 +48,16 @@ describe('RealProviderService', () => {
         headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
       }),
     );
+  });
+//test to remove contact details
+  it('removes contact details and inline image data before sending the prompt', () => {
+    const sanitized = sanitizePrompt(
+      'Contact me at buyer@example.com or 050-1234567. data:image/png;base64,abc123',
+    );
+
+    expect(sanitized).not.toContain('buyer@example.com');
+    expect(sanitized).not.toContain('050-1234567');
+    expect(sanitized).toContain('[contact removed]');
+    expect(sanitized).toContain('[image removed]');
   });
 });

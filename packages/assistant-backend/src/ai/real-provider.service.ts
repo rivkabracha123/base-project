@@ -20,6 +20,14 @@ export type RealProviderResponse = {
   confidence: 'low' | 'medium';
   structuredAnswer: StructuredAnswer;
 };
+
+export function sanitizePrompt(prompt: string): string {
+  return prompt
+    .replace(/data:image\/[a-z0-9.+-]+;base64,[^\s]+/gi, '[image removed]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[contact removed]')
+    .replace(/(?<!\d)\+?\d[\d\s().-]{6,}\d(?!\d)/g, '[contact removed]');
+}
+
 //inser the input to AI provider
 
 //option to switch between the mock and fetch for test
@@ -52,7 +60,7 @@ export class RealProviderService {
           },
           {
             role: 'user',
-            content: input.prompt,
+            content: sanitizePrompt(input.prompt),
           },
         ],
       }),
