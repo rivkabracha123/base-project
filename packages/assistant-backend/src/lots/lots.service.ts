@@ -1,23 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { AuctionLot } from '@monabid/shared';
+import type { AuctionLot, PaginatedResult } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
-import { PaginatedResult } from './paginated-result.interface';
 
 @Injectable()
 export class LotsService {
+  // Reads canonical lots from the database without remapping source metadata.
   constructor(
     @InjectRepository(AuctionLotEntity)
     private readonly lots: Repository<AuctionLotEntity>,
   ) {}
 
+  // Returns the earliest valid fixture lot as a stable sample payload.
   async findSample(): Promise<AuctionLot> {
     const [entity] = await this.lots.find({ order: { createdAt: 'ASC' }, take: 1 });
     if (!entity) throw new NotFoundException('No fixture lots are available');
     return entity.payload;
   }
 
+  // Fetches one canonical lot by stable id for detail views and evidence screens.
   async searchByText(
     query: string = '',
     language: 'en' | 'he' = 'he',
@@ -56,6 +58,11 @@ export class LotsService {
 
     // Calculate pagination parameters
     const offset = (page - 1) * limit;
+
+    // A stable, deterministic order so pages never overlap or drop rows.
+    // Relevance ranking replaces this ordering in a later week; the tie-break
+    // on the primary key must remain regardless.
+    qb.orderBy('lot.id', 'ASC');
 
     // Apply pagination and fetch items with total matching count
     const [entities, total] = await qb
