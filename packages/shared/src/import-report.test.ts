@@ -14,6 +14,7 @@ const validLot = {
   category: 'books',
   saleDate: '2025-01-01',
   status: 'sold',
+  realizedPrice: { amount: 1200, currency: 'USD' },
 };
 
 describe('validateAuctionLotFixture', () => {
@@ -71,6 +72,74 @@ describe('validateAuctionLotFixture', () => {
       status: expect.any(String),
       source: { url: expect.any(String) },
     });
+  });
+
+  it('provides traceable historical sales with original prices and currencies', async () => {
+    const result = validateAuctionLotFixture(await readCommittedFixture());
+    const historicalSales = result.records.filter((lot) => lot.status === 'sold');
+
+    expect(historicalSales).not.toHaveLength(0);
+    for (const sale of historicalSales) {
+      expect(sale).toEqual(expect.objectContaining({
+        realizedPrice: expect.objectContaining({
+          amount: expect.any(Number),
+          currency: expect.stringMatching(/^[A-Z]{3}$/),
+        }),
+        source: expect.objectContaining({
+          provider: expect.any(String),
+          recordId: expect.any(String),
+          url: expect.any(String),
+        }),
+      }));
+    }
+  });
+
+  it('provides linked sold history and an upcoming lot for an item page', async () => {
+    const result = validateAuctionLotFixture(await readCommittedFixture());
+    const upcomingLot = result.records.find((lot) => lot.status === 'upcoming' && lot.itemKey);
+
+    expect(upcomingLot).toBeDefined();
+
+    const linkedSales = result.records.filter((lot) =>
+      lot.status === 'sold' && lot.itemKey === upcomingLot?.itemKey,
+    );
+
+    expect(linkedSales).toHaveLength(2);
+    expect(new Set(linkedSales.map((sale) => sale.realizedPrice?.currency))).toEqual(new Set(['USD']));
+    for (const sale of linkedSales) {
+      expect(sale).toEqual(expect.objectContaining({
+        saleDate: expect.any(String),
+        realizedPrice: expect.objectContaining({
+          amount: expect.any(Number),
+          currency: expect.stringMatching(/^[A-Z]{3}$/),
+        }),
+        source: expect.objectContaining({
+          provider: expect.any(String),
+          recordId: expect.any(String),
+          url: expect.any(String),
+        }),
+      }));
+    }
+  });
+
+  it('preserves stable IDs and source links after validation', async () => {
+    const fixture = await readCommittedFixture();
+    const result = validateAuctionLotFixture(fixture);
+
+    expect(result.records.map((lot) => ({
+      id: lot.id,
+      provider: lot.source.provider,
+      recordId: lot.source.recordId,
+      url: lot.source.url,
+    }))).toEqual((fixture as Array<{
+      id: string;
+      source: { provider: string; recordId: string; url: string };
+    }>).map((lot) => ({
+      id: lot.id,
+      provider: lot.source.provider,
+      recordId: lot.source.recordId,
+      url: lot.source.url,
+    })));
   });
 
   it('keeps the import report safe to log', async () => {

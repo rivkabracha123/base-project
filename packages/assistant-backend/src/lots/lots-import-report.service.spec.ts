@@ -6,8 +6,8 @@ describe('LotsImportReportService', () => {
     const report = await new LotsImportReportService().getReport();
 
     expect(report).toEqual({
-      total: 1,
-      accepted: 1,
+      total: 14,
+      accepted: 14,
       rejected: 0,
       duplicateIds: [],
       validationErrors: [],

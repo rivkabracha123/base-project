@@ -14,6 +14,7 @@ const payload = {
   category: 'books',
   saleDate: '2025-01-01',
   status: 'sold' as const,
+  realizedPrice: { amount: 1200, currency: 'USD' },
 };
 
 describe('LotsService', () => {
@@ -82,7 +83,7 @@ describe('LotsService', () => {
     expect(result.limit).toBe(5);
   });
 
-  it('returns canonical payloads without remapping source lineage', async () => {
+  it('hands historical sale prices and source lineage to consumers without remapping', async () => {
     const repository = { findOneBy: jest.fn().mockResolvedValue({ payload }) } as unknown as Repository<AuctionLotEntity>;
     await expect(new LotsService(repository).findOne('lot-1')).resolves.toEqual(payload);
   });
