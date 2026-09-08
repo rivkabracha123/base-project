@@ -43,7 +43,11 @@ export class FixtureProviderService {
     const language = input.language ?? 'he';
     const role = input.role ?? 'buyer';
 
-    const hasBlue = normalizedPrompt.includes('כחולה') || normalizedPrompt.includes('blue');
+    const hasBlue = normalizedPrompt.includes('blue') || normalizedPrompt.includes('כחול') || normalizedPrompt.includes('׳›׳—׳•׳׳”');
+    const hasPainting = normalizedPrompt.includes('painting') || normalizedPrompt.includes('ציור');
+    const hasBudget = /budget|תקציב|[$₪]\s*\d|עד\s*\d/.test(normalizedPrompt);
+    const hasItemType = /ring|painting|item|טבעת|ציור|פריט/.test(normalizedPrompt);
+    const hasYear = /\b(19|20)\d{2}\b/.test(prompt);
     const yearMatch = prompt.match(/\b(19|20)\d{2}\b/);
     const year = yearMatch ? yearMatch[0] : 'לא צוין';
 
@@ -58,9 +62,9 @@ export class FixtureProviderService {
           role: 'seller' as const,
           language,
           intent: 'Prepare an item for auction review.',
-          category: hasBlue ? 'paintings' : 'general',
-          item: { title: hasBlue ? 'Blue item' : undefined },
-          missingFacts: hasBlue ? ['dimensions', 'condition', 'provenance'] : ['item title', 'category', 'dimensions'],
+          category: hasPainting ? 'paintings' : 'general',
+          item: { title: hasPainting ? (language === 'he' ? 'ציור כחול' : 'Blue item') : undefined },
+          missingFacts: hasPainting ? ['dimensions', 'condition', 'provenance'] : ['item title', 'category', 'dimensions'],
           hasContactDetails: false,
           hasImages: false,
         }
@@ -69,7 +73,12 @@ export class FixtureProviderService {
           language,
           intent: hasBlue ? 'Find a blue item with a matching time period and budget.' : 'Review a general buyer request for more useful details.',
           category: hasBlue ? 'rings' : 'general',
-          missingFacts: hasBlue ? ['budget', 'desired size', 'condition'] : ['item type', 'budget', 'preferred year'],
+          missingFacts: [
+            ...(hasItemType ? [] : ['item type']),
+            ...(hasBudget ? [] : ['budget']),
+            ...(hasYear ? [] : ['preferred year']),
+            ...(hasBlue ? ['desired size', 'condition'] : []),
+          ],
           hasContactDetails: false,
           hasImages: false,
         };
@@ -89,7 +98,13 @@ export class FixtureProviderService {
           ...(role === 'buyer' ? {
             intent: hasBlue ? 'Find a blue ring matching the requested period and budget.' : 'Review a general buyer request and ask for missing details.',
             category: hasBlue ? 'rings' : 'general',
-            missingFacts: hasBlue ? ['budget', 'size', 'condition'] : ['item type', 'budget', 'year'],
+            missingFacts: hasBlue
+              ? [...(hasBudget ? [] : ['budget']), ...(hasYear ? [] : ['year']), 'size', 'condition']
+              : [
+                  ...(hasItemType ? [] : ['item type']),
+                  ...(hasBudget ? [] : ['budget']),
+                  ...(hasYear ? [] : ['year']),
+                ],
           } : {}),
         },
       };
@@ -109,7 +124,13 @@ export class FixtureProviderService {
         ...(role === 'buyer' ? {
           intent: hasBlue ? 'מצא טבעת כחולה המתאימה לתקופה ולתקציב המבוקש.' : 'עיין בבקשת קונה כללית ואל תבקש פרטים חסרים.',
           category: hasBlue ? 'טבעות' : 'כללי',
-          missingFacts: hasBlue ? ['תקציב', 'גודל', 'מצב'] : ['סוג הפריט', 'תקציב', 'שנת ייצור'],
+          missingFacts: hasBlue
+            ? [...(hasBudget ? [] : ['תקציב']), ...(hasYear ? [] : ['שנה']), 'גודל', 'מצב']
+            : [
+                ...(hasItemType ? [] : ['סוג הפריט']),
+                ...(hasBudget ? [] : ['תקציב']),
+                ...(hasYear ? [] : ['שנת ייצור']),
+              ],
         } : {}),
       },
     };

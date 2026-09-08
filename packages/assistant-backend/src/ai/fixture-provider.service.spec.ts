@@ -35,9 +35,25 @@ describe('FixtureProviderService', () => {
       }),
     );
     expect(result.structuredAnswer?.missingFacts).toEqual(expect.any(Array));
+    expect(result.structuredAnswer?.missingFacts).not.toContain('תקציב');
+    expect(result.structuredAnswer?.missingFacts).not.toContain('שנת ייצור');
     expect(result.structuredAnswer?.hasContactDetails).toBe(false);
     expect(result.structuredAnswer?.hasImages).toBe(false);
     expect(isGenerateAiResponseDto(result)).toBe(true);
+  });
+  //test Checks that provided Hebrew buyer facts are removed from missingFacts
+  it('does not mark provided facts as missing for a Hebrew buyer', async () => {
+    const result = await new FixtureProviderService().generate({
+      prompt: 'אני מחפש טבעת כחולה משנת 2021 בתקציב עד 5000 שקל',
+      role: 'buyer',
+      language: 'he',
+    });
+
+    expect(result.structuredAnswer).toEqual(expect.objectContaining({
+      role: 'buyer',
+      category: 'טבעות',
+      missingFacts: ['גודל', 'מצב'],
+    }));
   });
 
   //test Checks that an English buyer request creates a valid  contract
@@ -81,6 +97,22 @@ describe('FixtureProviderService', () => {
         missingFacts: ['dimensions', 'condition', 'provenance'],
       }),
     );
+    expect(isGenerateAiResponseDto(result)).toBe(true);
+  });
+  //test missing iteam
+  it('recognizes a Hebrew seller painting and keeps only missing item facts', async () => {
+    const result = await new FixtureProviderService().generate({
+      prompt: 'יש לי ציור כחול למכירה ואני רוצה להכניס אותו למכירה פומבית',
+      role: 'seller',
+      language: 'he',
+    });
+
+    expect(result.structuredAnswer).toEqual(expect.objectContaining({
+      role: 'seller',
+      category: 'paintings',
+      item: expect.objectContaining({ title: 'ציור כחול' }),
+      missingFacts: ['dimensions', 'condition', 'provenance'],
+    }));
     expect(isGenerateAiResponseDto(result)).toBe(true);
   });
 
