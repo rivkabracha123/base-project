@@ -12,6 +12,25 @@ import type { StaffBuyerLeadDetail, StaffLead } from '../staff-operations.types'
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const anonymousSessionStorageKey = 'anonymousSessionId';
 
+export interface UpdateCurrentProfileInput {
+  preferredName?: string;
+  grammaticalForm?: 'masculine' | 'feminine' | 'neutral' | 'unspecified';
+  email?: string;
+  phone?: string;
+  serviceConsent?: {
+    granted: boolean;
+    grantedAt?: string;
+    channel?: string;
+    policyVersion?: string;
+  };
+  marketingConsent?: {
+    granted: boolean;
+    grantedAt?: string;
+    channel?: string;
+    policyVersion?: string;
+  };
+}
+
 export class StaffOperationLeadRequestError extends Error {
   constructor(readonly status: number) {
     super(`Staff operation lead request failed with status ${status}`);
@@ -55,6 +74,22 @@ export async function updateProfileLanguage(language: 'he' | 'en'): Promise<User
   });
 
   if (!response.ok) throw new Error(`Language update failed with status ${response.status}`);
+  return userProfileSchema.parse(await response.json());
+}
+
+export async function updateCurrentProfile(
+  update: UpdateCurrentProfileInput,
+): Promise<UserProfile> {
+  const response = await fetch(`${apiBaseUrl}/profiles/me`, {
+    method: 'PATCH',
+    headers: {
+      ...profileHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(update),
+  });
+
+  if (!response.ok) throw new Error(`Profile update failed with status ${response.status}`);
   return userProfileSchema.parse(await response.json());
 }
 
