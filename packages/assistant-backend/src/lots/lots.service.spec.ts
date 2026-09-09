@@ -83,6 +83,7 @@ describe('LotsService', () => {
     expect(result.limit).toBe(5);
   });
 
+  // findOne returns the stored payload verbatim: realized price and source lineage are passed through, not remapped.
   it('hands historical sale prices and source lineage to consumers without remapping', async () => {
     const repository = { findOneBy: jest.fn().mockResolvedValue({ payload }) } as unknown as Repository<AuctionLotEntity>;
     await expect(new LotsService(repository).findOne('lot-1')).resolves.toEqual(payload);

@@ -74,6 +74,7 @@ describe('validateAuctionLotFixture', () => {
     });
   });
 
+  // Every sold lot in the fixture exposes a non-negative realized price, an ISO currency, and a source link.
   it('provides traceable historical sales with original prices and currencies', async () => {
     const result = validateAuctionLotFixture(await readCommittedFixture());
     const historicalSales = result.records.filter((lot) => lot.status === 'sold');
@@ -94,6 +95,7 @@ describe('validateAuctionLotFixture', () => {
     }
   });
 
+  // An upcoming lot links to its two past USD sales via a shared `itemKey`, giving an item page full history.
   it('provides linked sold history and an upcoming lot for an item page', async () => {
     const result = validateAuctionLotFixture(await readCommittedFixture());
     const upcomingLot = result.records.find((lot) => lot.status === 'upcoming' && lot.itemKey);
@@ -122,6 +124,7 @@ describe('validateAuctionLotFixture', () => {
     }
   });
 
+  // Validation passes records through untouched: their `id` and `source` lineage match the raw fixture.
   it('preserves stable IDs and source links after validation', async () => {
     const fixture = await readCommittedFixture();
     const result = validateAuctionLotFixture(fixture);

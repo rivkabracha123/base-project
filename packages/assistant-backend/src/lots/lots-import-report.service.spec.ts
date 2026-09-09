@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { LotsImportReportService } from './lots-import-report.service';
 
 describe('LotsImportReportService', () => {
+  // The committed fixture now holds 14 canonical lots, all accepted with no rejects or duplicate IDs.
   it('returns the validated report for the committed fixture', async () => {
     const report = await new LotsImportReportService().getReport();
 

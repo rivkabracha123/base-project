@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { auctionLotSchema } from './auction-lot';
 
+// Minimal valid sold lot; each spec spreads it and overrides one field to isolate what it checks.
 const validSoldLot = {
   id: 'lot-1',
   source: { provider: 'fixture', recordId: '1', url: 'https://example.com/1', retrievedAt: '2025-01-01T00:00:00.000Z' },
@@ -24,6 +25,7 @@ describe('auctionLotSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  // realizedPrice must be a non-negative amount with an ISO currency, and stays optional for unsold lots.
   it('accepts a sold lot with a non-negative realized price and ISO currency', () => {
     const result = auctionLotSchema.safeParse({
       ...validSoldLot,
@@ -51,6 +53,7 @@ describe('auctionLotSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  // itemKey and the filter tokens (creator/period/medium/geography) are optional but must be snake_case.
   it('accepts optional canonical filter tokens', () => {
     const result = auctionLotSchema.safeParse({
       ...validSoldLot,

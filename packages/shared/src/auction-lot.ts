@@ -7,6 +7,8 @@ export const moneySchema = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/),
 });
 
+// Lowercase snake_case token for stable, joinable keys (itemKey links a lot to its sale history;
+// creator/period/medium/geography drive canonical filters). Rejects spaces, casing, and non-ASCII.
 const canonicalTokenSchema = z.string().min(1).regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/);
 
 export const auctionLotSchema = z.object({
