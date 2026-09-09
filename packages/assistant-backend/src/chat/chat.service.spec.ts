@@ -2,13 +2,16 @@ import { ChatService } from './chat.service';
 
 // Tests for ChatService — supplies the conversation messages for a language from the demo file.
 describe('ChatService', () => {
-  // Verifies asking for 'he' returns a non-empty conversation that opens with a buyer message.
+  // Verifies the service returns the Hebrew conversation from the demo file, with a buyer message first.
   it('returns the Hebrew conversation from the demo file', async () => {
     const service = new ChatService();
     const conversation = await service.findConversation('he');
-    expect(conversation.length).toBeGreaterThan(0);
-    expect(conversation[0]).toMatchObject({ kind: 'buyer', text: expect.any(String) });
-    expect((conversation[0] as { text: string }).text.length).toBeGreaterThan(0);
+    expect(conversation[0]).toEqual({
+      kind: 'buyer',
+      id: 'he-1',
+      at: '2026-01-01T10:00:00.000Z',
+      text: 'אני מחפשת כתבי יד עבריים נדירים, עד 15,000 דולר',
+    });
   });
 
   // Verifies an unsupported language returns an empty list instead of crashing the service.
