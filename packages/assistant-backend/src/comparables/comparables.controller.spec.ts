@@ -145,4 +145,26 @@ describe('ComparablesController (contract)', () => {
     expect(body.included[0]!.lot.id).toBe('ctrl-lot-sold');
     expect(body.excluded.map((s) => s.lot.id)).toContain('ctrl-lot-unsold');
   });
+
+  // Week 3 — Test 7 (RED first): confirmed `materials` sent by the caller must actually reach
+  // the scoring logic through the real HTTP boundary (DTO → service → scoreComparable), not just
+  // work when scoreComparable is called directly in a unit test. Same category, same repository
+  // lot ('ctrl-lot-sold', text: "Rare Book" / "Description."); only the materials in the request
+  // body differ — one overlaps the lot's text ('rare' is found in "Rare Book"), the other does not
+  // ('bronze' is not found anywhere in the lot's text). If materials genuinely reach scoring, the
+  // two requests must produce different, real results (matching score vs. weak-similarity exclusion).
+  it('propagates confirmed materials from the request body through to scoring (matching vs. non-matching)', async () => {
+    const matchingResponse = await postQuery({ category: 'rare_books', materials: ['rare'] });
+    const nonMatchingResponse = await postQuery({ category: 'rare_books', materials: ['bronze'] });
+
+    expect(matchingResponse.status).toBe(200);
+    const matchingBody = comparableEvidenceSchema.parse(matchingResponse.body);
+    expect(matchingBody.included.map((s) => s.lot.id)).toContain('ctrl-lot-sold');
+
+    expect(nonMatchingResponse.status).toBe(200);
+    const nonMatchingBody = comparableEvidenceSchema.parse(nonMatchingResponse.body);
+    expect(nonMatchingBody.included.map((s) => s.lot.id)).not.toContain('ctrl-lot-sold');
+    const excludedSoldLot = nonMatchingBody.excluded.find((s) => s.lot.id === 'ctrl-lot-sold');
+    expect(excludedSoldLot?.exclusionReason).toMatch(/weak/i);
+  });
 });
