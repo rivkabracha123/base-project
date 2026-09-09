@@ -67,18 +67,29 @@ export class ProviderGatewayService {
       };
 
       try {
-        const result = await this.dependencies.realProvider.generate(realRequest);
-
-        if (!isValidProviderGatewayResponse(result)) {
-          throw new Error('Real provider returned a malformed response payload.');
+        let result: ProviderGatewayResponse | undefined;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          try {
+            const candidate = await this.dependencies.realProvider.generate(realRequest);
+            if (!isValidProviderGatewayResponse(candidate)) {
+              throw new Error('Real provider returned a malformed response payload.');
+            }
+            result = candidate;
+            break;
+          } catch (error) {
+            if (attempt === 1) {
+              throw error;
+            }
+          }
         }
 
-        return result;
+        return result!;
       } catch (error) {
         const fallback = this.dependencies.fixtureProvider.generate({
           prompt: input.prompt,
           role: input.role,
           language: input.language,
+          fallbackMode: 'guided',
         });
 
         return await fallback;

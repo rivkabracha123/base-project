@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService } from './fixture-provider.service';
 import { ProviderGatewayService } from './provider-gateway.service';
@@ -19,6 +20,7 @@ export type AiGenerateRequest = {
 export type AiGenerateResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
+  fallbackMode?: 'guided';
   isRelevant: boolean;
   error: string | null;
   content: string;
@@ -35,6 +37,7 @@ export class AiService {
   constructor(
     private readonly fixtureProvider: FixtureProviderService,
     private readonly realProvider: RealProviderService,
+    private readonly config: ConfigService,
   ) {}
 
   async generate(input: AiGenerateRequest): Promise<AiGenerateResponse> {
@@ -47,10 +50,10 @@ export class AiService {
       { kind: 'fixture' as const, enabled: true },
       {
         kind: 'real' as const,
-        enabled: true,
-        baseUrl: input.baseUrl,
-        modelName: input.modelName,
-        apiKey: input.apiKey,
+        enabled: this.config.get<string>('AI_PROVIDER_MODE', 'fixture') === 'real',
+        baseUrl: this.config.get<string>('AI_BASE_URL'),
+        modelName: this.config.get<string>('AI_MODEL_NAME'),
+        apiKey: this.config.get<string>('AI_API_KEY'),
       },
     ];
 

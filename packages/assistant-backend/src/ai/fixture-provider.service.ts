@@ -4,11 +4,13 @@ export type FixtureProviderRequest = {
   prompt: string;
   role?: AiRole;
   language?: 'he' | 'en';
+  fallbackMode?: 'guided';
 };
 
 export type FixtureProviderResponse = {
   provider: 'fixture';
   mode: 'fixture';
+  fallbackMode?: 'guided';
   isRelevant: boolean;
   error: string | null;
   content: string;
@@ -108,6 +110,7 @@ export class FixtureProviderService {
       return {
         provider: 'fixture',
         mode: 'fixture',
+        ...(input.fallbackMode ? { fallbackMode: input.fallbackMode } : {}),
         isRelevant,
         error,
         content: `Fixture result: ${itemName} from ${year}. This is a deterministic fixture response used for testing and safe fallback when the real provider is unavailable.`,
@@ -129,6 +132,7 @@ export class FixtureProviderService {
     return {
       provider: 'fixture',
       mode: 'fixture',
+      ...(input.fallbackMode ? { fallbackMode: input.fallbackMode } : {}),
       isRelevant,
       error,
       content: `תוצאה קבועה (fixture): ${itemName} משנת ${year}. זו תשובה דטרמיניסטית לשימוש בבדיקות ובמקרה של כשל במפרסם האמיתי.`,

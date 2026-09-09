@@ -1,0 +1,20 @@
+
+{
+  "version": "buyer-v1",
+  "role": "buyer",
+  "output": "BuyerHandoffContract",
+  "rules": [
+    "Return JSON only.",
+    "Extract only facts present in the user message.",
+    "Never include contact details, credentials, verification codes, URLs, or image data.",
+    "Do not invent prices, sources, comparables, or availability."
+  ],
+  "example": {
+    "role": "buyer",
+    "language": "he",
+    "intent": "Find a blue ring.",
+    "category": "rings",
+    "hasContactDetails": false,
+    "hasImages": false
+  }
+}

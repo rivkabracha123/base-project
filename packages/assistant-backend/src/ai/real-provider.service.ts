@@ -1,4 +1,4 @@
-import type { AiRole, StructuredAnswer } from './ai.dto';
+import { isGenerateAiResponseDto, type AiRole, type StructuredAnswer } from './ai.dto';
 
 export type RealProviderRequest = {
   prompt: string;
@@ -13,6 +13,7 @@ export type RealProviderRequest = {
 export type RealProviderResponse = {
   provider: 'real';
   mode: 'real';
+  fallbackMode?: 'guided';
   isRelevant: boolean;
   error: string | null;
   content: string;
@@ -91,7 +92,7 @@ export class RealProviderService {
       throw new Error('Real provider returned non-JSON content.');
     }
 
-    return {
+    const result: unknown = {
       provider: 'real',
       mode: 'real',
       isRelevant: parsed.isRelevant,
@@ -103,5 +104,11 @@ export class RealProviderService {
       confidence: parsed.confidence,
       structuredAnswer: parsed.structuredAnswer,
     };
+
+    if (!isGenerateAiResponseDto(result) || result.provider !== 'real' || result.mode !== 'real') {
+      throw new Error('Real provider returned a response that failed schema validation.');
+    }
+
+    return result as RealProviderResponse;
   }
 }

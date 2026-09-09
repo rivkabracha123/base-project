@@ -212,10 +212,32 @@ describe('ProviderGatewayService', () => {
 
     expect(result.provider).toBe('fixture');
     expect(result.content).toBe('fixture fallback');
-    expect(fixtureProvider.generate).toHaveBeenCalledWith({ prompt: 'טבעת כחולה', language: 'he' });
+    expect(fixtureProvider.generate).toHaveBeenCalledWith({
+      prompt: 'טבעת כחולה',
+      role: undefined,
+      language: 'he',
+      fallbackMode: 'guided',
+    });
+  });
+//test 6 - for unavailable real provider
+  it('retries once and returns an explicit guided fallback when the provider stays unavailable', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const realProvider = {
+      generate: jest.fn().mockRejectedValue(new Error('rate limited')),
+    } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate(
+      { prompt: 'טבעת כחולה', role: 'buyer', language: 'he' },
+      [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'token' }],
+    );
+
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(result).toEqual(expect.objectContaining({ provider: 'fixture', fallbackMode: 'guided' }));
+    expect(result.nextAction).toContain('בקש');
   });
 
-  // test 6 - use fixture without real provider
+  // test 7 - use fixture without real provider
 
   it('uses the fixture provider when no real provider is enabled', async () => {
     const fixtureProvider = {
@@ -245,7 +267,7 @@ describe('ProviderGatewayService', () => {
     expect(realProvider.generate).not.toHaveBeenCalled();
   });
 
-  // test 7 - fallback when real config is missing
+  // test 8 - fallback when real config is missing
 
   it('does not enable the real provider when its configuration is incomplete', async () => {
     const fixtureProvider = {
@@ -275,7 +297,7 @@ describe('ProviderGatewayService', () => {
     expect(realProvider.generate).not.toHaveBeenCalled();
   });
 
-  // test 8 - fallback after invalid real response
+  // test 9 - fallback after invalid real response
 
   it('falls back to the fixture provider when the real provider returns an invalid response', async () => {
     const fixtureProvider = {
@@ -306,10 +328,15 @@ describe('ProviderGatewayService', () => {
 
     expect(result.provider).toBe('fixture');
     expect(result.content).toBe('safe fallback after invalid real output');
-    expect(fixtureProvider.generate).toHaveBeenCalledWith({ prompt: 'טבעת כחולה', language: 'he' });
+    expect(fixtureProvider.generate).toHaveBeenCalledWith({
+      prompt: 'טבעת כחולה',
+      role: undefined,
+      language: 'he',
+      fallbackMode: 'guided',
+    });
   });
 
-  // test 9 - accept a valid real response
+  // test 10 - accept a valid real response
   it('accepts a product-style response with summary, recommendation, nextAction, and confidence', async () => {
     const fixtureProvider = { generate: jest.fn() } as unknown as FixtureProviderService;
     const realProvider = {
@@ -349,7 +376,7 @@ describe('ProviderGatewayService', () => {
     expect(result.confidence).toBe('medium');
   });
 
-  // test 10 - fallback after malformed payload
+  // test 11 - fallback after malformed payload
 
   it('falls back when the real provider returns a malformed payload shape', async () => {
     const fixtureProvider = {

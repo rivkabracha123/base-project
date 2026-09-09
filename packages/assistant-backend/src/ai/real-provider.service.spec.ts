@@ -3,6 +3,8 @@ import { RealProviderService, sanitizePrompt } from './real-provider.service';
 describe('RealProviderService', () => {
   it('calls the OpenAI-compatible endpoint and returns the model content', async () => {
     const modelResponse = {
+      isRelevant: true,
+      error: null,
       summary: 'מוצג פריט רלוונטי',
       recommendation: 'הצג אפשרויות דומות',
       nextAction: 'בקש מידע נוסף',

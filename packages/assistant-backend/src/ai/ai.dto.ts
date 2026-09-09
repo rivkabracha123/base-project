@@ -27,6 +27,8 @@ export class GenerateAiResponseDto {
 
   mode!: 'fixture' | 'real';
 
+  fallbackMode?: 'guided';
+
   isRelevant!: boolean;
 
   error!: string | null;
@@ -57,6 +59,10 @@ export function isGenerateAiResponseDto(value: unknown): value is GenerateAiResp
   }
 
   if (response.mode !== 'fixture' && response.mode !== 'real') {
+    return false;
+  }
+
+  if (response.fallbackMode !== undefined && response.fallbackMode !== 'guided') {
     return false;
   }
 
