@@ -7,6 +7,7 @@ import { LotsService } from './lots.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([AuctionLotEntity])],
+  controllers: [LotsController],
   providers: [LotsService],
 })
 export class LotsModule {}
