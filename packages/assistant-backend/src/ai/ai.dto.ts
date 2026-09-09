@@ -1,4 +1,5 @@
 import { IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
+import { isBuyerHandoffContract, type BuyerHandoffContract } from './buyer-handoff';
 
 export class GenerateAiRequestDto {
   @IsString()
@@ -8,19 +9,13 @@ export class GenerateAiRequestDto {
   @IsEnum(['he', 'en'])
   language?: 'he' | 'en';
 
-  @IsOptional()
-  @IsUrl({ require_tld: false })
-  baseUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  modelName?: string;
-
-  @IsOptional()
-  @IsString()
-  apiKey?: string;
 }
 
+//shape buyer answer that the AI get
+
+export type StructuredBuyerAnswer = BuyerHandoffContract;
+
+//shape of the response that AI return
 export class GenerateAiResponseDto {
   provider!: 'fixture' | 'real';
 
@@ -35,10 +30,11 @@ export class GenerateAiResponseDto {
   nextAction!: string;
 
   confidence!: 'low' | 'medium';
+
+  structuredAnswer!: StructuredBuyerAnswer;
 }
 
-//validate the response shape from the provider gateway
-
+//check if the response is valid and has the correct shape
 export function isGenerateAiResponseDto(value: unknown): value is GenerateAiResponseDto {
   if (!value || typeof value !== 'object') {
     return false;
@@ -74,5 +70,5 @@ export function isGenerateAiResponseDto(value: unknown): value is GenerateAiResp
     return false;
   }
 
-  return true;
+  return isBuyerHandoffContract(response.structuredAnswer);
 }
