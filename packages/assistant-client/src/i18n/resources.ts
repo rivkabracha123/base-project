@@ -16,6 +16,10 @@ export const resources = {
         estimate: 'Estimate', realized: 'Realized price', source: 'View exact source',
         sold: 'Sold', unsold: 'Unsold', upcoming: 'Upcoming', withdrawn: 'Withdrawn', unknown: 'Status unknown',
       },
+      chat: {
+        send: 'Send', inputLabel: 'Message', loading: 'Loading conversation…',
+        error: "Couldn't load the conversation.", retry: 'Try again',
+      },
       language: 'עברית',
     },
   },
@@ -35,6 +39,10 @@ export const resources = {
       card: {
         estimate: 'הערכה', realized: 'מחיר מכירה', source: 'הצגת המקור המדויק',
         sold: 'נמכר', unsold: 'לא נמכר', upcoming: 'עתידי', withdrawn: 'הוסר', unknown: 'סטטוס לא ידוע',
+      },
+      chat: {
+        send: 'שליחה', inputLabel: 'הודעה', loading: 'טוען שיחה…',
+        error: 'לא הצלחנו לטעון את השיחה.', retry: 'נסו שוב',
       },
       language: 'English',
     },
