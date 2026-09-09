@@ -11,9 +11,6 @@ export class AiController {
     return this.aiService.generate({
       prompt: body.prompt,
       language: body.language,
-      baseUrl: body.baseUrl,
-      modelName: body.modelName,
-      apiKey: body.apiKey,
     });
   }
 }

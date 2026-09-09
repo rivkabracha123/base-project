@@ -22,6 +22,7 @@ describe('LotsService', () => {
   const createMockQueryBuilder = (entities: any[], total: number) => ({
     where: jest.fn().mockReturnThis(),
     orWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     getManyAndCount: jest.fn().mockResolvedValue([entities, total]),
@@ -49,6 +50,8 @@ describe('LotsService', () => {
     });
     expect(queryBuilder.skip).toHaveBeenCalledWith(0);
     expect(queryBuilder.take).toHaveBeenCalledWith(10);
+    // Pagination is only deterministic with a stable sort order.
+    expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');
     expect(queryBuilder.where).toHaveBeenCalledWith(
       expect.stringContaining(`LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query)`),
       { query: '%Atereth%' }
