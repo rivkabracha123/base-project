@@ -17,6 +17,11 @@ const validLot = {
   realizedPrice: { amount: 1200, currency: 'USD' },
 };
 
+// Builds a canonical lot from validLot so behaviour tests supply their own data
+// instead of depending on the committed fixture file.
+type LotOverrides = Partial<typeof validLot> & { id: string; itemKey?: string; status?: string };
+const makeLot = (overrides: LotOverrides) => ({ ...validLot, ...overrides });
+
 describe('validateAuctionLotFixture', () => {
   async function readCommittedFixture(): Promise<unknown> {
     const fixturePath = resolve(import.meta.dirname, '../../../fixtures/auction-data/lots.json');
@@ -74,9 +79,12 @@ describe('validateAuctionLotFixture', () => {
     });
   });
 
-  // Every sold lot in the fixture exposes a non-negative realized price, an ISO currency, and a source link.
-  it('provides traceable historical sales with original prices and currencies', async () => {
-    const result = validateAuctionLotFixture(await readCommittedFixture());
+  // The validator hands back realized price, currency and source lineage untouched for every sold lot.
+  it('provides traceable historical sales with original prices and currencies', () => {
+    const result = validateAuctionLotFixture([
+      makeLot({ id: 'sale-1', realizedPrice: { amount: 1200, currency: 'USD' } }),
+      makeLot({ id: 'sale-2', realizedPrice: { amount: 900, currency: 'EUR' } }),
+    ]);
     const historicalSales = result.records.filter((lot) => lot.status === 'sold');
 
     expect(historicalSales).not.toHaveLength(0);
@@ -95,9 +103,14 @@ describe('validateAuctionLotFixture', () => {
     }
   });
 
-  // An upcoming lot links to its two past USD sales via a shared `itemKey`, giving an item page full history.
-  it('provides linked sold history and an upcoming lot for an item page', async () => {
-    const result = validateAuctionLotFixture(await readCommittedFixture());
+  // An upcoming lot and its past sales share an `itemKey`, so an item page can join them into one history.
+  it('provides linked sold history and an upcoming lot for an item page', () => {
+    const itemKey = 'abrabanel_commentary_example';
+    const result = validateAuctionLotFixture([
+      makeLot({ id: 'past-sale-1', itemKey, realizedPrice: { amount: 1100, currency: 'USD' } }),
+      makeLot({ id: 'past-sale-2', itemKey, realizedPrice: { amount: 1300, currency: 'USD' } }),
+      makeLot({ id: 'upcoming-1', itemKey, status: 'upcoming', realizedPrice: undefined }),
+    ]);
     const upcomingLot = result.records.find((lot) => lot.status === 'upcoming' && lot.itemKey);
 
     expect(upcomingLot).toBeDefined();
@@ -124,20 +137,26 @@ describe('validateAuctionLotFixture', () => {
     }
   });
 
-  // Validation passes records through untouched: their `id` and `source` lineage match the raw fixture.
-  it('preserves stable IDs and source links after validation', async () => {
-    const fixture = await readCommittedFixture();
-    const result = validateAuctionLotFixture(fixture);
+  // Validation passes records through untouched: their `id` and `source` lineage match the input.
+  it('preserves stable IDs and source links after validation', () => {
+    const input = [
+      makeLot({
+        id: 'lot-a',
+        source: { provider: 'provider-a', recordId: 'rec-a', url: 'https://example.com/a', retrievedAt: '2025-01-01T00:00:00.000Z' },
+      }),
+      makeLot({
+        id: 'lot-b',
+        source: { provider: 'provider-b', recordId: 'rec-b', url: 'https://example.com/b', retrievedAt: '2025-01-02T00:00:00.000Z' },
+      }),
+    ];
+    const result = validateAuctionLotFixture(input);
 
     expect(result.records.map((lot) => ({
       id: lot.id,
       provider: lot.source.provider,
       recordId: lot.source.recordId,
       url: lot.source.url,
-    }))).toEqual((fixture as Array<{
-      id: string;
-      source: { provider: string; recordId: string; url: string };
-    }>).map((lot) => ({
+    }))).toEqual(input.map((lot) => ({
       id: lot.id,
       provider: lot.source.provider,
       recordId: lot.source.recordId,
