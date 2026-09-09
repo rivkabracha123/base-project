@@ -30,6 +30,7 @@ describe('Lots API (integration)', () => {
 
   const queryBuilder = {
     where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
@@ -62,11 +63,18 @@ describe('Lots API (integration)', () => {
   });
 
   beforeEach(() => {
-    queryBuilder.orderBy.mockClear();
+    jest.clearAllMocks();
   });
 
-  it('registers the search route and returns the typed paginated contract B3 consumes', async () => {
-    const response = await fetch(`${baseUrl}/api/lots?query=Atereth&language=en&page=1&limit=10`);
+  const postSearch = (body: unknown) =>
+    fetch(`${baseUrl}/api/lots/search`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('accepts a filtered search body and returns the typed paginated contract', async () => {
+    const response = await postSearch({ filters: { categories: ['rare_books'] } });
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -76,10 +84,21 @@ describe('Lots API (integration)', () => {
       limit: 10,
       totalPages: 1,
     });
+    // the filter reached the query, and the canonical lot came back unchanged
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining("payload->>'category' IN (:...categories)"),
+      { categories: ['rare_books'] },
+    );
+  });
+
+  it('rejects an invalid search body', async () => {
+    const response = await postSearch({ filters: { price: { min: -5 } } });
+
+    expect(response.status).toBe(400);
   });
 
   it('orders results deterministically before paginating', async () => {
-    const response = await fetch(`${baseUrl}/api/lots?query=book&page=2&limit=5`);
+    const response = await postSearch({ query: 'book', page: 2, limit: 5 });
 
     expect(response.status).toBe(200);
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');

@@ -1,3 +1,4 @@
+import type { LotSearchDto } from './lot-search.dto';
 import { LotsController } from './lots.controller';
 import { LotsService } from './lots.service';
 
@@ -18,53 +19,21 @@ describe('LotsController', () => {
     await expect(controller.report()).resolves.toEqual(report);
   });
 
-  it('delegates search requests to LotsService.searchByText with pagination parameters', async () => {
-    // Mock service returns a paginated structure
-    const mockPaginatedResult = {
-      data: [],
-      total: 0,
-      page: 1,
-      limit: 10,
-      totalPages: 0,
-    };
-
+  it('forwards the search body to the service and returns its result', async () => {
+    const paginated = { data: [], total: 0, page: 1, limit: 10, totalPages: 0 };
     const lotsService = {
-      searchByText: jest.fn().mockResolvedValue(mockPaginatedResult),
+      search: jest.fn().mockResolvedValue(paginated),
     } as unknown as LotsService;
-
     const controller = new LotsController(lotsService, {} as never);
 
-    const result = await controller.search({
+    const body: LotSearchDto = {
       query: 'manuscript',
       language: 'en',
-      page: 1,
-      limit: 10,
-    });
-
-    // Verify service call receives all query parameters
-    expect(lotsService.searchByText).toHaveBeenCalledWith('manuscript', 'en', 1, 10);
-    expect(result).toEqual(mockPaginatedResult);
-  });
-
-  it('delegates to LotsService even when no query is provided', async () => {
-    const mockEmptyResult = {
-      data: [],
-      total: 0,
-      page: 1,
-      limit: 10,
-      totalPages: 0,
+      filters: { categories: ['rare_books'] },
     };
+    const result = await controller.search(body);
 
-    const lotsService = {
-      searchByText: jest.fn().mockResolvedValue(mockEmptyResult),
-    } as unknown as LotsService;
-
-    const controller = new LotsController(lotsService, {} as never);
-
-    const result = await controller.search({});
-
-    // Verify controller delegates empty query handling directly to the service
-    expect(lotsService.searchByText).toHaveBeenCalledWith(undefined, 'he', undefined, undefined);
-    expect(result).toEqual(mockEmptyResult);
+    expect(lotsService.search).toHaveBeenCalledWith(body);
+    expect(result).toBe(paginated);
   });
 });

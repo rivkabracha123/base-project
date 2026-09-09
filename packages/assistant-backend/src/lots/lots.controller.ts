@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import type { AuctionLot, PaginatedResult } from '@monabid/shared';
 import { LotQueryDto } from './lot-query.dto';
+import { LotSearchDto } from './lot-search.dto';
 import { LotsImportReportService } from './lots-import-report.service';
 import { LotsService } from './lots.service';
 
@@ -11,15 +12,10 @@ export class LotsController {
     private readonly importReports: LotsImportReportService,
   ) {}
 
-  @Get()
-  search(@Query() query: LotQueryDto): Promise<PaginatedResult<AuctionLot>> {
-   
-    return this.lotsService.searchByText(
-      query.query,
-      query.language ?? 'he',
-      query.page,
-      query.limit
-    );
+  @Post('search')
+  @HttpCode(200)
+  search(@Body() body: LotSearchDto): Promise<PaginatedResult<AuctionLot>> {
+    return this.lotsService.search(body);
   }
 
   @Get('sample')
