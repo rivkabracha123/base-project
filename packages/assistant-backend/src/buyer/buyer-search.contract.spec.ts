@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
+import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
 const repoRoot = resolve(__dirname, '../../../..');
@@ -16,7 +17,26 @@ const lots = JSON.parse(
   readFileSync(resolve(repoRoot, 'fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
 
-// Looks up a committed fixture lot by id, throwing if it is missing.
+type LegacyCriteria = {
+  budget?: { min?: number; max?: number };
+  category?: string;
+  creator?: string;
+  period?: string;
+  location?: string;
+  keywords?: string[];
+};
+
+const legacyToCanonical = (legacy: LegacyCriteria, language: 'en' | 'he' = 'en'): BuyerCriteria => {
+  const criteria = emptyBuyerCriteria(language);
+  if (legacy.budget) criteria.price = { ...legacy.budget, currency: 'USD' };
+  if (legacy.category) criteria.categories = [legacy.category];
+  if (legacy.creator) criteria.creators = [legacy.creator];
+  if (legacy.period) criteria.periods = [legacy.period];
+  if (legacy.location) criteria.geography = [legacy.location];
+  if (legacy.keywords) criteria.keywords = legacy.keywords;
+  return criteria;
+};
+
 const lotById = (id: string): AuctionLot => {
   const lot = lots.find((l) => l.id === id);
   if (!lot) throw new Error(`fixture lot ${id} not found`);
@@ -32,10 +52,13 @@ const lead = {
 
 const forbiddenKeys = ['profileId', 'sessionId', 'conversation'];
 
-// Week 3 checkpoint: trace one named fixture from B2 criteria + P2 search through B3 into
-// B4 results / P5 unmatched demand, with the budget and every hard filter preserved on both sides.
 describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
   const { scenario, expected } = contract;
+  const criteria = legacyToCanonical(scenario.criteria, scenario.language);
+  const expectedCriteria = legacyToCanonical(
+    expected.results.searchRequest.criteria,
+    expected.results.searchRequest.language,
+  );
 
   it('carries the whole received criteria onto the B4 results handoff', async () => {
     const p2 = {
@@ -44,14 +67,14 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     const outcome = await orchestrator.search({
-      criteria: scenario.criteria,
+      criteria,
       language: scenario.language,
       ...lead,
     });
 
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
-    expect(outcome.searchRequest.criteria).toEqual(expected.results.searchRequest.criteria);
+    expect(outcome.searchRequest.criteria).toEqual(expectedCriteria);
     expect(outcome.searchRequest.hardConstraints).toEqual([]);
     expect(outcome.items.map((l) => l.id)).toEqual(expected.results.itemIds);
 
@@ -68,12 +91,16 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     const outcome = await orchestrator.search({
-      criteria: scenario.criteria,
+      criteria,
       language: scenario.language,
       ...lead,
     });
 
-    expect(outcome).toEqual(expected.unmatched);
+    expect(outcome.kind).toBe('unmatched');
+    if (outcome.kind !== 'unmatched') return;
+    expect(outcome.view.unmatchedDemand.searchRequest.criteria).toEqual(expectedCriteria);
+    expect(outcome.view.unmatchedDemand.searchRequest.language).toBe(scenario.language);
+    expect(outcome.view.unmatchedDemand.reason).toBe('no_results');
 
     const serialized = JSON.stringify(outcome);
     for (const key of forbiddenKeys) {
@@ -88,13 +115,13 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     const outcome = await orchestrator.search({
-      criteria: scenario.criteria,
+      criteria,
       language: scenario.language,
       ...lead,
     });
 
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
-    expect(outcome.searchRequest.criteria.budget).toEqual(scenario.criteria.budget);
+    expect(outcome.searchRequest.criteria.price).toEqual(criteria.price);
   });
 });

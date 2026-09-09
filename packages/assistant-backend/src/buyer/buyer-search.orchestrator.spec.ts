@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
+import { emptyBuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
 const fixture = JSON.parse(
@@ -14,7 +15,6 @@ const baseLead = {
   searchedAt: '2026-09-01T10:01:00.000Z',
 };
 
-// Builds a full AuctionLot for tests, overriding any fields via `over`.
 const makeLot = (over: Partial<AuctionLot> & { id: string }): AuctionLot => ({
   source: {
     provider: 'test',
@@ -38,7 +38,10 @@ describe('BuyerSearchOrchestrator', () => {
     const p2 = { searchByText: jest.fn().mockResolvedValue(fixture) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
-    const criteria = { creator: 'Yitzhak Abrabanel', keywords: ['manuscript'], missing: [] };
+    const criteria = emptyBuyerCriteria('en');
+    criteria.creators = ['Yitzhak Abrabanel'];
+    criteria.keywords = ['manuscript'];
+
     const outcome = await orchestrator.search({ criteria, language: 'en', ...baseLead });
 
     expect(outcome.kind).toBe('results');
@@ -51,11 +54,9 @@ describe('BuyerSearchOrchestrator', () => {
   it('records an honest no-result request for P5 without inventing inventory or private data', async () => {
     const p2 = { searchByText: jest.fn().mockResolvedValue([]) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
-    const criteria = {
-      creator: 'Yitzhak Abrabanel',
-      budget: { min: 1000, max: 15000 },
-      missing: [],
-    };
+    const criteria = emptyBuyerCriteria('he');
+    criteria.creators = ['Yitzhak Abrabanel'];
+    criteria.price = { min: 1000, max: 15000, currency: 'USD' };
 
     const outcome = await orchestrator.search({
       criteria,
@@ -88,15 +89,12 @@ describe('BuyerSearchOrchestrator', () => {
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
-    // Criteria as B2 hands them over after a refinement, carrying several strict filters.
-    const criteria = {
-      budget: { min: 2000, max: 15000 },
-      category: 'rare_books',
-      creator: 'Yitzhak Abrabanel',
-      period: '15th',
-      location: 'Israel',
-      missing: [],
-    };
+    const criteria = emptyBuyerCriteria('en');
+    criteria.price = { min: 2000, max: 15000, currency: 'USD' };
+    criteria.categories = ['rare_books'];
+    criteria.creators = ['Yitzhak Abrabanel'];
+    criteria.periods = ['15th'];
+    criteria.geography = ['Israel'];
 
     const outcome = await orchestrator.search({ criteria, language: 'en', ...baseLead });
 
@@ -110,22 +108,25 @@ describe('BuyerSearchOrchestrator', () => {
   it('does not loosen the budget it received when building the handoff', async () => {
     const p2 = { searchByText: jest.fn().mockResolvedValue([makeLot({ id: 'lot-1' })]) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
-    const criteria = { budget: { min: 2000, max: 15000 }, missing: [] };
+    const criteria = emptyBuyerCriteria('en');
+    criteria.price = { min: 2000, max: 15000, currency: 'USD' };
 
     const outcome = await orchestrator.search({ criteria, language: 'en', ...baseLead });
 
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
-    expect(outcome.searchRequest.criteria.budget).toEqual({ min: 2000, max: 15000 });
+    expect(outcome.searchRequest.criteria.price).toEqual({ min: 2000, max: 15000, currency: 'USD' });
   });
 
   it('builds results only from what P2 returned and never reads a raw source', async () => {
     const returned = [makeLot({ id: 'lot-a' }), makeLot({ id: 'lot-b' })];
     const p2 = { searchByText: jest.fn().mockResolvedValue(returned) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
+    const criteria = emptyBuyerCriteria('en');
+    criteria.creators = ['Someone'];
 
     const outcome = await orchestrator.search({
-      criteria: { creator: 'Someone', missing: [] },
+      criteria,
       language: 'en',
       ...baseLead,
     });
