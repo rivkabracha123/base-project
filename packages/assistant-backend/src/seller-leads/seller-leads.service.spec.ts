@@ -30,6 +30,7 @@ function createHarness() {
       return { id: 'lead-1', ...lead };
     }),
     find: jest.fn(async () => [...stored]),
+    findOneBy: jest.fn(async (where: { id: string }) => stored.find((lead) => lead.id === where.id) ?? null),
   } as unknown as Repository<SellerLeadEntity>;
 
   return { logged, saved, stored, repository, service: new SellerLeadsService(repository, logger) };
@@ -80,6 +81,7 @@ describe('SellerLeadsService', () => {
       id: 'lead-1',
       profileId: enquiry.profileId,
       contact: enquiry.contact,
+      recommendation: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
@@ -93,6 +95,7 @@ describe('SellerLeadsService', () => {
       id: 'lead-1',
       profileId: enquiry.profileId,
       contact: enquiry.contact,
+      recommendation: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
@@ -102,5 +105,53 @@ describe('SellerLeadsService', () => {
     expect(output).not.toContain(enquiry.contact.preferredName);
     expect(output).not.toContain(enquiry.contact.email);
     expect(output).not.toContain(enquiry.contact.phone);
+  });
+
+  it('ranks prepared houses without writing contact details to the log', () => {
+    const { service, logged } = createHarness();
+
+    const ranking = service.rankHouses({
+      category: 'rare_books',
+      geography: 'United States',
+      preferredLanguage: 'en',
+    });
+
+    expect(ranking.recommendation?.house.id).toBe('house-kestenbaum');
+    expect(ranking.recommendation?.house.active).toBe(true);
+    expect(JSON.stringify(ranking)).not.toMatch(/commission|shipping|acceptance|sellerChoice/i);
+    const output = JSON.stringify(logged);
+    expect(output).not.toContain(enquiry.contact.preferredName);
+    expect(output).not.toContain(enquiry.contact.email);
+    expect(output).not.toContain(enquiry.contact.phone);
+  });
+
+  it('stores ranking on an existing draft without replacing contact or inventing a seller choice', async () => {
+    const { service, stored, saved } = createHarness();
+    stored.push({
+      id: 'lead-1',
+      profileId: enquiry.profileId,
+      contact: enquiry.contact,
+      recommendation: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const ranking = service.rankHouses({ category: 'rare_books' });
+    await service.attachRanking('lead-1', ranking);
+
+    expect(saved.at(-1)).toMatchObject({
+      id: 'lead-1',
+      contact: enquiry.contact,
+      recommendation: ranking,
+    });
+    expect(JSON.stringify(saved.at(-1))).not.toContain('sellerChoice');
+  });
+
+  it('does not attach a ranking when the draft enquiry is missing', async () => {
+    const { service } = createHarness();
+    const ranking = service.rankHouses({ category: 'rare_books' });
+
+    await expect(service.attachRanking('missing-lead', ranking)).rejects.toThrow(
+      'Seller lead missing-lead was not found',
+    );
   });
 });
