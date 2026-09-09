@@ -7,10 +7,5 @@ export * from './comparable';
 
 // Seller item draft types: the contract for Week 2 seller-intake flow
 // Includes Zod schemas for validation, TypeScript types, and documented field meanings
-<<<<<<< HEAD
 export * from './seller-item-draft';
-=======
-export * from './seller-item-draft';
-export * from './comparable';
 export * from './house-recommendation';
->>>>>>> origin/monabid-week3-seller
