@@ -27,6 +27,10 @@ export class GenerateAiResponseDto {
 
   mode!: 'fixture' | 'real';
 
+  isRelevant!: boolean;
+
+  error!: string | null;
+
   content!: string;
 
   summary!: string;
@@ -53,6 +57,14 @@ export function isGenerateAiResponseDto(value: unknown): value is GenerateAiResp
   }
 
   if (response.mode !== 'fixture' && response.mode !== 'real') {
+    return false;
+  }
+
+  if (typeof response.isRelevant !== 'boolean') {
+    return false;
+  }
+
+  if (response.error !== null && typeof response.error !== 'string') {
     return false;
   }
 

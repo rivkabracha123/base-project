@@ -16,6 +16,19 @@ describe('FixtureProviderService', () => {
     expect(result.content).toContain('טבעת כחולה');
     expect(result.content).toContain('2021');
   });
+//test unrelated requests
+  it('marks unrelated requests instead of treating them as item searches', async () => {
+    const result = await new FixtureProviderService().generate({
+      prompt: 'מה מזג האוויר היום?',
+      role: 'buyer',
+      language: 'he',
+    });
+
+    expect(result.isRelevant).toBe(false);
+    expect(result.error).toBe('השאלה אינה קשורה לקנייה או למכירה של פריטים.');
+    expect(result.confidence).toBe('low');
+    expect(isGenerateAiResponseDto(result)).toBe(true);
+  });
 
   //test Checks that a Hebrew buyer request creates a valid contract
   it('returns a valid Hebrew buyer answer structure with deterministic fixture data', async () => {

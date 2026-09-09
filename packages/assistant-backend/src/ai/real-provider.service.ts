@@ -13,6 +13,8 @@ export type RealProviderRequest = {
 export type RealProviderResponse = {
   provider: 'real';
   mode: 'real';
+  isRelevant: boolean;
+  error: string | null;
   content: string;
   summary: string;
   recommendation: string;
@@ -92,6 +94,8 @@ export class RealProviderService {
     return {
       provider: 'real',
       mode: 'real',
+      isRelevant: parsed.isRelevant,
+      error: parsed.error,
       content: message,
       summary: parsed.summary,
       recommendation: parsed.recommendation,

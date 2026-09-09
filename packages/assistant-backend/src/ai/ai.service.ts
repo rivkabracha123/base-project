@@ -19,6 +19,8 @@ export type AiGenerateRequest = {
 export type AiGenerateResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
+  isRelevant: boolean;
+  error: string | null;
   content: string;
   summary: string;
   recommendation: string;

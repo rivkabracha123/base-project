@@ -9,6 +9,8 @@ export type FixtureProviderRequest = {
 export type FixtureProviderResponse = {
   provider: 'fixture';
   mode: 'fixture';
+  isRelevant: boolean;
+  error: string | null;
   content: string;
   summary: string;
   recommendation: string;
@@ -57,6 +59,12 @@ export class FixtureProviderService {
     const hasPainting = normalizedPrompt.includes('painting') || normalizedPrompt.includes('ציור');
     const hasBudget = /budget|תקציב|[$₪]\s*\d|עד\s*\d/.test(normalizedPrompt);
     const hasItemType = /ring|painting|item|טבעת|ציור|פריט/.test(normalizedPrompt);
+    const isRelevant = hasItemType;
+    const error = isRelevant
+      ? null
+      : language === 'en'
+        ? 'The request is not related to buying or selling items.'
+        : 'השאלה אינה קשורה לקנייה או למכירה של פריטים.';
     const hasYear = /\b(19|20)\d{2}\b/.test(prompt);
     const yearMatch = prompt.match(/\b(19|20)\d{2}\b/);
     const year = yearMatch ? yearMatch[0] : 'לא צוין';
@@ -100,6 +108,8 @@ export class FixtureProviderService {
       return {
         provider: 'fixture',
         mode: 'fixture',
+        isRelevant,
+        error,
         content: `Fixture result: ${itemName} from ${year}. This is a deterministic fixture response used for testing and safe fallback when the real provider is unavailable.`,
         summary,
         recommendation,
@@ -119,6 +129,8 @@ export class FixtureProviderService {
     return {
       provider: 'fixture',
       mode: 'fixture',
+      isRelevant,
+      error,
       content: `תוצאה קבועה (fixture): ${itemName} משנת ${year}. זו תשובה דטרמיניסטית לשימוש בבדיקות ובמקרה של כשל במפרסם האמיתי.`,
       summary,
       recommendation,

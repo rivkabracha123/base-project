@@ -30,6 +30,8 @@ describe('ProviderGatewayService', () => {
       generate: jest.fn().mockResolvedValue({
         provider: 'real',
         mode: 'real',
+        isRelevant: true,
+        error: null,
         content: 'real seller reply',
         summary: 'פריט מוכן לעיבוד',
         recommendation: 'בקשו פרטים נוספים על מקור ונסיבות',
@@ -132,6 +134,8 @@ describe('ProviderGatewayService', () => {
       generate: jest.fn().mockResolvedValue({
         provider: 'real',
         mode: 'real',
+        isRelevant: true,
+        error: null,
         content: 'real reply',
         summary: 'התגובה אמיתית',
         recommendation: 'הצג אפשרות רלוונטית',
@@ -312,6 +316,8 @@ describe('ProviderGatewayService', () => {
       generate: jest.fn().mockResolvedValue({
         provider: 'real',
         mode: 'real',
+        isRelevant: true,
+        error: null,
         content: 'דבריי הראשוניים',
         summary: 'מוצג פריט רלוונטי',
         recommendation: 'הצג אפשרויות דומות',
