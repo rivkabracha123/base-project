@@ -7,6 +7,12 @@ import {
   type BuyerUnmatchedDemandDashboardView,
 } from './unmatched-demand-dashboard-view';
 import type { BuyerSearchRequest } from './buyer-search-request';
+import {
+  buildDemandSummary,
+  deriveHardConstraints,
+  groupExplainedLots,
+  type GroupedResults,
+} from './explained-results';
 
 export interface P2TextSearch {
   searchByText(query: string, language: SearchRequest['language']): Promise<AuctionLot[]>;
@@ -19,13 +25,27 @@ export interface BuyerSearchInput {
   status: string;
   createdAt: string;
   searchedAt: string;
+  /** Lot the buyer picked from an earlier result set, carried through to B4/P5. */
+  selectedLotId?: string;
 }
 
 export type BuyerSearchOutcome =
-  | { kind: 'results'; searchRequest: BuyerSearchRequest; items: AuctionLot[] }
-  | { kind: 'unmatched'; view: BuyerUnmatchedDemandDashboardView };
+  | {
+      kind: 'results';
+      searchRequest: BuyerSearchRequest;
+      results: GroupedResults;
+      selectedLotId?: string;
+    }
+  | {
+      kind: 'unmatched';
+      view: BuyerUnmatchedDemandDashboardView;
+      selectedLotId?: string;
+    };
 
-// Converts the received buyer criteria into a typed P2 query and carries the whole criteria object - budget and every hard filter - onto the B4 results and P5 unmatched-demand handoffs, unchanged.
+// Converts the received buyer criteria into a typed P2 query, then hands B4 the
+// P2 results grouped as current/historical with deterministic match reasons, or
+// hands P5 an honest no-result summary. The whole criteria object and its
+// derived hard constraints - budget included - are carried through unchanged.
 export class BuyerSearchOrchestrator {
   // Takes the P2 text-search dependency and the request-building service.
   constructor(
@@ -33,7 +53,8 @@ export class BuyerSearchOrchestrator {
     private readonly buyerSearch = new BuyerSearchService(),
   ) {}
 
-  // Runs the P2 text search and returns its results or a privacy-safe no-result view, each carrying the received criteria unchanged.
+  // Runs the P2 text search and returns grouped, explained results or a
+  // privacy-safe no-result view, each carrying the received criteria unchanged.
   async search(input: BuyerSearchInput): Promise<BuyerSearchOutcome> {
     const searchRequest = this.buyerSearch.createSearchRequest(input.criteria, input.language);
     const items = await this.p2.searchByText(searchRequest.query, searchRequest.language);
@@ -41,11 +62,16 @@ export class BuyerSearchOrchestrator {
     const fullRequest: BuyerSearchRequest = {
       criteria: input.criteria,
       language: input.language,
-      hardConstraints: [],
+      hardConstraints: deriveHardConstraints(input.criteria),
     };
 
     if (items.length > 0) {
-      return { kind: 'results', searchRequest: fullRequest, items };
+      return {
+        kind: 'results',
+        searchRequest: fullRequest,
+        results: groupExplainedLots(input.criteria, items),
+        selectedLotId: input.selectedLotId,
+      };
     }
 
     return {
@@ -56,7 +82,9 @@ export class BuyerSearchOrchestrator {
         createdAt: input.createdAt,
         searchedAt: input.searchedAt,
         searchRequest: fullRequest,
+        demandSummary: buildDemandSummary(input.criteria),
       }),
+      selectedLotId: input.selectedLotId,
     };
   }
 }

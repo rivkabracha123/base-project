@@ -47,8 +47,20 @@ describe('BuyerSearchOrchestrator', () => {
 
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
-    expect(outcome.searchRequest).toEqual({ criteria, language: 'en', hardConstraints: [] });
-    expect(outcome.items).toEqual(fixture);
+    expect(outcome.searchRequest).toEqual({
+      criteria,
+      language: 'en',
+      hardConstraints: [
+        {
+          field: 'creators',
+          operator: 'contains',
+          value: ['Yitzhak Abrabanel'],
+          reason: 'Buyer requirement kept through refinement',
+        },
+      ],
+    });
+    expect(outcome.results.current).toEqual([]);
+    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(fixture);
     expect(p2.searchByText).toHaveBeenCalledWith('Yitzhak Abrabanel manuscript', 'en');
   });
 
@@ -66,6 +78,21 @@ describe('BuyerSearchOrchestrator', () => {
       leadId: 'lead-unmatched-1',
     });
 
+    const expectedHardConstraints = [
+      {
+        field: 'price',
+        operator: 'range',
+        value: { min: 1000, max: 15000, currency: 'USD' },
+        reason: 'Buyer budget is a hard limit and is not relaxed without approval',
+      },
+      {
+        field: 'creators',
+        operator: 'contains',
+        value: ['Yitzhak Abrabanel'],
+        reason: 'Buyer requirement kept through refinement',
+      },
+    ];
+
     expect(outcome).toEqual({
       kind: 'unmatched',
       view: {
@@ -74,9 +101,14 @@ describe('BuyerSearchOrchestrator', () => {
         status: 'new',
         createdAt: '2026-09-01T10:00:00.000Z',
         unmatchedDemand: {
-          searchRequest: { criteria, language: 'he', hardConstraints: [] },
+          searchRequest: { criteria, language: 'he', hardConstraints: expectedHardConstraints },
           reason: 'no_results',
           searchedAt: '2026-09-01T10:01:00.000Z',
+          demandSummary: {
+            appliedCriteria: ['price', 'creators'],
+            hardConstraints: expectedHardConstraints,
+            recovery: 'no_relaxation_no_invention',
+          },
         },
       },
     });
@@ -103,8 +135,15 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.searchRequest.criteria).toEqual(criteria);
-    expect(outcome.searchRequest.hardConstraints).toEqual([]);
-    expect(outcome.items).toHaveLength(2);
+    expect(outcome.searchRequest.hardConstraints.map((constraint) => constraint.field)).toEqual([
+      'price',
+      'categories',
+      'creators',
+      'periods',
+      'geography',
+    ]);
+    expect(outcome.results.current).toHaveLength(0);
+    expect(outcome.results.historical).toHaveLength(2);
   });
 
   it('does not loosen the budget it received when building the handoff', async () => {
@@ -118,6 +157,28 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.searchRequest.criteria.price).toEqual({ min: 2000, max: 15000, currency: 'USD' });
+    expect(outcome.searchRequest.hardConstraints).toContainEqual({
+      field: 'price',
+      operator: 'range',
+      value: { min: 2000, max: 15000, currency: 'USD' },
+      reason: 'Buyer budget is a hard limit and is not relaxed without approval',
+    });
+  });
+
+  it('carries a selected lot id through to the B4 results handoff', async () => {
+    const p2 = { searchByText: jest.fn().mockResolvedValue([makeLot({ id: 'lot-1' })]) };
+    const orchestrator = new BuyerSearchOrchestrator(p2);
+
+    const outcome = await orchestrator.search({
+      criteria: emptyBuyerCriteria('en'),
+      language: 'en',
+      ...baseLead,
+      selectedLotId: 'lot-1',
+    });
+
+    expect(outcome.kind).toBe('results');
+    if (outcome.kind !== 'results') return;
+    expect(outcome.selectedLotId).toBe('lot-1');
   });
 
   it('carries the tightened criteria through a refinement turn without reverting to the earlier budget', async () => {
@@ -163,6 +224,7 @@ describe('BuyerSearchOrchestrator', () => {
     expect(p2.searchByText).toHaveBeenCalledWith('Someone', 'en');
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
-    expect(outcome.items).toBe(returned);
+    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(returned);
+    expect(outcome.results.historical[0]?.lot).toBe(returned[0]);
   });
 });

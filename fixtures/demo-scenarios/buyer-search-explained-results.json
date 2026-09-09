@@ -1,0 +1,121 @@
+{
+  "id": "buyer-search-explained-results-w4",
+  "description": "B3 Week 4 CONNECT scenario. Trace one named criteria fixture from B2 (Eliana Avnad) through B3 (Avital Zak) into the B4 (Batya Simon) results handoff and the P5 (Rivka Bracha Benjo) unmatched-demand handoff. B3 groups exactly the lots P2 (Mali Chasai) returned into current (upcoming) and historical (past sales), attaches deterministic match reasons derived from the criteria, derives the hard constraints that must survive refinement, and on no results returns an honest demand summary without relaxing the budget or inventing inventory. Contains no profile, session, contact, or conversation data. p2ResultLots are embedded full AuctionLot objects so the B3 contract fixture does not depend on the size of P1's dataset.",
+  "scenario": {
+    "language": "en",
+    "criteria": {
+      "categories": ["rare_books"],
+      "creators": ["Yitzhak Abrabanel"],
+      "periods": [],
+      "media": [],
+      "keywords": ["manuscript"],
+      "geography": [],
+      "auctionHouseIds": [],
+      "price": { "min": 500, "max": 5000, "currency": "USD" },
+      "language": "en",
+      "hardConstraints": []
+    },
+    "p2ResultLots": [
+      {
+        "id": "lot-kestenbaum-2026-spring-12",
+        "source": {
+          "provider": "bidspirit-snapshot",
+          "recordId": "kestenbaum-2026-spring-12",
+          "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/60001?lang=en",
+          "retrievedAt": "2026-02-01T00:00:00.000Z"
+        },
+        "auctionHouse": { "id": "house-kestenbaum", "name": "Kestenbaum & Company" },
+        "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+        "lotNumber": "12",
+        "title": {
+          "en": "Commentary on the Latter Prophets by Yitzhak Abrabanel",
+          "he": "פירוש על נביאים אחרונים מאת יצחק אברבנאל"
+        },
+        "description": {
+          "en": "A rare Hebrew printed volume with later manuscript annotations.",
+          "he": "כרך עברי נדיר עם הגהות בכתב יד מאוחר."
+        },
+        "category": "rare_books",
+        "saleDate": "2026-05-14",
+        "status": "upcoming",
+        "estimate": {
+          "low": { "amount": 1500, "currency": "USD" },
+          "high": { "amount": 2500, "currency": "USD" }
+        }
+      },
+      {
+        "id": "lot-kestenbaum-54554-121421",
+        "source": {
+          "provider": "bidspirit-snapshot",
+          "recordId": "kestenbaum-54554-121421",
+          "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
+          "retrievedAt": "2025-08-21T00:00:00.000Z"
+        },
+        "auctionHouse": { "id": "house-kestenbaum", "name": "Kestenbaum & Company" },
+        "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
+        "lotNumber": "1",
+        "title": {
+          "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+          "he": "עטרת זקנים מאת יצחק אברבנאל"
+        },
+        "description": {
+          "en": "A rare Hebrew printed philosophy volume.",
+          "he": "ספר פילוסופיה עברי נדיר."
+        },
+        "category": "rare_books",
+        "saleDate": "2025-01-23",
+        "status": "sold",
+        "estimate": {
+          "low": { "amount": 800, "currency": "USD" },
+          "high": { "amount": 1200, "currency": "USD" }
+        },
+        "realizedPrice": { "amount": 1200, "currency": "USD" }
+      }
+    ],
+    "p2UnmatchedLots": []
+  },
+  "expected": {
+    "hardConstraints": [
+      {
+        "field": "price",
+        "operator": "range",
+        "value": { "min": 500, "max": 5000, "currency": "USD" },
+        "reason": "Buyer budget is a hard limit and is not relaxed without approval"
+      },
+      {
+        "field": "categories",
+        "operator": "contains",
+        "value": ["rare_books"],
+        "reason": "Buyer requirement kept through refinement"
+      },
+      {
+        "field": "creators",
+        "operator": "contains",
+        "value": ["Yitzhak Abrabanel"],
+        "reason": "Buyer requirement kept through refinement"
+      }
+    ],
+    "results": {
+      "currentLotIds": ["lot-kestenbaum-2026-spring-12"],
+      "historicalLotIds": ["lot-kestenbaum-54554-121421"],
+      "matchReasonsByLot": {
+        "lot-kestenbaum-2026-spring-12": [
+          { "field": "categories", "detail": "rare_books" },
+          { "field": "price", "detail": "within the stated budget" },
+          { "field": "creators", "detail": "Yitzhak Abrabanel" },
+          { "field": "keywords", "detail": "manuscript" }
+        ],
+        "lot-kestenbaum-54554-121421": [
+          { "field": "categories", "detail": "rare_books" },
+          { "field": "price", "detail": "within the stated budget" },
+          { "field": "creators", "detail": "Yitzhak Abrabanel" },
+          { "field": "keywords", "detail": "manuscript" }
+        ]
+      }
+    },
+    "demandSummary": {
+      "appliedCriteria": ["price", "categories", "creators", "keywords"],
+      "recovery": "no_relaxation_no_invention"
+    }
+  }
+}

@@ -80,8 +80,16 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.searchRequest.criteria).toEqual(expectedCriteria);
-    expect(outcome.searchRequest.hardConstraints).toEqual([]);
-    expect(outcome.items.map((l) => l.id)).toEqual(expected.results.itemIds);
+    expect(outcome.searchRequest.hardConstraints.map((constraint) => constraint.field)).toEqual([
+      'price',
+      'categories',
+      'creators',
+      'periods',
+      'geography',
+    ]);
+    expect(
+      [...outcome.results.current, ...outcome.results.historical].map((entry) => entry.lot.id),
+    ).toEqual(expected.results.itemIds);
 
     const serialized = JSON.stringify(outcome);
     for (const key of forbiddenKeys) {
@@ -106,6 +114,10 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     expect(outcome.view.unmatchedDemand.searchRequest.criteria).toEqual(expectedCriteria);
     expect(outcome.view.unmatchedDemand.searchRequest.language).toBe(scenario.language);
     expect(outcome.view.unmatchedDemand.reason).toBe('no_results');
+    expect(outcome.view.unmatchedDemand.demandSummary.recovery).toBe('no_relaxation_no_invention');
+    expect(outcome.view.unmatchedDemand.demandSummary.hardConstraints).toEqual(
+      outcome.view.unmatchedDemand.searchRequest.hardConstraints,
+    );
 
     const serialized = JSON.stringify(outcome);
     for (const key of forbiddenKeys) {
