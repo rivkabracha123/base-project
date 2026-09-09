@@ -15,7 +15,7 @@ import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-
 import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
 import { CreateSellerIntakeTables1720000000000 } from './database/1720000000000-create-seller-intake-tables';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
-
+import { AddSellerLeadRecommendation1788220800001 } from './database/1788220800001-add-seller-lead-recommendation';
 import { AlomaShilatModule } from './aluma-shilat/aluma-shilat.module';
 import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
@@ -23,6 +23,7 @@ import { LotsModule } from './lots/lots.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
 import { StorageModule } from './storage/storage.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
   return {
@@ -42,6 +43,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateMonabidBasicSchema1710000000001,
       CreateSellerIntakeTables1720000000000,
       CreateSellerLeads1788220800000,
+      AddSellerLeadRecommendation1788220800001,
     ],
     synchronize: false,
   };
@@ -63,6 +65,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     SellerIntakeModule,
     SellerLeadsModule,
     StorageModule,
+    UploadsModule,
     AlomaShilatModule,
   ],
 })

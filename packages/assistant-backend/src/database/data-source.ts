@@ -15,6 +15,7 @@ import { CreateAuctionLots1710000000000 } from './1710000000000-create-auction-l
 import { CreateMonabidBasicSchema1710000000001 } from './1710000000001-create-monabid-basic-schema';
 import { CreateSellerIntakeTables1720000000000 } from './1720000000000-create-seller-intake-tables';
 import { CreateSellerLeads1788220800000 } from './1788220800000-create-seller-leads';
+import { AddSellerLeadRecommendation1788220800001 } from './1788220800001-add-seller-lead-recommendation';
 
 const databaseUrl =
   process.env.DATABASE_URL ??
@@ -37,6 +38,7 @@ const AppDataSource = new DataSource({
     CreateMonabidBasicSchema1710000000001,
     CreateSellerIntakeTables1720000000000,
     CreateSellerLeads1788220800000,
+    AddSellerLeadRecommendation1788220800001,
   ],
   synchronize: false,
   logging: false,

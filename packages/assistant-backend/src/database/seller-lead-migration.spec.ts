@@ -53,4 +53,36 @@ describe('seller lead schema', () => {
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP TABLE "seller_leads"');
   });
+
+  it('registers the recommendation column migration', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { AddSellerLeadRecommendation1788220800001 } = await import(
+      './1788220800001-add-seller-lead-recommendation'
+    );
+
+    expect(databaseOptions(config).migrations).toContain(AddSellerLeadRecommendation1788220800001);
+    expect(AppDataSource.options.migrations).toContain(AddSellerLeadRecommendation1788220800001);
+  });
+
+  it('adds and drops the recommendation column', async () => {
+    const { AddSellerLeadRecommendation1788220800001 } = await import(
+      './1788220800001-add-seller-lead-recommendation'
+    );
+
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+
+    const migration = new AddSellerLeadRecommendation1788220800001();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('ADD COLUMN "recommendation" jsonb');
+
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('DROP COLUMN "recommendation"');
+  });
 });

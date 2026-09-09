@@ -1,3 +1,4 @@
+import type { HouseRanking } from '@monabid/shared';
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 export interface SellerLeadContact {
@@ -16,6 +17,9 @@ export class SellerLeadEntity {
 
   @Column({ type: 'jsonb' })
   contact: SellerLeadContact;
+
+  @Column({ type: 'jsonb', nullable: true })
+  recommendation: HouseRanking | null;
 
   @Column({ name: 'created_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
