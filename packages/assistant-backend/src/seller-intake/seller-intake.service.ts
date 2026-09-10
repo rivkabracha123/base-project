@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { SellerItemDraft } from '@monabid/shared';
 
+const REQUIRED_SELLER_DETAILS = [
+  'dimensions',
+  'condition',
+  'marks',
+  'signatures',
+  'provenance',
+] as const;
+
 @Injectable()
 export class SellerIntakeService {
   // Build a review state from the seller's initial intake text.
@@ -9,6 +17,8 @@ export class SellerIntakeService {
     materials: string[];
     dimensions: { widthCm: number; heightCm: number };
     markings: string;
+    condition: string;
+    signatures: string;
     provenance?: string;
     missingFields: string[];
     uncertainFields: string[];
@@ -25,6 +35,13 @@ export class SellerIntakeService {
     }
     if (!extracted.provenance) {
       missingFields.push('provenance');
+    }
+    if (!extracted.condition || extracted.condition === 'Not yet confirmed') {
+      missingFields.push('condition');
+    }
+
+    if (!extracted.signatures || extracted.signatures === 'Not yet confirmed') {
+      missingFields.push('signatures');
     }
     if (extracted.category === 'unknown') {
       uncertainFields.push('category');
@@ -62,16 +79,59 @@ export class SellerIntakeService {
     };
   }
 
+  // Build an API draft without treating fixture facts as seller-confirmed.
+  createDraftFromSellerInput(fixture: SellerItemDraft, input: string): SellerItemDraft {
+    const reviewState = this.buildReviewState(input);
+    const item = {
+      ...fixture.item,
+      category: reviewState.category,
+      materials: reviewState.materials,
+      dimensions: {
+        ...fixture.item.dimensions,
+        widthCm: reviewState.dimensions.widthCm || undefined,
+        heightCm: reviewState.dimensions.heightCm || undefined,
+        values:
+          reviewState.dimensions.widthCm && reviewState.dimensions.heightCm
+            ? [
+                { label: 'width', value: reviewState.dimensions.widthCm, unit: 'cm' },
+                { label: 'height', value: reviewState.dimensions.heightCm, unit: 'cm' },
+              ]
+            : [],
+      },
+      condition: reviewState.condition === 'Not yet confirmed' ? undefined : reviewState.condition,
+      markings: reviewState.markings === 'Not yet confirmed' ? undefined : reviewState.markings,
+      provenance: reviewState.provenance,
+    };
+
+    return this.createDraftSellerItem({
+      ...fixture,
+      item,
+      confirmedFacts: {},
+      sellerConfirmation: {
+        ...fixture.sellerConfirmation,
+        status: 'pending',
+        lastConfirmedAt: undefined,
+        notes: 'Extracted facts require seller confirmation before downstream use.',
+      },
+      handoff: {
+        ...fixture.handoff,
+        notes: 'Only seller-confirmed facts are trusted downstream.',
+      },
+    });
+  }
+
   // Apply one seller correction to the current review state.
   applySellerCorrection(state: {
-    category?: string;
-    materials?: string[];
-    dimensions?: { widthCm: number; heightCm: number };
-    markings?: string;
-    provenance?: string;
-    missingFields?: string[];
-    uncertainFields?: string[];
-  }, field: string, value: string | string[] | { widthCm: number; heightCm: number }): typeof state {
+  category?: string;
+  materials?: string[];
+  dimensions?: { widthCm: number; heightCm: number };
+  markings?: string;
+  condition?: string;
+  signatures?: string;
+  provenance?: string;
+  missingFields?: string[];
+  uncertainFields?: string[];
+}, field: string, value: string | string[] | { widthCm: number; heightCm: number }): typeof state {
     if (field === 'dimensions' && typeof value === 'object' && !Array.isArray(value)) {
       return { ...state, dimensions: value, missingFields: (state.missingFields ?? []).filter((item) => item !== 'dimensions') };
     }
@@ -123,12 +183,14 @@ export class SellerIntakeService {
 
   // Extract likely item facts from the seller's first message.
   parseSellerInput(input: string): {
-    category: string;
-    materials: string[];
-    dimensions: { widthCm: number; heightCm: number };
-    markings: string;
-    provenance?: string;
-  } {
+  category: string;
+  materials: string[];
+  dimensions: { widthCm: number; heightCm: number };
+  markings: string;
+  condition: string;
+  signatures: string;
+  provenance?: string;
+} {
     const text = input.toLowerCase();
     const hebrewDimensions = input.match(/(\d+)\s*על\s*(\d+)/);
     const hebrewMaterials = [
@@ -146,7 +208,24 @@ export class SellerIntakeService {
       ? { widthCm: Number(widthMatch[1]), heightCm: Number(widthMatch[2]) }
       : { widthCm: 0, heightCm: 0 };
 
-    const markings = input.toLowerCase().includes('signed') || input.includes('חתום') ? 'Signed lower right' : 'Not yet confirmed';
+    const markings =
+      text.includes('mark') ||
+      text.includes('stamp') ||
+      text.includes('inscription') ||
+      input.includes('סימן') ||
+      input.includes('חותמת') ||
+      input.includes('כיתוב')
+        ? 'Markings provided'
+        : 'Not yet confirmed';
+    const condition =
+    text.includes('good condition') || text.includes('מצב טוב')
+      ? 'Good condition'
+      : 'Not yet confirmed';
+
+  const signatures =
+    text.includes('signed') || text.includes('חתום')
+      ? 'Signed'
+      : 'Not yet confirmed';
     const provenance = input.includes('family') || input.includes('משפחה') ? 'Family archive; acquired in Jerusalem in the early 1990s.' : undefined;
 
     return {
@@ -155,8 +234,11 @@ export class SellerIntakeService {
       dimensions: hebrewDimensions
         ? { widthCm: Number(hebrewDimensions[1]), heightCm: Number(hebrewDimensions[2]) }
         : dimensions,
-      markings: input.includes('חתום') ? 'Signed lower right' : markings,
+      markings,
+      condition,
+      signatures,
       provenance: input.includes('משפחה')
+            
         ? 'Family archive; acquired in Jerusalem in the early 1990s.'
         : provenance,
     };
@@ -172,14 +254,12 @@ export class SellerIntakeService {
   }
 
   // Identify the important missing details the seller must confirm.
-  askMissingSellerDetails(): string[] {
-    return [
-      'dimensions',
-      'condition',
-      'marks',
-      'signatures',
-      'provenance',
-    ];
+    askMissingSellerDetails(
+      reviewState?: ReturnType<SellerIntakeService['buildReviewState']>,
+  ): string[] {
+      if (!reviewState) return [...REQUIRED_SELLER_DETAILS];
+
+      return REQUIRED_SELLER_DETAILS.filter((field) => reviewState.missingFields.includes(field));
   }
 
   // Apply a seller approval or correction to one specific field.
@@ -218,9 +298,15 @@ export class SellerIntakeService {
       status: 'draft',
       sellerConfirmation: {
         required: true,
-        status: 'partial',
-        lastConfirmedAt: fixture.sellerConfirmation.lastConfirmedAt ?? new Date().toISOString(),
-        notes: 'Confirmed facts are safe for downstream review; uncertain facts remain flagged.',
+        status: fixture.sellerConfirmation.status === 'pending' ? 'pending' : 'partial',
+        lastConfirmedAt:
+          fixture.sellerConfirmation.status === 'pending'
+            ? undefined
+            : fixture.sellerConfirmation.lastConfirmedAt ?? new Date().toISOString(),
+        notes:
+          fixture.sellerConfirmation.status === 'pending'
+            ? 'Extracted facts require seller confirmation before downstream use.'
+            : 'Confirmed facts are safe for downstream review; uncertain facts remain flagged.',
       },
       handoff: {
         to: ['s3', 's4', 's5'],
@@ -239,7 +325,10 @@ export class SellerIntakeService {
   }
 
   // Prepare the downstream payload with only safe confirmed item facts.
-  buildHandoffPayload(fixture: SellerItemDraft): {
+  buildHandoffPayload(
+    fixture: SellerItemDraft,
+    confirmedFacts: SellerItemDraft['confirmedFacts'] = fixture.confirmedFacts,
+  ): {
     item: SellerItemDraft['item'];
     confirmedFacts: SellerItemDraft['confirmedFacts'];
     uncertainFacts: SellerItemDraft['uncertainFacts'];
@@ -248,7 +337,7 @@ export class SellerIntakeService {
   } {
     return {
       item: fixture.item,
-      confirmedFacts: fixture.confirmedFacts,
+      confirmedFacts,
       uncertainFacts: fixture.uncertainFacts,
       evidence: fixture.evidence,
       revisionHistory: fixture.revisionHistory,

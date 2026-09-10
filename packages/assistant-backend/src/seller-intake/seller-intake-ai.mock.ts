@@ -9,12 +9,17 @@ import { SellerIntakeService } from './seller-intake.service';
 export class SellerIntakeAiMock {
   constructor(private readonly sellerIntakeService: SellerIntakeService) {}
 
-  analyze(input: string): SellerItemDraft & { provider: 'fixture-mock' } {
+  analyze(input: string): SellerItemDraft & {
+    provider: 'fixture-mock';
+    missingFields: string[];
+  } {
     const fixturePath = resolve(__dirname, '../../../../fixtures/demo-scenarios/seller-item-draft.json');
     const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as SellerItemDraft;
+    const reviewState = this.sellerIntakeService.buildReviewState(input);
 
     return {
-      ...this.sellerIntakeService.createDraftSellerItem(fixture),
+      ...this.sellerIntakeService.createDraftFromSellerInput(fixture, input),
+      missingFields: this.sellerIntakeService.askMissingSellerDetails(reviewState),
       provider: 'fixture-mock' as const,
     };
   }
