@@ -289,16 +289,16 @@ describe('SellerIntakeService', () => {
     expect(draft.updatedAt).toBeDefined();
     expect(draft.conversation).toBeDefined();
 
-    expect(draft.language).toEqual({
-      preferred: 'he',
-      secondary: 'en',
-      conversationMode: 'bilingual',
-    });
+expect(draft.language).toEqual({
+  preferred: 'he',
+  secondary: 'en',
+  conversationMode: 'bilingual',
+});
     expect(draft.seller).toEqual({
-      name: 'Maya Cohen',
-      anonymousProfileId: 'profile-demo-001',
-      preferredName: 'Maya',
-    });
+  name: 'Maya Cohen',
+  anonymousProfileId: 'profile-demo-001',
+  preferredName: 'Maya',
+});
 
     expect(draft.item.category).toBe('paintings');
     expect(draft.item.materials).toEqual(['oil', 'canvas']);
