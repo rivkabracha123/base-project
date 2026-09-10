@@ -3,6 +3,7 @@
 // seller corrections and confirmations, safe handoff,
 // and the Week 3 seller conversation requirements.
 import type { SellerItemDraft } from '@monabid/shared';
+import { SellerIntakeAiMock } from './seller-intake-ai.mock';
 import { SellerIntakeService } from './seller-intake.service';
 
 describe('SellerIntakeService', () => {
@@ -211,6 +212,16 @@ describe('SellerIntakeService', () => {
     ]);
 
     expect(draft.confirmedFacts.category).toBe('paintings');
+  });
+
+  it('creates a deterministic AI mock draft without reading an external JSON fixture', () => {
+    const aiMock = new SellerIntakeAiMock(service);
+    const result = aiMock.analyze('I have a painting, 60 x 80 cm, signed.');
+
+    expect(result.provider).toBe('fixture-mock');
+    expect(result.status).toBe('draft');
+    expect(result.handoff.to).toEqual(['s3', 's4', 's5']);
+    expect(result.missingFields).toEqual(['condition', 'marks', 'provenance']);
   });
 
   it('separates missing and uncertain information', () => {
