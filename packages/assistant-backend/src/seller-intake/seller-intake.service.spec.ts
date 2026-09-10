@@ -1,4 +1,9 @@
+// Tests for SellerIntakeService covering seller fact extraction,
+// draft creation, missing and uncertain information,
+// seller corrections and confirmations, safe handoff,
+// and the Week 3 seller conversation requirements.
 import type { SellerItemDraft } from '@monabid/shared';
+import { SellerIntakeAiMock } from './seller-intake-ai.mock';
 import { SellerIntakeService } from './seller-intake.service';
 
 describe('SellerIntakeService', () => {
@@ -151,7 +156,7 @@ describe('SellerIntakeService', () => {
       widthCm: 40,
       heightCm: 30,
     });
-    expect(result.markings).toBe('Signed lower right');
+    expect(result.markings).toBe('Not yet confirmed');
     expect(result.provenance).toBeUndefined();
 
     expect(result.materials).not.toContain('oil');
@@ -173,7 +178,7 @@ describe('SellerIntakeService', () => {
       heightCm: 80,
     });
 
-    expect(result.extractedFacts.markings).toBe('Signed lower right');
+    expect(result.extractedFacts.markings).toBe('Not yet confirmed');
 
     expect(result.confirmedFacts).toEqual({});
 
@@ -209,6 +214,16 @@ describe('SellerIntakeService', () => {
     expect(draft.confirmedFacts.category).toBe('paintings');
   });
 
+  it('creates a deterministic AI mock draft without reading an external JSON fixture', () => {
+    const aiMock = new SellerIntakeAiMock(service);
+    const result = aiMock.analyze('I have a painting, 60 x 80 cm, signed.');
+
+    expect(result.provider).toBe('fixture-mock');
+    expect(result.status).toBe('draft');
+    expect(result.handoff.to).toEqual(['s3', 's4', 's5']);
+    expect(result.missingFields).toEqual(['condition', 'marks', 'provenance']);
+  });
+
   it('separates missing and uncertain information', () => {
     const reviewState = service.buildReviewState(
       'I have a painting. It is 60 x 80 cm and signed. I think it was made in the 1980s.'
@@ -226,6 +241,119 @@ describe('SellerIntakeService', () => {
     expect(reviewState.uncertainFields).toContain('materials');
 
     expect(reviewState.uncertainFields).not.toContain('category');
+  });
+  
+
+    it('identifies missing seller details and recognizes provided details', () => {
+      // Check that condition and signatures are detected as missing.
+      const missingDetails = service.buildReviewState(
+        'I have a painting, 60 x 80 cm.'
+      );
+
+      expect(missingDetails.missingFields).toContain('condition');
+      expect(missingDetails.missingFields).toContain('signatures');
+
+      // Check that provided condition and signatures are not marked as missing.
+      const providedDetails = service.buildReviewState(
+        'I have a painting, 60 x 80 cm, good condition, signed.'
+      );
+
+      expect(providedDetails.missingFields).not.toContain('condition');
+      expect(providedDetails.missingFields).not.toContain('signatures');
+    });
+
+  it('identifies all five required details when the seller omits them', () => {
+  const reviewState = service.buildReviewState('I have a painting.');
+
+  const result = service.askMissingSellerDetails(reviewState);
+
+  expect(result).toEqual([
+    'dimensions',
+    'condition',
+    'marks',
+    'signatures',
+    'provenance',
+  ]);
+});
+
+  it('keeps marks missing when the seller only reports a signature', () => {
+    const reviewState = service.buildReviewState(
+      'I have a painting, 60 x 80 cm, signed.',
+    );
+
+    expect(reviewState.signatures).toBe('Signed');
+    expect(reviewState.markings).toBe('Not yet confirmed');
+    expect(reviewState.missingFields).toContain('marks');
+    expect(reviewState.missingFields).not.toContain('signatures');
+  });
+
+  it('asks only for required details missing from the seller message', () => {
+    const reviewState = service.buildReviewState(
+      'I have a painting, 60 x 80 cm, good condition, signed.',
+    );
+
+    expect(service.askMissingSellerDetails(reviewState)).toEqual(['marks', 'provenance']);
+  });
+
+ // Week 3: Verify that seller corrections update the review state
+  // and that only explicitly confirmed facts become confirmed.
+it('updates seller corrections and fact confirmation status', () => {
+  const reviewState = service.buildReviewState(
+    'I have a painting. It is 60 x 80 cm and signed.'
+  );
+
+  const correctedState = service.applySellerCorrection(
+    reviewState,
+    'provenance',
+    'Family archive'
+  );
+
+  expect(correctedState.provenance).toBe('Family archive');
+  expect(correctedState.missingFields).not.toContain('provenance');
+
+  expect(
+    service.markFactStatus('provenance', 'Family archive', true)
+  ).toBe('confirmed');
+
+  expect(
+    service.markFactStatus('materials', 'oil', false)
+  ).toBe('uncertain');
+
+  expect(
+    service.markFactStatus('condition', null, false)
+  ).toBe('unknown');
+});
+
+  it('passes a seller correction into the downstream handoff', () => {
+    const reviewState = service.buildReviewState(
+      'I have a painting, 60 x 80 cm, signed.',
+    );
+    const correctedState = service.applySellerCorrection(
+      reviewState,
+      'provenance',
+      'Family archive',
+    );
+    const handoff = service.buildHandoffPayload(fixture, {
+      ...fixture.confirmedFacts,
+      provenance: correctedState.provenance,
+    });
+
+    expect(handoff.confirmedFacts.provenance).toBe('Family archive');
+    expect(handoff.confirmedFacts).toEqual(
+      expect.objectContaining({ provenance: 'Family archive' }),
+    );
+  });
+
+  it('does not expose fixture facts as confirmed before seller approval', () => {
+    const draft = service.createDraftFromSellerInput(
+      fixture,
+      'I have a painting, 60 x 80 cm, signed.',
+    );
+
+    expect(draft.confirmedFacts).toEqual({});
+    expect(draft.item.provenance).toBeUndefined();
+    expect(draft.item.condition).toBeUndefined();
+    expect(draft.sellerConfirmation.status).toBe('pending');
   });
 
   it('builds a safe handoff payload', () => {
