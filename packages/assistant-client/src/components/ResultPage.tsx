@@ -32,16 +32,31 @@ export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPa
     );
   }
 
+  const currentLots = outcome.items.filter((lot) => lot.status !== 'sold');
+  const pastSales = outcome.items.filter((lot) => lot.status === 'sold');
+
+  const renderLotGroup = (title: string, lots: typeof outcome.items) => (
+    <section className="mb-8">
+      <h2 className="mb-3 text-lg font-bold text-slate-800">{title}</h2>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {lots.map((lot) => (
+          <ResultCard key={lot.id} lot={lot} lang={lang} onSelect={(id) => navigate(`/lots/${id}`)} />
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <div className="mx-auto max-w-6xl p-6" dir={lang === 'he' ? 'rtl' : 'ltr'}>
       <h1 className="mb-4 text-xl font-bold text-slate-900">
         {lang === 'he' ? 'תוצאות מכירות מונאביד' : 'Auction matches'}
       </h1>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {outcome.items.map((lot) => (
-          <ResultCard key={lot.id} lot={lot} lang={lang} onSelect={(id) => navigate(`/lots/${id}`)} />
-        ))}
-      </div>
+      {currentLots.length > 0
+        ? renderLotGroup(lang === 'he' ? 'תוצאות נוכחיות' : 'Current results', currentLots)
+        : null}
+      {pastSales.length > 0
+        ? renderLotGroup(lang === 'he' ? 'מכירות עבר' : 'Past sales', pastSales)
+        : null}
     </div>
   );
 }
