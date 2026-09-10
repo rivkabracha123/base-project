@@ -6,7 +6,7 @@ export function criteriaToSearchRequest(
   criteria: BuyerCriteria,
   language: SearchRequest['language'],
 ): SearchRequest {
-  const query = [criteria.creator, ...(criteria.keywords ?? [])]
+  const query = [...criteria.creators, ...criteria.keywords]
     .filter((part): part is string => Boolean(part?.trim()))
     .join(' ');
 
