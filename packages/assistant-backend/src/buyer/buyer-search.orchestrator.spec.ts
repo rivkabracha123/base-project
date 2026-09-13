@@ -118,6 +118,29 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.searchRequest.criteria.price).toEqual({ min: 2000, max: 15000, currency: 'USD' });
   });
 
+  it('carries the tightened criteria through a refinement turn without reverting to the earlier budget', async () => {
+    const p2 = { searchByText: jest.fn().mockResolvedValue([makeLot({ id: 'lot-1' })]) };
+    const orchestrator = new BuyerSearchOrchestrator(p2);
+
+    const firstTurn = emptyBuyerCriteria('en');
+    firstTurn.categories = ['rare_books'];
+    firstTurn.price = { min: 1000, max: 50000, currency: 'USD' };
+    await orchestrator.search({ criteria: firstTurn, language: 'en', ...baseLead });
+
+    const refinedTurn = emptyBuyerCriteria('en');
+    refinedTurn.categories = ['rare_books'];
+    refinedTurn.creators = ['Yitzhak Abrabanel'];
+    refinedTurn.periods = ['15th'];
+    refinedTurn.price = { min: 2000, max: 15000, currency: 'USD' };
+
+    const outcome = await orchestrator.search({ criteria: refinedTurn, language: 'en', ...baseLead });
+
+    expect(outcome.kind).toBe('results');
+    if (outcome.kind !== 'results') return;
+    expect(outcome.searchRequest.criteria).toEqual(refinedTurn);
+    expect(outcome.searchRequest.criteria.price).toEqual({ min: 2000, max: 15000, currency: 'USD' });
+  });
+
   it('builds results only from what P2 returned and never reads a raw source', async () => {
     const returned = [makeLot({ id: 'lot-a' }), makeLot({ id: 'lot-b' })];
     const p2 = { searchByText: jest.fn().mockResolvedValue(returned) };

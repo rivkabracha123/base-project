@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import type { AuctionLot, Money } from '@monabid/shared';
+import type { Money } from '@monabid/shared';
+import { PriceHistory } from './PriceHistory';
+import { getComparableSaleHistory, type ItemHistoryLot } from './price-history';
 
 interface ItemDetailProps {
-  lot: AuctionLot;
+  lot: ItemHistoryLot;
   lang: 'he' | 'en';
   onBack: () => void;
+  historyLots?: ItemHistoryLot[];
 }
 
-export function ItemDetail({ lot, lang, onBack }: ItemDetailProps) {
+export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailProps) {
   const isRtl = lang === 'he';
   const [showHelpForm, setShowHelpForm] = useState(false);
   const title = lot.title[lang] ?? lot.title.en;
   const description = lot.description[lang] ?? lot.description.en;
+  const historicalSales = getComparableSaleHistory(lot, historyLots);
   const formatCurrency = (money: Money) => new Intl.NumberFormat(lang === 'he' ? 'he-IL' : 'en-US', {
     style: 'currency',
     currency: money.currency,
@@ -65,6 +69,8 @@ export function ItemDetail({ lot, lang, onBack }: ItemDetailProps) {
           </a>
         </div>
       </section>
+
+      <PriceHistory sales={historicalSales} lang={lang} />
 
       <section className="border-t border-slate-200 pt-6 text-center">
         {!showHelpForm ? (
