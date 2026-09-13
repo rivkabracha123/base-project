@@ -15,6 +15,7 @@ const baseLead = {
   searchedAt: '2026-09-01T10:01:00.000Z',
 };
 
+// Builds a full AuctionLot for tests, overriding any fields via `over`.
 const makeLot = (over: Partial<AuctionLot> & { id: string }): AuctionLot => ({
   source: {
     provider: 'test',
@@ -89,6 +90,7 @@ describe('BuyerSearchOrchestrator', () => {
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
+    // Criteria as B2 hands them over after a refinement, carrying several strict filters.
     const criteria = emptyBuyerCriteria('en');
     criteria.price = { min: 2000, max: 15000, currency: 'USD' };
     criteria.categories = ['rare_books'];
@@ -122,11 +124,13 @@ describe('BuyerSearchOrchestrator', () => {
     const p2 = { searchByText: jest.fn().mockResolvedValue([makeLot({ id: 'lot-1' })]) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
+    // First turn: a broad request.
     const firstTurn = emptyBuyerCriteria('en');
     firstTurn.categories = ['rare_books'];
     firstTurn.price = { min: 1000, max: 50000, currency: 'USD' };
     await orchestrator.search({ criteria: firstTurn, language: 'en', ...baseLead });
 
+    // Second turn: B2 hands over the refined criteria - narrower budget, extra strict filters.
     const refinedTurn = emptyBuyerCriteria('en');
     refinedTurn.categories = ['rare_books'];
     refinedTurn.creators = ['Yitzhak Abrabanel'];
@@ -137,6 +141,7 @@ describe('BuyerSearchOrchestrator', () => {
 
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
+    // The refined set is carried verbatim - no field dropped, budget not widened back toward turn one.
     expect(outcome.searchRequest.criteria).toEqual(refinedTurn);
     expect(outcome.searchRequest.criteria.price).toEqual({ min: 2000, max: 15000, currency: 'USD' });
   });

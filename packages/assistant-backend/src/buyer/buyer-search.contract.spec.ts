@@ -17,6 +17,8 @@ const lots = JSON.parse(
   readFileSync(resolve(repoRoot, 'fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
 
+// The committed JSON fixture still uses the legacy flat criteria shape; this maps it onto the
+// canonical BuyerCriteria (price / creators[] / categories[] / periods[] / geography[]) B3 now receives.
 type LegacyCriteria = {
   budget?: { min?: number; max?: number };
   category?: string;
@@ -37,6 +39,7 @@ const legacyToCanonical = (legacy: LegacyCriteria, language: 'en' | 'he' = 'en')
   return criteria;
 };
 
+// Looks up a committed fixture lot by id, throwing if it is missing.
 const lotById = (id: string): AuctionLot => {
   const lot = lots.find((l) => l.id === id);
   if (!lot) throw new Error(`fixture lot ${id} not found`);
@@ -52,6 +55,8 @@ const lead = {
 
 const forbiddenKeys = ['profileId', 'sessionId', 'conversation'];
 
+// Week 3 checkpoint: trace one named fixture from B2 criteria + P2 search through B3 into
+// B4 results / P5 unmatched demand, with the budget and every hard filter preserved on both sides.
 describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
   const { scenario, expected } = contract;
   const criteria = legacyToCanonical(scenario.criteria, scenario.language);
