@@ -12,7 +12,7 @@ import { ComparablesModule } from './comparables.module';
 //         → Heni (S3 ranking, this feature, through the REAL HTTP boundary — same path as Test 7)
 //         → a test-only mapping into Aluma's (S4) ComparableSaleInput shape.
 //
-// This file adds no production code, and does not import anything from `../aluma-shilat/` — the
+// This file adds no production code, and does not import anything from `../valuation-calculation/` — the
 // target shape is reproduced locally (duck-typed) below, so this test never depends on, and never
 // has write access to, S4's owned module. It is allowed under the session rule: "test-only
 // mapping/adapter inside comparables/ for verification of the handoff".
@@ -60,7 +60,7 @@ const unsoldWithEstimateLot: AuctionLot = {
 };
 
 // A minimal, locally-defined shape matching Aluma's (S4) ComparableSaleInput (read from
-// aluma-shilat.service.ts for reference only — not imported). Kept local so this spec never
+// valuation-calculation.service.ts for reference only — not imported). Kept local so this spec never
 // depends on her module.
 type ComparableSaleInputShape = {
   id: string;

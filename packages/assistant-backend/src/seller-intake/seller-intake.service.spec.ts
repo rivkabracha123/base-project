@@ -242,7 +242,7 @@ describe('SellerIntakeService', () => {
 
     expect(reviewState.uncertainFields).not.toContain('category');
   });
-  
+
 
     it('identifies missing seller details and recognizes provided details', () => {
       // Check that condition and signatures are detected as missing.

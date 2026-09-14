@@ -238,7 +238,7 @@ export class SellerIntakeService {
       condition,
       signatures,
       provenance: input.includes('משפחה')
-            
+
         ? 'Family archive; acquired in Jerusalem in the early 1990s.'
         : provenance,
     };
