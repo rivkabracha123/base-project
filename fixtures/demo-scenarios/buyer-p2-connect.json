@@ -1,0 +1,62 @@
+{
+  "id": "buyer-p2-connect-w4",
+  "description": "B3 (Avital Zak) <-> P2 (Mali Chasai) Week 4 CONNECT contract: the minimum producer-consumer freeze agreed on between them. Named fixture: the single real committed lot lot-kestenbaum-54554-121421 from P1's fixtures/auction-data/lots.json, embedded below so this fixture does not depend on the size of P1's dataset. B3 builds `expectedRequest` from `criteria` via criteriaToSearchRequest() and sends it to P2's LotsService.search(); P2 is expected to return `expectedResponse` (its real PaginatedResult<AuctionLot> shape) for that lot. Known limitation, documented not hidden: P2's LotFiltersDto has a `creators` facet, but no committed lot populates the `creator` column yet, and P2 ANDs every filter together in one query - so B3 deliberately keeps creators out of `filters` (text-only via `query`) until P1 confirms the field is populated. Revisit then.",
+  "criteria": {
+    "categories": ["rare_books"],
+    "creators": ["Yitzhak Abrabanel"],
+    "periods": [],
+    "media": [],
+    "keywords": [],
+    "geography": [],
+    "auctionHouseIds": [],
+    "price": { "min": 1000, "max": 1500, "currency": "USD" },
+    "language": "en",
+    "hardConstraints": []
+  },
+  "language": "en",
+  "expectedRequest": {
+    "query": "Yitzhak Abrabanel",
+    "language": "en",
+    "filters": {
+      "categories": ["rare_books"],
+      "price": { "min": 1000, "max": 1500, "currency": "USD" }
+    }
+  },
+  "namedLotId": "lot-kestenbaum-54554-121421",
+  "expectedResponse": {
+    "data": [
+      {
+        "id": "lot-kestenbaum-54554-121421",
+        "source": {
+          "provider": "bidspirit-snapshot",
+          "recordId": "kestenbaum-54554-121421",
+          "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
+          "retrievedAt": "2025-08-21T00:00:00.000Z"
+        },
+        "auctionHouse": { "id": "house-kestenbaum", "name": "Kestenbaum & Company" },
+        "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
+        "lotNumber": "1",
+        "title": {
+          "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+          "he": "עטרת זקנים מאת יצחק אברבנאל"
+        },
+        "description": {
+          "en": "A rare Hebrew printed philosophy volume.",
+          "he": "ספר פילוסופיה עברי נדיר."
+        },
+        "category": "rare_books",
+        "saleDate": "2025-01-23",
+        "status": "sold",
+        "estimate": {
+          "low": { "amount": 800, "currency": "USD" },
+          "high": { "amount": 1200, "currency": "USD" }
+        },
+        "realizedPrice": { "amount": 1200, "currency": "USD" }
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
+}
