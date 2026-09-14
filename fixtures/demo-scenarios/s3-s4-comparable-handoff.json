@@ -1,0 +1,67 @@
+[
+  {
+    "id": "w4-lot-credible-newest",
+    "source": { "provider": "demo", "recordId": "w4-credible-newest", "url": "https://example.com/w4-credible-newest", "retrievedAt": "2025-01-01T00:00:00.000Z" },
+    "auctionHouse": { "id": "house-1", "name": "Demo House" },
+    "auctionTitle": "Demo Auction",
+    "lotNumber": "1",
+    "title": { "en": "Oil on canvas landscape" },
+    "description": { "en": "A signed oil on canvas painting, well preserved." },
+    "category": "paintings",
+    "saleDate": "2024-03-10",
+    "status": "sold",
+    "realizedPrice": { "amount": 4000, "currency": "USD" }
+  },
+  {
+    "id": "w4-lot-credible-middle",
+    "source": { "provider": "demo", "recordId": "w4-credible-newest", "url": "https://example.com/w4-credible-newest", "retrievedAt": "2025-01-01T00:00:00.000Z" },
+    "auctionHouse": { "id": "house-1", "name": "Demo House" },
+    "auctionTitle": "Demo Auction",
+    "lotNumber": "1",
+    "title": { "en": "Oil on canvas landscape" },
+    "description": { "en": "A signed oil on canvas painting, well preserved." },
+    "category": "paintings",
+    "saleDate": "2024-02-20",
+    "status": "sold",
+    "realizedPrice": { "amount": 15000, "currency": "ILS" }
+  },
+  {
+    "id": "w4-lot-credible-oldest",
+    "source": { "provider": "demo", "recordId": "w4-credible-newest", "url": "https://example.com/w4-credible-newest", "retrievedAt": "2025-01-01T00:00:00.000Z" },
+    "auctionHouse": { "id": "house-1", "name": "Demo House" },
+    "auctionTitle": "Demo Auction",
+    "lotNumber": "1",
+    "title": { "en": "Oil on canvas landscape" },
+    "description": { "en": "A signed oil on canvas painting, well preserved." },
+    "category": "paintings",
+    "saleDate": "2024-01-20",
+    "status": "sold",
+    "realizedPrice": { "amount": 3600, "currency": "USD" }
+  },
+  {
+    "id": "w4-lot-weak-similarity",
+    "source": { "provider": "demo", "recordId": "w4-credible-newest", "url": "https://example.com/w4-credible-newest", "retrievedAt": "2025-01-01T00:00:00.000Z" },
+    "auctionHouse": { "id": "house-1", "name": "Demo House" },
+    "auctionTitle": "Demo Auction",
+    "lotNumber": "1",
+    "title": { "en": "Bronze sculpture" },
+    "description": { "en": "A cast bronze figure on a marble base." },
+    "category": "paintings",
+    "saleDate": "2024-02-01",
+    "status": "sold",
+    "realizedPrice": { "amount": 900, "currency": "USD" }
+  },
+  {
+    "id": "w4-lot-unsold-with-estimate",
+    "source": { "provider": "demo", "recordId": "w4-credible-newest", "url": "https://example.com/w4-credible-newest", "retrievedAt": "2025-01-01T00:00:00.000Z" },
+    "auctionHouse": { "id": "house-1", "name": "Demo House" },
+    "auctionTitle": "Demo Auction",
+    "lotNumber": "1",
+    "title": { "en": "Oil on canvas landscape" },
+    "description": { "en": "A signed oil on canvas painting, well preserved." },
+    "category": "paintings",
+    "saleDate": "2024-02-15",
+    "status": "unsold",
+    "estimate": { "low": { "amount": 3000, "currency": "USD" }, "high": { "amount": 5000, "currency": "USD" } }
+  }
+]
