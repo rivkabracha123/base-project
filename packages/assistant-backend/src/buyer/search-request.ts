@@ -1,4 +1,10 @@
-/** Structured narrowing alongside `query`, mirroring P2's LotFiltersDto exactly - an unlisted key is rejected by P2, never silently dropped. */
+/**
+ * Structured narrowing alongside `query`, mirroring P2's LotFiltersDto exactly -
+ * an unlisted key is rejected by P2, never silently dropped. `creators` exists on
+ * P2's DTO but B3 does not populate it here: P2 ANDs every filter together, and
+ * no committed lot has its `creator` column populated yet, so sending it would
+ * zero out otherwise-matching results. Revisit once P1 backfills that field.
+ */
 export interface SearchFilters {
   categories?: string[];
   creators?: string[];

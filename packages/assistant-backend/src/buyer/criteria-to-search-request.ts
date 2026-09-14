@@ -5,12 +5,15 @@ function hasBudget(criteria: BuyerCriteria): boolean {
   return criteria.price?.min != null || criteria.price?.max != null;
 }
 
-// Only the facets P2's LotFiltersDto declares; periods/media/geography have no
-// structured filter yet and stay text-only via `query`.
+// Only facets P2's LotFiltersDto declares AND that P1's committed data actually
+// populates. `creator` is a real column on P2's side but is not yet populated on
+// any committed lot; since P2 ANDs every filter together, sending it alongside
+// categories/price would zero out otherwise-matching results. Creators stay
+// text-only via `query` until P1 confirms the field is populated. periods/media/
+// geography have no structured filter facet at all yet, so they stay text-only too.
 function buildFilters(criteria: BuyerCriteria): SearchFilters | undefined {
   const filters: SearchFilters = {};
   if (criteria.categories.length > 0) filters.categories = criteria.categories;
-  if (criteria.creators.length > 0) filters.creators = criteria.creators;
   if (criteria.auctionHouseIds.length > 0) filters.auctionHouseIds = criteria.auctionHouseIds;
   if (criteria.dateRange?.from || criteria.dateRange?.to) filters.dateRange = criteria.dateRange;
   if (hasBudget(criteria)) filters.price = criteria.price;

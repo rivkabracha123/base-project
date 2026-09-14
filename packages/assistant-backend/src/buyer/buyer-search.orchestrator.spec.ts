@@ -74,7 +74,6 @@ describe('BuyerSearchOrchestrator', () => {
     expect(p2.search).toHaveBeenCalledWith({
       query: 'Yitzhak Abrabanel manuscript',
       language: 'en',
-      filters: { creators: ['Yitzhak Abrabanel'] },
     });
   });
 
@@ -238,7 +237,6 @@ describe('BuyerSearchOrchestrator', () => {
     expect(p2.search).toHaveBeenCalledWith({
       query: 'Someone',
       language: 'en',
-      filters: { creators: ['Someone'] },
     });
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
