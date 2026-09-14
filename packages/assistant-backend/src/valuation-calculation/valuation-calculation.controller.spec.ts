@@ -2,9 +2,9 @@
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { AlomaShilatController } from './aluma-shilat.controller';
-import { ValuationInputDto } from './aluma-shilat.dto';
-import { AlomaShilatService } from './aluma-shilat.service';
+import { ValuationCalculationController } from './valuation-calculation.controller';
+import { ValuationInputDto } from './valuation-calculation.dto';
+import { ValuationCalculationService } from './valuation-calculation.service';
 
 // Shared valid payload (3 sold comparables) reused and tweaked by the tests below.
 const supportedPayload = {
@@ -14,6 +14,7 @@ const supportedPayload = {
     {
       id: 'c-1',
       saleDate: '2024-03-10',
+      weight: 1,
       soldPrice: 120000,
       currency: 'ILS',
       category: 'furniture',
@@ -23,6 +24,7 @@ const supportedPayload = {
     {
       id: 'c-2',
       saleDate: '2024-02-15',
+      weight: 1,
       soldPrice: 130000,
       currency: 'ILS',
       category: 'furniture',
@@ -32,6 +34,7 @@ const supportedPayload = {
     {
       id: 'c-3',
       saleDate: '2024-01-20',
+      weight: 1,
       soldPrice: 125000,
       currency: 'ILS',
       category: 'furniture',
@@ -41,17 +44,17 @@ const supportedPayload = {
   ],
 };
 
-describe('AlomaShilatController (integration)', () => {
-  let controller: AlomaShilatController;
+describe('ValuationCalculationController (integration)', () => {
+  let controller: ValuationCalculationController;
 
   // Builds a real controller + service via NestJS's testing module before every test.
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [AlomaShilatController],
-      providers: [AlomaShilatService],
+      controllers: [ValuationCalculationController],
+      providers: [ValuationCalculationService],
     }).compile();
 
-    controller = moduleRef.get(AlomaShilatController);
+    controller = moduleRef.get(ValuationCalculationController);
   });
 
   // Goal: prove a fully valid request passes DTO validation and returns a supported report.

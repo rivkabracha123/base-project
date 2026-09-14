@@ -7,11 +7,12 @@ import { ComparablesService } from './comparables.service';
 export class ComparablesController {
   constructor(private readonly service: ComparablesService) {}
 
-  // Week 2 scaffold: query by confirmed category only (from S1). Later weeks add creator, period,
-  // medium, and the other scoring inputs listed in the comparable-matching contract.
+  // Week 3: query by confirmed category and (optionally) confirmed materials from S1. Later weeks
+  // add creator, period, medium, and the other scoring inputs listed in the comparable-matching
+  // contract.
   @Post('query')
   @HttpCode(200)
   query(@Body() dto: ComparableQueryDto): Promise<ComparableEvidence> {
-    return this.service.findComparables({ category: dto.category });
+    return this.service.findComparables({ category: dto.category, materials: dto.materials });
   }
 }

@@ -34,6 +34,7 @@ describe('SellerLeadsController', () => {
         id: 'lead-1',
         profileId: enquiry.profileId,
         contact: enquiry.contact,
+        recommendation: null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
       },
     ]);
@@ -44,8 +45,43 @@ describe('SellerLeadsController', () => {
         id: 'lead-1',
         profileId: enquiry.profileId,
         contact: enquiry.contact,
+        recommendation: null,
         createdAt: '2026-01-01T00:00:00.000Z',
       },
     ]);
+  });
+
+  it('ranks active houses without storing a seller choice', () => {
+    const ranking = {
+      recommendation: {
+        house: {
+          id: 'house-kestenbaum',
+          name: 'Kestenbaum & Company',
+          active: true,
+          categories: ['rare_books'],
+          languages: ['en'],
+          comparableSoldCountByCategory: { rare_books: 4 },
+        },
+        score: 1,
+        reasons: ['Prepared house lists specialization in rare_books'],
+      },
+      alternatives: [],
+      excluded: [],
+    };
+    const rankHouses = jest.fn().mockReturnValue(ranking);
+    const controller = new SellerLeadsController({ rankHouses } as unknown as SellerLeadsService);
+
+    expect(
+      controller.rank({
+        category: 'rare_books',
+        geography: 'United States',
+        preferredLanguage: 'en',
+      }),
+    ).toEqual(ranking);
+    expect(rankHouses).toHaveBeenCalledWith(
+      { category: 'rare_books', geography: 'United States', preferredLanguage: 'en' },
+      undefined,
+    );
+    expect(JSON.stringify(ranking)).not.toContain('sellerChoice');
   });
 });
