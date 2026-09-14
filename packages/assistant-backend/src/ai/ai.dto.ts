@@ -47,7 +47,7 @@ export class GenerateAiResponseDto {
 }
 
 //check if the response is valid and has the correct shape
-export function isGenerateAiResponseDto(value: unknown): value is GenerateAiResponseDto {
+export function isGenerateAiResponseDto(value: unknown, expectedRole?: AiRole): value is GenerateAiResponseDto {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -94,5 +94,13 @@ export function isGenerateAiResponseDto(value: unknown): value is GenerateAiResp
     return false;
   }
 
-  return isBuyerHandoffContract(response.structuredAnswer) || isSellerHandoffContract(response.structuredAnswer);
+  const structuredAnswer = response.structuredAnswer;
+  if (
+    expectedRole &&
+    (!structuredAnswer || typeof structuredAnswer !== 'object' || (structuredAnswer as { role?: unknown }).role !== expectedRole)
+  ) {
+    return false;
+  }
+
+  return isBuyerHandoffContract(structuredAnswer) || isSellerHandoffContract(structuredAnswer);
 }

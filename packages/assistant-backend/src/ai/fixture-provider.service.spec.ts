@@ -155,4 +155,56 @@ describe('FixtureProviderService', () => {
       }),
     ).toBe(false);
   });
+//test for unvalid details seller  in answer
+  it('rejects a seller answer with incorrectly typed item fields', () => {
+    expect(
+      isGenerateAiResponseDto({
+        provider: 'fixture',
+        mode: 'fixture',
+        content: 'seller payload',
+        summary: 'seller summary',
+        recommendation: 'seller recommendation',
+        nextAction: 'seller next action',
+        confidence: 'medium',
+        structuredAnswer: {
+          role: 'seller',
+          language: 'he',
+          intent: 'Prepare an item for auction review.',
+          category: 'paintings',
+          item: { dimensions: 80 },
+          missingFacts: [],
+          confirmedFacts: [],
+          uncertainFacts: [],
+          sellerConfirmation: { required: true, status: 'pending' },
+          hasContactDetails: false,
+          hasImages: false,
+        },
+      }),
+    ).toBe(false);
+  });
+  //test - Rejects a response appropriate to the structure.
+
+  it('rejects a response whose structured role does not match the requested role', () => {
+    expect(
+      isGenerateAiResponseDto(
+        {
+          provider: 'fixture',
+          mode: 'fixture',
+          content: 'buyer payload',
+          summary: 'buyer summary',
+          recommendation: 'buyer recommendation',
+          nextAction: 'buyer next action',
+          confidence: 'medium',
+          structuredAnswer: {
+            role: 'buyer',
+            language: 'he',
+            intent: 'Find a painting',
+            hasContactDetails: false,
+            hasImages: false,
+          },
+        },
+        'seller',
+      ),
+    ).toBe(false);
+  });
 });

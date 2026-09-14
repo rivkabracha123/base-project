@@ -34,12 +34,16 @@ export function isSellerHandoffContract(value: unknown): value is SellerHandoffC
   if (!sellerConfirmation || typeof sellerConfirmation !== 'object') return false;
 
   const confirmation = sellerConfirmation as Record<string, unknown>;
+  const itemFields = ['title', 'dimensions', 'condition', 'markings', 'signature', 'provenance'] as const;
+  const itemRecord = item as Record<string, unknown>;
 
   return (
     handoff.role === 'seller' &&
     (handoff.language === 'he' || handoff.language === 'en') &&
     typeof handoff.intent === 'string' && handoff.intent.trim().length > 0 &&
     typeof handoff.category === 'string' && handoff.category.trim().length > 0 &&
+    itemFields.every((field) => itemRecord[field] === undefined || typeof itemRecord[field] === 'string') &&
+    (itemRecord.notes === undefined || (Array.isArray(itemRecord.notes) && itemRecord.notes.every((note) => typeof note === 'string'))) &&
     Array.isArray(handoff.missingFacts) && handoff.missingFacts.every((fact) => typeof fact === 'string') &&
     Array.isArray(handoff.confirmedFacts) && handoff.confirmedFacts.every((fact) => typeof fact === 'string') &&
     Array.isArray(handoff.uncertainFacts) && handoff.uncertainFacts.every((fact) => typeof fact === 'string') &&
