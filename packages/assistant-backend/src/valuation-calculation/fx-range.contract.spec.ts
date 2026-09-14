@@ -71,8 +71,4 @@ describe('Week 3: Heni evidence contract examples', () => {
     await new ValuationCalculationService().calculateValuation(toRequest(evidence));
     expect(evidence).toEqual(before);
   });
-
-  // No invented method or fake consumer is substituted for an unavailable production boundary.
-  it.todo('run the actual S1/S3-to-S4 adapter with item/version agreement once that adapter contract exists');
-  it.todo('deliver supported and refusal reports to the actual S5/P5 consumer once it accepts ValuationReport');
 });
