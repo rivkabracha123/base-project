@@ -3,6 +3,16 @@ import { resolve } from 'node:path';
 import { auctionLotSchema, type AuctionLot } from '@monabid/shared';
 import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
+import type { PaginatedSearchResult } from './search-request';
+
+// Wraps fixture lots as the single-page PaginatedResult P2's real search() returns.
+const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
+  data,
+  total: data.length,
+  page: 1,
+  limit: data.length || 10,
+  totalPages: data.length > 0 ? 1 : 0,
+});
 
 // Week 4 CONNECT checkpoint: freeze the minimum B3 -> B4 / P5 producer-consumer
 // contract and trace one named fixture through it. B3 adds match reasons and
@@ -54,7 +64,7 @@ const reasonsFor = (entries: Array<{ lot: AuctionLot; matchReasons: unknown }>) 
 
 describe('B3 Week 4 explained-results contract (B2 -> B3 -> B4 / P5)', () => {
   it('groups exactly the P2 lots into current/historical with derived match reasons', async () => {
-    const p2 = { searchByText: jest.fn().mockResolvedValue(p2ResultLots) };
+    const p2 = { search: jest.fn().mockResolvedValue(page(p2ResultLots)) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     const outcome = await orchestrator.search({
@@ -88,7 +98,7 @@ describe('B3 Week 4 explained-results contract (B2 -> B3 -> B4 / P5)', () => {
   });
 
   it('adds no lot P2 did not return', async () => {
-    const p2 = { searchByText: jest.fn().mockResolvedValue(p2ResultLots) };
+    const p2 = { search: jest.fn().mockResolvedValue(page(p2ResultLots)) };
     const outcome = await new BuyerSearchOrchestrator(p2).search({
       criteria: buyerCriteria(),
       language: scenario.language,
@@ -104,7 +114,7 @@ describe('B3 Week 4 explained-results contract (B2 -> B3 -> B4 / P5)', () => {
   });
 
   it('recovers from no results with an honest demand summary and no budget relaxation', async () => {
-    const p2 = { searchByText: jest.fn().mockResolvedValue(scenario.p2UnmatchedLots) };
+    const p2 = { search: jest.fn().mockResolvedValue(page(scenario.p2UnmatchedLots as AuctionLot[])) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     const outcome = await orchestrator.search({

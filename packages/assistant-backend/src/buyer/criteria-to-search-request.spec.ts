@@ -12,6 +12,10 @@ describe('criteriaToSearchRequest', () => {
     expect(criteriaToSearchRequest(criteria, 'en')).toEqual({
       query: 'Yitzhak Abrabanel rare Hebrew books',
       language: 'en',
+      filters: {
+        categories: ['rare_books'],
+        creators: ['Yitzhak Abrabanel'],
+      },
     });
   });
 
@@ -22,6 +26,7 @@ describe('criteriaToSearchRequest', () => {
     expect(criteriaToSearchRequest(criteria, 'he')).toEqual({
       query: '',
       language: 'he',
+      filters: { categories: ['rare_books'] },
     });
   });
 
@@ -34,6 +39,39 @@ describe('criteriaToSearchRequest', () => {
 
     expect(criteriaToSearchRequest(criteria, 'en')).toEqual({
       query: 'blue modern',
+      language: 'en',
+      filters: { price: { min: 500, max: 1200, currency: 'USD' } },
+    });
+  });
+
+  it('sends structured filters for every facet P2 supports, leaving unsupported ones text-only', () => {
+    const criteria = emptyBuyerCriteria('en');
+    criteria.categories = ['rare_books'];
+    criteria.creators = ['Yitzhak Abrabanel'];
+    criteria.auctionHouseIds = ['house-1'];
+    criteria.dateRange = { from: '2026-01-01', to: '2026-12-31' };
+    criteria.price = { min: 500, max: 1200, currency: 'USD' };
+    // periods/media/geography have no P2 filter facet and must stay out of `filters`.
+    criteria.periods = ['15th century'];
+    criteria.media = ['painting'];
+    criteria.geography = ['Israel'];
+
+    expect(criteriaToSearchRequest(criteria, 'en').filters).toEqual({
+      categories: ['rare_books'],
+      creators: ['Yitzhak Abrabanel'],
+      auctionHouseIds: ['house-1'],
+      dateRange: { from: '2026-01-01', to: '2026-12-31' },
+      price: { min: 500, max: 1200, currency: 'USD' },
+    });
+  });
+
+  it('omits filters entirely when no criteria map to a P2-supported facet', () => {
+    const criteria = emptyBuyerCriteria('en');
+    criteria.keywords = ['rare'];
+    criteria.periods = ['15th century'];
+
+    expect(criteriaToSearchRequest(criteria, 'en')).toEqual({
+      query: 'rare',
       language: 'en',
     });
   });

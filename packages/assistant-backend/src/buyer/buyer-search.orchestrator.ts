@@ -1,7 +1,7 @@
 import type { AuctionLot } from '@monabid/shared';
 import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchService } from './buyer-search.service';
-import type { SearchRequest } from './search-request';
+import type { PaginatedSearchResult, SearchRequest } from './search-request';
 import {
   createUnmatchedDemandDashboardView,
   type BuyerUnmatchedDemandDashboardView,
@@ -14,8 +14,9 @@ import {
   type GroupedResults,
 } from './explained-results';
 
+// Mirrors P2's real POST /api/lots/search: LotsService.search(LotSearchDto): Promise<PaginatedResult<AuctionLot>>.
 export interface P2TextSearch {
-  searchByText(query: string, language: SearchRequest['language']): Promise<AuctionLot[]>;
+  search(request: SearchRequest): Promise<PaginatedSearchResult<AuctionLot>>;
 }
 
 export interface BuyerSearchInput {
@@ -57,7 +58,7 @@ export class BuyerSearchOrchestrator {
   // privacy-safe no-result view, each carrying the received criteria unchanged.
   async search(input: BuyerSearchInput): Promise<BuyerSearchOutcome> {
     const searchRequest = this.buyerSearch.createSearchRequest(input.criteria, input.language);
-    const items = await this.p2.searchByText(searchRequest.query, searchRequest.language);
+    const { data: items } = await this.p2.search(searchRequest);
 
     const fullRequest: BuyerSearchRequest = {
       criteria: input.criteria,

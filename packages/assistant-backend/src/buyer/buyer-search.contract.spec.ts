@@ -3,8 +3,18 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
+import type { PaginatedSearchResult } from './search-request';
 
 const repoRoot = resolve(__dirname, '../../../..');
+
+// Wraps fixture lots as the single-page PaginatedResult P2's real search() returns.
+const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
+  data,
+  total: data.length,
+  page: 1,
+  limit: data.length || 10,
+  totalPages: data.length > 0 ? 1 : 0,
+});
 
 const contract = JSON.parse(
   readFileSync(
@@ -67,7 +77,7 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
 
   it('carries the whole received criteria onto the B4 results handoff', async () => {
     const p2 = {
-      searchByText: jest.fn().mockResolvedValue(scenario.p2Results.resultsCase.map(lotById)),
+      search: jest.fn().mockResolvedValue(page(scenario.p2Results.resultsCase.map(lotById))),
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
@@ -99,7 +109,7 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
 
   it('carries the whole received criteria onto the P5 unmatched-demand handoff without inventing inventory', async () => {
     const p2 = {
-      searchByText: jest.fn().mockResolvedValue(scenario.p2Results.unmatchedCase.map(lotById)),
+      search: jest.fn().mockResolvedValue(page(scenario.p2Results.unmatchedCase.map(lotById))),
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
@@ -127,7 +137,7 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
 
   it('leaves the received budget unchanged on the handoff (no silent relaxation by B3)', async () => {
     const p2 = {
-      searchByText: jest.fn().mockResolvedValue(scenario.p2Results.resultsCase.map(lotById)),
+      search: jest.fn().mockResolvedValue(page(scenario.p2Results.resultsCase.map(lotById))),
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 

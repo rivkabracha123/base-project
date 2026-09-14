@@ -1,7 +1,24 @@
 import type { BuyerCriteria } from './buyer-criteria';
-import type { SearchRequest } from './search-request';
+import type { SearchFilters, SearchRequest } from './search-request';
 
-/** Converts buyer criteria into the Week 2 text-search boundary request. */
+function hasBudget(criteria: BuyerCriteria): boolean {
+  return criteria.price?.min != null || criteria.price?.max != null;
+}
+
+// Only the facets P2's LotFiltersDto declares; periods/media/geography have no
+// structured filter yet and stay text-only via `query`.
+function buildFilters(criteria: BuyerCriteria): SearchFilters | undefined {
+  const filters: SearchFilters = {};
+  if (criteria.categories.length > 0) filters.categories = criteria.categories;
+  if (criteria.creators.length > 0) filters.creators = criteria.creators;
+  if (criteria.auctionHouseIds.length > 0) filters.auctionHouseIds = criteria.auctionHouseIds;
+  if (criteria.dateRange?.from || criteria.dateRange?.to) filters.dateRange = criteria.dateRange;
+  if (hasBudget(criteria)) filters.price = criteria.price;
+
+  return Object.keys(filters).length > 0 ? filters : undefined;
+}
+
+/** Converts buyer criteria into the typed P2 search request: free text plus structured filters. */
 export function criteriaToSearchRequest(
   criteria: BuyerCriteria,
   language: SearchRequest['language'],
@@ -9,9 +26,11 @@ export function criteriaToSearchRequest(
   const query = [...criteria.creators, ...criteria.keywords]
     .filter((part): part is string => Boolean(part?.trim()))
     .join(' ');
+  const filters = buildFilters(criteria);
 
   return {
     query,
     language,
+    ...(filters ? { filters } : {}),
   };
 }
