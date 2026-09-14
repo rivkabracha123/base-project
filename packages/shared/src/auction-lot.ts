@@ -1,15 +1,9 @@
 import { z } from 'zod';
 
-// Canonical money and lot shape used across backend and frontend.
-// Keeps IDs, source lineage, and money values strict and traceable before data reaches consumers.
 export const moneySchema = z.object({
   amount: z.number().nonnegative(),
   currency: z.string().regex(/^[A-Z]{3}$/),
 });
-
-// Lowercase snake_case token for stable, joinable keys (itemKey links a lot to its sale history;
-// creator/period/medium/geography drive canonical filters). Rejects spaces, casing, and non-ASCII.
-const canonicalTokenSchema = z.string().min(1).regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/);
 
 export const auctionLotSchema = z.object({
   id: z.string().min(1),
@@ -34,11 +28,6 @@ export const auctionLotSchema = z.object({
     he: z.string().optional(),
   }),
   category: z.string().min(1),
-  itemKey: canonicalTokenSchema.optional(),
-  creator: canonicalTokenSchema.optional(),
-  period: canonicalTokenSchema.optional(),
-  medium: canonicalTokenSchema.optional(),
-  geography: canonicalTokenSchema.optional(),
   saleDate: z.string().date(),
   status: z.enum(['sold', 'unsold', 'upcoming', 'withdrawn', 'unknown']),
   estimate: z.object({ low: moneySchema, high: moneySchema }).optional(),
@@ -46,8 +35,6 @@ export const auctionLotSchema = z.object({
   imageUrl: z.string().url().optional(),
 });
 
-// Fixture batch contract: a valid file must contain at least one canonical lot.
-// Rejects incomplete records, invalid money values, and broken source metadata.
 export const auctionLotFixtureSchema = z.array(auctionLotSchema).min(1);
 
 export type Money = z.infer<typeof moneySchema>;

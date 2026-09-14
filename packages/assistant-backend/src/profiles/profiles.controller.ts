@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Headers, Patch } from '@nestjs/common';
 import type { UserProfile } from '@monabid/shared';
-import { ProfilesService, type UpdateCurrentProfileInput } from './profiles.service';
+import { ProfilesService } from './profiles.service';
 
 // This controller receives anonymous profile requests from the frontend.
 @Controller('profiles')
@@ -26,18 +26,6 @@ export class ProfilesController {
     return this.profilesService.updateLanguage(
       this.requireSessionId(sessionId),
       language,
-    );
-  }
-
-  // Update only the profile owned by the current anonymous browser session.
-  @Patch('me')
-    updateCurrentProfile(
-    @Headers('x-anonymous-session-id') sessionId: string,
-    @Body() update: UpdateCurrentProfileInput,
-  ): Promise<UserProfile> {
-    return this.profilesService.updateCurrentProfile(
-      this.requireSessionId(sessionId),
-      update,
     );
   }
 
