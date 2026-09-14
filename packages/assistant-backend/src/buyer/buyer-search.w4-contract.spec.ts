@@ -14,10 +14,7 @@ const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
   totalPages: data.length > 0 ? 1 : 0,
 });
 
-// Week 4 CONNECT checkpoint: freeze the minimum B3 -> B4 / P5 producer-consumer
-// contract and trace one named fixture through it. B3 adds match reasons and
-// current/historical grouping, and recovers from no results without relaxing the
-// budget or inventing inventory.
+// Week 4 CONNECT checkpoint: trace one named fixture through the minimum B3 -> B4 / P5 contract.
 const contract = JSON.parse(
   readFileSync(
     resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-explained-results.json'),
@@ -43,8 +40,7 @@ const contract = JSON.parse(
 
 const { scenario, expected } = contract;
 
-// The criteria B2 (Eliana Avnad) hands over, rebuilt on a real emptyBuyerCriteria
-// base so the fixture cannot drift from the canonical shape.
+// The criteria B2 hands over, rebuilt on a real emptyBuyerCriteria base so the fixture cannot drift.
 const buyerCriteria = (): BuyerCriteria => ({
   ...emptyBuyerCriteria(scenario.language),
   ...scenario.criteria,
@@ -59,6 +55,7 @@ const lead = {
 };
 const forbiddenKeys = ['profileId', 'sessionId', 'contact', 'conversation'];
 
+// Reduces explained-lot entries to a { lotId: matchReasons } map for comparison.
 const reasonsFor = (entries: Array<{ lot: AuctionLot; matchReasons: unknown }>) =>
   Object.fromEntries(entries.map((entry) => [entry.lot.id, entry.matchReasons]));
 

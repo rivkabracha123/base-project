@@ -1,10 +1,7 @@
 import type { AuctionLot } from '@monabid/shared';
 import type { BuyerCriteria, Constraint } from './buyer-criteria';
 
-/**
- * Why one returned lot matches the buyer criteria. Kept as a typed field plus a
- * short detail so B4 renders the copy; B3 never produces presentation strings.
- */
+/** Why one returned lot matched: a typed field plus a short detail for B4 to render. */
 export interface MatchReason {
   field: 'categories' | 'price' | 'creators' | 'keywords' | 'periods' | 'geography' | 'auctionHouseIds';
   detail: string;
@@ -22,11 +19,7 @@ export interface GroupedResults {
   historical: ExplainedLot[];
 }
 
-/**
- * Honest account of a no-result search for P5: which criteria were active and
- * which hard constraints were enforced. `recovery` records that B3 neither
- * relaxed the budget nor invented inventory to produce a result.
- */
+/** Honest no-result account for P5: active criteria, enforced hard constraints, no relaxation or invention. */
 export interface DemandSummary {
   appliedCriteria: MatchReason['field'][];
   hardConstraints: Constraint[];
@@ -46,14 +39,12 @@ const CONSTRAINT_ARRAY_FIELDS = [
   'auctionHouseIds',
 ] as const satisfies readonly Constraint['field'][];
 
+// True when the criteria carry a budget floor or ceiling.
 function hasBudget(criteria: BuyerCriteria): boolean {
   return criteria.price?.min != null || criteria.price?.max != null;
 }
 
-/**
- * Turns the received criteria into the strict constraints that must survive
- * refinement. Budget is always a constraint when present; B3 never drops it.
- */
+// Strict constraints that must survive refinement; budget is always one when present.
 export function deriveHardConstraints(criteria: BuyerCriteria): Constraint[] {
   const constraints: Constraint[] = [];
 
@@ -96,13 +87,12 @@ function lotHaystack(lot: AuctionLot): string {
     .toLowerCase();
 }
 
-// A single amount to compare against the budget: realized price if known,
-// otherwise the estimate. Currency normalization is P2/S4's decision; the
-// interim compares raw amounts and is replaced when P2's typed filter lands.
+// Amount to compare against the budget: realized price if known, else the estimate (raw, interim).
 function comparableAmount(lot: AuctionLot): number | undefined {
   return lot.realizedPrice?.amount ?? lot.estimate?.high.amount ?? lot.estimate?.low.amount;
 }
 
+// True when the lot's comparable amount falls inside the stated budget range.
 function withinBudget(criteria: BuyerCriteria, lot: AuctionLot): boolean {
   if (!hasBudget(criteria)) return false;
   const amount = comparableAmount(lot);
@@ -112,10 +102,7 @@ function withinBudget(criteria: BuyerCriteria, lot: AuctionLot): boolean {
   return amount >= min && amount <= max;
 }
 
-/**
- * Deterministic match reasons for one lot. A reason is emitted only when it can
- * be verified from the criteria and the lot data P2 returned - B3 never guesses.
- */
+// Deterministic match reasons for one lot, emitted only when verifiable from the criteria and lot.
 export function explainMatch(criteria: BuyerCriteria, lot: AuctionLot): MatchReason[] {
   const reasons: MatchReason[] = [];
   const haystack = lotHaystack(lot);
@@ -159,10 +146,7 @@ export function explainMatch(criteria: BuyerCriteria, lot: AuctionLot): MatchRea
   return reasons;
 }
 
-/**
- * Groups exactly the lots P2 returned into current (upcoming) and historical
- * (any past status), attaching match reasons. B3 adds nothing P2 did not return.
- */
+// Groups exactly the P2 lots into current (upcoming) and historical, attaching match reasons.
 export function groupExplainedLots(criteria: BuyerCriteria, lots: AuctionLot[]): GroupedResults {
   const explained: ExplainedLot[] = lots.map((lot) => ({
     lot,

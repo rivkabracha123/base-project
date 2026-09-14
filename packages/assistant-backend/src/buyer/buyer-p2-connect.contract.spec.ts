@@ -6,10 +6,7 @@ import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import type { PaginatedSearchResult, SearchRequest } from './search-request';
 
-// B3 (Avital Zak) <-> P2 (Mali Chasai) Week 4 CONNECT: the shared, named-fixture
-// proof both sides cite as evidence in their own verification report. See the
-// fixture's own `description` for the full agreement, including the documented
-// `creators` filter limitation.
+// B3 <-> P2 Week 4 CONNECT: shared named-fixture proof for both verification reports; see the fixture's own `description`.
 const contract = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-p2-connect.json'), 'utf8'),
 ) as {

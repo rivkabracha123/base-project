@@ -43,10 +43,7 @@ export type BuyerSearchOutcome =
       selectedLotId?: string;
     };
 
-// Converts the received buyer criteria into a typed P2 query, then hands B4 the
-// P2 results grouped as current/historical with deterministic match reasons, or
-// hands P5 an honest no-result summary. The whole criteria object and its
-// derived hard constraints - budget included - are carried through unchanged.
+// Runs the P2 query, then hands B4 grouped explained results or P5 an honest no-result summary, criteria and hard constraints carried through unchanged.
 export class BuyerSearchOrchestrator {
   // Takes the P2 text-search dependency and the request-building service.
   constructor(
@@ -54,8 +51,7 @@ export class BuyerSearchOrchestrator {
     private readonly buyerSearch = new BuyerSearchService(),
   ) {}
 
-  // Runs the P2 text search and returns grouped, explained results or a
-  // privacy-safe no-result view, each carrying the received criteria unchanged.
+  // Returns grouped explained results or a privacy-safe no-result view, criteria unchanged.
   async search(input: BuyerSearchInput): Promise<BuyerSearchOutcome> {
     const searchRequest = this.buyerSearch.createSearchRequest(input.criteria, input.language);
     const { data: items } = await this.p2.search(searchRequest);

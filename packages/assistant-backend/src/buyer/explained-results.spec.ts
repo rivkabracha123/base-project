@@ -7,6 +7,7 @@ import {
   groupExplainedLots,
 } from './explained-results';
 
+// Builds a full AuctionLot for tests, overriding any fields via `over`.
 const makeLot = (over: Partial<AuctionLot> & { id: string }): AuctionLot => ({
   source: {
     provider: 'test',
