@@ -1,11 +1,12 @@
-// Test file: runs and verifies the AlomaShilatService valuation logic (executed via jest).
-import { AlomaShilatService, type ValuationInput } from './aluma-shilat.service';
+// Test file: runs and verifies the ValuationCalculationService valuation logic (executed via jest).
+import { ValuationCalculationService, type ValuationInput } from './valuation-calculation.service';
 
 type ComparableSale = NonNullable<ValuationInput['comparables']>[number];
 
 const makeComparable = (overrides: Partial<ComparableSale> = {}): ComparableSale => ({
   id: 'c-1',
   saleDate: '2024-03-10',
+  weight: 1,
   soldPrice: 100000,
   currency: 'ILS',
   category: 'furniture',
@@ -37,17 +38,17 @@ const supportedComparableSalesFixture = makeInput({
   itemVersion: 'v2',
 });
 
-describe('AlomaShilatService', () => {
-  let service: AlomaShilatService;
+describe('ValuationCalculationService', () => {
+  let service: ValuationCalculationService;
 
   beforeEach(() => {
-    service = new AlomaShilatService();
+    service = new ValuationCalculationService();
   });
 
   describe('calculateValuation', () => {
     // Test #1: The service refuses valuation when fewer than three credible sales are available.
     it('refuses a valuation when there are fewer than three credible comparable sales', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation(insufficientComparableSalesFixture);
 
@@ -60,7 +61,7 @@ describe('AlomaShilatService', () => {
 
     // Test #2: The service supports valuation when at least three credible sales are available.
     it('supports a valuation when there are at least three credible comparable sales', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation(supportedComparableSalesFixture);
 
@@ -73,12 +74,15 @@ describe('AlomaShilatService', () => {
 
     // Test #3: The service returns the same versioned result for identical input.
     it('returns a deterministic, versioned result for the same input', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const firstResult = await service.calculateValuation(supportedComparableSalesFixture);
       const secondResult = await service.calculateValuation(supportedComparableSalesFixture);
 
-      expect(firstResult).toEqual(secondResult);
+      const { reportId: firstId, ...firstEvidence } = firstResult;
+      const { reportId: secondId, ...secondEvidence } = secondResult;
+      expect(firstEvidence).toEqual(secondEvidence);
+      expect(firstId).not.toBe(secondId);
       expect(firstResult).toMatchObject({
         status: 'supported',
         itemVersion: 'v2',
@@ -88,7 +92,7 @@ describe('AlomaShilatService', () => {
 
     // Test #4: The result preserves the original currencies of comparable sales for traceability.
     it('keeps the original currencies visible for traceability in a supported valuation', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-789',
@@ -97,6 +101,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 120000,
             currency: 'USD',
             category: 'furniture',
@@ -106,6 +111,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 130000,
             currency: 'EUR',
             category: 'furniture',
@@ -115,6 +121,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 125000,
             currency: 'GBP',
             category: 'furniture',
@@ -131,9 +138,9 @@ describe('AlomaShilatService', () => {
       });
     });
 
-    // Test #5: The service converts comparable prices to ILS using dated exchange rates.
-    it('converts comparable prices to ILS using their sale date exchange rates', async () => {
-      const service = new AlomaShilatService();
+    // USD is the base currency, regardless of the sale date.
+    it('keeps USD prices in USD across sale dates', async () => {
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-101',
@@ -142,6 +149,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 1000,
             currency: 'USD',
             category: 'furniture',
@@ -151,6 +159,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 1200,
             currency: 'USD',
             category: 'furniture',
@@ -160,6 +169,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 1100,
             currency: 'USD',
             category: 'furniture',
@@ -172,13 +182,13 @@ describe('AlomaShilatService', () => {
       expect(result).toMatchObject({
         status: 'supported',
         itemVersion: 'v4',
-        baseCurrency: 'ILS',
+        baseCurrency: 'USD',
       });
     });
 
-    // Test #6: The result contains a stable ILS valuation range derived from comparable sales.
+    // The result contains a weighted USD range derived from comparable sales.
     it('returns a stable valuation range from the weighted comparable sales', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-202',
@@ -187,6 +197,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 100000,
             currency: 'ILS',
             category: 'furniture',
@@ -196,6 +207,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 120000,
             currency: 'ILS',
             category: 'furniture',
@@ -205,6 +217,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 110000,
             currency: 'ILS',
             category: 'furniture',
@@ -220,14 +233,14 @@ describe('AlomaShilatService', () => {
         valuationRange: {
           min: expect.any(Number),
           max: expect.any(Number),
-          currency: 'ILS',
+          currency: 'USD',
         },
       });
     });
 
     // Test #7: The normalized valuation range remains identical across repeated calculations.
     it('uses the same normalized range on repeated runs', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const firstResult = await service.calculateValuation(supportedComparableSalesFixture);
       const secondResult = await service.calculateValuation(supportedComparableSalesFixture);
@@ -235,9 +248,9 @@ describe('AlomaShilatService', () => {
       expect(firstResult.valuationRange).toEqual(secondResult.valuationRange);
     });
 
-    // Test #8: The service excludes a highly divergent comparable before calculating the range.
-    it('excludes a highly divergent comparable before calculating the valuation range', async () => {
-      const service = new AlomaShilatService();
+    // Accepted evidence is not discarded by the obsolete twice-the-minimum rule.
+    it('retains divergent accepted sales when their weighted range is usable', async () => {
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-303',
@@ -246,6 +259,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 120000,
             currency: 'ILS',
             category: 'furniture',
@@ -255,6 +269,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 119000,
             currency: 'ILS',
             category: 'furniture',
@@ -264,6 +279,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 500000,
             currency: 'ILS',
             category: 'furniture',
@@ -276,13 +292,15 @@ describe('AlomaShilatService', () => {
       expect(result).toMatchObject({
         status: 'supported',
         itemVersion: 'v6',
-        excludedOutliers: 1,
+        comparableCount: 3,
+        includedComparableIds: ['c-1', 'c-2', 'c-3'],
+        excludedComparableIds: [],
       });
     });
 
-    // Test #9: The result includes a numeric confidence score for the valuation.
+    // Confidence is explicitly qualitative and uncalibrated.
     it('returns a confidence score describing how reliable the valuation is', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-404',
@@ -291,6 +309,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 100000,
             currency: 'ILS',
             category: 'furniture',
@@ -300,6 +319,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 110000,
             currency: 'ILS',
             category: 'furniture',
@@ -309,6 +329,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 105000,
             currency: 'ILS',
             category: 'furniture',
@@ -321,13 +342,13 @@ describe('AlomaShilatService', () => {
       expect(result).toMatchObject({
         status: 'supported',
         itemVersion: 'v7',
-        confidence: expect.any(Number),
+        confidence: { level: 'low', explanation: expect.stringContaining('uncalibrated') },
       });
     });
 
     // Test #10: The service refuses valuation when sufficient sales still provide weak evidence.
-    it('refuses a valuation when the evidence is too weak even if there are sales', async () => {
-      const service = new AlomaShilatService();
+    it('refuses a non-positive range under extreme dispersion even with three sales', async () => {
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-505',
@@ -336,6 +357,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 80000,
             currency: 'ILS',
             category: 'electronics',
@@ -345,6 +367,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 90000,
             currency: 'ILS',
             category: 'electronics',
@@ -354,7 +377,8 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
-            soldPrice: 500000,
+            weight: 1,
+            soldPrice: 5000000,
             currency: 'ILS',
             category: 'electronics',
             status: 'sold',
@@ -365,14 +389,14 @@ describe('AlomaShilatService', () => {
 
       expect(result).toMatchObject({
         status: 'refusal',
-        reason: 'insufficient_quality_or_outlier_pressure',
+        reason: 'unusable_range_requires_expert_review',
         itemVersion: 'v8',
       });
     });
 
     // Test #11: A refused valuation includes an explicit explanation for the refusal.
     it('includes the explicit reason when a valuation is refused', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation(insufficientComparableSalesFixture);
 
@@ -384,7 +408,7 @@ describe('AlomaShilatService', () => {
 
     // Test #12: A material change to the comparable data produces a new valuation version.
     it('creates a new valuation version when material facts change', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const firstResult = await service.calculateValuation(supportedComparableSalesFixture);
       const changedComparableSalesFixture = {
@@ -395,6 +419,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-4',
             saleDate: '2024-01-15',
+            weight: 1,
             soldPrice: 140000,
             currency: 'ILS',
             category: 'furniture',
@@ -412,7 +437,7 @@ describe('AlomaShilatService', () => {
 
     // Test #13: Corrected material facts produce a recalculated valuation result.
     it('recalculates the valuation when a corrected material fact changes the comparable set', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const before = await service.calculateValuation(supportedComparableSalesFixture);
       const after = await service.calculateValuation({
@@ -422,6 +447,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 118000,
             currency: 'ILS',
             category: 'furniture',
@@ -431,6 +457,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 121000,
             currency: 'ILS',
             category: 'furniture',
@@ -440,6 +467,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 119500,
             currency: 'ILS',
             category: 'furniture',
@@ -455,7 +483,7 @@ describe('AlomaShilatService', () => {
 
     // Test #14: Generating a new version does not mutate the previous valuation report.
     it('keeps the previous report version intact instead of mutating it in place', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const initialResult = await service.calculateValuation(supportedComparableSalesFixture);
       const updatedResult = await service.calculateValuation({
@@ -468,9 +496,9 @@ describe('AlomaShilatService', () => {
       expect(initialResult).not.toEqual(updatedResult);
     });
 
-    // Test #15: The valuation range returns the exact minimum and maximum ILS values.
-    it('returns an exact supported range with min, max, and currency in ILS', async () => {
-      const service = new AlomaShilatService();
+    // Independent expected bounds from dated ILS/USD cross-rates.
+    it('returns exact outward-rounded USD bounds from dated ILS prices', async () => {
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-606',
@@ -479,6 +507,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 100000,
             currency: 'ILS',
             category: 'furniture',
@@ -488,6 +517,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 110000,
             currency: 'ILS',
             category: 'furniture',
@@ -497,6 +527,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 120000,
             currency: 'ILS',
             category: 'furniture',
@@ -510,16 +541,16 @@ describe('AlomaShilatService', () => {
         status: 'supported',
         itemVersion: 'v12',
         valuationRange: {
-          min: 100000,
-          max: 120000,
-          currency: 'ILS',
+          min: 28331,
+          max: 32656,
+          currency: 'USD',
         },
       });
     });
 
     // Test #16: The audit trail preserves every original currency in a multi-currency valuation.
     it('keeps each comparable currency in the audit trail when values come from multiple currencies', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-707',
@@ -528,6 +559,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 1000,
             currency: 'USD',
             category: 'furniture',
@@ -537,6 +569,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 1100,
             currency: 'EUR',
             category: 'furniture',
@@ -546,6 +579,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 1200,
             currency: 'GBP',
             category: 'furniture',
@@ -559,21 +593,23 @@ describe('AlomaShilatService', () => {
         status: 'supported',
         itemVersion: 'v13',
         originalCurrencies: ['USD', 'EUR', 'GBP'],
-        baseCurrency: 'ILS',
+        baseCurrency: 'USD',
       });
     });
 
-    // Test #17: The service refuses valuation when too few credible sales remain after outlier removal.
-    it('refuses a valuation when there are not enough credible sales after excluding outliers', async () => {
-      const service = new AlomaShilatService();
+    // Explicit upstream exclusions take precedence over prices and weights.
+    it('refuses when upstream exclusions leave fewer than three sales', async () => {
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-808',
         itemVersion: 'v14',
+        excludedComparables: [{ id: 'c-3', reason: 'Expert excluded this comparable' }],
         comparables: [
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 100000,
             currency: 'ILS',
             category: 'furniture',
@@ -583,6 +619,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 500000,
             currency: 'ILS',
             category: 'furniture',
@@ -592,6 +629,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 600000,
             currency: 'ILS',
             category: 'furniture',
@@ -603,14 +641,14 @@ describe('AlomaShilatService', () => {
 
       expect(result).toMatchObject({
         status: 'refusal',
-        reason: 'insufficient_quality_or_outlier_pressure',
+        reason: 'insufficient_comparable_sales',
         itemVersion: 'v14',
       });
     });
 
     // Test #18: The result records the historical exchange-rate date used for each conversion.
     it('uses the dated FX rate attached to each sale date rather than a current market rate', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-909',
@@ -619,6 +657,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-01-02',
+            weight: 1,
             soldPrice: 1000,
             currency: 'USD',
             category: 'furniture',
@@ -628,6 +667,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-01',
+            weight: 1,
             soldPrice: 1100,
             currency: 'USD',
             category: 'furniture',
@@ -637,6 +677,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-03-04',
+            weight: 1,
             soldPrice: 1200,
             currency: 'USD',
             category: 'furniture',
@@ -660,7 +701,7 @@ describe('AlomaShilatService', () => {
 
     // Test #19: A later valuation version is a separate object and leaves the previous result unchanged.
     it('does not mutate a prior valuation result when a later version is generated', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const previous = await service.calculateValuation(supportedComparableSalesFixture);
       const latest = await service.calculateValuation({
@@ -675,7 +716,7 @@ describe('AlomaShilatService', () => {
 
     // Test #20: Equivalent normalized inputs produce identical valuation results across runs.
     it('returns the same result for equivalent currency-normalized data across repeated runs', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const firstResult = await service.calculateValuation({
         itemId: 'lot-111',
@@ -684,6 +725,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 1000,
             currency: 'USD',
             category: 'furniture',
@@ -693,6 +735,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 1100,
             currency: 'USD',
             category: 'furniture',
@@ -702,6 +745,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 1200,
             currency: 'USD',
             category: 'furniture',
@@ -717,6 +761,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 1000,
             currency: 'USD',
             category: 'furniture',
@@ -726,6 +771,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '2024-02-15',
+            weight: 1,
             soldPrice: 1100,
             currency: 'USD',
             category: 'furniture',
@@ -735,6 +781,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 1200,
             currency: 'USD',
             category: 'furniture',
@@ -744,12 +791,15 @@ describe('AlomaShilatService', () => {
         ],
       });
 
-      expect(firstResult).toEqual(secondResult);
+      const { reportId: firstId, ...firstEvidence } = firstResult;
+      const { reportId: secondId, ...secondEvidence } = secondResult;
+      expect(firstEvidence).toEqual(secondEvidence);
+      expect(firstId).not.toBe(secondId);
     });
 
     // Test #21: A supported valuation report cannot be mutated after it is returned.
     it('returns a frozen, immutable report for a supported valuation', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation(supportedComparableSalesFixture);
 
@@ -758,7 +808,7 @@ describe('AlomaShilatService', () => {
 
     // Test #22: A refused valuation report cannot be mutated after it is returned.
     it('returns a frozen, immutable report for a refused valuation', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation(insufficientComparableSalesFixture);
 
@@ -767,7 +817,7 @@ describe('AlomaShilatService', () => {
 
     // Test #23: Nested fields inside a supported report cannot be mutated either (deep freeze).
     it('deep-freezes nested fields such as the valuation range and weights', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation(supportedComparableSalesFixture);
 
@@ -781,7 +831,7 @@ describe('AlomaShilatService', () => {
 
     // Test #24: A missing exchange rate for a sale's currency/date refuses instead of assuming 1:1.
     it('refuses a valuation instead of treating a missing exchange rate as 1:1', async () => {
-      const service = new AlomaShilatService();
+      const service = new ValuationCalculationService();
 
       const result = await service.calculateValuation({
         itemId: 'lot-909',
@@ -790,6 +840,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-1',
             saleDate: '2024-03-10',
+            weight: 1,
             soldPrice: 1000,
             currency: 'USD',
             category: 'furniture',
@@ -799,6 +850,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-2',
             saleDate: '1999-01-01',
+            weight: 1,
             soldPrice: 1100,
             currency: 'USD',
             category: 'furniture',
@@ -808,6 +860,7 @@ describe('AlomaShilatService', () => {
           {
             id: 'c-3',
             saleDate: '2024-01-20',
+            weight: 1,
             soldPrice: 1200,
             currency: 'JPY',
             category: 'furniture',
@@ -821,7 +874,7 @@ describe('AlomaShilatService', () => {
         status: 'refusal',
         reason: 'missing_exchange_rate_data',
         itemVersion: 'v18',
-        missingExchangeRateComparableIds: expect.arrayContaining(['c-2', 'c-3']),
+        missingExchangeRateComparableIds: ['c-3'],
       });
     });
   });
