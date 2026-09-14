@@ -35,6 +35,7 @@ describe('SellerLeadsController', () => {
         profileId: enquiry.profileId,
         contact: enquiry.contact,
         recommendation: null,
+        sellerChoice: null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
       },
     ]);
@@ -46,6 +47,7 @@ describe('SellerLeadsController', () => {
         profileId: enquiry.profileId,
         contact: enquiry.contact,
         recommendation: null,
+        sellerChoice: null,
         createdAt: '2026-01-01T00:00:00.000Z',
       },
     ]);

@@ -82,6 +82,7 @@ describe('SellerLeadsService', () => {
       profileId: enquiry.profileId,
       contact: enquiry.contact,
       recommendation: null,
+      sellerChoice: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
@@ -96,6 +97,7 @@ describe('SellerLeadsService', () => {
       profileId: enquiry.profileId,
       contact: enquiry.contact,
       recommendation: null,
+      sellerChoice: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
@@ -132,6 +134,7 @@ describe('SellerLeadsService', () => {
       profileId: enquiry.profileId,
       contact: enquiry.contact,
       recommendation: null,
+      sellerChoice: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
@@ -143,7 +146,58 @@ describe('SellerLeadsService', () => {
       contact: enquiry.contact,
       recommendation: ranking,
     });
-    expect(JSON.stringify(saved.at(-1))).not.toContain('sellerChoice');
+    expect(JSON.stringify(saved.at(-1))).not.toMatch(/"source":"seller"/);
+  });
+
+  it('saves an alternative house as seller choice without overwriting the recommendation', async () => {
+    // S5 Week 4: Kedem is stored as sellerChoice; Kestenbaum remains the ranking; logs omit contact.
+    const { service, stored, saved, logged } = createHarness();
+    const ranking = service.rankHouses({
+      category: 'rare_books',
+      geography: 'United States',
+      preferredLanguage: 'en',
+    });
+    stored.push({
+      id: 'lead-1',
+      profileId: enquiry.profileId,
+      contact: enquiry.contact,
+      recommendation: ranking,
+      sellerChoice: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const updated = await service.saveSellerChoice('lead-1', 'house-kedem');
+
+    expect(updated.recommendation?.recommendation?.house.id).toBe('house-kestenbaum');
+    expect(updated.sellerChoice).toEqual({
+      houseId: 'house-kedem',
+      houseName: 'Kedem Auction House',
+      source: 'seller',
+    });
+    expect(saved.at(-1)).toMatchObject({
+      recommendation: ranking,
+      sellerChoice: updated.sellerChoice,
+    });
+    const output = JSON.stringify(logged);
+    expect(output).not.toContain(enquiry.contact.email);
+  });
+
+  it('rejects an inactive house as the seller choice', async () => {
+    // S5 rule: recommend / choose only active prepared houses.
+    const { service, stored } = createHarness();
+    const ranking = service.rankHouses({ category: 'rare_books' });
+    stored.push({
+      id: 'lead-1',
+      profileId: enquiry.profileId,
+      contact: enquiry.contact,
+      recommendation: ranking,
+      sellerChoice: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    await expect(service.saveSellerChoice('lead-1', 'house-inactive-demo')).rejects.toThrow(
+      'Seller choice must be an active ranked house',
+    );
   });
 
   it('does not attach a ranking when the draft enquiry is missing', async () => {
