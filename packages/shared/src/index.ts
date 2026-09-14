@@ -8,3 +8,4 @@ export * from './auction-lot';
 // Includes Zod schemas for validation, TypeScript types, and documented field meanings
 export * from './seller-item-draft';
 export * from './comparable';
+export * from './house-recommendation';

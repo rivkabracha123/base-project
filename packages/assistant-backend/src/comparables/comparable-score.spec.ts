@@ -121,3 +121,198 @@ describe('partitionAndSort', () => {
     expect(included).toHaveLength(0);
   });
 });
+
+// Week 3 — Test 1 (RED first): category match alone must no longer produce a flat binary
+// score. Two same-category, sold, realized-price lots with different real evidence overlap
+// against the seller's confirmed materials must rank differently.
+describe('gradual scoring (Week 3)', () => {
+  const itemWithMaterials = { category: 'paintings', materials: ['oil', 'canvas'] };
+
+  const materialsOverlapLot: AuctionLot = {
+    ...base,
+    id: 'lot-strong-materials',
+    category: 'paintings',
+    title: { en: 'Oil on canvas portrait' },
+    description: { en: 'A signed oil on canvas painting.' },
+  };
+
+  const noMaterialsOverlapLot: AuctionLot = {
+    ...base,
+    id: 'lot-no-materials-overlap',
+    category: 'paintings',
+    title: { en: 'Bronze sculpture' },
+    description: { en: 'A cast bronze figure on a marble base.' },
+  };
+
+  it('scores a lot whose materials overlap the confirmed facts higher than one that does not', () => {
+    const strong = scoreComparable(materialsOverlapLot, itemWithMaterials);
+    const weak = scoreComparable(noMaterialsOverlapLot, itemWithMaterials);
+
+    expect(strong.score).toBeGreaterThan(weak.score);
+  });
+
+  // Week 3 — Test 2 (RED first): sold + realizedPrice is necessary but not sufficient. When the
+  // seller has confirmed materials that the lot's text does not corroborate at all, category match
+  // alone must not be enough to make it a credible comparable — it must be excluded as too weak.
+  it('excludes a sold, realized-price, same-category lot when similarity to confirmed facts is too weak', () => {
+    const result = scoreComparable(noMaterialsOverlapLot, itemWithMaterials);
+
+    // Sanity: the durable Rule 1 preconditions are actually met here — this is not an
+    // unsold/missing-price case, it is specifically a weak-similarity case.
+    expect(noMaterialsOverlapLot.status).toBe('sold');
+    expect(noMaterialsOverlapLot.realizedPrice).toBeDefined();
+    expect(noMaterialsOverlapLot.category).toBe(itemWithMaterials.category);
+
+    expect(result.included).toBe(false);
+    expect(result.exclusionReason).toMatch(/similarity|weak/i);
+  });
+
+  // Week 3 — Test 3 (RED first): matchReason/exclusionReason must name the actual matched (or
+  // unmatched) confirmed facts, not a generic "category match" / score-only sentence. The reason
+  // is only trustworthy if it is derived from data that really exists on item and lot.
+  const partialMaterialsOverlapLot: AuctionLot = {
+    ...base,
+    id: 'lot-partial-materials-overlap',
+    category: 'paintings',
+    title: { en: 'Canvas study, unsigned' },
+    description: { en: 'A small canvas study, medium unconfirmed.' },
+  };
+
+  it('names the confirmed materials that actually matched when both are found', () => {
+    const result = scoreComparable(materialsOverlapLot, itemWithMaterials);
+
+    expect(result.included).toBe(true);
+    expect(result.matchReason).toMatch(/oil/i);
+    expect(result.matchReason).toMatch(/canvas/i);
+  });
+
+  it('names only the confirmed material that actually matched on a partial overlap, not the one that did not', () => {
+    const result = scoreComparable(partialMaterialsOverlapLot, itemWithMaterials);
+
+    expect(result.matchReason).toMatch(/canvas/i);
+    expect(result.matchReason).not.toMatch(/oil/i);
+  });
+
+  it('names the confirmed materials that failed to corroborate when similarity is too weak to be credible', () => {
+    const result = scoreComparable(noMaterialsOverlapLot, itemWithMaterials);
+
+    expect(result.included).toBe(false);
+    expect(result.exclusionReason).toMatch(/oil/i);
+    expect(result.exclusionReason).toMatch(/canvas/i);
+  });
+
+  // Week 3 — Test 4 (RED first): even with strong similarity (full materials overlap, same
+  // category), an unsold lot's estimate must never be treated as a realized price. Rule:
+  // "Unsold estimates never count as realized prices."
+  it('never treats an unsold lot\'s estimate as a realized price, even with strong similarity', () => {
+    const unsoldWithEstimateLot: AuctionLot = {
+      ...materialsOverlapLot,
+      id: 'lot-unsold-with-estimate-strong-match',
+      status: 'unsold',
+      realizedPrice: undefined,
+      estimate: { low: { amount: 800, currency: 'USD' }, high: { amount: 1200, currency: 'USD' } },
+    };
+
+    // Sanity: this lot really is a strong similarity match, and really has no realized price —
+    // only an estimate. If estimate were ever substituted for realizedPrice, this is exactly
+    // the case that would slip through.
+    expect(unsoldWithEstimateLot.status).toBe('unsold');
+    expect(unsoldWithEstimateLot.realizedPrice).toBeUndefined();
+    expect(unsoldWithEstimateLot.estimate).toBeDefined();
+    expect(unsoldWithEstimateLot.category).toBe(itemWithMaterials.category);
+
+    const result = scoreComparable(unsoldWithEstimateLot, itemWithMaterials);
+
+    expect(result.included).toBe(false);
+    // The exclusion must be framed around it not being a completed/realized sale — not around
+    // the estimate amount, which must never be quoted as if it were realized evidence.
+    expect(result.exclusionReason).toMatch(/not a completed sale|unsold|realized/i);
+    expect(result.exclusionReason).not.toMatch(/800|1200/);
+    expect(result.exclusionReason).toMatch(/estimates? do(es)? not count as realized/i);
+  });
+
+  // Week 3 — Test 5: 'sold' alone is not sufficient — realizedPrice must actually be present, even
+  // when category matches and similarity is strong (full materials overlap). The Week 2 baseline
+  // spec already covers this with a plain { category } item (no secondary evidence); this proves
+  // the same rule holds when similarity would otherwise be strong enough to be a good comparable.
+  // An optional estimate is allowed to be present — it just must not stand in for realizedPrice.
+  it('excludes a sold, same-category, strongly-similar lot when realizedPrice is missing, even if an estimate exists', () => {
+    const soldWithoutRealizedPriceLot: AuctionLot = {
+      ...materialsOverlapLot,
+      id: 'lot-sold-no-realized-price-strong-match',
+      status: 'sold',
+      realizedPrice: undefined,
+      estimate: { low: { amount: 800, currency: 'USD' }, high: { amount: 1200, currency: 'USD' } },
+    };
+
+    // Sanity: this really is the "sold, strong similarity, but no realized price" case —
+    // not the unsold case (Test 4) and not the weak-similarity case (Test 2).
+    expect(soldWithoutRealizedPriceLot.status).toBe('sold');
+    expect(soldWithoutRealizedPriceLot.realizedPrice).toBeUndefined();
+    expect(soldWithoutRealizedPriceLot.estimate).toBeDefined();
+    expect(soldWithoutRealizedPriceLot.category).toBe(itemWithMaterials.category);
+
+    const result = scoreComparable(soldWithoutRealizedPriceLot, itemWithMaterials);
+
+    expect(result.included).toBe(false);
+    expect(result.exclusionReason).toMatch(/realized price/i);
+    expect(result.exclusionReason).not.toMatch(/800|1200/);
+  });
+
+  // Week 3 — Test 6 (RED first, unless already correct): rank several credible comparables with
+  // genuinely different graduated scores (not the old flat 1.0/0.0), including a real tie within
+  // the same score, and prove the whole ranked result — order, score, matchReason, exclusionReason —
+  // is byte-for-byte identical across repeated calls on identical input.
+  it('ranks credible comparables by graduated score, breaks a real tie deterministically, and repeats identically', () => {
+    const fullMatchNewer: AuctionLot = {
+      ...materialsOverlapLot,
+      id: 'lot-rank-full-newer',
+      saleDate: '2025-07-01',
+    };
+    const fullMatchSameDateAsFirst: AuctionLot = {
+      ...materialsOverlapLot,
+      id: 'lot-rank-full-tie-same-date-zzz',
+      saleDate: '2025-06-01',
+    };
+    const fullMatch: AuctionLot = {
+      ...materialsOverlapLot,
+      id: 'lot-rank-full',
+      saleDate: '2025-06-01',
+    };
+    const partialMatch: AuctionLot = {
+      ...partialMaterialsOverlapLot,
+      id: 'lot-rank-partial',
+      saleDate: '2025-06-01',
+    };
+
+    const lots = [fullMatch, partialMatch, fullMatchNewer, fullMatchSameDateAsFirst];
+
+    function rank(): ReturnType<typeof partitionAndSort> {
+      const scores = lots.map(lot => scoreComparable(lot, itemWithMaterials));
+      return partitionAndSort(scores);
+    }
+
+    const first = rank();
+
+    // Sanity: two genuinely different score levels are actually present (this is the point of
+    // Test 6 — not the old binary 1.0/0.0), and a real tie exists at the top score level.
+    const scoreById = new Map(first.included.map(s => [s.lot.id, s.score]));
+    expect(scoreById.get('lot-rank-full')).toBe(1);
+    expect(scoreById.get('lot-rank-partial')).toBeCloseTo(0.85);
+    expect(scoreById.get('lot-rank-full')).toBe(scoreById.get('lot-rank-full-newer'));
+    expect(scoreById.get('lot-rank-full')).toBe(scoreById.get('lot-rank-full-tie-same-date-zzz'));
+
+    // Expected order: score desc (1.0 group before 0.85), then saleDate desc within the tie
+    // (2025-07-01 before 2025-06-01), then lot id asc for the remaining same-score-same-date tie
+    // (existing tie-break rule, unchanged).
+    expect(first.included.map(s => s.lot.id)).toEqual([
+      'lot-rank-full-newer',
+      'lot-rank-full',
+      'lot-rank-full-tie-same-date-zzz',
+      'lot-rank-partial',
+    ]);
+
+    const second = rank();
+    expect(second).toEqual(first);
+  });
+});

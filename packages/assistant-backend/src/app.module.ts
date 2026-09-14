@@ -8,12 +8,14 @@ import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-
 import { SellerLeadEntity } from './database/seller-lead.entity';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
 import { ValuationCalculationModule } from './valuation-calculation/valuation-calculation.module';
+import { AddSellerLeadRecommendation1788220800001 } from './database/1788220800001-add-seller-lead-recommendation';
 import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
 import { StorageModule } from './storage/storage.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 /**
  * Root application module for the Monabid Assistant backend.
@@ -32,6 +34,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateAuctionLots1710000000000,
       CreateMonabidBasicSchema1710000000001,
       CreateSellerLeads1788220800000,
+      AddSellerLeadRecommendation1788220800001,
     ],
     synchronize: false,
   };
@@ -51,6 +54,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     SellerLeadsModule,
     StorageModule,
     ValuationCalculationModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}
