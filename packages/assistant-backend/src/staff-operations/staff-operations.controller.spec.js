@@ -18,4 +18,33 @@ describe('StaffOperationsController', () => {
     await expect(controller.getLeads()).resolves.toEqual(leads);
     expect(staffOperationsService.findAll).toHaveBeenCalledTimes(1);
   });
+
+  it('returns a privacy-limited buyer lead detail by lead ID', async () => {
+    const leadDetail = {
+      id: 'buyer-lead-001',
+      type: 'buyer',
+      status: 'new',
+      criteria: { category: 'rare_hebrew_manuscript' },
+      hardConstraints: [],
+      results: [],
+      unmatchedDemand: {
+        reason: 'no_results',
+        originalCriteria: { category: 'rare_hebrew_manuscript' },
+      },
+      contact: {
+        preferredName: 'Anonymous Buyer',
+        email: null,
+        phone: null,
+        followUpStatus: 'consent_required',
+        serviceConsent: { granted: false },
+      },
+    };
+    const staffOperationsService = {
+      getBuyerLeadDetail: jest.fn().mockResolvedValue(leadDetail),
+    };
+    const controller = new StaffOperationsController(staffOperationsService);
+
+    await expect(controller.getBuyerLeadDetail('buyer-lead-001')).resolves.toEqual(leadDetail);
+    expect(staffOperationsService.getBuyerLeadDetail).toHaveBeenCalledWith('buyer-lead-001');
+  });
 });
