@@ -1,9 +1,33 @@
 import { auctionLotFixtureSchema, type AuctionLot } from '@monabid/shared';
 import lotsData from '../../../../fixtures/auction-data/lots.json';
+import buyerSearchScenarioData from '../../../../fixtures/demo-scenarios/buyer-search-preserved-budget.json';
 
-type SearchRequestFixture = {
-  query: string;
+type BuyerCriteriaFixture = {
+  budget?: { min?: number; max?: number };
+  category?: string | null;
+  creator?: string | null;
+  period?: string | null;
+  media?: string;
+  keywords?: string[];
+  geography?: string;
+  location?: string | null;
+  color?: string | null;
+  notes?: string[];
+  missing: string[];
+  nextQuestion?: string;
+};
+
+type ConstraintFixture = {
+  field: 'budget' | 'category' | 'creator' | 'period' | 'location';
+  operator: 'equal' | 'range' | 'contains';
+  value: unknown;
+  reason: string;
+};
+
+type BuyerSearchRequestFixture = {
+  criteria: BuyerCriteriaFixture;
   language: 'he' | 'en';
+  hardConstraints: ConstraintFixture[];
 };
 
 type UnmatchedDemandDashboardViewFixture = {
@@ -13,13 +37,9 @@ type UnmatchedDemandDashboardViewFixture = {
   createdAt: string;
   unmatchedDemand: {
     searchRequest: {
-      criteria: {
-        creator: string;
-        budget: { min: number; max: number };
-        missing: string[];
-      };
+      criteria: BuyerCriteriaFixture;
       language: 'he' | 'en';
-      hardConstraints: string[];
+      hardConstraints: ConstraintFixture[];
     };
     reason: 'no_results';
     searchedAt: string;
@@ -32,7 +52,7 @@ type UnmatchedDemandDashboardViewFixture = {
  */
 export type BuyerSearchResultsFixture = {
   kind: 'results';
-  searchRequest: SearchRequestFixture;
+  searchRequest: BuyerSearchRequestFixture;
   items: AuctionLot[];
 };
 
@@ -41,40 +61,31 @@ export type BuyerSearchOutcomeFixture =
   | { kind: 'unmatched'; view: UnmatchedDemandDashboardViewFixture };
 
 const lots = auctionLotFixtureSchema.parse(lotsData);
-const firstLot = lots[0];
+const buyerSearchScenario = buyerSearchScenarioData as {
+  expected: {
+    results: {
+      searchRequest: BuyerSearchRequestFixture;
+      itemIds: string[];
+    };
+    unmatched: {
+      view: UnmatchedDemandDashboardViewFixture;
+    };
+  };
+};
 
-if (!firstLot) {
-  throw new Error('B3 results fixture requires at least one validated auction lot');
-}
+const resultLots = buyerSearchScenario.expected.results.itemIds.map((id) => {
+  const lot = lots.find((fixture) => fixture.id === id);
+  if (!lot) throw new Error(`B3 results fixture requires validated auction lot ${id}`);
+  return lot;
+});
 
 export const resultsSearchOutcomeFixture: BuyerSearchResultsFixture = {
   kind: 'results',
-  searchRequest: {
-    query: 'Yitzhak Abrabanel manuscript',
-    language: 'en',
-  },
-  items: [firstLot],
+  searchRequest: buyerSearchScenario.expected.results.searchRequest,
+  items: resultLots,
 };
 
 export const unmatchedSearchOutcomeFixture: BuyerSearchOutcomeFixture = {
   kind: 'unmatched',
-  view: {
-    id: 'lead-unmatched-1',
-    type: 'buyer',
-    status: 'new',
-    createdAt: '2026-09-01T10:00:00.000Z',
-    unmatchedDemand: {
-      searchRequest: {
-        criteria: {
-          creator: 'Yitzhak Abrabanel',
-          budget: { min: 1000, max: 15000 },
-          missing: [],
-        },
-        language: 'he',
-        hardConstraints: [],
-      },
-      reason: 'no_results',
-      searchedAt: '2026-09-01T10:01:00.000Z',
-    },
-  },
+  view: buyerSearchScenario.expected.unmatched.view,
 };
