@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { dashboardValuationSchema } from '@monabid/shared';
 import { toSellerLeadValuationSnapshot } from './dashboard-valuation';
 import { ValuationCalculationService, ValuationInput } from './valuation-calculation.service';
@@ -12,11 +10,49 @@ const input: ValuationInput = {
     source: 'https://private.example/lot?signature=secret',
   })),
 };
-const fixture = (name: string) => JSON.parse(readFileSync(resolve(
-  __dirname, '../../../../fixtures/valuation-dashboard', `${name}.json`), 'utf8'));
+
+// Synthetic browser payloads, inlined (not real auction evidence). Previously
+// fixtures/valuation-dashboard/{supported,refusal}.json; kept here so schema-shape
+// tests below don't depend on the on-disk fixture files.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- deliberately loose: tests below mutate these into invalid shapes.
+const dashboardFixtures: Record<'supported' | 'refusal', any> = {
+  supported: {
+    reportId: 'synthetic-supported-report',
+    comparableCount: 3,
+    limitations: ['Synthetic evidence only; not an appraisal or guaranteed sale price.'],
+    comparables: [
+      { id: 'synthetic-sale-1', source: { label: 'Synthetic auction house', url: 'https://example.com/lots/1' },
+        saleDate: '2024-03-10', originalPrice: 800, originalCurrency: 'USD', normalizedPrice: 800, weight: 0.5 },
+      { id: 'synthetic-sale-2', source: { label: 'Synthetic auction house', url: 'https://example.com/lots/2' },
+        saleDate: '2024-03-10', originalPrice: 1000, originalCurrency: 'USD', normalizedPrice: 1000, weight: 1 },
+      { id: 'synthetic-sale-3', source: { label: 'Synthetic auction house', url: 'https://example.com/lots/3' },
+        saleDate: '2024-03-10', originalPrice: 1200, originalCurrency: 'USD', normalizedPrice: 1200, weight: 0.5 },
+    ],
+    excludedComparables: [{ id: 'synthetic-outlier', reason: 'outlier' }],
+    status: 'supported',
+    valuationRange: { min: 858, max: 1142, currency: 'USD' },
+    confidence: { level: 'low', explanation: 'Uncalibrated conservative default pending expert review.' },
+  },
+  refusal: {
+    reportId: 'synthetic-refusal-report',
+    comparableCount: 2,
+    limitations: ['Synthetic evidence only; not an appraisal or guaranteed sale price.'],
+    comparables: [
+      { id: 'synthetic-sale-1', source: { label: 'Synthetic auction house', url: 'https://example.com/lots/1' },
+        saleDate: '2024-03-10', originalPrice: 800, originalCurrency: 'USD', normalizedPrice: 800, weight: 0.5 },
+      { id: 'synthetic-sale-2', source: { label: 'Synthetic auction house', url: 'https://example.com/lots/2' },
+        saleDate: '2024-03-10', originalPrice: 1000, originalCurrency: 'USD', normalizedPrice: 1000, weight: 1 },
+    ],
+    excludedComparables: [{ id: 'synthetic-missing-fx', reason: 'missing_exchange_rate_data' }],
+    status: 'refusal',
+    reason: 'missing_exchange_rate_data',
+  },
+};
+// A fresh clone per call preserves the old per-read isolation between mutating tests.
+const fixture = (name: 'supported' | 'refusal') => structuredClone(dashboardFixtures[name]);
 
 describe('S4 -> S5 snapshot -> P5 dashboard contract', () => {
-  it.each(['supported', 'refusal'])('accepts the synthetic %s fixture', name => {
+  it.each(['supported', 'refusal'] as const)('accepts the synthetic %s fixture', name => {
     expect(dashboardValuationSchema.safeParse(fixture(name)).success).toBe(true);
   });
 

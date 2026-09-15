@@ -5,14 +5,16 @@ import { NestFactory } from '@nestjs/core';
 import pinoHttp from 'pino-http';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/http-exception.filter';
-import { httpLoggingOptions } from './common/http-logging';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService);
 
   app.use(
-    pinoHttp(httpLoggingOptions(config.get<string>('LOG_LEVEL', 'info'))),
+    pinoHttp({
+      level: config.get<string>('LOG_LEVEL', 'info'),
+      redact: ['req.headers.authorization', 'req.headers.cookie', 'req.body', 'res.headers["set-cookie"]'],
+    }),
   );
   app.enableCors({ origin: config.getOrThrow<string>('CORS_ORIGIN'), credentials: true });
   app.setGlobalPrefix('api');

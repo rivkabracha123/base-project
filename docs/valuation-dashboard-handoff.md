@@ -5,7 +5,7 @@
 Import `DashboardValuationDto`, `dashboardValuationSchema`,
 `SellerLeadValuationSnapshot`, and `sellerLeadValuationSnapshotSchema` from
 `@monabid/shared`. The executable contract is `packages/shared/src/dashboard-valuation.ts`.
-Synthetic browser payloads are in `fixtures/valuation-dashboard/{supported,refusal}.json`.
+Synthetic browser payloads are inlined in `dashboard-valuation.spec.ts` (`dashboardFixtures`).
 These example.com URLs and sales are synthetic, not real auction evidence.
 
 ## Racheli / S5
