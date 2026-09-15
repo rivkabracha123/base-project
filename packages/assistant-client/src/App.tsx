@@ -1,8 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProfileLanguageLoader } from './app/ProfileLanguageLoader';
 import { AppHeader } from './components/AppHeader';
+import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
 import { SampleLotPage } from './app/SampleLotPage';
-import { StaffOperationsDashboard } from './StaffOperationsDashboard';
 export function App() {
   return (
     <>

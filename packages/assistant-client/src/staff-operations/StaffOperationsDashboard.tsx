@@ -6,7 +6,8 @@ import {
   getStaffOperationLeadDetail,
   getStaffOperationLeads,
   StaffOperationLeadRequestError,
-} from './app/api';
+} from '../app/api';
+import type { BuyerHardConstraint, StaffBuyerLeadDetail, StaffLead, StaffSellerLeadDetail } from './staff-operations.types';
 
 function displayValue(value: unknown): string {
   if (Array.isArray(value)) return value.join(', ');
@@ -16,15 +17,15 @@ function displayValue(value: unknown): string {
 
 export function StaffOperationsDashboard() {
   const { t } = useTranslation();
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedLead, setSelectedLead] = useState<StaffLead | null>(null);
   const query = useQuery({
     queryKey: ['staff-operations-leads'],
     queryFn: ({ signal }) => getStaffOperationLeads(signal),
   });
   const detailQuery = useQuery({
-    queryKey: ['staff-operations-lead-detail', selectedLeadId],
-    queryFn: ({ signal }) => getStaffOperationLeadDetail(selectedLeadId as string, signal),
-    enabled: selectedLeadId !== null,
+    queryKey: ['staff-operations-lead-detail', selectedLead?.id, selectedLead?.type],
+    queryFn: ({ signal }) => getStaffOperationLeadDetail(selectedLead!.id, selectedLead!.type, signal),
+    enabled: selectedLead !== null,
   });
 
   return (
@@ -42,29 +43,24 @@ export function StaffOperationsDashboard() {
             <ul className="grid gap-4" aria-label={t('dashboard.leads')}>
               {query.data.map((lead) => (
                 <li key={lead.id}>
-                  {lead.type === 'buyer' ? (
-                    <button
-                      type="button"
-                      className="w-full rounded-xl border border-slate-200 bg-white p-5 text-start shadow-sm"
-                      onClick={() => setSelectedLeadId(lead.id)}
-                      aria-pressed={selectedLeadId === lead.id}
-                    >
-                      <LeadSummary lead={lead} />
-                    </button>
-                  ) : (
-                    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <LeadSummary lead={lead} />
-                    </article>
-                  )}
+                  <button
+                    type="button"
+                    className="w-full rounded-xl border border-slate-200 bg-white p-5 text-start shadow-sm"
+                    onClick={() => setSelectedLead(lead)}
+                    aria-pressed={selectedLead?.id === lead.id}
+                  >
+                    <LeadSummary lead={lead} />
+                  </button>
                 </li>
               ))}
             </ul>
           ) : null}
 
-          {selectedLeadId && detailQuery.isPending ? <LoadingState label={t('dashboard.loading')} /> : null}
+          {selectedLead && detailQuery.isPending ? <LoadingState label={t('dashboard.loading')} /> : null}
           {detailQuery.isError && isMissingLeadError(detailQuery.error) ? <EmptyState title={t('dashboard.missingLead')} /> : null}
           {detailQuery.isError && !isMissingLeadError(detailQuery.error) ? <ErrorState title={t('dashboard.error')} retryLabel={t('dashboard.retry')} onRetry={() => void detailQuery.refetch()} /> : null}
-          {detailQuery.data ? <BuyerLeadDetail detail={detailQuery.data} /> : null}
+          {detailQuery.data?.type === 'buyer' ? <BuyerLeadDetail detail={detailQuery.data} /> : null}
+          {detailQuery.data?.type === 'seller' ? <SellerLeadDetail detail={detailQuery.data} /> : null}
         </div>
       </section>
     </PageShell>
@@ -95,7 +91,7 @@ function LeadSummary({ lead }: { lead: { clientName: string; type: 'buyer' | 'se
   );
 }
 
-function BuyerLeadDetail({ detail }: { detail: Awaited<ReturnType<typeof getStaffOperationLeadDetail>> }) {
+function BuyerLeadDetail({ detail }: { detail: StaffBuyerLeadDetail }) {
   const { t } = useTranslation();
   const followUpKey = detail.contact.followUpStatus === 'ready'
     ? 'dashboard.ready'
@@ -135,7 +131,7 @@ function BuyerLeadDetail({ detail }: { detail: Awaited<ReturnType<typeof getStaf
   );
 }
 
-function HardConstraints({ constraints }: { constraints: Awaited<ReturnType<typeof getStaffOperationLeadDetail>>['hardConstraints'] }) {
+function HardConstraints({ constraints }: { constraints: BuyerHardConstraint[] }) {
   return (
     <ul className="mt-2 space-y-1 text-slate-700">
       {constraints.map((constraint) => (
@@ -157,5 +153,69 @@ function DetailFields({ fields }: { fields: Record<string, unknown> }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+function SellerLeadDetail({ detail }: { detail: StaffSellerLeadDetail }) {
+  const { t } = useTranslation();
+  const canShowContact = detail.contact.serviceConsentGranted;
+
+  return (
+    <article className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 className="text-xl font-semibold text-slate-950">{t('dashboard.sellerItem')}</h2>
+      {detail.item ? <DetailFields fields={detail.item} /> : <p className="mt-2 text-slate-700">{t('dashboard.unavailable')}</p>}
+      <h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.evidence')}</h3>
+      <SimpleItems items={detail.evidence.map(({ id, type }) => `${id} · ${type}`)} />
+      <h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.comparables')}</h3>
+      <SimpleItems items={detail.comparables.map(({ id, source }) => `${id}${source ? ` · ${source.label}` : ''}`)} />
+      <SellerValuation valuation={detail.valuation} />
+      {detail.catalogDraft ? (
+        <section className="mt-5">
+          <h3 className="font-semibold text-slate-950">{t('dashboard.catalogDraft')}</h3>
+          <DetailFields fields={detail.catalogDraft} />
+        </section>
+      ) : null}
+      <h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.contact')}</h3>
+      <p className="mt-2 text-slate-700">{canShowContact ? t('dashboard.ready') : t('dashboard.consentRequired')}</p>
+      {canShowContact ? (
+        <div className="mt-2 text-slate-700">
+          {detail.contact.email ? <p>{detail.contact.email}</p> : null}
+          {detail.contact.phone ? <p>{detail.contact.phone}</p> : null}
+        </div>
+      ) : null}
+      <h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.history')}</h3>
+      <SimpleItems items={detail.history.map(({ at, event, actor }) => `${at} · ${event} · ${actor}`)} />
+    </article>
+  );
+}
+
+function SellerValuation({ valuation }: { valuation: StaffSellerLeadDetail['valuation'] }) {
+  const { t } = useTranslation();
+  if (!valuation) return null;
+
+  if (valuation.status === 'refusal') {
+    return (
+      <section className="mt-5 text-slate-700">
+        <h3 className="font-semibold text-slate-950">{t('dashboard.valuation')}</h3>
+        <p>{t('dashboard.refusal')}: {valuation.reason ?? t('dashboard.unavailable')}</p>
+      </section>
+    );
+  }
+
+  const range = valuation.valuationRange;
+  return (
+    <section className="mt-5 text-slate-700">
+      <h3 className="font-semibold text-slate-950">{t('dashboard.valuation')}</h3>
+      {range ? <p>{range.min}–{range.max} {range.currency}</p> : <p>{t('dashboard.unavailable')}</p>}
+      {valuation.confidence ? <p>{valuation.confidence.level}: {valuation.confidence.explanation}</p> : null}
+    </section>
+  );
+}
+
+function SimpleItems({ items }: { items: string[] }) {
+  return (
+    <ul className="mt-2 space-y-1 text-slate-700">
+      {items.map((item) => <li key={item}>{item}</li>)}
+    </ul>
   );
 }
