@@ -9,6 +9,7 @@ import { SellerLeadEntity } from './database/seller-lead.entity';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
 import { ValuationCalculationModule } from './valuation-calculation/valuation-calculation.module';
 import { AddSellerLeadRecommendation1788220800001 } from './database/1788220800001-add-seller-lead-recommendation';
+import { AddSellerLeadChoice1788220800002 } from './database/1788220800002-add-seller-lead-choice';
 import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
@@ -35,6 +36,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateMonabidBasicSchema1710000000001,
       CreateSellerLeads1788220800000,
       AddSellerLeadRecommendation1788220800001,
+      AddSellerLeadChoice1788220800002,
     ],
     synchronize: false,
   };

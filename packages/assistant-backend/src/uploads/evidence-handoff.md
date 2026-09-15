@@ -15,9 +15,11 @@ S2 exposes profile-isolated local evidence references for S1 corrections and S5 
 ```ts
 interface EvidenceReference {
   fileId: string;
+  profileId: string;
   originalName: string;
   mimeType: "image/jpeg" | "image/png" | "image/webp";
   size: number;
+  previewUri: string;
 }
 ```
 
@@ -30,6 +32,7 @@ interface EvidenceReference {
 - Maximum files per upload is 10.
 - Filenames containing `..`, `/`, or `\` are rejected.
 - Evidence IDs are opaque UUIDs.
+- `previewUri` is the backend preview endpoint for the same `profileId` and `fileId`.
 - Ordering is persisted in `evidence.json`.
 - Deletion removes the file and its metadata reference.
 - Tests use temporary folders and synthetic image contents.

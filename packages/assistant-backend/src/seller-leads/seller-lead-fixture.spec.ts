@@ -27,13 +27,18 @@ describe('prepared draft-enquiry fixture', () => {
         profileId: fixture.request.profileId,
         contact: fixture.request.contact,
         recommendation: fixture.dashboardRow.recommendation ?? null,
+        sellerChoice: null,
         createdAt: new Date(fixture.dashboardRow.createdAt),
       },
     ]);
     const controller = new SellerLeadsController({ list } as unknown as SellerLeadsService);
 
     await expect(controller.list()).resolves.toEqual([
-      { ...fixture.dashboardRow, recommendation: fixture.dashboardRow.recommendation ?? null },
+      {
+        ...fixture.dashboardRow,
+        recommendation: fixture.dashboardRow.recommendation ?? null,
+        sellerChoice: null,
+      },
     ]);
   });
 });
