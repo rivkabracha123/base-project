@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { houseRankingSchema, sellerChoiceSchema } from '@monabid/shared';
+import { houseRankingSchema, sellerChoiceSchema, sellerLeadSummarySchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
@@ -86,8 +86,17 @@ describe('SellerLeadsController house ranking (contract)', () => {
       contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
       recommendation: null,
       sellerChoice: null,
+      catalogDraft: null,
+      item: null,
+      evidence: null,
+      valuation: null,
+      comparables: null,
+      serviceConsent: true,
+      status: 'draft',
+      history: [],
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    });
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as SellerLeadEntity);
 
     const response = await postRanking('/api/seller-leads/lead-1/house-rankings', {
       category: 'rare_books',
@@ -113,8 +122,17 @@ describe('SellerLeadsController house ranking (contract)', () => {
       contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
       recommendation: null,
       sellerChoice: null,
+      catalogDraft: null,
+      item: null,
+      evidence: null,
+      valuation: null,
+      comparables: null,
+      serviceConsent: true,
+      status: 'draft',
+      history: [],
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    });
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as SellerLeadEntity);
 
     const item = {
       category: 'rare_books',
@@ -146,6 +164,62 @@ describe('SellerLeadsController house ranking (contract)', () => {
     expect(houseRankingSchema.parse(rows[0]?.recommendation).recommendation?.house.id).toBe(
       'house-kestenbaum',
     );
+  });
+
+  it('submits a catalog draft as the final internal lead for the dashboard', async () => {
+    stored.length = 0;
+    stored.push({
+      id: 'lead-1',
+      profileId: 'profile-synthetic-seller-1',
+      contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
+      recommendation: null,
+      sellerChoice: null,
+      catalogDraft: null,
+      item: null,
+      evidence: null,
+      valuation: null,
+      comparables: null,
+      serviceConsent: true,
+      status: 'draft',
+      history: [],
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const item = {
+      category: 'rare_books',
+      geography: 'United States',
+      preferredLanguage: 'en',
+    };
+    await postRanking('/api/seller-leads/lead-1/house-rankings', item);
+    await postRanking('/api/seller-leads/lead-1/choice', { houseId: 'house-kedem' });
+
+    const handoff = {
+      catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
+      item: {
+        id: 'item-001',
+        category: 'paintings',
+        title: 'Abstract landscape study',
+        evidenceIds: ['evidence-001'],
+      },
+      evidence: [{ id: 'evidence-001', type: 'seller_statement' }],
+      valuation: { status: 'refusal', reason: 'insufficient_evidence' },
+    };
+    const submitted = await postRanking('/api/seller-leads/lead-1/final', handoff);
+    expect(submitted.status).toBe(200);
+    const row = sellerLeadSummarySchema.parse(submitted.body);
+    expect(row.status).toBe('submitted');
+    expect(row.catalogDraft).toEqual(handoff.catalogDraft);
+    expect(row.valuation?.status).toBe('refusal');
+    expect(row.sellerChoice?.houseId).toBe('house-kedem');
+    expect(row.recommendation?.recommendation?.house.id).toBe('house-kestenbaum');
+    expect(row.history.map((entry) => entry.event)).toContain('submitted');
+    expect(JSON.stringify(row)).not.toMatch(/commission|will accept/i);
+
+    const list = await fetch(`${baseUrl}/api/seller-leads`);
+    const rows = sellerLeadSummarySchema.array().parse(await list.json());
+    expect(rows[0]?.status).toBe('submitted');
+    expect(rows[0]?.catalogDraft?.en).toBe('Abstract landscape study');
   });
 
   it('rejects a missing category with 400', async () => {

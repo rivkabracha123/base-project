@@ -1,0 +1,71 @@
+{
+  "id": "seller-lead-dashboard-detail",
+  "expectedOutcome": "P5 reads one privacy-limited SellerLead dashboard detail by leadId without querying seller or valuation tables.",
+  "leadId": "11111111-1111-4111-8111-111111111111",
+  "dashboardDetail": {
+    "leadId": "11111111-1111-4111-8111-111111111111",
+    "status": "submitted",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-02T00:00:00.000Z",
+    "item": {
+      "id": "item-001",
+      "category": "paintings",
+      "title": "Abstract landscape study",
+      "evidenceIds": ["evidence-001"]
+    },
+    "evidence": [
+      { "id": "evidence-001", "type": "seller_statement" }
+    ],
+    "comparables": [
+      { "id": "comp-001", "source": "prepared-fixture" }
+    ],
+    "valuation": {
+      "status": "supported",
+      "reportId": "valuation-001",
+      "valuationRange": { "min": 800, "max": 1200, "currency": "USD" }
+    },
+    "recommendation": {
+      "house": {
+        "id": "house-kestenbaum",
+        "name": "Kestenbaum & Company",
+        "active": true,
+        "categories": ["rare_books"],
+        "languages": ["en"],
+        "comparableSoldCountByCategory": { "rare_books": 4 }
+      },
+      "score": 11,
+      "reasons": ["Prepared house lists specialization in rare_books"]
+    },
+    "alternatives": [
+      {
+        "house": {
+          "id": "house-kedem",
+          "name": "Kedem Auction House",
+          "active": true,
+          "categories": ["judaica", "rare_books"],
+          "languages": ["he", "en"],
+          "comparableSoldCountByCategory": { "rare_books": 1 }
+        },
+        "score": 7,
+        "reasons": ["Prepared house lists specialization in rare_books"]
+      }
+    ],
+    "sellerChoice": {
+      "houseId": "house-kedem",
+      "houseName": "Kedem Auction House",
+      "source": "seller"
+    },
+    "catalogDraft": {
+      "he": "מחקר נוף מופשט",
+      "en": "Abstract landscape study"
+    },
+    "contact": {
+      "preferredName": "Synthetic Seller",
+      "email": "synthetic.seller@example.test",
+      "serviceConsent": true
+    },
+    "history": [
+      { "at": "2026-01-01T00:00:00.000Z", "event": "submitted", "actor": "seller" }
+    ]
+  }
+}

@@ -3,13 +3,18 @@ import {
   auctionLotSchema,
   houseRankingSchema,
   sellerChoiceSchema,
+  sellerLeadSummarySchema,
+  submitSellerLeadSchema,
   type AuctionLot,
   type HouseRanking,
   type RankingItem,
   type SellerChoice,
+  type SellerLeadSummary,
+  type SubmitSellerLead,
 } from '@monabid/shared';
 import lotFixtures from '../../../../fixtures/auction-data/lots.json';
 import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draft-enquiry.json';
+import finalLeadFixture from '../../../../fixtures/demo-scenarios/seller-final-lead.json';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 
@@ -32,12 +37,20 @@ export async function getSampleLot(language: string, signal?: AbortSignal): Prom
   return auctionLotSchema.parse(await response.json());
 }
 
-/** S5 Week 2: create an internal draft lead. Uses the prepared P3-shaped contact fixture. */
-export async function createSellerLead(signal?: AbortSignal): Promise<string> {
+export const sellerFinalLeadFixture = finalLeadFixture;
+
+/** S5 Week 2: create an internal draft lead. Uses P3-shaped contact (fixture or seller-entered). */
+export async function createSellerLead(
+  signal?: AbortSignal,
+  contact?: { preferredName: string; email?: string; phone?: string },
+): Promise<string> {
   const response = await fetch(`${apiBaseUrl}/seller-leads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(draftEnquiryFixture.request),
+    body: JSON.stringify({
+      ...draftEnquiryFixture.request,
+      ...(contact ? { contact } : {}),
+    }),
     signal,
   });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
@@ -58,10 +71,18 @@ export async function rankHousesForLead(leadId: string, signal?: AbortSignal): P
   return houseRankingSchema.parse(await response.json());
 }
 
-/**
- * S5 Week 4: save the seller’s house pick.
- * Parses the response with sellerChoiceSchema so a bad API shape cannot reach the UI.
- */
+/** S5: rank without creating a lead so the UI can show houses before contact. */
+export async function rankHouses(signal?: AbortSignal): Promise<HouseRanking> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/house-rankings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sellerRankingItem),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  return houseRankingSchema.parse(await response.json());
+}
+
 export async function saveSellerHouseChoice(
   leadId: string,
   houseId: string,
@@ -75,4 +96,20 @@ export async function saveSellerHouseChoice(
   });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
   return sellerChoiceSchema.parse(await response.json());
+}
+
+/** S5 Week 5: persist catalog draft and mark the internal lead submitted. Never contacts a house. */
+export async function submitFinalSellerLead(
+  leadId: string,
+  handoff: SubmitSellerLead = submitSellerLeadSchema.parse(finalLeadFixture.handoff),
+  signal?: AbortSignal,
+): Promise<SellerLeadSummary> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/final`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(handoff),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  return sellerLeadSummarySchema.parse(await response.json());
 }

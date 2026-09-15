@@ -17,6 +17,12 @@ export function AppHeader() {
           >
             {t('navigation.houses')}
           </Link>
+          <Link
+            to="/seller/enquiry"
+            className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {t('navigation.enquiry')}
+          </Link>
           <Link to="/sample" className="font-semibold text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             {t('appName')}
           </Link>

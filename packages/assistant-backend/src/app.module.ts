@@ -10,6 +10,8 @@ import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-
 import { ValuationCalculationModule } from './valuation-calculation/valuation-calculation.module';
 import { AddSellerLeadRecommendation1788220800001 } from './database/1788220800001-add-seller-lead-recommendation';
 import { AddSellerLeadChoice1788220800002 } from './database/1788220800002-add-seller-lead-choice';
+import { AddSellerLeadFinal1788220800003 } from './database/1788220800003-add-seller-lead-final';
+import { AddSellerLeadDashboard1788220800004 } from './database/1788220800004-add-seller-lead-dashboard';
 import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
@@ -37,6 +39,8 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateSellerLeads1788220800000,
       AddSellerLeadRecommendation1788220800001,
       AddSellerLeadChoice1788220800002,
+      AddSellerLeadFinal1788220800003,
+      AddSellerLeadDashboard1788220800004,
     ],
     synchronize: false,
   };
