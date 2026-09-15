@@ -1,9 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { auctionLotFixtureSchema, comparableEvidenceSchema } from '@monabid/shared';
+import { comparableEvidenceSchema } from '@monabid/shared';
 import type { AuctionLot } from '@monabid/shared';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { ComparablesModule } from './comparables.module';
@@ -187,10 +185,59 @@ describe('Week 3 integration boundary — named fixture "week3-comparable-rankin
 // missing_exchange_rate_data rather than inventing one. This still proves original currency and
 // price travel through the handoff unchanged: S3 never converts, and Aluma's own missing-rate
 // rule is what decides the outcome.
-const week4FixturePath = resolve(process.cwd(), '../../fixtures/demo-scenarios/s3-s4-comparable-handoff.json');
-const week4Lots: AuctionLot[] = auctionLotFixtureSchema.parse(
-  JSON.parse(readFileSync(week4FixturePath, 'utf8')),
-);
+const credibleNewest: AuctionLot = {
+  id: 'w4-lot-credible-newest',
+  source: { provider: 'demo', recordId: 'w4-credible-newest', url: 'https://example.com/w4-credible-newest', retrievedAt: '2025-01-01T00:00:00.000Z' },
+  auctionHouse: { id: 'house-1', name: 'Demo House' },
+  auctionTitle: 'Demo Auction',
+  lotNumber: '1',
+  title: { en: 'Oil on canvas landscape' },
+  description: { en: 'A signed oil on canvas painting, well preserved.' },
+  category: 'paintings',
+  saleDate: '2024-03-10',
+  status: 'sold',
+  realizedPrice: { amount: 4000, currency: 'USD' },
+};
+
+const credibleMiddle: AuctionLot = {
+  ...credibleNewest,
+  id: 'w4-lot-credible-middle',
+  saleDate: '2024-02-20',
+  realizedPrice: { amount: 15000, currency: 'ILS' },
+};
+
+const credibleOldest: AuctionLot = {
+  ...credibleNewest,
+  id: 'w4-lot-credible-oldest',
+  saleDate: '2024-01-20',
+  realizedPrice: { amount: 3600, currency: 'USD' },
+};
+
+const weakSimilarityLot: AuctionLot = {
+  ...credibleNewest,
+  id: 'w4-lot-weak-similarity',
+  title: { en: 'Bronze sculpture' },
+  description: { en: 'A cast bronze figure on a marble base.' },
+  saleDate: '2024-02-01',
+  realizedPrice: { amount: 900, currency: 'USD' },
+};
+
+const unsoldWithEstimateLotW4: AuctionLot = {
+  ...credibleNewest,
+  id: 'w4-lot-unsold-with-estimate',
+  saleDate: '2024-02-15',
+  status: 'unsold',
+  realizedPrice: undefined,
+  estimate: { low: { amount: 3000, currency: 'USD' }, high: { amount: 5000, currency: 'USD' } },
+};
+
+const week4Lots: AuctionLot[] = [
+  credibleNewest,
+  credibleMiddle,
+  credibleOldest,
+  weakSimilarityLot,
+  unsoldWithEstimateLotW4,
+];
 
 // Week 4 — supported scenario: 3 credible sold+realized comparables whose currencies and sale
 // dates are all already committed in fixtures/exchange-rates/rates.json (no fixture edits, no
