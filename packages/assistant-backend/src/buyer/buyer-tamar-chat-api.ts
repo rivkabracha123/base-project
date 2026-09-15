@@ -1,6 +1,6 @@
 export type BuyerChatSpeaker = 'system' | 'buyer';
 
-/** B2 → Tamar: system question to display. */
+/** B2 → Tamar: system question shown in chat after extract or turn. */
 export type BuyerCriteriaB1Response = {
   id: string;
   sessionId: string;
@@ -27,7 +27,7 @@ export type BuyerCriteriaTurnRequest =
       date: string;
     };
 
-/** One line in session history — same ids as the B1 contract messages. */
+/** One line in session history — same ids as Tamar chat messages. */
 export type BuyerCriteriaHistoryEntry =
   | { id: string; speaker: 'system'; text: string; date: string }
   | { id: string; speaker: 'buyer'; skipped: false; text: string; date: string }
