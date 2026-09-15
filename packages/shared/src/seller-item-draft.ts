@@ -9,7 +9,23 @@ export const sellerItemEvidenceSchema = z.object({
   value: z.string().optional(),
   confidence: z.string().optional(),
   caption: z.record(z.string()).optional(),
+  originalName: z.string().min(1).optional(),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']).optional(),
+  size: z.number().nonnegative().optional(),
+  profileId: z.string().min(1).optional(),
+  previewUri: z.string().min(1).optional(),
 });
+
+export const sellerEvidenceReferenceSchema = z.object({
+  fileId: z.string().min(1),
+  profileId: z.string().min(1),
+  originalName: z.string().min(1),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  size: z.number().nonnegative(),
+  previewUri: z.string().min(1),
+});
+
+export type SellerEvidenceReference = z.infer<typeof sellerEvidenceReferenceSchema>;
 
 export const sellerFactStatusSchema = z.enum(['confirmed', 'uncertain', 'unknown', 'incomplete']);
 
@@ -66,6 +82,7 @@ export const sellerItemDraftSchema = z.object({
     catalogDraft: z.object({ he: z.string(), en: z.string() }),
   }),
   evidence: z.array(sellerItemEvidenceSchema),
+  factEvidence: z.record(z.array(z.string())).optional(),
   // Yael Sagis — photo references: evidence items are references, not storage or valuation logic.
   // Heni Cohen — confirmed facts: trusted seller-approved fields remain separate from uncertainFacts.
   confirmedFacts: z.object({
