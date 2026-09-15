@@ -60,8 +60,12 @@ describe('S4 -> S5 snapshot -> P5 dashboard contract', () => {
     expect(dashboardValuationSchema.safeParse(duplicate).success).toBe(false);
   });
 
-  it.each(['http://example.com/lot', 'https://user:secret@example.com/lot',
-    'https://example.com/lot?signature=secret', 'https://example.com/lot#secret'])('rejects unsafe URL syntax: %s', url => {
+  it.each([
+    { name: 'HTTP URL', url: 'http://example.com/lot' },
+    { name: 'URL with credentials', url: 'https://user:secret@example.com/lot' },
+    { name: 'URL with query parameters', url: 'https://example.com/lot?signature=secret' },
+    { name: 'URL with fragment', url: 'https://example.com/lot#secret' },
+  ])('rejects $name', ({ url }) => {
     const value = fixture('supported');
     value.comparables[0].source.url = url;
     expect(dashboardValuationSchema.safeParse(value).success).toBe(false);

@@ -40,23 +40,24 @@ replaces unverified source strings with a generic label and null URL, but upstre
 exclusion reasons must still be appropriate for display. Safe public source provenance
 remains a documented handoff gap.
 
-Read-only inspection of shared HTTP infrastructure also found that the exception
-filter returns `request.url`, and the pino configuration does not redact request URLs.
-Sensitive query-string content therefore is not covered by the local calculation
-checks. Shared HTTP logging/error handling was not changed as part of this S4-only
-task. Do not mark the full privacy acceptance criterion complete based on these tests.
+Following the review, the exception filter now omits query strings and fragments
+from the returned path. Production HTTP logging options redact req.url in addition
+to authorization, cookies and request bodies. `common/http-privacy.spec.ts` verifies
+the error response and captures real loopback HTTP logs with synthetic markers.
+Dashboard URL test names now use case labels instead of printing the test URLs.
+These checks cover these specific leaks, not arbitrary private text in source/reasons.
 
 ## Reproduce
 
-Local results on 2026-09-15: backend typecheck passed; all 12 valuation suites
-passed (149 tests). Before the additions, all 11 existing suites passed (143 tests).
+Latest local results: backend typecheck passed; all 13 selected suites passed
+(153 tests), including the HTTP privacy regressions and all 149 valuation tests.
 
 Run from the repository root (use `npm.cmd` on Windows if PowerShell blocks npm.ps1):
 
 ```text
 npm run build --workspace=@monabid/shared
 npm run typecheck --workspace=@monabid/assistant-backend
-npm run test --workspace=@monabid/assistant-backend -- --testPathPattern=valuation-calculation
+npm run test --workspace=@monabid/assistant-backend -- --testPathPattern=valuation-calculation --testPathPattern=common
 ```
 
 The valuation tests use local fixtures; HTTP tests bind to loopback. They do not
@@ -67,8 +68,10 @@ user's request before branching for Week 5. Suite results describe this working 
 
 ## Pending before the complete Week 4 review
 
-1. Agree with Heni on the meaning and mapping of weight and on upstream exclusions.
-2. Align and run the agreed producer/consumer test, including both HTTP routes if agreed.
+1. Heni's contract is agreed: provider maps to source, score to weight, included
+   participates in calculation, exclusions are audit only, and S1 supplies item/version.
+   The local contract example now uses provider. Production adapter is not required for Week 4.
+2. Obtain and independently run Heni's reported commit 064e91d; it is not available locally yet.
 3. Confirm item/version provenance with S1 and the output contract with S5/P5.
 4. Resolve or explicitly review the remaining privacy boundaries above.
 5. Record final verification evidence for the agreed contracts and commit the final handoff.
