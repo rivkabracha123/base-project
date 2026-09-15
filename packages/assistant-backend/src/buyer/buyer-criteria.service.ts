@@ -6,7 +6,7 @@ import {
   BuyerCriteriaHistoryEntry,
   BuyerCriteriaTurnRequest,
   toBuyerCriteriaB1Response,
-} from './buyer-tamar-chat-api';
+} from './buyer-chat-api';
 import {
   BuyerCriteriaResponse,
   P4FixtureResponse,

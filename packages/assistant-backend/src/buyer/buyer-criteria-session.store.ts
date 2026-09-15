@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { BuyerCriteriaHistoryEntry, BuyerCriteriaHistoryInput } from './buyer-tamar-chat-api';
+import type { BuyerCriteriaHistoryEntry, BuyerCriteriaHistoryInput } from './buyer-chat-api';
 import type { BuyerCriteria, BuyerCriteriaConversation, BuyerCriteriaResponse } from './buyer-criteria';
 
 type BuyerCriteriaSessionRecord = {

@@ -3,7 +3,7 @@ import { BuyerCriteriaService } from './buyer-criteria.service';
 import {
   BuyerCriteriaB1Response,
   BuyerCriteriaTurnRequest,
-} from './buyer-tamar-chat-api';
+} from './buyer-chat-api';
 import { BuyerCriteria, P4FixtureResponse } from './buyer-criteria';
 
 @Controller('buyer')
