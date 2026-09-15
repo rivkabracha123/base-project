@@ -1,76 +1,184 @@
-import { extractBuyerCriteriaFromFixture, mergeBuyerCriteria } from './buyer-criteria';
+import {
+  applyBuyerAnswer,
+  emptyBuyerCriteria,
+  extractBuyerCriteriaFromFixture,
+  mergeBuyerCriteria,
+  nextFocusedQuestion,
+  processCriteriaTurn,
+  skipCurrentQuestion,
+} from './buyer-criteria';
+import { week3P4Fixtures, week3TurnFixtures } from './buyer-criteria.test-helpers';
 
 describe('BuyerCriteria extraction', () => {
   it('extracts a basic structured request from a fixture response', () => {
-    const response = {
-      provider: 'fixture' as const,
-      mode: 'fixture' as const,
-      content: 'The buyer wants a blue painting from the 19th century with a budget around $10k.',
-      summary: 'המשתמש מחפש ציור כחול מתקופת המאה ה-19',
-      recommendation: 'בקש פרטים נוספים על אמן ומיקום',
-      nextAction: 'שאל על אמן ומיקום',
-      confidence: 'medium' as const,
-    };
+    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
 
-    const result = extractBuyerCriteriaFromFixture(response);
-
-    expect(result.category).toBe('painting');
-    expect(result.color).toBe('blue');
-    expect(result.period).toBe('19th');
-    expect(result.budget).toEqual({ min: 10000, max: 10000 });
-    expect(result.missing).toEqual(expect.arrayContaining(['creator', 'location']));
-    expect(result.nextQuestion).toContain('creator');
+    expect(result.criteria.categories).toEqual(['painting']);
+    expect(result.criteria.keywords).toEqual(['blue']);
+    expect(result.criteria.periods).toEqual(['19th']);
+    expect(result.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+    expect(result.criteria.language).toBe('en');
+    expect(result.conversation.missing).toEqual(['creator', 'location']);
+    expect(result.conversation.nextQuestion).toBe('Is there a specific artist or maker?');
   });
 
   it('preserves existing criteria while asking only for missing useful facts', () => {
-    const existing = {
-      budget: { min: 5000, max: 20000 },
-      category: 'painting',
-      creator: null,
-      period: '19th',
-      location: null,
-      color: 'blue',
-      notes: ['Existing request'],
-      missing: ['creator', 'location'],
-      nextQuestion: 'Do you want to refine the creator and location before I continue?',
-    };
+    const existing = emptyBuyerCriteria('en');
+    existing.price = { min: 5000, max: 20000, currency: 'USD' };
+    existing.categories = ['painting'];
+    existing.periods = ['19th'];
+    existing.keywords = ['blue'];
 
     const updated = mergeBuyerCriteria(existing, {
-      location: 'Paris',
-      notes: ['User clarified the location'],
+      geography: ['Paris'],
     });
 
-    expect(updated.budget).toEqual({ min: 5000, max: 20000 });
-    expect(updated.location).toBe('Paris');
-    expect(updated.missing).toEqual(['creator']);
-    expect(updated.nextQuestion).toContain('creator');
+    expect(updated.price).toEqual({ min: 5000, max: 20000, currency: 'USD' });
+    expect(updated.geography).toEqual(['Paris']);
   });
 
   it('handles complex fixture with ranges, multiple values, and missing fields', () => {
-    const response = {
-      provider: 'fixture' as const,
-      mode: 'fixture' as const,
+    const result = extractBuyerCriteriaFromFixture({
+      provider: 'fixture',
+      mode: 'fixture',
       content: 'Looking for sculpture, blue or red, from 1920-1930, budget $5k-$15k, location not specified, artist unknown.',
       summary: 'משתמש מחפש פסל כחול או אדום מהשנים 1920-1930, תקציב בין 5 ל- 15 קיי',
       recommendation: 'צריך להבהיר מיקום ואמן',
       nextAction: 'שאל על מיקום ואמן',
-      confidence: 'medium' as const,
-    };
+      confidence: 'medium',
+    });
 
-    const result = extractBuyerCriteriaFromFixture(response);
-
-    expect(result.category).toBe('sculpture');
-    expect(result.period).toMatch(/1920|1930/); 
-    expect(result.budget).toEqual(expect.objectContaining({
+    expect(result.criteria.categories).toEqual(['sculpture']);
+    expect(result.criteria.periods[0]).toMatch(/1920|1930/);
+    expect(result.criteria.price).toEqual(expect.objectContaining({
       min: expect.any(Number),
       max: expect.any(Number),
+      currency: 'USD',
     }));
-    
-    expect(result.missing).toEqual(expect.arrayContaining(['creator', 'location']));
-    expect(result.missing).not.toContain('category');
-    expect(result.missing).not.toContain('period');
-    expect(result.missing).not.toContain('budget');
-    
-    expect(result.nextQuestion).toMatch(/creator|location|artist/i);
+
+    expect(result.conversation.missing).toEqual(['creator', 'location']);
+    expect(result.conversation.missing).not.toContain('category');
+    expect(result.conversation.missing).not.toContain('period');
+    expect(result.conversation.missing).not.toContain('budget');
+    expect(result.conversation.nextQuestion).toBe('Is there a specific artist or maker?');
+  });
+});
+
+describe('Week 3 focused questions', () => {
+  it('loads shared fixtures from test helpers', () => {
+    const fromFile = week3P4Fixtures.paintingEn();
+    const fromCode = extractBuyerCriteriaFromFixture(fromFile);
+
+    expect(fromFile.mode).toBe('fixture');
+    expect(fromCode.criteria.categories).toEqual(['painting']);
+  });
+
+  it('asks one Hebrew question for the first missing search fact', () => {
+    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingHe());
+
+    expect(result.criteria.language).toBe('he');
+    expect(result.conversation.missing[0]).toBe('creator');
+    expect(result.conversation.nextQuestion).toBe('יש אמן או יוצר מסוים?');
+    expect(result.conversation.nextQuestion).not.toMatch(/את |אתה |את מחפש|אתה מחפש/);
+  });
+
+  it('asks only about budget when search facts are still empty', () => {
+    expect(nextFocusedQuestion(['budget', 'category', 'creator'], 'en')).toBe(
+      'Is there a budget range I should stay within?',
+    );
+    expect(nextFocusedQuestion(['budget', 'category', 'creator'], 'he')).toBe(
+      'יש טווח תקציב שכדאי להישאר בתוכו?',
+    );
+  });
+
+  it('moves to the next missing fact after one answer, without erasing price', () => {
+    const criteria = emptyBuyerCriteria('he');
+    criteria.price = { min: 10000, max: 10000, currency: 'USD' };
+    criteria.categories = ['painting'];
+    criteria.periods = ['19th'];
+    criteria.keywords = ['blue'];
+
+    const afterCreator = applyBuyerAnswer(criteria, {
+      skipped: [],
+      missing: ['creator', 'location'],
+      nextQuestion: 'יש אמן או יוצר מסוים?',
+      notes: [],
+    }, 'Monet');
+
+    expect(afterCreator.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+    expect(afterCreator.criteria.creators).toEqual(['Monet']);
+    expect(afterCreator.conversation.missing).toEqual(['location']);
+    expect(afterCreator.conversation.nextQuestion).toBe('יש מקום או מקור שחשוב?');
+  });
+
+  it('skips an optional question and moves to the next missing fact', () => {
+    const initial = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+    const afterSkip = skipCurrentQuestion(initial.criteria, initial.conversation);
+
+    expect(initial.conversation.missing[0]).toBe('creator');
+    expect(afterSkip.conversation.skipped).toEqual(['creator']);
+    expect(afterSkip.conversation.missing).toEqual(['location']);
+    expect(afterSkip.conversation.nextQuestion).toBe('Is there a place or origin that matters?');
+    expect(afterSkip.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+  });
+
+  it('does not skip category when search intent is still missing', () => {
+    const unclear = extractBuyerCriteriaFromFixture(week3P4Fixtures.vagueEn());
+
+    expect(unclear.conversation.missing[0]).toBe('budget');
+
+    const afterBudgetSkip = skipCurrentQuestion(unclear.criteria, unclear.conversation);
+
+    expect(afterBudgetSkip.conversation.skipped).toEqual(['budget']);
+    expect(afterBudgetSkip.conversation.missing[0]).toBe('category');
+
+    const afterCategorySkipAttempt = skipCurrentQuestion(
+      afterBudgetSkip.criteria,
+      afterBudgetSkip.conversation,
+    );
+
+    expect(afterCategorySkipAttempt.conversation.skipped).toEqual(['budget']);
+    expect(afterCategorySkipAttempt.conversation.missing[0]).toBe('category');
+  });
+
+  it('extracts keywords from the first message so category is not required twice', () => {
+    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.manuscriptEn());
+
+    expect(result.criteria.categories).toEqual([]);
+    expect(result.criteria.keywords).toEqual(expect.arrayContaining(['rare', 'Hebrew', 'manuscript']));
+    expect(result.conversation.missing).not.toContain('category');
+    expect(result.conversation.missing[0]).toBe('creator');
+  });
+
+  it('stores a free-text category answer as keywords when no known category matches', () => {
+    const afterAnswer = processCriteriaTurn({
+      criteria: emptyBuyerCriteria('en'),
+      conversation: {
+        skipped: ['budget'],
+        missing: ['category', 'creator', 'period', 'location'],
+        nextQuestion: 'What kind of item are you looking for — for example a painting or a sculpture?',
+        notes: [],
+      },
+      action: 'answer',
+      message: 'rare Hebrew books',
+    });
+
+    expect(afterAnswer.criteria.categories).toEqual([]);
+    expect(afterAnswer.criteria.keywords).toEqual(['rare Hebrew books']);
+    expect(afterAnswer.conversation.missing[0]).toBe('creator');
+  });
+
+  it('applies answer and skip using shared turn fixtures', () => {
+    const afterAnswer = processCriteriaTurn(week3TurnFixtures.answerMonet());
+
+    expect(afterAnswer.criteria.creators).toEqual(['Monet']);
+    expect(afterAnswer.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+    expect(afterAnswer.conversation.missing).toEqual(['location']);
+
+    const afterSkip = processCriteriaTurn(week3TurnFixtures.skipLocation());
+
+    expect(afterSkip.conversation.skipped).toEqual(['location']);
+    expect(afterSkip.conversation.missing).toEqual([]);
+    expect(afterSkip.conversation.nextQuestion).toBe('I have the main search facts. Should I continue?');
   });
 });

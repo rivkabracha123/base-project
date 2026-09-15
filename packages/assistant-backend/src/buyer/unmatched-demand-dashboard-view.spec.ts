@@ -1,16 +1,19 @@
+import { emptyBuyerCriteria } from './buyer-criteria';
+import { buildDemandSummary } from './explained-results';
 import { createUnmatchedDemandDashboardView } from './unmatched-demand-dashboard-view';
 
 describe('createUnmatchedDemandDashboardView', () => {
-  it('wraps the full buyer request for P5 without private conversation data', () => {
+  it('wraps the full buyer request and demand summary for P5 without private conversation data', () => {
+    const criteria = emptyBuyerCriteria('en');
+    criteria.categories = ['rare_books'];
+    criteria.creators = ['Yitzhak Abrabanel'];
+
     const searchRequest = {
-      criteria: {
-        category: 'rare_books',
-        creator: 'Yitzhak Abrabanel',
-        missing: [],
-      },
+      criteria,
       language: 'en' as const,
       hardConstraints: [],
     };
+    const demandSummary = buildDemandSummary(criteria);
 
     expect(
       createUnmatchedDemandDashboardView({
@@ -19,6 +22,7 @@ describe('createUnmatchedDemandDashboardView', () => {
         createdAt: '2026-09-01T10:00:00.000Z',
         searchedAt: '2026-09-01T10:01:00.000Z',
         searchRequest,
+        demandSummary,
       }),
     ).toEqual({
       id: 'demand-1',
@@ -29,6 +33,7 @@ describe('createUnmatchedDemandDashboardView', () => {
         searchRequest,
         reason: 'no_results',
         searchedAt: '2026-09-01T10:01:00.000Z',
+        demandSummary,
       },
     });
   });

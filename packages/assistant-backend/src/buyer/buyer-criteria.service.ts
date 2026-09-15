@@ -1,13 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { BuyerCriteria, P4FixtureResponse, extractBuyerCriteriaFromFixture, mergeBuyerCriteria } from './buyer-criteria';
+import {
+  BuyerCriteriaResponse,
+  BuyerCriteriaTurnRequest,
+  P4FixtureResponse,
+  extractBuyerCriteriaFromFixture,
+  processCriteriaTurn,
+} from './buyer-criteria';
 
 @Injectable()
 export class BuyerCriteriaService {
-  extractFromFixture(response: P4FixtureResponse): BuyerCriteria {
+  extractFromFixture(response: P4FixtureResponse): BuyerCriteriaResponse {
     return extractBuyerCriteriaFromFixture(response);
   }
 
-  merge(existing: BuyerCriteria, update: Partial<BuyerCriteria>): BuyerCriteria {
-    return mergeBuyerCriteria(existing, update);
+  processTurn(request: BuyerCriteriaTurnRequest): BuyerCriteriaResponse {
+    return processCriteriaTurn(request);
   }
 }
