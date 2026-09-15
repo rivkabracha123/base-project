@@ -31,7 +31,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       statusCode: status,
       error: HttpStatus[status] ?? 'Error',
       message,
-      path: request.url,
+      path: request.url.split(/[?#]/, 1)[0],
       timestamp: new Date().toISOString(),
     });
   }
