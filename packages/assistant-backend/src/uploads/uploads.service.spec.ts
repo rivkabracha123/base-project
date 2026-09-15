@@ -257,9 +257,11 @@ describe("UploadsService", () => {
 
       expect(item).toEqual({
         fileId: expect.any(String),
+        profileId: "profile-a",
         originalName: "front.jpg",
         mimeType: "image/jpeg",
         size: 2048,
+        previewUri: expect.stringMatching(/^\/api\/evidence\/profile-a\//),
       });
     });
   });
