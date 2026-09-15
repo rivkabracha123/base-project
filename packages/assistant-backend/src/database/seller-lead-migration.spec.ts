@@ -85,4 +85,13 @@ describe('seller lead schema', () => {
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP COLUMN "recommendation"');
   });
+
+  it('registers the seller-choice column migration', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { AddSellerLeadChoice1788220800002 } = await import('./1788220800002-add-seller-lead-choice');
+
+    expect(databaseOptions(config).migrations).toContain(AddSellerLeadChoice1788220800002);
+    expect(AppDataSource.options.migrations).toContain(AddSellerLeadChoice1788220800002);
+  });
 });

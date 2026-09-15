@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { houseRankingSchema } from '@monabid/shared';
+import { houseRankingSchema, sellerChoiceSchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
@@ -85,6 +85,7 @@ describe('SellerLeadsController house ranking (contract)', () => {
       profileId: 'profile-synthetic-seller-1',
       contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
       recommendation: null,
+      sellerChoice: null,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
@@ -102,6 +103,49 @@ describe('SellerLeadsController house ranking (contract)', () => {
     const rows = (await list.json()) as Array<{ id: string; recommendation: unknown }>;
     expect(rows[0]?.id).toBe('lead-1');
     expect(houseRankingSchema.parse(rows[0]?.recommendation).recommendation?.house.active).toBe(true);
+  });
+
+  it('saves a seller override without changing the ranked recommendation', async () => {
+    stored.length = 0;
+    stored.push({
+      id: 'lead-1',
+      profileId: 'profile-synthetic-seller-1',
+      contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
+      recommendation: null,
+      sellerChoice: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const item = {
+      category: 'rare_books',
+      geography: 'United States',
+      preferredLanguage: 'en',
+    };
+    await postRanking('/api/seller-leads/lead-1/house-rankings', item);
+
+    const choice = await postRanking('/api/seller-leads/lead-1/choice', { houseId: 'house-kedem' });
+    expect(choice.status).toBe(200);
+    expect(sellerChoiceSchema.parse(choice.body)).toEqual({
+      houseId: 'house-kedem',
+      houseName: 'Kedem Auction House',
+      source: 'seller',
+    });
+    expect(stored[0]?.recommendation?.recommendation?.house.id).toBe('house-kestenbaum');
+    expect(stored[0]?.sellerChoice?.houseId).toBe('house-kedem');
+    expect(stored[0]?.sellerChoice?.houseId).not.toBe(
+      stored[0]?.recommendation?.recommendation?.house.id,
+    );
+
+    const list = await fetch(`${baseUrl}/api/seller-leads`);
+    const rows = (await list.json()) as Array<{ sellerChoice: unknown; recommendation: unknown }>;
+    expect(sellerChoiceSchema.parse(rows[0]?.sellerChoice)).toEqual({
+      houseId: 'house-kedem',
+      houseName: 'Kedem Auction House',
+      source: 'seller',
+    });
+    expect(houseRankingSchema.parse(rows[0]?.recommendation).recommendation?.house.id).toBe(
+      'house-kestenbaum',
+    );
   });
 
   it('rejects a missing category with 400', async () => {
