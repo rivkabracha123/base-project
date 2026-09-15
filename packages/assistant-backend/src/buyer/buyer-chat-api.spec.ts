@@ -1,5 +1,5 @@
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { sampleHandoffResponses } from './buyer-criteria.fixtures';
+import { sampleAiExtractResponses } from './buyer-criteria.fixtures';
 import { resetBuyerCriteriaSessions } from './buyer-criteria-session.store';
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
@@ -14,7 +14,7 @@ describe('Tamar chat API (extract / criteria turn)', () => {
   });
 
   it('returns a system chat message after extract — Tamar does not receive criteria', () => {
-    const response = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
+    const response = service.startCriteriaSessionFromAiResponse(sampleAiExtractResponses.paintingEn());
 
     expect(response).toEqual({
       id: expect.any(String),
@@ -28,7 +28,7 @@ describe('Tamar chat API (extract / criteria turn)', () => {
   });
 
   it('stores history when Tamar sends a buyer message back', () => {
-    const first = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
+    const first = service.startCriteriaSessionFromAiResponse(sampleAiExtractResponses.paintingEn());
     const second = service.continueCriteriaSessionFromChatTurn({
       id: buyerMessageId,
       sessionId: first.sessionId,
@@ -66,7 +66,7 @@ describe('Tamar chat API (extract / criteria turn)', () => {
   });
 
   it('treats skipped: true as skip', () => {
-    const first = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
+    const first = service.startCriteriaSessionFromAiResponse(sampleAiExtractResponses.paintingEn());
     service.continueCriteriaSessionFromChatTurn({
       id: buyerMessageId,
       sessionId: first.sessionId,

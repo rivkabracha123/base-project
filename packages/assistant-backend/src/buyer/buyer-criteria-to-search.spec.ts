@@ -1,12 +1,12 @@
-import { deriveHardConstraints, parseCriteriaFromHandoff } from './buyer-criteria';
+import { deriveHardConstraints, parseCriteriaFromAiResponse } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { sampleHandoffResponses, refinementExample } from './buyer-criteria.fixtures';
+import { sampleAiExtractResponses, refinementExample } from './buyer-criteria.fixtures';
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
 
-describe('Criteria search handoff (session → orchestrator)', () => {
+describe('Pass refined criteria to search (session → orchestrator)', () => {
   const service = new BuyerCriteriaService();
 
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('Criteria search handoff (session → orchestrator)', () => {
   });
 
   it('passes clarified criteria into the lots search request shape', () => {
-    const first = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
+    const first = service.startCriteriaSessionFromAiResponse(sampleAiExtractResponses.paintingEn());
     service.continueCriteriaSessionFromChatTurn({
       id: 'buyer-monet',
       sessionId: first.sessionId,
@@ -39,7 +39,7 @@ describe('Criteria search handoff (session → orchestrator)', () => {
   });
 
   it('traces a refinement example through session, turn, and search orchestrator', async () => {
-    const first = service.startCriteriaSessionFromHandoff(refinementExample.initialHandoff);
+    const first = service.startCriteriaSessionFromAiResponse(refinementExample.initialAiResponse);
     service.continueCriteriaSessionFromChatTurn({
       id: 'buyer-trace',
       sessionId: first.sessionId,
@@ -49,7 +49,7 @@ describe('Criteria search handoff (session → orchestrator)', () => {
       date: buyerAt,
     });
     const criteria = service.getCriteriaForSession(first.sessionId);
-    const extracted = parseCriteriaFromHandoff(refinementExample.initialHandoff);
+    const extracted = parseCriteriaFromAiResponse(refinementExample.initialAiResponse);
 
     const p2 = {
       search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),

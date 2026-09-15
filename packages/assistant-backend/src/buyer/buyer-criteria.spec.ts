@@ -1,17 +1,17 @@
 import {
   applyBuyerAnswer,
   emptyBuyerCriteria,
-  parseCriteriaFromHandoff,
+  parseCriteriaFromAiResponse,
   mergeBuyerCriteria,
   nextFocusedQuestion,
   applyCriteriaConversationTurn,
   skipCurrentQuestion,
 } from './buyer-criteria';
-import { sampleHandoffResponses, sampleConversationTurns, structuredHandoffSamples } from './buyer-criteria.fixtures';
+import { sampleAiExtractResponses, sampleConversationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
   it('extracts a basic structured request from a fixture response', () => {
-    const result = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
+    const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
 
     expect(result.criteria.categories).toEqual(['painting']);
     expect(result.criteria.keywords).toEqual(['blue']);
@@ -38,7 +38,7 @@ describe('BuyerCriteria extraction', () => {
   });
 
   it('handles complex fixture with ranges, multiple values, and missing fields', () => {
-    const result = parseCriteriaFromHandoff({
+    const result = parseCriteriaFromAiResponse({
       provider: 'fixture',
       mode: 'fixture',
       content: 'Looking for sculpture, blue or red, from 1920-1930, budget $5k-$15k, location not specified, artist unknown.',
@@ -66,15 +66,15 @@ describe('BuyerCriteria extraction', () => {
 
 describe('Week 3 focused questions', () => {
   it('loads shared fixtures from test helpers', () => {
-    const fromFile = sampleHandoffResponses.paintingEn();
-    const fromCode = parseCriteriaFromHandoff(fromFile);
+    const fromFile = sampleAiExtractResponses.paintingEn();
+    const fromCode = parseCriteriaFromAiResponse(fromFile);
 
     expect(fromFile.mode).toBe('fixture');
     expect(fromCode.criteria.categories).toEqual(['painting']);
   });
 
   it('asks one Hebrew question for the first missing search fact', () => {
-    const result = parseCriteriaFromHandoff(sampleHandoffResponses.paintingHe());
+    const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingHe());
 
     expect(result.criteria.language).toBe('he');
     expect(result.conversation.missing[0]).toBe('creator');
@@ -112,7 +112,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('skips an optional question and moves to the next missing fact', () => {
-    const initial = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
     const afterSkip = skipCurrentQuestion(initial.criteria, initial.conversation);
 
     expect(initial.conversation.missing[0]).toBe('creator');
@@ -123,7 +123,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('does not skip category when search intent is still missing', () => {
-    const unclear = parseCriteriaFromHandoff(sampleHandoffResponses.vagueEn());
+    const unclear = parseCriteriaFromAiResponse(sampleAiExtractResponses.vagueEn());
 
     expect(unclear.conversation.missing[0]).toBe('budget');
 
@@ -142,7 +142,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('extracts keywords from the first message so category is not required twice', () => {
-    const result = parseCriteriaFromHandoff(sampleHandoffResponses.manuscriptEn());
+    const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.manuscriptEn());
 
     expect(result.criteria.categories).toEqual([]);
     expect(result.criteria.keywords).toEqual(expect.arrayContaining(['rare', 'Hebrew', 'manuscript']));
@@ -185,7 +185,7 @@ describe('Week 3 focused questions', () => {
 
 describe('Week 4 hardConstraints', () => {
   it('derives constraints from confirmed criteria fields', () => {
-    const extracted = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
+    const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
 
     expect(extracted.criteria.hardConstraints).toEqual(
       expect.arrayContaining([
@@ -197,7 +197,7 @@ describe('Week 4 hardConstraints', () => {
   });
 
   it('preserves price constraints after a refinement turn', () => {
-    const extracted = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
+    const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
     const afterTurn = applyCriteriaConversationTurn({
       criteria: extracted.criteria,
       conversation: extracted.conversation,
@@ -215,7 +215,7 @@ describe('Week 4 hardConstraints', () => {
   });
 
   it('derives hardConstraints from Shilat structuredAnswer extraction', () => {
-    const extracted = parseCriteriaFromHandoff(structuredHandoffSamples.blueRingHe());
+    const extracted = parseCriteriaFromAiResponse(structuredAiExtractSamples.blueRingHe());
 
     expect(extracted.criteria.hardConstraints).toEqual(
       expect.arrayContaining([

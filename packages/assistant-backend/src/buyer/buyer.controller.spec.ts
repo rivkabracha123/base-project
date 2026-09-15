@@ -1,10 +1,10 @@
 import { BuyerController } from './buyer.controller';
-import { parseCriteriaFromHandoff } from './buyer-criteria';
+import { parseCriteriaFromAiResponse } from './buyer-criteria';
 import { toBuyerChatSystemMessage } from './buyer-chat-api';
-import { sampleHandoffResponses } from './buyer-criteria.fixtures';
+import { sampleAiExtractResponses } from './buyer-criteria.fixtures';
 
 describe('BuyerController', () => {
-  const extracted = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
+  const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
   const date = '2026-09-15T09:00:00.000Z';
   const systemMessageAfterExtract = toBuyerChatSystemMessage('session-1', {
     id: 'system-msg-1',
@@ -20,13 +20,13 @@ describe('BuyerController', () => {
   });
 
   it('startCriteriaSession delegates to the service', () => {
-    const service = { startCriteriaSessionFromHandoff: jest.fn().mockReturnValue(systemMessageAfterExtract) };
+    const service = { startCriteriaSessionFromAiResponse: jest.fn().mockReturnValue(systemMessageAfterExtract) };
     const controller = new BuyerController(service as never);
 
-    const result = controller.startCriteriaSession(sampleHandoffResponses.paintingEn());
+    const result = controller.startCriteriaSession(sampleAiExtractResponses.paintingEn());
 
     expect(result).toBe(systemMessageAfterExtract);
-    expect(service.startCriteriaSessionFromHandoff).toHaveBeenCalledWith(sampleHandoffResponses.paintingEn());
+    expect(service.startCriteriaSessionFromAiResponse).toHaveBeenCalledWith(sampleAiExtractResponses.paintingEn());
   });
 
   it('continueCriteriaSession delegates buyer messages to the service', () => {

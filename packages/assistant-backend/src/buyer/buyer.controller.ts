@@ -4,15 +4,15 @@ import {
   BuyerChatSystemMessage,
   BuyerChatTurnInput,
 } from './buyer-chat-api';
-import { BuyerCriteria, UpstreamHandoffResponse } from './buyer-criteria';
+import { BuyerCriteria, AiExtractResponse } from './buyer-criteria';
 
 @Controller('buyer')
 export class BuyerController {
   constructor(private readonly buyerCriteriaService: BuyerCriteriaService) {}
 
   @Post('extract')
-  startCriteriaSession(@Body() handoff: UpstreamHandoffResponse): BuyerChatSystemMessage {
-    return this.buyerCriteriaService.startCriteriaSessionFromHandoff(handoff);
+  startCriteriaSession(@Body() aiResponse: AiExtractResponse): BuyerChatSystemMessage {
+    return this.buyerCriteriaService.startCriteriaSessionFromAiResponse(aiResponse);
   }
 
   @Post('criteria/turn')

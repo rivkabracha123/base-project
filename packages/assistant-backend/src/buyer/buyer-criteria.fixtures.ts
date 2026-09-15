@@ -1,7 +1,7 @@
-import type { CriteriaConversationTurn, StructuredHandoffAnswer, UpstreamHandoffResponse } from './buyer-criteria';
+import type { CriteriaConversationTurn, StructuredAiExtract, AiExtractResponse } from './buyer-criteria';
 
-export const sampleHandoffResponses = {
-  paintingEn: (): UpstreamHandoffResponse => ({
+export const sampleAiExtractResponses = {
+  paintingEn: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'The buyer wants a blue painting from the 19th century with a budget around $10k.',
@@ -10,7 +10,7 @@ export const sampleHandoffResponses = {
     nextAction: 'ask creator',
     confidence: 'medium',
   }),
-  paintingHe: (): UpstreamHandoffResponse => ({
+  paintingHe: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'אני מחפשת ציור כחול מהמאה ה-19 עד 10000 שקל',
@@ -19,7 +19,7 @@ export const sampleHandoffResponses = {
     nextAction: 'שאל על אמן',
     confidence: 'medium',
   }),
-  vagueEn: (): UpstreamHandoffResponse => ({
+  vagueEn: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'Looking for something interesting for my collection.',
@@ -28,7 +28,7 @@ export const sampleHandoffResponses = {
     nextAction: 'clarify',
     confidence: 'medium',
   }),
-  manuscriptEn: (): UpstreamHandoffResponse => ({
+  manuscriptEn: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'Looking for rare Hebrew manuscript under $15k.',
@@ -39,8 +39,8 @@ export const sampleHandoffResponses = {
   }),
 };
 
-export const structuredHandoffSamples = {
-  blueRingHe: (): UpstreamHandoffResponse => ({
+export const structuredAiExtractSamples = {
+  blueRingHe: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     isRelevant: true,
@@ -58,9 +58,9 @@ export const structuredHandoffSamples = {
       keywords: ['blue'],
       hasContactDetails: false,
       hasImages: false,
-    } satisfies StructuredHandoffAnswer,
+    } satisfies StructuredAiExtract,
   }),
-  irrelevantHe: (): UpstreamHandoffResponse => ({
+  irrelevantHe: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     isRelevant: false,
@@ -119,8 +119,8 @@ export const sampleConversationTurns = {
   }),
 };
 
-/** Example used in refinement integration tests: initial handoff + one buyer answer. */
+/** Example used in refinement integration tests: initial AI response + one buyer answer. */
 export const refinementExample = {
-  initialHandoff: sampleHandoffResponses.paintingEn(),
+  initialAiResponse: sampleAiExtractResponses.paintingEn(),
   buyerAnswer: 'Monet',
 } as const;

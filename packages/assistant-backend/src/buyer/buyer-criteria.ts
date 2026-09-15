@@ -72,7 +72,7 @@ export type CriteriaConversationTurn = {
 };
 
 /** Validated structured fields from upstream (preferred over free-text content). */
-export type StructuredHandoffAnswer = {
+export type StructuredAiExtract = {
   role: 'buyer';
   language: BuyerLanguage;
   intent: string;
@@ -86,8 +86,8 @@ export type StructuredHandoffAnswer = {
   hasImages: boolean;
 };
 
-/** Upstream handoff payload (fixture or live) received at POST /buyer/extract. */
-export type UpstreamHandoffResponse = {
+/** AI extract payload (fixture or live) received at POST /buyer/extract. */
+export type AiExtractResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
   isRelevant?: boolean;
@@ -97,23 +97,23 @@ export type UpstreamHandoffResponse = {
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
-  structuredAnswer?: StructuredHandoffAnswer;
+  structuredAnswer?: StructuredAiExtract;
 };
 
-export function isStructuredHandoffAnswer(value: unknown): value is StructuredHandoffAnswer {
+export function isStructuredAiExtract(value: unknown): value is StructuredAiExtract {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const handoff = value as Record<string, unknown>;
+  const candidate = value as Record<string, unknown>;
 
   return (
-    handoff.role === 'buyer' &&
-    (handoff.language === 'he' || handoff.language === 'en') &&
-    typeof handoff.intent === 'string' &&
-    handoff.intent.trim().length > 0 &&
-    typeof handoff.hasContactDetails === 'boolean' &&
-    typeof handoff.hasImages === 'boolean'
+    candidate.role === 'buyer' &&
+    (candidate.language === 'he' || candidate.language === 'en') &&
+    typeof candidate.intent === 'string' &&
+    candidate.intent.trim().length > 0 &&
+    typeof candidate.hasContactDetails === 'boolean' &&
+    typeof candidate.hasImages === 'boolean'
   );
 }
 
@@ -322,27 +322,27 @@ function withConversation(
   };
 }
 
-function criteriaFromStructuredHandoff(handoff: StructuredHandoffAnswer): BuyerCriteria {
+function criteriaFromStructuredAiExtract(structured: StructuredAiExtract): BuyerCriteria {
   return {
-    ...emptyBuyerCriteria(handoff.language),
-    categories: handoff.category?.trim() ? [handoff.category.trim()] : [],
-    creators: handoff.creators ?? [],
-    periods: handoff.periods ?? [],
-    keywords: handoff.keywords ?? [],
-    geography: handoff.geography ?? [],
-    price: handoff.price,
-    language: handoff.language,
+    ...emptyBuyerCriteria(structured.language),
+    categories: structured.category?.trim() ? [structured.category.trim()] : [],
+    creators: structured.creators ?? [],
+    periods: structured.periods ?? [],
+    keywords: structured.keywords ?? [],
+    geography: structured.geography ?? [],
+    price: structured.price,
+    language: structured.language,
     hardConstraints: [],
   };
 }
 
-function parseFromStructuredHandoff(response: UpstreamHandoffResponse, handoff: StructuredHandoffAnswer): BuyerCriteriaResponse {
-  return withConversation(criteriaFromStructuredHandoff(handoff), {
-    notes: [response.summary, handoff.intent].filter((note) => note.trim().length > 0),
+function parseFromStructuredAiExtract(response: AiExtractResponse, structured: StructuredAiExtract): BuyerCriteriaResponse {
+  return withConversation(criteriaFromStructuredAiExtract(structured), {
+    notes: [response.summary, structured.intent].filter((note) => note.trim().length > 0),
   });
 }
 
-function parseFromHandoffText(response: UpstreamHandoffResponse): BuyerCriteriaResponse {
+function parseFromAiTextContent(response: AiExtractResponse): BuyerCriteriaResponse {
   const text = `${response.content} ${response.summary} ${response.recommendation} ${response.nextAction}`;
   const category = parseCategory(text);
   const keywords = extractKeywords(text);
@@ -359,17 +359,17 @@ function parseFromHandoffText(response: UpstreamHandoffResponse): BuyerCriteriaR
   });
 }
 
-/** Parse upstream handoff into criteria plus the next clarification question. */
-export function parseCriteriaFromHandoff(response: UpstreamHandoffResponse): BuyerCriteriaResponse {
+/** Parse AI extract response into criteria plus the next clarification question. */
+export function parseCriteriaFromAiResponse(response: AiExtractResponse): BuyerCriteriaResponse {
   if (response.isRelevant === false) {
     throw new Error(response.error ?? 'The request is not related to buying or selling.');
   }
 
-  if (isStructuredHandoffAnswer(response.structuredAnswer)) {
-    return parseFromStructuredHandoff(response, response.structuredAnswer);
+  if (isStructuredAiExtract(response.structuredAnswer)) {
+    return parseFromStructuredAiExtract(response, response.structuredAnswer);
   }
 
-  return parseFromHandoffText(response);
+  return parseFromAiTextContent(response);
 }
 
 export function mergeBuyerCriteria(

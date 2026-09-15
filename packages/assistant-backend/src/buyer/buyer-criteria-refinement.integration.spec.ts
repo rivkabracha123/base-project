@@ -1,6 +1,6 @@
-import { parseCriteriaFromHandoff } from './buyer-criteria';
+import { parseCriteriaFromAiResponse } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { refinementExample, structuredHandoffSamples } from './buyer-criteria.fixtures';
+import { refinementExample, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
@@ -12,9 +12,9 @@ describe('Criteria refinement across chat and search', () => {
     service.resetSessionsForTests();
   });
 
-  describe('Start session from upstream handoff', () => {
+  describe('Start session from AI extract response', () => {
     it('maps structuredAnswer into server-side criteria and returns display fields only', () => {
-      const response = service.startCriteriaSessionFromHandoff(structuredHandoffSamples.blueRingHe());
+      const response = service.startCriteriaSessionFromAiResponse(structuredAiExtractSamples.blueRingHe());
       const session = service.getSessionResponse(response.sessionId);
 
       expect(response.text).toBe('יש טווח תקציב שכדאי להישאר בתוכו?');
@@ -24,8 +24,8 @@ describe('Criteria refinement across chat and search', () => {
       expect(session.conversation.missing).toContain('budget');
     });
 
-    it('still supports legacy content-only handoff fixtures', () => {
-      const response = service.startCriteriaSessionFromHandoff(refinementExample.initialHandoff);
+    it('still supports legacy content-only AI extract fixtures', () => {
+      const response = service.startCriteriaSessionFromAiResponse(refinementExample.initialAiResponse);
       const criteria = service.getCriteriaForSession(response.sessionId);
 
       expect(criteria.categories).toEqual(['painting']);
@@ -35,7 +35,7 @@ describe('Criteria refinement across chat and search', () => {
 
   describe('Session history across clarification turns', () => {
     it('preserves criteria and hardConstraints after answer and skip turns', () => {
-      const first = service.startCriteriaSessionFromHandoff(structuredHandoffSamples.blueRingHe());
+      const first = service.startCriteriaSessionFromAiResponse(structuredAiExtractSamples.blueRingHe());
 
       service.continueCriteriaSessionFromChatTurn({
         id: 'buyer-budget',
@@ -72,9 +72,9 @@ describe('Criteria refinement across chat and search', () => {
     });
   });
 
-  describe('Search handoff after refinement', () => {
+  describe('Search after criteria refinement', () => {
     it('passes hardConstraints through to the search orchestrator', async () => {
-      const first = service.startCriteriaSessionFromHandoff(structuredHandoffSamples.blueRingHe());
+      const first = service.startCriteriaSessionFromAiResponse(structuredAiExtractSamples.blueRingHe());
       service.continueCriteriaSessionFromChatTurn({
         id: 'buyer-budget',
         sessionId: first.sessionId,
@@ -109,7 +109,7 @@ describe('Criteria refinement across chat and search', () => {
     });
 
     it('traces a named refinement example through extract, turn, and search', async () => {
-      const first = service.startCriteriaSessionFromHandoff(refinementExample.initialHandoff);
+      const first = service.startCriteriaSessionFromAiResponse(refinementExample.initialAiResponse);
       service.continueCriteriaSessionFromChatTurn({
         id: 'buyer-trace',
         sessionId: first.sessionId,
@@ -119,7 +119,7 @@ describe('Criteria refinement across chat and search', () => {
         date: buyerAt,
       });
       const criteria = service.getCriteriaForSession(first.sessionId);
-      const extracted = parseCriteriaFromHandoff(refinementExample.initialHandoff);
+      const extracted = parseCriteriaFromAiResponse(refinementExample.initialAiResponse);
 
       expect(criteria.creators).toEqual([refinementExample.buyerAnswer]);
       expect(criteria.price).toEqual(extracted.criteria.price);

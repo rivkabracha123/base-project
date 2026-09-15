@@ -9,8 +9,8 @@ import {
 } from './buyer-chat-api';
 import {
   BuyerCriteriaResponse,
-  UpstreamHandoffResponse,
-  parseCriteriaFromHandoff,
+  AiExtractResponse,
+  parseCriteriaFromAiResponse,
   applyCriteriaConversationTurn,
 } from './buyer-criteria';
 import {
@@ -38,9 +38,9 @@ function toHistoryEntry(request: BuyerChatTurnInput): BuyerChatHistoryEntry {
 
 @Injectable()
 export class BuyerCriteriaService {
-  /** Create a criteria session from upstream handoff and return the first system question for Tamar. */
-  startCriteriaSessionFromHandoff(response: UpstreamHandoffResponse): BuyerChatSystemMessage {
-    const extracted = parseCriteriaFromHandoff(response);
+  /** Create a criteria session from AI extract response and return the first system question for Tamar. */
+  startCriteriaSessionFromAiResponse(response: AiExtractResponse): BuyerChatSystemMessage {
+    const extracted = parseCriteriaFromAiResponse(response);
     const date = new Date().toISOString();
     const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted, date);
     return toBuyerChatSystemMessage(sessionId, systemMessage);
