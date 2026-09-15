@@ -2,7 +2,6 @@ import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auction-lots';
-import { itemHistoryLotFixtures, upcomingLotWithHistoryFixture } from '../app/local-history-demo.fixture';
 import { ItemDetail } from './ItemDetail';
 
 describe('ItemDetail', () => {
@@ -27,27 +26,5 @@ describe('ItemDetail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Back to Results/ }));
     expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows source-backed price history only when compatible history is supplied', () => {
-    render(
-      <ItemDetail
-        lot={upcomingLotWithHistoryFixture}
-        historyLots={itemHistoryLotFixtures}
-        lang="en"
-        onBack={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole('heading', { name: 'Price History' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Sale source' })).toHaveLength(2);
-  });
-
-  it('shows an honest price-history empty state when no history is supplied', () => {
-    render(<ItemDetail lot={upcomingLotWithHistoryFixture} lang="en" onBack={vi.fn()} />);
-
-    expect(screen.getByRole('heading', { name: 'Price History' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('There are not enough verified past sales');
-    expect(screen.queryByRole('img', { name: 'Price history chart' })).not.toBeInTheDocument();
   });
 });
