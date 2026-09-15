@@ -18,6 +18,7 @@ describe('BuyerSearchService', () => {
     expect(service.createSearchRequest(criteria, 'en')).toEqual({
       query: 'Yitzhak Abrabanel',
       language: 'en',
+      filters: { categories: [lot.category] },
     });
   });
 });

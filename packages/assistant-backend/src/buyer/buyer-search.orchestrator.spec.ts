@@ -3,10 +3,20 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { emptyBuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
+import type { PaginatedSearchResult } from './search-request';
 
 const fixture = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
+
+// Wraps fixture lots as the single-page PaginatedResult P2's real search() returns.
+const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
+  data,
+  total: data.length,
+  page: 1,
+  limit: data.length || 10,
+  totalPages: data.length > 0 ? 1 : 0,
+});
 
 const baseLead = {
   leadId: 'lead-1',
@@ -36,7 +46,7 @@ const makeLot = (over: Partial<AuctionLot> & { id: string }): AuctionLot => ({
 
 describe('BuyerSearchOrchestrator', () => {
   it('traces a named fixture from criteria through P2 to a B4-consumable result list', async () => {
-    const p2 = { searchByText: jest.fn().mockResolvedValue(fixture) };
+    const p2 = { search: jest.fn().mockResolvedValue(page(fixture)) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     const criteria = emptyBuyerCriteria('en');
@@ -47,13 +57,28 @@ describe('BuyerSearchOrchestrator', () => {
 
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
-    expect(outcome.searchRequest).toEqual({ criteria, language: 'en', hardConstraints: [] });
-    expect(outcome.items).toEqual(fixture);
-    expect(p2.searchByText).toHaveBeenCalledWith('Yitzhak Abrabanel manuscript', 'en');
+    expect(outcome.searchRequest).toEqual({
+      criteria,
+      language: 'en',
+      hardConstraints: [
+        {
+          field: 'creators',
+          operator: 'contains',
+          value: ['Yitzhak Abrabanel'],
+          reason: 'Buyer requirement kept through refinement',
+        },
+      ],
+    });
+    expect(outcome.results.current).toEqual([]);
+    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(fixture);
+    expect(p2.search).toHaveBeenCalledWith({
+      query: 'Yitzhak Abrabanel manuscript',
+      language: 'en',
+    });
   });
 
   it('records an honest no-result request for P5 without inventing inventory or private data', async () => {
-    const p2 = { searchByText: jest.fn().mockResolvedValue([]) };
+    const p2 = { search: jest.fn().mockResolvedValue(page([])) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
     const criteria = emptyBuyerCriteria('he');
     criteria.creators = ['Yitzhak Abrabanel'];
@@ -66,6 +91,21 @@ describe('BuyerSearchOrchestrator', () => {
       leadId: 'lead-unmatched-1',
     });
 
+    const expectedHardConstraints = [
+      {
+        field: 'price',
+        operator: 'range',
+        value: { min: 1000, max: 15000, currency: 'USD' },
+        reason: 'Buyer budget is a hard limit and is not relaxed without approval',
+      },
+      {
+        field: 'creators',
+        operator: 'contains',
+        value: ['Yitzhak Abrabanel'],
+        reason: 'Buyer requirement kept through refinement',
+      },
+    ];
+
     expect(outcome).toEqual({
       kind: 'unmatched',
       view: {
@@ -74,9 +114,14 @@ describe('BuyerSearchOrchestrator', () => {
         status: 'new',
         createdAt: '2026-09-01T10:00:00.000Z',
         unmatchedDemand: {
-          searchRequest: { criteria, language: 'he', hardConstraints: [] },
+          searchRequest: { criteria, language: 'he', hardConstraints: expectedHardConstraints },
           reason: 'no_results',
           searchedAt: '2026-09-01T10:01:00.000Z',
+          demandSummary: {
+            appliedCriteria: ['price', 'creators'],
+            hardConstraints: expectedHardConstraints,
+            recovery: 'no_relaxation_no_invention',
+          },
         },
       },
     });
@@ -86,7 +131,7 @@ describe('BuyerSearchOrchestrator', () => {
 
   it('carries every received hard-filter field onto the B4 results handoff, not just budget and category', async () => {
     const p2 = {
-      searchByText: jest.fn().mockResolvedValue([makeLot({ id: 'lot-1' }), makeLot({ id: 'lot-2' })]),
+      search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' }), makeLot({ id: 'lot-2' })])),
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
@@ -103,12 +148,19 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.searchRequest.criteria).toEqual(criteria);
-    expect(outcome.searchRequest.hardConstraints).toEqual([]);
-    expect(outcome.items).toHaveLength(2);
+    expect(outcome.searchRequest.hardConstraints.map((constraint) => constraint.field)).toEqual([
+      'price',
+      'categories',
+      'creators',
+      'periods',
+      'geography',
+    ]);
+    expect(outcome.results.current).toHaveLength(0);
+    expect(outcome.results.historical).toHaveLength(2);
   });
 
   it('does not loosen the budget it received when building the handoff', async () => {
-    const p2 = { searchByText: jest.fn().mockResolvedValue([makeLot({ id: 'lot-1' })]) };
+    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
     const criteria = emptyBuyerCriteria('en');
     criteria.price = { min: 2000, max: 15000, currency: 'USD' };
@@ -118,10 +170,32 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.searchRequest.criteria.price).toEqual({ min: 2000, max: 15000, currency: 'USD' });
+    expect(outcome.searchRequest.hardConstraints).toContainEqual({
+      field: 'price',
+      operator: 'range',
+      value: { min: 2000, max: 15000, currency: 'USD' },
+      reason: 'Buyer budget is a hard limit and is not relaxed without approval',
+    });
+  });
+
+  it('carries a selected lot id through to the B4 results handoff', async () => {
+    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(p2);
+
+    const outcome = await orchestrator.search({
+      criteria: emptyBuyerCriteria('en'),
+      language: 'en',
+      ...baseLead,
+      selectedLotId: 'lot-1',
+    });
+
+    expect(outcome.kind).toBe('results');
+    if (outcome.kind !== 'results') return;
+    expect(outcome.selectedLotId).toBe('lot-1');
   });
 
   it('carries the tightened criteria through a refinement turn without reverting to the earlier budget', async () => {
-    const p2 = { searchByText: jest.fn().mockResolvedValue([makeLot({ id: 'lot-1' })]) };
+    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     // First turn: a broad request.
@@ -148,7 +222,7 @@ describe('BuyerSearchOrchestrator', () => {
 
   it('builds results only from what P2 returned and never reads a raw source', async () => {
     const returned = [makeLot({ id: 'lot-a' }), makeLot({ id: 'lot-b' })];
-    const p2 = { searchByText: jest.fn().mockResolvedValue(returned) };
+    const p2 = { search: jest.fn().mockResolvedValue(page(returned)) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
     const criteria = emptyBuyerCriteria('en');
     criteria.creators = ['Someone'];
@@ -159,10 +233,14 @@ describe('BuyerSearchOrchestrator', () => {
       ...baseLead,
     });
 
-    expect(p2.searchByText).toHaveBeenCalledTimes(1);
-    expect(p2.searchByText).toHaveBeenCalledWith('Someone', 'en');
+    expect(p2.search).toHaveBeenCalledTimes(1);
+    expect(p2.search).toHaveBeenCalledWith({
+      query: 'Someone',
+      language: 'en',
+    });
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
-    expect(outcome.items).toBe(returned);
+    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(returned);
+    expect(outcome.results.historical[0]?.lot).toBe(returned[0]);
   });
 });
