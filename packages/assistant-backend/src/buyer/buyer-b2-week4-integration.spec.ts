@@ -97,7 +97,9 @@ describe('B2 Week 4 integration', () => {
       });
       const criteria = service.getCriteriaForSession(first.sessionId);
 
-      const p2 = { searchByText: jest.fn().mockResolvedValue([]) };
+      const p2 = {
+        search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
+      };
       const orchestrator = new BuyerSearchOrchestrator(p2);
       const outcome = await orchestrator.search({
         criteria,
@@ -134,7 +136,9 @@ describe('B2 Week 4 integration', () => {
       expect(criteria.creators).toEqual([legacyTrace.turnMessage]);
       expect(criteria.price).toEqual(extracted.criteria.price);
 
-      const p2 = { searchByText: jest.fn().mockResolvedValue([]) };
+      const p2 = {
+        search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
+      };
       const orchestrator = new BuyerSearchOrchestrator(p2);
       const outcome = await orchestrator.search({
         criteria,

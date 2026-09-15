@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auctionLots';
 import { itemHistoryLotFixtures, upcomingLotWithHistoryFixture } from '../app/local-history-demo.fixture';
+import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auction-lots';
 import { ItemDetail } from './ItemDetail';
 
 describe('ItemDetail', () => {

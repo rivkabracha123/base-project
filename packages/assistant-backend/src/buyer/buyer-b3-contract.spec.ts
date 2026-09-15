@@ -41,6 +41,10 @@ describe('B2 → B3 criteria contract', () => {
     expect(criteriaToSearchRequest(criteria, criteria.language)).toEqual({
       query: 'Monet blue',
       language: 'en',
+      filters: {
+        categories: ['painting'],
+        price: { min: 10000, max: 10000, currency: 'USD' },
+      },
     });
     expect(session.conversation.missing).toEqual(['location']);
     expect(criteria.hardConstraints.length).toBeGreaterThan(0);
@@ -59,7 +63,9 @@ describe('B2 → B3 criteria contract', () => {
     const criteria = service.getCriteriaForSession(first.sessionId);
     const extracted = extractBuyerCriteriaFromFixture(traceFixture.p4);
 
-    const p2 = { searchByText: jest.fn().mockResolvedValue([]) };
+    const p2 = {
+      search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
+    };
     const orchestrator = new BuyerSearchOrchestrator(p2);
     const outcome = await orchestrator.search({
       criteria,

@@ -3,8 +3,18 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
+import type { PaginatedSearchResult } from './search-request';
 
 const repoRoot = resolve(__dirname, '../../../..');
+
+// Wraps fixture lots as the single-page PaginatedResult P2's real search() returns.
+const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
+  data,
+  total: data.length,
+  page: 1,
+  limit: data.length || 10,
+  totalPages: data.length > 0 ? 1 : 0,
+});
 
 const contract = JSON.parse(
   readFileSync(
@@ -17,8 +27,7 @@ const lots = JSON.parse(
   readFileSync(resolve(repoRoot, 'fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
 
-// The committed JSON fixture still uses the legacy flat criteria shape; this maps it onto the
-// canonical BuyerCriteria (price / creators[] / categories[] / periods[] / geography[]) B3 now receives.
+// The pre-canonical flat criteria shape the committed fixture still uses.
 type LegacyCriteria = {
   budget?: { min?: number; max?: number };
   category?: string;
@@ -28,6 +37,7 @@ type LegacyCriteria = {
   keywords?: string[];
 };
 
+// Maps the fixture's legacy criteria onto a canonical BuyerCriteria.
 const legacyToCanonical = (legacy: LegacyCriteria, language: 'en' | 'he' = 'en'): BuyerCriteria => {
   const criteria = emptyBuyerCriteria(language);
   if (legacy.budget) criteria.price = { ...legacy.budget, currency: 'USD' };
@@ -55,8 +65,7 @@ const lead = {
 
 const forbiddenKeys = ['profileId', 'sessionId', 'conversation'];
 
-// Week 3 checkpoint: trace one named fixture from B2 criteria + P2 search through B3 into
-// B4 results / P5 unmatched demand, with the budget and every hard filter preserved on both sides.
+// Week 3 checkpoint: trace one named fixture from B2/P2 through B3 into B4/P5, budget and filters preserved.
 describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
   const { scenario, expected } = contract;
   const criteria = legacyToCanonical(scenario.criteria, scenario.language);
@@ -67,7 +76,7 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
 
   it('carries the whole received criteria onto the B4 results handoff', async () => {
     const p2 = {
-      searchByText: jest.fn().mockResolvedValue(scenario.p2Results.resultsCase.map(lotById)),
+      search: jest.fn().mockResolvedValue(page(scenario.p2Results.resultsCase.map(lotById))),
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
@@ -80,8 +89,16 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.searchRequest.criteria).toEqual(expectedCriteria);
-    expect(outcome.searchRequest.hardConstraints).toEqual([]);
-    expect(outcome.items.map((l) => l.id)).toEqual(expected.results.itemIds);
+    expect(outcome.searchRequest.hardConstraints.map((constraint) => constraint.field)).toEqual([
+      'price',
+      'categories',
+      'creators',
+      'periods',
+      'geography',
+    ]);
+    expect(
+      [...outcome.results.current, ...outcome.results.historical].map((entry) => entry.lot.id),
+    ).toEqual(expected.results.itemIds);
 
     const serialized = JSON.stringify(outcome);
     for (const key of forbiddenKeys) {
@@ -91,7 +108,7 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
 
   it('carries the whole received criteria onto the P5 unmatched-demand handoff without inventing inventory', async () => {
     const p2 = {
-      searchByText: jest.fn().mockResolvedValue(scenario.p2Results.unmatchedCase.map(lotById)),
+      search: jest.fn().mockResolvedValue(page(scenario.p2Results.unmatchedCase.map(lotById))),
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
@@ -106,6 +123,10 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     expect(outcome.view.unmatchedDemand.searchRequest.criteria).toEqual(expectedCriteria);
     expect(outcome.view.unmatchedDemand.searchRequest.language).toBe(scenario.language);
     expect(outcome.view.unmatchedDemand.reason).toBe('no_results');
+    expect(outcome.view.unmatchedDemand.demandSummary.recovery).toBe('no_relaxation_no_invention');
+    expect(outcome.view.unmatchedDemand.demandSummary.hardConstraints).toEqual(
+      outcome.view.unmatchedDemand.searchRequest.hardConstraints,
+    );
 
     const serialized = JSON.stringify(outcome);
     for (const key of forbiddenKeys) {
@@ -115,7 +136,7 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
 
   it('leaves the received budget unchanged on the handoff (no silent relaxation by B3)', async () => {
     const p2 = {
-      searchByText: jest.fn().mockResolvedValue(scenario.p2Results.resultsCase.map(lotById)),
+      search: jest.fn().mockResolvedValue(page(scenario.p2Results.resultsCase.map(lotById))),
     };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
