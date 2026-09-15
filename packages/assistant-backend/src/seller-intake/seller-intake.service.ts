@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { SellerItemDraft } from '@monabid/shared';
+import type { SellerEvidenceReference, SellerItemDraft } from '@monabid/shared';
 
 const REQUIRED_SELLER_DETAILS = [
   'dimensions',
@@ -324,6 +324,57 @@ export class SellerIntakeService {
     };
   }
 
+  // Attach S2 evidence references without treating image metadata as seller-confirmed facts.
+  attachEvidenceReferences(
+    draft: SellerItemDraft,
+    references: SellerEvidenceReference[],
+  ): SellerItemDraft {
+    const referenceIds = new Set(references.map((reference) => reference.fileId));
+    const evidence = [
+      ...draft.evidence.filter((item) => !referenceIds.has(item.id)),
+      ...references.map((reference) => ({
+        id: reference.fileId,
+        type: 'photo',
+        source: 'seller-upload',
+        uri: reference.previewUri,
+        profileId: reference.profileId,
+        previewUri: reference.previewUri,
+        originalName: reference.originalName,
+        mimeType: reference.mimeType,
+        size: reference.size,
+      })),
+    ];
+
+    return {
+      ...draft,
+      item: {
+        ...draft.item,
+        evidenceIds: [
+          ...new Set([...draft.item.evidenceIds, ...references.map((reference) => reference.fileId)]),
+        ],
+      },
+      evidence,
+    };
+  }
+
+  // Link seller-selected evidence references to a fact without confirming the fact.
+  linkEvidenceToFact(
+    draft: SellerItemDraft,
+    field: 'dimensions' | 'condition' | 'marks' | 'signatures' | 'provenance',
+    evidenceIds: string[],
+  ): SellerItemDraft {
+    const availableEvidenceIds = new Set(draft.evidence.map((item) => item.id));
+    const linkedEvidenceIds = [...new Set(evidenceIds)].filter((id) => availableEvidenceIds.has(id));
+
+    return {
+      ...draft,
+      factEvidence: {
+        ...draft.factEvidence,
+        [field]: linkedEvidenceIds,
+      },
+    };
+  }
+
   // Prepare the downstream payload with only safe confirmed item facts.
   buildHandoffPayload(
     fixture: SellerItemDraft,
@@ -333,6 +384,7 @@ export class SellerIntakeService {
     confirmedFacts: SellerItemDraft['confirmedFacts'];
     uncertainFacts: SellerItemDraft['uncertainFacts'];
     evidence: SellerItemDraft['evidence'];
+    factEvidence?: SellerItemDraft['factEvidence'];
     revisionHistory: SellerItemDraft['revisionHistory'];
   } {
     return {
@@ -340,6 +392,7 @@ export class SellerIntakeService {
       confirmedFacts,
       uncertainFacts: fixture.uncertainFacts,
       evidence: fixture.evidence,
+      factEvidence: fixture.factEvidence,
       revisionHistory: fixture.revisionHistory,
     };
   }
