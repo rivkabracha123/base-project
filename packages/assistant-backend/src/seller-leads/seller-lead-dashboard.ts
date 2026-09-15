@@ -1,7 +1,8 @@
-import type { SellerLeadDashboardDetail } from '@monabid/shared';
+import type { DashboardValuation, SellerLeadDashboardDetail } from '@monabid/shared';
 import type { SellerLeadEntity } from '../database/seller-lead.entity';
 
 const UNSAFE_SOURCE = /^(file:|https?:)?\/|\\|[?&]signature=|signed/i;
+const UNSAFE_DASHBOARD_URL = /^file:|[\\]|[?&]signature=|signed/i;
 
 function safeEvidence(lead: SellerLeadEntity): SellerLeadDashboardDetail['evidence'] {
   return (lead.evidence ?? []).map((row) => ({
@@ -29,6 +30,34 @@ function safeItem(lead: SellerLeadEntity): SellerLeadDashboardDetail['item'] {
   };
 }
 
+function safeDashboardSource(source: DashboardValuation['comparables'][number]['source']) {
+  if (source.url && UNSAFE_DASHBOARD_URL.test(source.url)) {
+    return { label: 'Source unavailable', url: null };
+  }
+  return { label: source.label, url: source.url };
+}
+
+function toDashboardValuation(valuation: SellerLeadEntity['valuation']): DashboardValuation | null {
+  if (!valuation) return null;
+  const comparables = valuation.comparables.map((row) => ({
+    id: row.id,
+    source: safeDashboardSource(row.source),
+    ...(row.saleDate ? { saleDate: row.saleDate } : {}),
+  }));
+  const shared = {
+    reportId: valuation.reportId,
+    comparableCount: valuation.comparableCount,
+    confidence: valuation.confidence,
+    limitations: valuation.limitations,
+    comparables,
+    excludedComparables: valuation.excludedComparables,
+  };
+  if (valuation.status === 'supported') {
+    return { status: 'supported', ...shared, valuationRange: valuation.valuationRange };
+  }
+  return { status: 'refusal', ...shared, reason: valuation.reason };
+}
+
 /**
  * S5 → P5 dashboard detail. Strips profileId, session, marketing consent,
  * conversation, file paths, signed URLs, and raw evidence payloads.
@@ -36,6 +65,7 @@ function safeItem(lead: SellerLeadEntity): SellerLeadDashboardDetail['item'] {
 export function toSellerLeadDashboardDetail(lead: SellerLeadEntity): SellerLeadDashboardDetail {
   const ranking = lead.recommendation;
   const updatedAt = lead.updatedAt ?? lead.createdAt;
+  const granted = lead.serviceConsent === true;
   return {
     leadId: lead.id,
     status: lead.status ?? 'draft',
@@ -44,16 +74,16 @@ export function toSellerLeadDashboardDetail(lead: SellerLeadEntity): SellerLeadD
     item: safeItem(lead),
     evidence: safeEvidence(lead),
     comparables: safeComparables(lead),
-    valuation: lead.valuation ?? null,
+    valuation: toDashboardValuation(lead.valuation),
     recommendation: ranking?.recommendation ?? null,
     alternatives: ranking?.alternatives ?? [],
     sellerChoice: lead.sellerChoice ?? null,
     catalogDraft: lead.catalogDraft ?? null,
     contact: {
-      preferredName: lead.contact.preferredName,
-      ...(lead.contact.email ? { email: lead.contact.email } : {}),
-      ...(lead.contact.phone ? { phone: lead.contact.phone } : {}),
-      serviceConsent: lead.serviceConsent === true,
+      preferredName: lead.contact.preferredName || null,
+      email: granted ? lead.contact.email ?? null : null,
+      phone: granted ? lead.contact.phone ?? null : null,
+      serviceConsentGranted: granted,
     },
     history: lead.history ?? [],
   };

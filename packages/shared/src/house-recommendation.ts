@@ -76,19 +76,58 @@ export const sellerLeadEvidenceSchema = z.object({
   type: z.string().min(1),
 });
 
-/** S4 report or refusal snapshot. Range/reason are copied, not recalculated by S5. */
-export const sellerLeadValuationSchema = z.object({
-  status: z.enum(['supported', 'refusal']),
-  reportId: z.string().min(1).optional(),
-  reason: z.string().min(1).optional(),
-  valuationRange: z
-    .object({
+const dashboardSourceSchema = z.object({
+  label: z.string().min(1),
+  url: z.string().url().nullable(),
+});
+
+const dashboardValuationComparableSchema = z.object({
+  id: z.string().min(1),
+  source: dashboardSourceSchema,
+  saleDate: z.string().date().optional(),
+});
+
+const dashboardExcludedComparableSchema = z.object({
+  id: z.string().min(1),
+  reason: z.string().min(1),
+});
+
+const dashboardValuationConfidenceSchema = z.object({
+  level: z.literal('low'),
+  explanation: z.string().min(1),
+});
+
+const dashboardValuationSharedFields = {
+  reportId: z.string().min(1),
+  comparableCount: z.number().int().nonnegative(),
+  confidence: dashboardValuationConfidenceSchema,
+  limitations: z.array(z.string().min(1)).min(1),
+  comparables: z.array(dashboardValuationComparableSchema),
+  excludedComparables: z.array(dashboardExcludedComparableSchema),
+};
+
+/**
+ * S4 DashboardValuationDto. S5 copies this onto the lead and returns it to P5 as valuation.
+ * S5 does not recalculate. Unverified sources use label "Source unavailable" and url: null.
+ */
+export const dashboardValuationSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('supported'),
+    ...dashboardValuationSharedFields,
+    valuationRange: z.object({
       min: z.number(),
       max: z.number(),
       currency: z.literal('USD'),
-    })
-    .optional(),
-});
+    }),
+  }),
+  z.object({
+    status: z.literal('refusal'),
+    ...dashboardValuationSharedFields,
+    reason: z.string().min(1),
+  }),
+]);
+
+export const sellerLeadValuationSchema = dashboardValuationSchema;
 
 export const sellerLeadStatusSchema = z.enum(['draft', 'submitted']);
 
@@ -153,12 +192,23 @@ export const sellerLeadDashboardDetailSchema = z.object({
   alternatives: z.array(rankedHouseSchema),
   sellerChoice: sellerChoiceSchema.nullable(),
   catalogDraft: catalogDraftSchema.nullable(),
-  contact: z.object({
-    preferredName: z.string().min(1),
-    email: z.string().email().optional(),
-    phone: z.string().min(1).optional(),
-    serviceConsent: z.boolean(),
-  }),
+  contact: z
+    .object({
+      preferredName: z.string().min(1).nullable(),
+      email: z.string().email().nullable(),
+      phone: z.string().min(1).nullable(),
+      serviceConsentGranted: z.boolean(),
+    })
+    .superRefine((contact, ctx) => {
+      if (contact.serviceConsentGranted === false) {
+        if (contact.email !== null) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['email'], message: 'email must be null when serviceConsentGranted is false' });
+        }
+        if (contact.phone !== null) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['phone'], message: 'phone must be null when serviceConsentGranted is false' });
+        }
+      }
+    }),
   history: z.array(sellerLeadHistoryEventSchema),
 });
 
@@ -170,7 +220,8 @@ export type SellerChoice = z.infer<typeof sellerChoiceSchema>;
 export type CatalogDraft = z.infer<typeof catalogDraftSchema>;
 export type SellerLeadItem = z.infer<typeof sellerLeadItemSchema>;
 export type SellerLeadEvidence = z.infer<typeof sellerLeadEvidenceSchema>;
-export type SellerLeadValuation = z.infer<typeof sellerLeadValuationSchema>;
+export type DashboardValuation = z.infer<typeof dashboardValuationSchema>;
+export type SellerLeadValuation = DashboardValuation;
 export type SellerLeadStatus = z.infer<typeof sellerLeadStatusSchema>;
 export type SellerLeadHistoryEvent = z.infer<typeof sellerLeadHistoryEventSchema>;
 export type SellerLeadSummary = z.infer<typeof sellerLeadSummarySchema>;

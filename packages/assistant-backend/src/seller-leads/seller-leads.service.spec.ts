@@ -199,6 +199,15 @@ describe('SellerLeadsService', () => {
     valuation: {
       status: 'supported' as const,
       reportId: 'valuation-001',
+      comparableCount: 1,
+      confidence: {
+        level: 'low' as const,
+        explanation:
+          'Confidence is uncalibrated; low is a conservative default pending expert review, not a probability.',
+      },
+      limitations: ['Historical fixture rates and supplied evidence only; no current-market or growth adjustment.'],
+      comparables: [{ id: 'comp-001', source: { label: 'prepared-fixture', url: null } }],
+      excludedComparables: [],
       valuationRange: { min: 800, max: 1200, currency: 'USD' as const },
     },
   };

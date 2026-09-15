@@ -29,7 +29,7 @@ describe('SellerLeadsController dashboard detail (P5 contract)', () => {
       alternatives: NonNullable<SellerLeadEntity['recommendation']>['alternatives'];
       sellerChoice: SellerLeadEntity['sellerChoice'];
       catalogDraft: SellerLeadEntity['catalogDraft'];
-      contact: { preferredName: string; email?: string; serviceConsent: boolean };
+      contact: { preferredName: string; email: string | null; phone: string | null; serviceConsentGranted: boolean };
       history: SellerLeadEntity['history'];
     };
   };
@@ -64,7 +64,7 @@ describe('SellerLeadsController dashboard detail (P5 contract)', () => {
     return {
       id: fixture.leadId,
       profileId: 'profile-synthetic-seller-1',
-      contact: { preferredName: detail.contact.preferredName, email: detail.contact.email },
+      contact: { preferredName: detail.contact.preferredName, email: detail.contact.email ?? undefined },
       recommendation: {
         recommendation: detail.recommendation,
         alternatives: detail.alternatives,
@@ -99,13 +99,60 @@ describe('SellerLeadsController dashboard detail (P5 contract)', () => {
     expect(body.evidence.some((row) => 'uri' in row)).toBe(false);
     expect(body.comparables).toEqual([{ id: 'comp-001', source: 'prepared-fixture' }]);
     expect(body.valuation?.status).toBe('supported');
+    expect(body.valuation).toMatchObject({
+      comparableCount: 1,
+      confidence: { level: 'low' },
+      limitations: ['Historical fixture rates and supplied evidence only; no current-market or growth adjustment.'],
+      comparables: [{ id: 'comp-001', source: { label: 'prepared-fixture', url: null } }],
+      excludedComparables: [],
+      valuationRange: { min: 800, max: 1200, currency: 'USD' },
+    });
     expect(body.recommendation?.house.id).toBe('house-kestenbaum');
     expect(body.alternatives[0]?.house.id).toBe('house-kedem');
     expect(body.sellerChoice?.houseId).toBe('house-kedem');
     expect(body.catalogDraft?.en).toBe('Abstract landscape study');
-    expect(body.contact.serviceConsent).toBe(true);
+    expect(body.contact.serviceConsentGranted).toBe(true);
+    expect(body.contact.email).toBe('synthetic.seller@example.test');
+    expect(body.contact.phone).toBeNull();
     expect(body).not.toHaveProperty('profileId');
     expect(JSON.stringify(body)).not.toMatch(FORBIDDEN);
+    expect(JSON.stringify(body)).not.toContain('file:///tmp/secret.jpg');
+  });
+
+  it('GET /api/seller-leads/:leadId nulls email and phone when service consent is not granted', async () => {
+    stored.length = 0;
+    stored.push({ ...storedLead(), serviceConsent: false });
+
+    const response = await fetch(`${baseUrl}/api/seller-leads/${fixture.leadId}`);
+    expect(response.status).toBe(200);
+    const body = sellerLeadDashboardDetailSchema.parse(await response.json());
+    expect(body.contact.serviceConsentGranted).toBe(false);
+    expect(body.contact.email).toBeNull();
+    expect(body.contact.phone).toBeNull();
+    expect(body.contact.preferredName).toBe('Synthetic Seller');
+  });
+
+  it('GET /api/seller-leads/:leadId replaces unsafe comparable URLs with Source unavailable', async () => {
+    stored.length = 0;
+    const lead = storedLead();
+    if (lead.valuation?.status === 'supported') {
+      lead.valuation = {
+        ...lead.valuation,
+        comparables: [
+          {
+            id: 'comp-unsafe',
+            source: { label: 'secret', url: 'file:///tmp/secret.jpg' },
+          },
+        ],
+      };
+    }
+    stored.push(lead);
+
+    const response = await fetch(`${baseUrl}/api/seller-leads/${fixture.leadId}`);
+    const body = sellerLeadDashboardDetailSchema.parse(await response.json());
+    expect(body.valuation && 'comparables' in body.valuation ? body.valuation.comparables : []).toEqual([
+      { id: 'comp-unsafe', source: { label: 'Source unavailable', url: null } },
+    ]);
     expect(JSON.stringify(body)).not.toContain('file:///tmp/secret.jpg');
   });
 

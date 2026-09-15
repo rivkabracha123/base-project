@@ -203,7 +203,20 @@ describe('SellerLeadsController house ranking (contract)', () => {
         evidenceIds: ['evidence-001'],
       },
       evidence: [{ id: 'evidence-001', type: 'seller_statement' }],
-      valuation: { status: 'refusal', reason: 'insufficient_evidence' },
+      valuation: {
+        status: 'refusal',
+        reportId: 'valuation-refusal-001',
+        reason: 'insufficient_evidence',
+        comparableCount: 0,
+        confidence: {
+          level: 'low',
+          explanation:
+            'Confidence is uncalibrated; low is a conservative default pending expert review, not a probability.',
+        },
+        limitations: ['Insufficient sold comparables for a supported range.'],
+        comparables: [],
+        excludedComparables: [],
+      },
     };
     const submitted = await postRanking('/api/seller-leads/lead-1/final', handoff);
     expect(submitted.status).toBe(200);
