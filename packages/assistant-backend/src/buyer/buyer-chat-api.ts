@@ -1,7 +1,7 @@
 export type BuyerChatSpeaker = 'system' | 'buyer';
 
-/** B2 → Tamar: system question shown in chat after extract or turn. */
-export type BuyerCriteriaB1Response = {
+/** System message Tamar shows after extract or a clarification turn. */
+export type BuyerChatSystemMessage = {
   id: string;
   sessionId: string;
   speaker: 'system';
@@ -9,8 +9,8 @@ export type BuyerCriteriaB1Response = {
   date: string;
 };
 
-/** Tamar → B2: buyer answer or explicit skip. */
-export type BuyerCriteriaTurnRequest =
+/** Buyer answer or explicit skip sent from Tamar back to the criteria session. */
+export type BuyerChatTurnInput =
   | {
       id: string;
       sessionId: string;
@@ -28,20 +28,20 @@ export type BuyerCriteriaTurnRequest =
     };
 
 /** One line in session history — same ids as Tamar chat messages. */
-export type BuyerCriteriaHistoryEntry =
+export type BuyerChatHistoryEntry =
   | { id: string; speaker: 'system'; text: string; date: string }
   | { id: string; speaker: 'buyer'; skipped: false; text: string; date: string }
   | { id: string; speaker: 'buyer'; skipped: true; date: string };
 
-export type BuyerCriteriaHistoryInput =
+export type BuyerChatHistoryInput =
   | { id: string; speaker: 'system'; text: string; date: string }
   | { id: string; speaker: 'buyer'; skipped: false; text: string; date: string }
   | { id: string; speaker: 'buyer'; skipped: true; date: string };
 
-export function toBuyerCriteriaB1Response(
+export function toBuyerChatSystemMessage(
   sessionId: string,
   message: { id: string; speaker: 'system'; text: string; date: string },
-): BuyerCriteriaB1Response {
+): BuyerChatSystemMessage {
   return {
     id: message.id,
     sessionId,

@@ -64,14 +64,15 @@ export function emptyBuyerCriteria(language: BuyerLanguage = 'en'): BuyerCriteri
   };
 }
 
-export type BuyerCriteriaTurnState = {
+export type CriteriaConversationTurn = {
   criteria: BuyerCriteria;
   conversation: BuyerCriteriaConversation;
   action: 'answer' | 'skip';
   message?: string;
 };
 
-export type P4BuyerHandoff = {
+/** Validated structured fields from upstream (preferred over free-text content). */
+export type StructuredHandoffAnswer = {
   role: 'buyer';
   language: BuyerLanguage;
   intent: string;
@@ -85,7 +86,8 @@ export type P4BuyerHandoff = {
   hasImages: boolean;
 };
 
-export type P4FixtureResponse = {
+/** Upstream handoff payload (fixture or live) received at POST /buyer/extract. */
+export type UpstreamHandoffResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
   isRelevant?: boolean;
@@ -95,10 +97,10 @@ export type P4FixtureResponse = {
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
-  structuredAnswer?: P4BuyerHandoff;
+  structuredAnswer?: StructuredHandoffAnswer;
 };
 
-export function isP4BuyerHandoff(value: unknown): value is P4BuyerHandoff {
+export function isStructuredHandoffAnswer(value: unknown): value is StructuredHandoffAnswer {
   if (!value || typeof value !== 'object') {
     return false;
   }
@@ -320,7 +322,7 @@ function withConversation(
   };
 }
 
-function criteriaFromP4Handoff(handoff: P4BuyerHandoff): BuyerCriteria {
+function criteriaFromStructuredHandoff(handoff: StructuredHandoffAnswer): BuyerCriteria {
   return {
     ...emptyBuyerCriteria(handoff.language),
     categories: handoff.category?.trim() ? [handoff.category.trim()] : [],
@@ -334,13 +336,13 @@ function criteriaFromP4Handoff(handoff: P4BuyerHandoff): BuyerCriteria {
   };
 }
 
-function extractFromP4Handoff(response: P4FixtureResponse, handoff: P4BuyerHandoff): BuyerCriteriaResponse {
-  return withConversation(criteriaFromP4Handoff(handoff), {
+function parseFromStructuredHandoff(response: UpstreamHandoffResponse, handoff: StructuredHandoffAnswer): BuyerCriteriaResponse {
+  return withConversation(criteriaFromStructuredHandoff(handoff), {
     notes: [response.summary, handoff.intent].filter((note) => note.trim().length > 0),
   });
 }
 
-function extractFromP4Content(response: P4FixtureResponse): BuyerCriteriaResponse {
+function parseFromHandoffText(response: UpstreamHandoffResponse): BuyerCriteriaResponse {
   const text = `${response.content} ${response.summary} ${response.recommendation} ${response.nextAction}`;
   const category = parseCategory(text);
   const keywords = extractKeywords(text);
@@ -357,16 +359,17 @@ function extractFromP4Content(response: P4FixtureResponse): BuyerCriteriaRespons
   });
 }
 
-export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): BuyerCriteriaResponse {
+/** Parse upstream handoff into criteria plus the next clarification question. */
+export function parseCriteriaFromHandoff(response: UpstreamHandoffResponse): BuyerCriteriaResponse {
   if (response.isRelevant === false) {
     throw new Error(response.error ?? 'The request is not related to buying or selling.');
   }
 
-  if (isP4BuyerHandoff(response.structuredAnswer)) {
-    return extractFromP4Handoff(response, response.structuredAnswer);
+  if (isStructuredHandoffAnswer(response.structuredAnswer)) {
+    return parseFromStructuredHandoff(response, response.structuredAnswer);
   }
 
-  return extractFromP4Content(response);
+  return parseFromHandoffText(response);
 }
 
 export function mergeBuyerCriteria(
@@ -463,7 +466,8 @@ export function skipCurrentQuestion(
   return withConversation(criteria, { ...conversation, skipped });
 }
 
-export function processCriteriaTurn(state: BuyerCriteriaTurnState): BuyerCriteriaResponse {
+/** Apply one buyer answer or skip to the in-memory criteria conversation state. */
+export function applyCriteriaConversationTurn(state: CriteriaConversationTurn): BuyerCriteriaResponse {
   if (state.action === 'skip') {
     return skipCurrentQuestion(state.criteria, state.conversation);
   }

@@ -1,7 +1,7 @@
-import type { BuyerCriteriaTurnState, P4BuyerHandoff, P4FixtureResponse } from './buyer-criteria';
+import type { CriteriaConversationTurn, StructuredHandoffAnswer, UpstreamHandoffResponse } from './buyer-criteria';
 
-export const week3P4Fixtures = {
-  paintingEn: (): P4FixtureResponse => ({
+export const sampleHandoffResponses = {
+  paintingEn: (): UpstreamHandoffResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'The buyer wants a blue painting from the 19th century with a budget around $10k.',
@@ -10,7 +10,7 @@ export const week3P4Fixtures = {
     nextAction: 'ask creator',
     confidence: 'medium',
   }),
-  paintingHe: (): P4FixtureResponse => ({
+  paintingHe: (): UpstreamHandoffResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'אני מחפשת ציור כחול מהמאה ה-19 עד 10000 שקל',
@@ -19,7 +19,7 @@ export const week3P4Fixtures = {
     nextAction: 'שאל על אמן',
     confidence: 'medium',
   }),
-  vagueEn: (): P4FixtureResponse => ({
+  vagueEn: (): UpstreamHandoffResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'Looking for something interesting for my collection.',
@@ -28,7 +28,7 @@ export const week3P4Fixtures = {
     nextAction: 'clarify',
     confidence: 'medium',
   }),
-  manuscriptEn: (): P4FixtureResponse => ({
+  manuscriptEn: (): UpstreamHandoffResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'Looking for rare Hebrew manuscript under $15k.',
@@ -39,8 +39,8 @@ export const week3P4Fixtures = {
   }),
 };
 
-export const week4P4HandoffFixtures = {
-  blueRingHe: (): P4FixtureResponse => ({
+export const structuredHandoffSamples = {
+  blueRingHe: (): UpstreamHandoffResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     isRelevant: true,
@@ -58,9 +58,9 @@ export const week4P4HandoffFixtures = {
       keywords: ['blue'],
       hasContactDetails: false,
       hasImages: false,
-    } satisfies P4BuyerHandoff,
+    } satisfies StructuredHandoffAnswer,
   }),
-  irrelevantHe: (): P4FixtureResponse => ({
+  irrelevantHe: (): UpstreamHandoffResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     isRelevant: false,
@@ -73,8 +73,8 @@ export const week4P4HandoffFixtures = {
   }),
 };
 
-export const week3TurnStates = {
-  answerMonet: (): BuyerCriteriaTurnState => ({
+export const sampleConversationTurns = {
+  answerMonet: (): CriteriaConversationTurn => ({
     action: 'answer',
     message: 'Monet',
     criteria: {
@@ -96,7 +96,7 @@ export const week3TurnStates = {
       notes: ['painting search'],
     },
   }),
-  skipLocation: (): BuyerCriteriaTurnState => ({
+  skipLocation: (): CriteriaConversationTurn => ({
     action: 'skip',
     criteria: {
       categories: ['painting'],
@@ -119,8 +119,8 @@ export const week3TurnStates = {
   }),
 };
 
-/** Week 4 integration trace: legacy P4 painting extract + Monet turn (was b2-week4-integration-trace.json). */
-export const week4IntegrationTrace = {
-  p4: week3P4Fixtures.paintingEn(),
-  turnMessage: 'Monet',
+/** Example used in refinement integration tests: initial handoff + one buyer answer. */
+export const refinementExample = {
+  initialHandoff: sampleHandoffResponses.paintingEn(),
+  buyerAnswer: 'Monet',
 } as const;

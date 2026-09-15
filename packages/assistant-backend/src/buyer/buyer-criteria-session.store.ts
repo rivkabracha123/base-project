@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { BuyerCriteriaHistoryEntry, BuyerCriteriaHistoryInput } from './buyer-chat-api';
+import type { BuyerChatHistoryEntry, BuyerChatHistoryInput } from './buyer-chat-api';
 import type { BuyerCriteria, BuyerCriteriaConversation, BuyerCriteriaResponse } from './buyer-criteria';
 
 type BuyerCriteriaSessionRecord = {
   criteria: BuyerCriteria;
   conversation: BuyerCriteriaConversation;
-  history: BuyerCriteriaHistoryEntry[];
+  history: BuyerChatHistoryEntry[];
 };
 
 const sessions = new Map<string, BuyerCriteriaSessionRecord>();
@@ -13,14 +13,14 @@ const sessions = new Map<string, BuyerCriteriaSessionRecord>();
 /** Listener — append one chat line for DB/history; caller supplies id. */
 export function appendBuyerCriteriaHistory(
   sessionId: string,
-  entry: BuyerCriteriaHistoryInput,
-): BuyerCriteriaHistoryEntry {
+  entry: BuyerChatHistoryInput,
+): BuyerChatHistoryEntry {
   const existing = sessions.get(sessionId);
   if (!existing) {
     throw new Error(`Unknown buyer criteria session: ${sessionId}`);
   }
 
-  const saved: BuyerCriteriaHistoryEntry = entry;
+  const saved: BuyerChatHistoryEntry = entry;
   sessions.set(sessionId, {
     ...existing,
     history: [...existing.history, saved],
@@ -31,7 +31,7 @@ export function appendBuyerCriteriaHistory(
 export function createBuyerCriteriaSession(
   response: BuyerCriteriaResponse,
   date: string,
-): { sessionId: string; systemMessage: BuyerCriteriaHistoryEntry & { speaker: 'system' } } {
+): { sessionId: string; systemMessage: BuyerChatHistoryEntry & { speaker: 'system' } } {
   const sessionId = randomUUID();
   sessions.set(sessionId, {
     criteria: response.criteria,
@@ -43,7 +43,7 @@ export function createBuyerCriteriaSession(
     speaker: 'system',
     text: response.conversation.nextQuestion,
     date,
-  }) as BuyerCriteriaHistoryEntry & { speaker: 'system' };
+  }) as BuyerChatHistoryEntry & { speaker: 'system' };
   return { sessionId, systemMessage };
 }
 
@@ -55,7 +55,7 @@ export function saveBuyerCriteriaSessionTurn(
   sessionId: string,
   response: BuyerCriteriaResponse,
   date: string,
-): (BuyerCriteriaHistoryEntry & { speaker: 'system' }) | undefined {
+): (BuyerChatHistoryEntry & { speaker: 'system' }) | undefined {
   const existing = sessions.get(sessionId);
   if (!existing) {
     throw new Error(`Unknown buyer criteria session: ${sessionId}`);
@@ -76,7 +76,7 @@ export function saveBuyerCriteriaSessionTurn(
     speaker: 'system',
     text: response.conversation.nextQuestion,
     date,
-  }) as BuyerCriteriaHistoryEntry & { speaker: 'system' };
+  }) as BuyerChatHistoryEntry & { speaker: 'system' };
 }
 
 export function resetBuyerCriteriaSessions(): void {

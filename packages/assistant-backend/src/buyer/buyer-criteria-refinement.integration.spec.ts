@@ -1,20 +1,20 @@
-import { extractBuyerCriteriaFromFixture } from './buyer-criteria';
+import { parseCriteriaFromHandoff } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { week4IntegrationTrace, week4P4HandoffFixtures } from './buyer-criteria.test-helpers';
+import { refinementExample, structuredHandoffSamples } from './buyer-criteria.fixtures';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
 
-describe('B2 Week 4 integration', () => {
+describe('Criteria refinement across chat and search', () => {
   const service = new BuyerCriteriaService();
 
   beforeEach(() => {
     service.resetSessionsForTests();
   });
 
-  describe('P4 (Shilat) → B2 extract', () => {
+  describe('Start session from upstream handoff', () => {
     it('maps structuredAnswer into server-side criteria and returns display fields only', () => {
-      const response = service.extractFromFixture(week4P4HandoffFixtures.blueRingHe());
+      const response = service.startCriteriaSessionFromHandoff(structuredHandoffSamples.blueRingHe());
       const session = service.getSessionResponse(response.sessionId);
 
       expect(response.text).toBe('יש טווח תקציב שכדאי להישאר בתוכו?');
@@ -24,8 +24,8 @@ describe('B2 Week 4 integration', () => {
       expect(session.conversation.missing).toContain('budget');
     });
 
-    it('still supports legacy content-only P4 fixtures', () => {
-      const response = service.extractFromFixture(week4IntegrationTrace.p4);
+    it('still supports legacy content-only handoff fixtures', () => {
+      const response = service.startCriteriaSessionFromHandoff(refinementExample.initialHandoff);
       const criteria = service.getCriteriaForSession(response.sessionId);
 
       expect(criteria.categories).toEqual(['painting']);
@@ -33,11 +33,11 @@ describe('B2 Week 4 integration', () => {
     });
   });
 
-  describe('B2 session history across turns', () => {
+  describe('Session history across clarification turns', () => {
     it('preserves criteria and hardConstraints after answer and skip turns', () => {
-      const first = service.extractFromFixture(week4P4HandoffFixtures.blueRingHe());
+      const first = service.startCriteriaSessionFromHandoff(structuredHandoffSamples.blueRingHe());
 
-      service.processTurn({
+      service.continueCriteriaSessionFromChatTurn({
         id: 'buyer-budget',
         sessionId: first.sessionId,
         speaker: 'buyer',
@@ -52,7 +52,7 @@ describe('B2 Week 4 integration', () => {
         expect.arrayContaining([expect.objectContaining({ field: 'price', operator: 'range' })]),
       );
 
-      service.processTurn({
+      service.continueCriteriaSessionFromChatTurn({
         id: 'buyer-skip',
         sessionId: first.sessionId,
         speaker: 'buyer',
@@ -72,10 +72,10 @@ describe('B2 Week 4 integration', () => {
     });
   });
 
-  describe('B2 → B3 handoff after refinement', () => {
-    it('traces Shilat handoff through turn into B3 with hardConstraints passthrough', async () => {
-      const first = service.extractFromFixture(week4P4HandoffFixtures.blueRingHe());
-      service.processTurn({
+  describe('Search handoff after refinement', () => {
+    it('passes hardConstraints through to the search orchestrator', async () => {
+      const first = service.startCriteriaSessionFromHandoff(structuredHandoffSamples.blueRingHe());
+      service.continueCriteriaSessionFromChatTurn({
         id: 'buyer-budget',
         sessionId: first.sessionId,
         speaker: 'buyer',
@@ -108,20 +108,20 @@ describe('B2 Week 4 integration', () => {
       expect(outcome.view.unmatchedDemand.searchRequest.criteria.categories).toEqual(['טבעות']);
     });
 
-    it('traces the named Week 4 fixture file through extract, turn, and B3', async () => {
-      const first = service.extractFromFixture(week4IntegrationTrace.p4);
-      service.processTurn({
+    it('traces a named refinement example through extract, turn, and search', async () => {
+      const first = service.startCriteriaSessionFromHandoff(refinementExample.initialHandoff);
+      service.continueCriteriaSessionFromChatTurn({
         id: 'buyer-trace',
         sessionId: first.sessionId,
         speaker: 'buyer',
         skipped: false,
-        text: week4IntegrationTrace.turnMessage,
+        text: refinementExample.buyerAnswer,
         date: buyerAt,
       });
       const criteria = service.getCriteriaForSession(first.sessionId);
-      const extracted = extractBuyerCriteriaFromFixture(week4IntegrationTrace.p4);
+      const extracted = parseCriteriaFromHandoff(refinementExample.initialHandoff);
 
-      expect(criteria.creators).toEqual([week4IntegrationTrace.turnMessage]);
+      expect(criteria.creators).toEqual([refinementExample.buyerAnswer]);
       expect(criteria.price).toEqual(extracted.criteria.price);
 
       const p2 = {

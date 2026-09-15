@@ -2,16 +2,16 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { randomUUID } from 'node:crypto';
 import type { BuyerCriteria } from './buyer-criteria';
 import {
-  BuyerCriteriaB1Response,
-  BuyerCriteriaHistoryEntry,
-  BuyerCriteriaTurnRequest,
-  toBuyerCriteriaB1Response,
+  BuyerChatSystemMessage,
+  BuyerChatHistoryEntry,
+  BuyerChatTurnInput,
+  toBuyerChatSystemMessage,
 } from './buyer-chat-api';
 import {
   BuyerCriteriaResponse,
-  P4FixtureResponse,
-  extractBuyerCriteriaFromFixture,
-  processCriteriaTurn,
+  UpstreamHandoffResponse,
+  parseCriteriaFromHandoff,
+  applyCriteriaConversationTurn,
 } from './buyer-criteria';
 import {
   appendBuyerCriteriaHistory,
@@ -23,7 +23,7 @@ import {
 
 export { appendBuyerCriteriaHistory };
 
-function toHistoryEntry(request: BuyerCriteriaTurnRequest): BuyerCriteriaHistoryEntry {
+function toHistoryEntry(request: BuyerChatTurnInput): BuyerChatHistoryEntry {
   if (request.skipped) {
     return { id: request.id, speaker: 'buyer', skipped: true, date: request.date };
   }
@@ -38,14 +38,16 @@ function toHistoryEntry(request: BuyerCriteriaTurnRequest): BuyerCriteriaHistory
 
 @Injectable()
 export class BuyerCriteriaService {
-  extractFromFixture(response: P4FixtureResponse): BuyerCriteriaB1Response {
-    const extracted = extractBuyerCriteriaFromFixture(response);
+  /** Create a criteria session from upstream handoff and return the first system question for Tamar. */
+  startCriteriaSessionFromHandoff(response: UpstreamHandoffResponse): BuyerChatSystemMessage {
+    const extracted = parseCriteriaFromHandoff(response);
     const date = new Date().toISOString();
     const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted, date);
-    return toBuyerCriteriaB1Response(sessionId, systemMessage);
+    return toBuyerChatSystemMessage(sessionId, systemMessage);
   }
 
-  processTurn(request: BuyerCriteriaTurnRequest): BuyerCriteriaB1Response {
+  /** Apply a buyer chat turn (answer or skip) and return the next system question for Tamar. */
+  continueCriteriaSessionFromChatTurn(request: BuyerChatTurnInput): BuyerChatSystemMessage {
     const session = getBuyerCriteriaSession(request.sessionId);
     if (!session) {
       throw new NotFoundException(`Unknown buyer criteria session: ${request.sessionId}`);
@@ -65,7 +67,7 @@ export class BuyerCriteriaService {
 
     appendBuyerCriteriaHistory(request.sessionId, toHistoryEntry(request));
 
-    const updated = processCriteriaTurn({
+    const updated = applyCriteriaConversationTurn({
       criteria: session.criteria,
       conversation: session.conversation,
       action: request.skipped ? 'skip' : 'answer',
@@ -75,10 +77,10 @@ export class BuyerCriteriaService {
     const date = new Date().toISOString();
     const systemMessage = saveBuyerCriteriaSessionTurn(request.sessionId, updated, date);
     if (systemMessage) {
-      return toBuyerCriteriaB1Response(request.sessionId, systemMessage);
+      return toBuyerChatSystemMessage(request.sessionId, systemMessage);
     }
 
-    return toBuyerCriteriaB1Response(request.sessionId, {
+    return toBuyerChatSystemMessage(request.sessionId, {
       id: randomUUID(),
       speaker: 'system',
       text: updated.conversation.nextQuestion,
@@ -105,7 +107,7 @@ export class BuyerCriteriaService {
     };
   }
 
-  getHistory(sessionId: string): BuyerCriteriaHistoryEntry[] {
+  getHistory(sessionId: string): BuyerChatHistoryEntry[] {
     const session = getBuyerCriteriaSession(sessionId);
     if (!session) {
       throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);

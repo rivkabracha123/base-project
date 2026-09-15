@@ -1,5 +1,5 @@
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { week3P4Fixtures } from './buyer-criteria.test-helpers';
+import { sampleHandoffResponses } from './buyer-criteria.fixtures';
 import { resetBuyerCriteriaSessions } from './buyer-criteria-session.store';
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
@@ -14,7 +14,7 @@ describe('Tamar chat API (extract / criteria turn)', () => {
   });
 
   it('returns a system chat message after extract — Tamar does not receive criteria', () => {
-    const response = service.extractFromFixture(week3P4Fixtures.paintingEn());
+    const response = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
 
     expect(response).toEqual({
       id: expect.any(String),
@@ -28,8 +28,8 @@ describe('Tamar chat API (extract / criteria turn)', () => {
   });
 
   it('stores history when Tamar sends a buyer message back', () => {
-    const first = service.extractFromFixture(week3P4Fixtures.paintingEn());
-    const second = service.processTurn({
+    const first = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
+    const second = service.continueCriteriaSessionFromChatTurn({
       id: buyerMessageId,
       sessionId: first.sessionId,
       speaker: 'buyer',
@@ -66,8 +66,8 @@ describe('Tamar chat API (extract / criteria turn)', () => {
   });
 
   it('treats skipped: true as skip', () => {
-    const first = service.extractFromFixture(week3P4Fixtures.paintingEn());
-    service.processTurn({
+    const first = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
+    service.continueCriteriaSessionFromChatTurn({
       id: buyerMessageId,
       sessionId: first.sessionId,
       speaker: 'buyer',
@@ -75,7 +75,7 @@ describe('Tamar chat API (extract / criteria turn)', () => {
       text: 'Monet',
       date: buyerAt,
     });
-    const afterSkip = service.processTurn({
+    const afterSkip = service.continueCriteriaSessionFromChatTurn({
       id: skipMessageId,
       sessionId: first.sessionId,
       speaker: 'buyer',

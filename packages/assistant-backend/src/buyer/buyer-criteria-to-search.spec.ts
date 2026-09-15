@@ -1,6 +1,6 @@
-import { deriveHardConstraints, extractBuyerCriteriaFromFixture } from './buyer-criteria';
+import { deriveHardConstraints, parseCriteriaFromHandoff } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { week3P4Fixtures, week4IntegrationTrace } from './buyer-criteria.test-helpers';
+import { sampleHandoffResponses, refinementExample } from './buyer-criteria.fixtures';
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
@@ -13,9 +13,9 @@ describe('Criteria search handoff (session → orchestrator)', () => {
     service.resetSessionsForTests();
   });
 
-  it('passes clarified criteria into B3 search request shape', () => {
-    const first = service.extractFromFixture(week3P4Fixtures.paintingEn());
-    service.processTurn({
+  it('passes clarified criteria into the lots search request shape', () => {
+    const first = service.startCriteriaSessionFromHandoff(sampleHandoffResponses.paintingEn());
+    service.continueCriteriaSessionFromChatTurn({
       id: 'buyer-monet',
       sessionId: first.sessionId,
       speaker: 'buyer',
@@ -38,18 +38,18 @@ describe('Criteria search handoff (session → orchestrator)', () => {
     expect(criteria.hardConstraints.length).toBeGreaterThan(0);
   });
 
-  it('traces the Week 4 named fixture through extract, turn, and B3 handoff', async () => {
-    const first = service.extractFromFixture(week4IntegrationTrace.p4);
-    service.processTurn({
+  it('traces a refinement example through session, turn, and search orchestrator', async () => {
+    const first = service.startCriteriaSessionFromHandoff(refinementExample.initialHandoff);
+    service.continueCriteriaSessionFromChatTurn({
       id: 'buyer-trace',
       sessionId: first.sessionId,
       speaker: 'buyer',
       skipped: false,
-      text: week4IntegrationTrace.turnMessage,
+      text: refinementExample.buyerAnswer,
       date: buyerAt,
     });
     const criteria = service.getCriteriaForSession(first.sessionId);
-    const extracted = extractBuyerCriteriaFromFixture(week4IntegrationTrace.p4);
+    const extracted = parseCriteriaFromHandoff(refinementExample.initialHandoff);
 
     const p2 = {
       search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
@@ -65,7 +65,7 @@ describe('Criteria search handoff (session → orchestrator)', () => {
     });
 
     expect(criteria.price).toEqual(extracted.criteria.price);
-    expect(criteria.creators).toEqual([week4IntegrationTrace.turnMessage]);
+    expect(criteria.creators).toEqual([refinementExample.buyerAnswer]);
     expect(criteria.hardConstraints).toEqual(deriveHardConstraints(criteria));
 
     expect(outcome.kind).toBe('unmatched');

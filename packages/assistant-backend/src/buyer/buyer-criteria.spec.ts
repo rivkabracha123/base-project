@@ -1,17 +1,17 @@
 import {
   applyBuyerAnswer,
   emptyBuyerCriteria,
-  extractBuyerCriteriaFromFixture,
+  parseCriteriaFromHandoff,
   mergeBuyerCriteria,
   nextFocusedQuestion,
-  processCriteriaTurn,
+  applyCriteriaConversationTurn,
   skipCurrentQuestion,
 } from './buyer-criteria';
-import { week3P4Fixtures, week3TurnStates, week4P4HandoffFixtures } from './buyer-criteria.test-helpers';
+import { sampleHandoffResponses, sampleConversationTurns, structuredHandoffSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
   it('extracts a basic structured request from a fixture response', () => {
-    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+    const result = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
 
     expect(result.criteria.categories).toEqual(['painting']);
     expect(result.criteria.keywords).toEqual(['blue']);
@@ -38,7 +38,7 @@ describe('BuyerCriteria extraction', () => {
   });
 
   it('handles complex fixture with ranges, multiple values, and missing fields', () => {
-    const result = extractBuyerCriteriaFromFixture({
+    const result = parseCriteriaFromHandoff({
       provider: 'fixture',
       mode: 'fixture',
       content: 'Looking for sculpture, blue or red, from 1920-1930, budget $5k-$15k, location not specified, artist unknown.',
@@ -66,15 +66,15 @@ describe('BuyerCriteria extraction', () => {
 
 describe('Week 3 focused questions', () => {
   it('loads shared fixtures from test helpers', () => {
-    const fromFile = week3P4Fixtures.paintingEn();
-    const fromCode = extractBuyerCriteriaFromFixture(fromFile);
+    const fromFile = sampleHandoffResponses.paintingEn();
+    const fromCode = parseCriteriaFromHandoff(fromFile);
 
     expect(fromFile.mode).toBe('fixture');
     expect(fromCode.criteria.categories).toEqual(['painting']);
   });
 
   it('asks one Hebrew question for the first missing search fact', () => {
-    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingHe());
+    const result = parseCriteriaFromHandoff(sampleHandoffResponses.paintingHe());
 
     expect(result.criteria.language).toBe('he');
     expect(result.conversation.missing[0]).toBe('creator');
@@ -112,7 +112,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('skips an optional question and moves to the next missing fact', () => {
-    const initial = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+    const initial = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
     const afterSkip = skipCurrentQuestion(initial.criteria, initial.conversation);
 
     expect(initial.conversation.missing[0]).toBe('creator');
@@ -123,7 +123,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('does not skip category when search intent is still missing', () => {
-    const unclear = extractBuyerCriteriaFromFixture(week3P4Fixtures.vagueEn());
+    const unclear = parseCriteriaFromHandoff(sampleHandoffResponses.vagueEn());
 
     expect(unclear.conversation.missing[0]).toBe('budget');
 
@@ -142,7 +142,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('extracts keywords from the first message so category is not required twice', () => {
-    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.manuscriptEn());
+    const result = parseCriteriaFromHandoff(sampleHandoffResponses.manuscriptEn());
 
     expect(result.criteria.categories).toEqual([]);
     expect(result.criteria.keywords).toEqual(expect.arrayContaining(['rare', 'Hebrew', 'manuscript']));
@@ -151,7 +151,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('stores a free-text category answer as keywords when no known category matches', () => {
-    const afterAnswer = processCriteriaTurn({
+    const afterAnswer = applyCriteriaConversationTurn({
       criteria: emptyBuyerCriteria('en'),
       conversation: {
         skipped: ['budget'],
@@ -169,13 +169,13 @@ describe('Week 3 focused questions', () => {
   });
 
   it('applies answer and skip using shared turn fixtures', () => {
-    const afterAnswer = processCriteriaTurn(week3TurnStates.answerMonet());
+    const afterAnswer = applyCriteriaConversationTurn(sampleConversationTurns.answerMonet());
 
     expect(afterAnswer.criteria.creators).toEqual(['Monet']);
     expect(afterAnswer.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
     expect(afterAnswer.conversation.missing).toEqual(['location']);
 
-    const afterSkip = processCriteriaTurn(week3TurnStates.skipLocation());
+    const afterSkip = applyCriteriaConversationTurn(sampleConversationTurns.skipLocation());
 
     expect(afterSkip.conversation.skipped).toEqual(['location']);
     expect(afterSkip.conversation.missing).toEqual([]);
@@ -185,7 +185,7 @@ describe('Week 3 focused questions', () => {
 
 describe('Week 4 hardConstraints', () => {
   it('derives constraints from confirmed criteria fields', () => {
-    const extracted = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+    const extracted = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
 
     expect(extracted.criteria.hardConstraints).toEqual(
       expect.arrayContaining([
@@ -197,8 +197,8 @@ describe('Week 4 hardConstraints', () => {
   });
 
   it('preserves price constraints after a refinement turn', () => {
-    const extracted = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
-    const afterTurn = processCriteriaTurn({
+    const extracted = parseCriteriaFromHandoff(sampleHandoffResponses.paintingEn());
+    const afterTurn = applyCriteriaConversationTurn({
       criteria: extracted.criteria,
       conversation: extracted.conversation,
       action: 'answer',
@@ -215,7 +215,7 @@ describe('Week 4 hardConstraints', () => {
   });
 
   it('derives hardConstraints from Shilat structuredAnswer extraction', () => {
-    const extracted = extractBuyerCriteriaFromFixture(week4P4HandoffFixtures.blueRingHe());
+    const extracted = parseCriteriaFromHandoff(structuredHandoffSamples.blueRingHe());
 
     expect(extracted.criteria.hardConstraints).toEqual(
       expect.arrayContaining([
