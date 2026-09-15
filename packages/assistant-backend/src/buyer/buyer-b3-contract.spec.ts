@@ -1,20 +1,8 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { deriveHardConstraints, extractBuyerCriteriaFromFixture } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { week3P4Fixtures } from './buyer-criteria.test-helpers';
+import { week3P4Fixtures, week4IntegrationTrace } from './buyer-criteria.test-helpers';
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-
-const traceFixture = JSON.parse(
-  readFileSync(
-    resolve(__dirname, '../../../../fixtures/demo-scenarios/b2-week4-integration-trace.json'),
-    'utf8',
-  ),
-) as {
-  p4: ReturnType<typeof week3P4Fixtures.paintingEn>;
-  turnMessage: string;
-};
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
 
@@ -51,17 +39,17 @@ describe('B2 → B3 criteria contract', () => {
   });
 
   it('traces the Week 4 named fixture through extract, turn, and B3 handoff', async () => {
-    const first = service.extractFromFixture(traceFixture.p4);
+    const first = service.extractFromFixture(week4IntegrationTrace.p4);
     service.processTurn({
       id: 'buyer-trace',
       sessionId: first.sessionId,
       speaker: 'buyer',
       skipped: false,
-      text: traceFixture.turnMessage,
+      text: week4IntegrationTrace.turnMessage,
       date: buyerAt,
     });
     const criteria = service.getCriteriaForSession(first.sessionId);
-    const extracted = extractBuyerCriteriaFromFixture(traceFixture.p4);
+    const extracted = extractBuyerCriteriaFromFixture(week4IntegrationTrace.p4);
 
     const p2 = {
       search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
@@ -77,7 +65,7 @@ describe('B2 → B3 criteria contract', () => {
     });
 
     expect(criteria.price).toEqual(extracted.criteria.price);
-    expect(criteria.creators).toEqual([traceFixture.turnMessage]);
+    expect(criteria.creators).toEqual([week4IntegrationTrace.turnMessage]);
     expect(criteria.hardConstraints).toEqual(deriveHardConstraints(criteria));
 
     expect(outcome.kind).toBe('unmatched');

@@ -118,3 +118,9 @@ export const week3TurnStates = {
     },
   }),
 };
+
+/** Week 4 integration trace: legacy P4 painting extract + Monet turn (was b2-week4-integration-trace.json). */
+export const week4IntegrationTrace = {
+  p4: week3P4Fixtures.paintingEn(),
+  turnMessage: 'Monet',
+} as const;

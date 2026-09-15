@@ -1,19 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { extractBuyerCriteriaFromFixture } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { week3P4Fixtures, week4P4HandoffFixtures } from './buyer-criteria.test-helpers';
+import { week4IntegrationTrace, week4P4HandoffFixtures } from './buyer-criteria.test-helpers';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-
-const legacyTrace = JSON.parse(
-  readFileSync(
-    resolve(__dirname, '../../../../fixtures/demo-scenarios/b2-week4-integration-trace.json'),
-    'utf8',
-  ),
-) as {
-  p4: ReturnType<typeof week3P4Fixtures.paintingEn>;
-  turnMessage: string;
-};
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
 
@@ -37,7 +25,7 @@ describe('B2 Week 4 integration', () => {
     });
 
     it('still supports legacy content-only P4 fixtures', () => {
-      const response = service.extractFromFixture(legacyTrace.p4);
+      const response = service.extractFromFixture(week4IntegrationTrace.p4);
       const criteria = service.getCriteriaForSession(response.sessionId);
 
       expect(criteria.categories).toEqual(['painting']);
@@ -121,19 +109,19 @@ describe('B2 Week 4 integration', () => {
     });
 
     it('traces the named Week 4 fixture file through extract, turn, and B3', async () => {
-      const first = service.extractFromFixture(legacyTrace.p4);
+      const first = service.extractFromFixture(week4IntegrationTrace.p4);
       service.processTurn({
         id: 'buyer-trace',
         sessionId: first.sessionId,
         speaker: 'buyer',
         skipped: false,
-        text: legacyTrace.turnMessage,
+        text: week4IntegrationTrace.turnMessage,
         date: buyerAt,
       });
       const criteria = service.getCriteriaForSession(first.sessionId);
-      const extracted = extractBuyerCriteriaFromFixture(legacyTrace.p4);
+      const extracted = extractBuyerCriteriaFromFixture(week4IntegrationTrace.p4);
 
-      expect(criteria.creators).toEqual([legacyTrace.turnMessage]);
+      expect(criteria.creators).toEqual([week4IntegrationTrace.turnMessage]);
       expect(criteria.price).toEqual(extracted.criteria.price);
 
       const p2 = {
