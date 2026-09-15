@@ -8,28 +8,16 @@ interface ResultCardProps {
 
 export function ResultCard({ lot, lang, onSelect }: ResultCardProps) {
   const isRtl = lang === 'he';
-  const statusLabel = {
-    sold: isRtl ? 'נמכר' : 'Sold',
-    unsold: isRtl ? 'לא נמכר' : 'Unsold',
-    upcoming: isRtl ? 'צפוי להימכר' : 'Upcoming',
-    withdrawn: isRtl ? 'נמשך מהמכירה' : 'Withdrawn',
-    unknown: isRtl ? 'לא ידוע' : 'Unknown',
-  }[lot.status];
-  const formatCurrency = (money: Money) => {
-    const amount = new Intl.NumberFormat(lang === 'he' ? 'he-IL' : 'en-US', {
-      style: 'currency',
-      currency: money.currency,
-      maximumFractionDigits: 0,
-    }).format(money.amount);
-
-    return `${money.currency} ${amount}`;
-  };
+  const formatCurrency = (money: Money) => new Intl.NumberFormat(lang === 'he' ? 'he-IL' : 'en-US', {
+    style: 'currency',
+    currency: money.currency,
+    maximumFractionDigits: 0,
+  }).format(money.amount);
 
   return (
     <article className={`rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+      <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
         <span className="font-semibold">{lot.auctionHouse.name}</span>
-        <span>{isRtl ? 'סטטוס:' : 'Status:'} {statusLabel}</span>
         <span>{isRtl ? 'לוט' : 'Lot'} #{lot.lotNumber}</span>
       </div>
       <h2 className="mb-1 text-base font-bold text-gray-900">{lot.title[lang] ?? lot.title.en}</h2>
