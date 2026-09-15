@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { AuctionLot, PaginatedResult } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
+import { resolveCategoryAlias, resolveCreatorAlias } from './lot-alias';
 import type { LotFiltersDto, LotSearchDto } from './lot-search.dto';
 
 function hasAnyFilter(filters?: LotFiltersDto): boolean {
@@ -70,15 +71,20 @@ export class LotsService {
 
     // Each populated list facet adds an `IN` clause on its JSON path. Values are
     // bound parameters, never interpolated. Empty arrays are skipped: `IN ()` is
-    // invalid SQL.
-    const listFacets: ReadonlyArray<['categories' | 'creators' | 'auctionHouseIds', string]> = [
-      ['categories', "lot.payload->>'category'"],
-      ['creators', "lot.payload->>'creator'"],
-      ['auctionHouseIds', "lot.payload->'auctionHouse'->>'id'"],
+    // invalid SQL. Category and creator values pass through their alias resolver
+    // first; a value with no curated alias is kept as-is rather than dropped, so
+    // the clause is never silently skipped.
+    const listFacets: ReadonlyArray<
+      ['categories' | 'creators' | 'auctionHouseIds', string, ((value: string) => string | undefined) | undefined]
+    > = [
+      ['categories', "lot.payload->>'category'", resolveCategoryAlias],
+      ['creators', "lot.payload->>'creator'", resolveCreatorAlias],
+      ['auctionHouseIds', "lot.payload->'auctionHouse'->>'id'", undefined],
     ];
-    for (const [key, path] of listFacets) {
-      const values = filters?.[key];
-      if (values?.length) {
+    for (const [key, path, resolve] of listFacets) {
+      const rawValues = filters?.[key];
+      if (rawValues?.length) {
+        const values = resolve ? rawValues.map((value) => resolve(value) ?? value) : rawValues;
         qb.andWhere(`${path} IN (:...${key})`, { [key]: values });
       }
     }

@@ -148,6 +148,60 @@ describe('LotsService', () => {
       );
     });
 
+    describe('category and creator aliases', () => {
+      it('resolves a category alias to its canonical token before building the IN clause', async () => {
+        const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { categories: ['ספרים נדירים'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
+          { categories: ['rare_books'] },
+        );
+      });
+
+      it('resolves a creator alias to its canonical token before building the IN clause', async () => {
+        const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { creators: ['יצחק אברבנאל'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'creator' IN (:...creators)"),
+          { creators: ['yitzhak_abrabanel'] },
+        );
+      });
+
+      it('resolves each value independently when a filter mixes an alias with an already-canonical token', async () => {
+        const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { categories: ['ציורים', 'rare_books'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
+          { categories: ['paintings', 'rare_books'] },
+        );
+      });
+
+      it('still applies the category clause when it is unresolvable, even alongside another valid filter', async () => {
+        const queryBuilder = createMockQueryBuilder([], 0);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { categories: ['zzz-unmapped-term'], auctionHouseIds: ['house-kestenbaum'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
+          { categories: ['zzz-unmapped-term'] },
+        );
+      });
+    });
+
     it('adds no filter clause when filters are absent', async () => {
       const queryBuilder = createMockQueryBuilder([{ payload }], 1);
 
