@@ -68,7 +68,7 @@ export class UploadsService {
       );
 
       return [...existing, ...evidence];
-      
+
       // Remove files written during this request to keep storage consistent after a partial failure.
     } catch (error) {
       await Promise.all(
