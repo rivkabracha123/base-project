@@ -179,12 +179,12 @@ describe('LotsService', () => {
         const queryBuilder = createMockQueryBuilder([{ payload }], 1);
 
         await new LotsService(mockRepo(queryBuilder)).search({
-          filters: { categories: ['ציורים', 'rare_books'] },
+          filters: { categories: ['Rare Books', 'rare_books'] },
         });
 
         expect(queryBuilder.andWhere).toHaveBeenCalledWith(
           expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
-          { categories: ['paintings', 'rare_books'] },
+          { categories: ['rare_books', 'rare_books'] },
         );
       });
 

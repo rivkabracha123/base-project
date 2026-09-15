@@ -1,7 +1,6 @@
 const categoryAliases: Record<string, string> = {
   'ספרים נדירים': 'rare_books',
   'rare books': 'rare_books',
-  'ציורים': 'paintings',
 };
 
 const creatorAliases: Record<string, string> = {
