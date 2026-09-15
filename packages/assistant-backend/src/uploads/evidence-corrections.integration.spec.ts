@@ -62,7 +62,7 @@ describe("Evidence corrections integration", () => {
     ]);
 
     // This is the deterministic expected data for corrections.
-    const fixture = createCorrectionsEvidenceFixture([
+    const fixture = createCorrectionsEvidenceFixture(profileA, [
       evidenceA[0]!.fileId,
       evidenceA[1]!.fileId,
     ]);
@@ -96,6 +96,22 @@ describe("Evidence corrections integration", () => {
       expect.arrayContaining([
         expect.objectContaining({
           content: expect.anything(),
+        }),
+      ]),
+    );
+
+    // Each evidence reference contains the correct preview URI.
+    expect(correctionsInput.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fileId: evidenceA[0]!.fileId,
+          profileId: profileA,
+          previewUri: `/api/evidence/${profileA}/${evidenceA[0]!.fileId}`,
+        }),
+        expect.objectContaining({
+          fileId: evidenceA[1]!.fileId,
+          profileId: profileA,
+          previewUri: `/api/evidence/${profileA}/${evidenceA[1]!.fileId}`,
         }),
       ]),
     );
