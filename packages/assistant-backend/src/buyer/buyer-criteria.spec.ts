@@ -7,7 +7,7 @@ import {
   processCriteriaTurn,
   skipCurrentQuestion,
 } from './buyer-criteria';
-import { week3P4Fixtures, week3TurnFixtures } from './buyer-criteria.test-helpers';
+import { week3P4Fixtures, week3TurnStates, week4P4HandoffFixtures } from './buyer-criteria.test-helpers';
 
 describe('BuyerCriteria extraction', () => {
   it('extracts a basic structured request from a fixture response', () => {
@@ -169,16 +169,58 @@ describe('Week 3 focused questions', () => {
   });
 
   it('applies answer and skip using shared turn fixtures', () => {
-    const afterAnswer = processCriteriaTurn(week3TurnFixtures.answerMonet());
+    const afterAnswer = processCriteriaTurn(week3TurnStates.answerMonet());
 
     expect(afterAnswer.criteria.creators).toEqual(['Monet']);
     expect(afterAnswer.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
     expect(afterAnswer.conversation.missing).toEqual(['location']);
 
-    const afterSkip = processCriteriaTurn(week3TurnFixtures.skipLocation());
+    const afterSkip = processCriteriaTurn(week3TurnStates.skipLocation());
 
     expect(afterSkip.conversation.skipped).toEqual(['location']);
     expect(afterSkip.conversation.missing).toEqual([]);
     expect(afterSkip.conversation.nextQuestion).toBe('I have the main search facts. Should I continue?');
+  });
+});
+
+describe('Week 4 hardConstraints', () => {
+  it('derives constraints from confirmed criteria fields', () => {
+    const extracted = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+
+    expect(extracted.criteria.hardConstraints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'price', operator: 'range' }),
+        expect.objectContaining({ field: 'categories', operator: 'contains' }),
+        expect.objectContaining({ field: 'periods', operator: 'contains' }),
+      ]),
+    );
+  });
+
+  it('preserves price constraints after a refinement turn', () => {
+    const extracted = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+    const afterTurn = processCriteriaTurn({
+      criteria: extracted.criteria,
+      conversation: extracted.conversation,
+      action: 'answer',
+      message: 'Monet',
+    });
+
+    expect(afterTurn.criteria.price).toEqual(extracted.criteria.price);
+    expect(afterTurn.criteria.hardConstraints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'price', operator: 'range' }),
+        expect.objectContaining({ field: 'creators', operator: 'contains', value: ['Monet'] }),
+      ]),
+    );
+  });
+
+  it('derives hardConstraints from Shilat structuredAnswer extraction', () => {
+    const extracted = extractBuyerCriteriaFromFixture(week4P4HandoffFixtures.blueRingHe());
+
+    expect(extracted.criteria.hardConstraints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'categories', value: ['טבעות'] }),
+      ]),
+    );
   });
 });

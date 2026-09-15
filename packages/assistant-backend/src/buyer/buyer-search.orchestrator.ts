@@ -41,7 +41,7 @@ export class BuyerSearchOrchestrator {
     const fullRequest: BuyerSearchRequest = {
       criteria: input.criteria,
       language: input.language,
-      hardConstraints: [],
+      hardConstraints: input.criteria.hardConstraints,
     };
 
     if (items.length > 0) {

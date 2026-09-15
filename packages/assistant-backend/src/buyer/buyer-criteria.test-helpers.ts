@@ -1,4 +1,4 @@
-import type { BuyerCriteriaTurnRequest, P4FixtureResponse } from './buyer-criteria';
+import type { BuyerCriteriaTurnState, P4BuyerHandoff, P4FixtureResponse } from './buyer-criteria';
 
 export const week3P4Fixtures = {
   paintingEn: (): P4FixtureResponse => ({
@@ -39,8 +39,42 @@ export const week3P4Fixtures = {
   }),
 };
 
-export const week3TurnFixtures = {
-  answerMonet: (): BuyerCriteriaTurnRequest => ({
+export const week4P4HandoffFixtures = {
+  blueRingHe: (): P4FixtureResponse => ({
+    provider: 'fixture',
+    mode: 'fixture',
+    isRelevant: true,
+    error: null,
+    content: 'תוצאה קבועה (fixture): טבעת כחולה.',
+    summary: 'המשתמש מחפש פריט קשור לצבע כחול',
+    recommendation: 'הצג פריטים דומים עם צבע כחול או בקש פרטים נוספים',
+    nextAction: 'בקש מידע נוסף על תקציב והזדמנות לרכישה',
+    confidence: 'medium',
+    structuredAnswer: {
+      role: 'buyer',
+      language: 'he',
+      intent: 'מצא טבעת כחולה המתאימה לתקופה ולתקציב המבוקש.',
+      category: 'טבעות',
+      keywords: ['blue'],
+      hasContactDetails: false,
+      hasImages: false,
+    } satisfies P4BuyerHandoff,
+  }),
+  irrelevantHe: (): P4FixtureResponse => ({
+    provider: 'fixture',
+    mode: 'fixture',
+    isRelevant: false,
+    error: 'השאלה אינה קשורה לקנייה או למכירה',
+    content: '',
+    summary: '',
+    recommendation: '',
+    nextAction: '',
+    confidence: 'low',
+  }),
+};
+
+export const week3TurnStates = {
+  answerMonet: (): BuyerCriteriaTurnState => ({
     action: 'answer',
     message: 'Monet',
     criteria: {
@@ -62,7 +96,7 @@ export const week3TurnFixtures = {
       notes: ['painting search'],
     },
   }),
-  skipLocation: (): BuyerCriteriaTurnRequest => ({
+  skipLocation: (): BuyerCriteriaTurnState => ({
     action: 'skip',
     criteria: {
       categories: ['painting'],

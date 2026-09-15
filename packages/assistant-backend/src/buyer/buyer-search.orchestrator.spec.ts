@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
-import { emptyBuyerCriteria } from './buyer-criteria';
+import { deriveHardConstraints, emptyBuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
 const fixture = JSON.parse(
@@ -97,13 +97,14 @@ describe('BuyerSearchOrchestrator', () => {
     criteria.creators = ['Yitzhak Abrabanel'];
     criteria.periods = ['15th'];
     criteria.geography = ['Israel'];
+    criteria.hardConstraints = deriveHardConstraints(criteria);
 
     const outcome = await orchestrator.search({ criteria, language: 'en', ...baseLead });
 
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.searchRequest.criteria).toEqual(criteria);
-    expect(outcome.searchRequest.hardConstraints).toEqual([]);
+    expect(outcome.searchRequest.hardConstraints).toEqual(criteria.hardConstraints);
     expect(outcome.items).toHaveLength(2);
   });
 

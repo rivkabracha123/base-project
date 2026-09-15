@@ -64,22 +64,56 @@ export function emptyBuyerCriteria(language: BuyerLanguage = 'en'): BuyerCriteri
   };
 }
 
-export type BuyerCriteriaTurnRequest = {
+export type BuyerCriteriaTurnState = {
   criteria: BuyerCriteria;
   conversation: BuyerCriteriaConversation;
   action: 'answer' | 'skip';
   message?: string;
 };
 
+export type P4BuyerHandoff = {
+  role: 'buyer';
+  language: BuyerLanguage;
+  intent: string;
+  category?: string;
+  creators?: string[];
+  periods?: string[];
+  price?: BuyerPriceRange;
+  keywords?: string[];
+  geography?: string[];
+  hasContactDetails: boolean;
+  hasImages: boolean;
+};
+
 export type P4FixtureResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
+  isRelevant?: boolean;
+  error?: string | null;
   content: string;
   summary: string;
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
+  structuredAnswer?: P4BuyerHandoff;
 };
+
+export function isP4BuyerHandoff(value: unknown): value is P4BuyerHandoff {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const handoff = value as Record<string, unknown>;
+
+  return (
+    handoff.role === 'buyer' &&
+    (handoff.language === 'he' || handoff.language === 'en') &&
+    typeof handoff.intent === 'string' &&
+    handoff.intent.trim().length > 0 &&
+    typeof handoff.hasContactDetails === 'boolean' &&
+    typeof handoff.hasImages === 'boolean'
+  );
+}
 
 const appendUnique = (values: string[], ...additions: Array<string | null | undefined>): string[] =>
   [...new Set([...values, ...additions.filter((value): value is string => Boolean(value?.trim()))])];
@@ -211,6 +245,53 @@ export function nextFocusedQuestion(missing: SearchFact[], language: BuyerLangua
   return field ? FOCUSED_QUESTIONS[field][language] : READY_TO_CONTINUE[language];
 }
 
+export function deriveHardConstraints(criteria: BuyerCriteria): Constraint[] {
+  const constraints: Constraint[] = [];
+
+  if (hasPrice(criteria)) {
+    constraints.push({
+      field: 'price',
+      operator: 'range',
+      value: criteria.price,
+      reason: 'Buyer confirmed budget range',
+    });
+  }
+  if (criteria.categories.length > 0) {
+    constraints.push({
+      field: 'categories',
+      operator: 'contains',
+      value: [...criteria.categories],
+      reason: 'Buyer confirmed category',
+    });
+  }
+  if (criteria.creators.length > 0) {
+    constraints.push({
+      field: 'creators',
+      operator: 'contains',
+      value: [...criteria.creators],
+      reason: 'Buyer confirmed creator',
+    });
+  }
+  if (criteria.periods.length > 0) {
+    constraints.push({
+      field: 'periods',
+      operator: 'contains',
+      value: [...criteria.periods],
+      reason: 'Buyer confirmed period',
+    });
+  }
+  if (criteria.geography.length > 0) {
+    constraints.push({
+      field: 'geography',
+      operator: 'contains',
+      value: [...criteria.geography],
+      reason: 'Buyer confirmed geography',
+    });
+  }
+
+  return constraints;
+}
+
 function withConversation(
   criteria: BuyerCriteria,
   conversation: Partial<BuyerCriteriaConversation> = {},
@@ -223,9 +304,14 @@ function withConversation(
     nextQuestion: '',
   };
   const missing = buildMissingFields(criteria, baseConversation);
+  const normalizedCriteria: BuyerCriteria = {
+    ...criteria,
+    language,
+    hardConstraints: deriveHardConstraints({ ...criteria, language }),
+  };
 
   return {
-    criteria: { ...criteria, language },
+    criteria: normalizedCriteria,
     conversation: {
       ...baseConversation,
       missing,
@@ -234,7 +320,27 @@ function withConversation(
   };
 }
 
-export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): BuyerCriteriaResponse {
+function criteriaFromP4Handoff(handoff: P4BuyerHandoff): BuyerCriteria {
+  return {
+    ...emptyBuyerCriteria(handoff.language),
+    categories: handoff.category?.trim() ? [handoff.category.trim()] : [],
+    creators: handoff.creators ?? [],
+    periods: handoff.periods ?? [],
+    keywords: handoff.keywords ?? [],
+    geography: handoff.geography ?? [],
+    price: handoff.price,
+    language: handoff.language,
+    hardConstraints: [],
+  };
+}
+
+function extractFromP4Handoff(response: P4FixtureResponse, handoff: P4BuyerHandoff): BuyerCriteriaResponse {
+  return withConversation(criteriaFromP4Handoff(handoff), {
+    notes: [response.summary, handoff.intent].filter((note) => note.trim().length > 0),
+  });
+}
+
+function extractFromP4Content(response: P4FixtureResponse): BuyerCriteriaResponse {
   const text = `${response.content} ${response.summary} ${response.recommendation} ${response.nextAction}`;
   const category = parseCategory(text);
   const keywords = extractKeywords(text);
@@ -249,6 +355,18 @@ export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): Bu
   }, {
     notes: [response.summary],
   });
+}
+
+export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): BuyerCriteriaResponse {
+  if (response.isRelevant === false) {
+    throw new Error(response.error ?? 'The request is not related to buying or selling.');
+  }
+
+  if (isP4BuyerHandoff(response.structuredAnswer)) {
+    return extractFromP4Handoff(response, response.structuredAnswer);
+  }
+
+  return extractFromP4Content(response);
 }
 
 export function mergeBuyerCriteria(
@@ -345,9 +463,9 @@ export function skipCurrentQuestion(
   return withConversation(criteria, { ...conversation, skipped });
 }
 
-export function processCriteriaTurn(request: BuyerCriteriaTurnRequest): BuyerCriteriaResponse {
-  if (request.action === 'skip') {
-    return skipCurrentQuestion(request.criteria, request.conversation);
+export function processCriteriaTurn(state: BuyerCriteriaTurnState): BuyerCriteriaResponse {
+  if (state.action === 'skip') {
+    return skipCurrentQuestion(state.criteria, state.conversation);
   }
-  return applyBuyerAnswer(request.criteria, request.conversation, request.message ?? '');
+  return applyBuyerAnswer(state.criteria, state.conversation, state.message ?? '');
 }
