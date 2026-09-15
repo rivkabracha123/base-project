@@ -20,7 +20,7 @@ type ValuationReportEvidence = {
   reportId: string; itemId: string; itemVersion: string; calculationVersion: string;
   comparableCount: number; baseCurrency: 'USD';
   originalCurrencies: string[];
-  confidence: { level: 'low'; explanation: string };
+  confidence: { level: 'low' | 'medium' | 'high'; explanation: string };
   limitations: string[]; comparables: ComparableEvidence[];
   excludedComparables: ExcludedComparable[];
   includedComparableIds: string[]; excludedComparableIds: string[];
@@ -128,7 +128,23 @@ export class ValuationCalculationService {
       || !Number.isSafeInteger(min) || !Number.isSafeInteger(max) || min <= 0) {
       return deepFreeze({ ...common, status: 'refusal', reason: 'unusable_range_requires_expert_review' });
     }
+    // Confidence reflects only evidence quantity and price agreement, never a statistical probability.
+    // cv (coefficient of variation) is the price spread relative to the mean; lower means tighter agreement.
+    const cv = standardDeviation / mean;
+    const confidenceLevel: 'low' | 'medium' | 'high' =
+      comparables.length >= 5 && cv <= 0.15 ? 'high'
+      : comparables.length >= 4 && cv <= 0.30 ? 'medium'
+      : 'low';
+    const spreadPct = `${(cv * 100).toFixed(1)}%`;
+    const confidenceExplanation = confidenceLevel === 'low'
+      ? `Confidence is low: ${comparables.length < 4
+        ? `only ${comparables.length} comparables (the required minimum)`
+        : `a ${spreadPct} price spread around the mean is too wide`
+      }. This reflects evidence quantity and price agreement only, not a statistical probability.`
+      : `Confidence is ${confidenceLevel}: ${comparables.length} comparables with a ${spreadPct} price spread `
+        + 'around the mean. This reflects evidence quantity and price agreement only, not a statistical probability.';
     return deepFreeze({ ...common, status: 'supported',
+      confidence: { level: confidenceLevel, explanation: confidenceExplanation },
       calculation: { totalWeight, mean, variance, standardDeviation, rawMin, rawMax },
       valuationRange: { min, max, currency: 'USD' } });
   }
