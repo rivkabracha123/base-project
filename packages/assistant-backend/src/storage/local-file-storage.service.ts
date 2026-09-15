@@ -11,11 +11,7 @@ export class LocalFileStorage {
     this.root = resolve(config.getOrThrow<string>('LOCAL_STORAGE_PATH'));
   }
 
-  async write(
-    profileId: string,
-    fileId: string,
-    contents: Buffer,
-  ): Promise<void> {
+  async write(profileId: string, fileId: string, contents: Buffer): Promise<void> {
     const path = this.filePath(profileId, fileId);
     await mkdir(resolve(path, '..'), { recursive: true });
     await writeFile(path, contents);
@@ -25,36 +21,19 @@ export class LocalFileStorage {
     return readFile(this.filePath(profileId, fileId));
   }
 
-  delete(profileId: string, fileId: string): Promise<void> {
-    return rm(this.filePath(profileId, fileId), { force: true });
-  }
-
   deleteProfile(profileId: string): Promise<void> {
-    return rm(this.profilePath(profileId), {
-      recursive: true,
-      force: true,
-    });
+    return rm(this.profilePath(profileId), { recursive: true, force: true });
   }
 
   private profilePath(profileId: string): string {
-    if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) {
-      throw new Error('Invalid profile identifier');
-    }
-
+    if (!/^[a-zA-Z0-9_-]+$/.test(profileId)) throw new Error('Invalid profile identifier');
     const path = resolve(this.root, profileId);
-
-    if (!path.startsWith(`${this.root}${sep}`)) {
-      throw new Error('Storage path escaped its root');
-    }
-
+    if (!path.startsWith(`${this.root}${sep}`)) throw new Error('Storage path escaped its root');
     return path;
   }
 
   private filePath(profileId: string, fileId: string): string {
-    if (!/^[a-zA-Z0-9_.-]+$/.test(fileId)) {
-      throw new Error('Invalid file identifier');
-    }
-
+    if (!/^[a-zA-Z0-9_.-]+$/.test(fileId)) throw new Error('Invalid file identifier');
     return resolve(this.profilePath(profileId), fileId);
   }
 }
