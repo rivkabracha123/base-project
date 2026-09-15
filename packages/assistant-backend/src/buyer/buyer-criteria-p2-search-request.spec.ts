@@ -28,7 +28,7 @@ const lead = {
 };
 
 for (const scenario of contract.scenarios) {
-  describe(`B3 <-> P2 Week 4 connect contract: ${scenario.name} (named fixture: ${contract.namedLotId})`, () => {
+  describe(`Criteria to P2 search request: ${scenario.name} (named fixture: ${contract.namedLotId})`, () => {
     it('builds exactly the SearchRequest P2 expects for this scenario', () => {
       expect(criteriaToSearchRequest(scenario.criteria, scenario.language)).toEqual(
         scenario.expectedRequest,
