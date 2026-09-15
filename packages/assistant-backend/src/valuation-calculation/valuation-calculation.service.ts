@@ -16,15 +16,9 @@ type ComparableEvidence = {
   originalCurrency: string; normalizedPrice: number; weight: number;
   fx: { to: 'USD'; rate: number; asOfDate: string; source: string };
 };
-export type ValuationResult = {
-  status: 'refusal' | 'supported'; reason?: string;
+type ValuationReportEvidence = {
   reportId: string; itemId: string; itemVersion: string; calculationVersion: string;
   comparableCount: number; baseCurrency: 'USD';
-  valuationRange?: { min: number; max: number; currency: 'USD' };
-  calculation?: {
-    totalWeight: number; mean: number; variance: number;
-    standardDeviation: number; rawMin: number; rawMax: number;
-  };
   originalCurrencies: string[];
   confidence: { level: 'low'; explanation: string };
   limitations: string[]; comparables: ComparableEvidence[];
@@ -34,6 +28,19 @@ export type ValuationResult = {
   weights: Array<{ id: string; weight: number }>;
   fxRatesUsed: Array<{ currency: string; rate: number; asOfDate: string; source: string }>;
 };
+
+// Make the existing runtime invariant explicit for backend consumers as well.
+export type ValuationResult = ValuationReportEvidence & (
+  | {
+    status: 'supported'; reason?: never;
+    valuationRange: { min: number; max: number; currency: 'USD' };
+    calculation: {
+      totalWeight: number; mean: number; variance: number;
+      standardDeviation: number; rawMin: number; rawMax: number;
+    };
+  }
+  | { status: 'refusal'; reason: string; valuationRange?: never; calculation?: never }
+);
 
 const deepFreeze = <T>(value: T): T => {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
