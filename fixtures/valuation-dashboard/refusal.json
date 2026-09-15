@@ -1,0 +1,41 @@
+{
+  "reportId": "synthetic-refusal-report",
+  "comparableCount": 2,
+  "limitations": [
+    "Synthetic evidence only; not an appraisal or guaranteed sale price."
+  ],
+  "comparables": [
+    {
+      "id": "synthetic-sale-1",
+      "source": {
+        "label": "Synthetic auction house",
+        "url": "https://example.com/lots/1"
+      },
+      "saleDate": "2024-03-10",
+      "originalPrice": 800,
+      "originalCurrency": "USD",
+      "normalizedPrice": 800,
+      "weight": 0.5
+    },
+    {
+      "id": "synthetic-sale-2",
+      "source": {
+        "label": "Synthetic auction house",
+        "url": "https://example.com/lots/2"
+      },
+      "saleDate": "2024-03-10",
+      "originalPrice": 1000,
+      "originalCurrency": "USD",
+      "normalizedPrice": 1000,
+      "weight": 1
+    }
+  ],
+  "excludedComparables": [
+    {
+      "id": "synthetic-missing-fx",
+      "reason": "missing_exchange_rate_data"
+    }
+  ],
+  "status": "refusal",
+  "reason": "missing_exchange_rate_data"
+}
