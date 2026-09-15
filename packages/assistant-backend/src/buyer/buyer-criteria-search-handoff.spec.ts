@@ -6,7 +6,7 @@ import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
 const buyerAt = '2026-09-15T09:00:00.000Z';
 
-describe('B2 → B3 criteria contract', () => {
+describe('B2 → B3 search handoff', () => {
   const service = new BuyerCriteriaService();
 
   beforeEach(() => {

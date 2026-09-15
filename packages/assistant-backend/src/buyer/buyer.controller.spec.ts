@@ -1,6 +1,6 @@
 import { BuyerController } from './buyer.controller';
 import { extractBuyerCriteriaFromFixture } from './buyer-criteria';
-import { toBuyerCriteriaB1Response } from './buyer-b1-contract';
+import { toBuyerCriteriaB1Response } from './buyer-tamar-chat-api';
 import { week3P4Fixtures } from './buyer-criteria.test-helpers';
 
 describe('BuyerController', () => {

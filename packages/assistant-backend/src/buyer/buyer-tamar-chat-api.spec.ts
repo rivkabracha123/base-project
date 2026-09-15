@@ -6,7 +6,7 @@ const buyerAt = '2026-09-15T09:00:00.000Z';
 const buyerMessageId = 'buyer-msg-1';
 const skipMessageId = 'buyer-msg-skip';
 
-describe('B2 → B1 conversation contract', () => {
+describe('Tamar chat API (extract / criteria turn)', () => {
   const service = new BuyerCriteriaService();
 
   beforeEach(() => {

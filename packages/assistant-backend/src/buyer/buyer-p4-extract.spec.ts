@@ -1,7 +1,7 @@
 import { extractBuyerCriteriaFromFixture } from './buyer-criteria';
 import { week3P4Fixtures, week4P4HandoffFixtures } from './buyer-criteria.test-helpers';
 
-describe('P4 → B2 extract contract', () => {
+describe('P4 fixture extract', () => {
   it('maps a validated P4 fixture response into BuyerCriteriaResponse', () => {
     const p4Response = week3P4Fixtures.paintingEn();
 
