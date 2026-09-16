@@ -66,7 +66,7 @@ describe('LotsService', () => {
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
       expect.stringContaining(`LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query)`),
-      { query: '%Atereth%' }
+      expect.objectContaining({ query: '%Atereth%' })
     );
   });
 
@@ -117,6 +117,22 @@ describe('LotsService', () => {
   it('uses the standard not-found outcome', async () => {
     const repository = { findOneBy: jest.fn().mockResolvedValue(null) } as unknown as Repository<AuctionLotEntity>;
     await expect(new LotsService(repository).findOne('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe('full-text search (title/description)', () => {
+    it('adds a PostgreSQL full-text match clause alongside the partial-text LIKE clause', async () => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+      const repository = mockRepo(queryBuilder);
+
+      await new LotsService(repository).search({ query: 'Atereth', language: 'en' });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `to_tsvector('english', lot.payload->'title'->>'en') @@ plainto_tsquery('english', :ftsQuery)`
+        ),
+        expect.objectContaining({ ftsQuery: 'Atereth' }),
+      );
+    });
   });
 
   describe('structured filters', () => {

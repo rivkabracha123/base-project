@@ -54,8 +54,14 @@ export class LotsService {
 
     const qb = this.lots.createQueryBuilder('lot');
 
-    // Free-text match over the bilingual title and description. `%` / `_` in the
-    // term are escaped so they match literally (e.g. "25%").
+    // Free-text match over the bilingual title and description, two ways: a
+    // partial (substring) match and a Postgres full-text match, OR'd together
+    // so either one finding the lot is enough. `%` / `_` in the LIKE term are
+    // escaped so they match literally (e.g. "25%"); the full-text side takes
+    // the unescaped term since `plainto_tsquery` has its own tokenizing, not
+    // LIKE wildcard semantics. Hebrew has no built-in Postgres dictionary, so
+    // its full-text config is `simple` (tokenizes only, no stemming) while
+    // English uses `english` (stemmed).
     if (normalizedQuery) {
       const escapedQuery = normalizedQuery.replace(/[\\%_]/g, (char) => `\\${char}`);
       qb.andWhere(
@@ -63,9 +69,13 @@ export class LotsService {
           LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
           LOWER(lot.payload->'title'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
           LOWER(lot.payload->'description'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
-          LOWER(lot.payload->'description'->>'he') LIKE LOWER(:query) ESCAPE '\\'
+          LOWER(lot.payload->'description'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
+          to_tsvector('english', lot.payload->'title'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
+          to_tsvector('simple', lot.payload->'title'->>'he') @@ plainto_tsquery('simple', :ftsQuery) OR
+          to_tsvector('english', lot.payload->'description'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
+          to_tsvector('simple', lot.payload->'description'->>'he') @@ plainto_tsquery('simple', :ftsQuery)
         )`,
-        { query: `%${escapedQuery}%` }
+        { query: `%${escapedQuery}%`, ftsQuery: normalizedQuery }
       );
     }
 
