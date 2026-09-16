@@ -15,7 +15,7 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
 
   it('passes clarified criteria into the lots search request shape', () => {
     const first = service.startCriteriaSessionFromAiResponse(sampleAiExtractResponses.paintingEn());
-    service.continueCriteriaSessionFromChatTurn({
+    service.continueCriteriaSessionFromChat({
       id: 'buyer-monet',
       sessionId: first.sessionId,
       speaker: 'buyer',
@@ -40,7 +40,7 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
 
   it('traces a refinement example through session, turn, and search orchestrator', async () => {
     const first = service.startCriteriaSessionFromAiResponse(refinementExample.initialAiResponse);
-    service.continueCriteriaSessionFromChatTurn({
+    service.continueCriteriaSessionFromChat({
       id: 'buyer-trace',
       sessionId: first.sessionId,
       speaker: 'buyer',
@@ -51,14 +51,14 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
     const criteria = service.getCriteriaForSession(first.sessionId);
     const extracted = parseCriteriaFromAiResponse(refinementExample.initialAiResponse);
 
-    const p2 = {
+    const lotsSearch = {
       search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
     };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
     const outcome = await orchestrator.search({
       criteria,
       language: criteria.language,
-      leadId: 'lead-w4-trace',
+      leadId: 'lead-refinement-trace',
       status: 'new',
       createdAt: '2026-09-14T10:00:00.000Z',
       searchedAt: '2026-09-14T10:01:00.000Z',

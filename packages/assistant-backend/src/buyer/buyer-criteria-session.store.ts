@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { BuyerChatHistoryEntry, BuyerChatHistoryInput } from './buyer-chat-api';
+import type { BuyerChatHistoryEntry, BuyerChatHistoryInput } from './buyer-chat-messages';
 import type { BuyerCriteria, BuyerCriteriaConversation, BuyerCriteriaResponse } from './buyer-criteria';
 
 type BuyerCriteriaSessionRecord = {
@@ -51,7 +51,7 @@ export function getBuyerCriteriaSession(sessionId: string): BuyerCriteriaSession
   return sessions.get(sessionId);
 }
 
-export function saveBuyerCriteriaSessionTurn(
+export function saveSessionAfterClarification(
   sessionId: string,
   response: BuyerCriteriaResponse,
   date: string,

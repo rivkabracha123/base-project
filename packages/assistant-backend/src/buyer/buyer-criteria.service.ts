@@ -5,20 +5,20 @@ import {
   BuyerChatSystemMessage,
   BuyerChatHistoryEntry,
   BuyerChatTurnInput,
-  toBuyerChatSystemMessage,
-} from './buyer-chat-api';
+  buildChatSystemMessage,
+} from './buyer-chat-messages';
 import {
   BuyerCriteriaResponse,
   AiExtractResponse,
   parseCriteriaFromAiResponse,
-  applyCriteriaConversationTurn,
+  applyClarificationTurn,
 } from './buyer-criteria';
 import {
   appendBuyerCriteriaHistory,
   createBuyerCriteriaSession,
   getBuyerCriteriaSession,
   resetBuyerCriteriaSessions,
-  saveBuyerCriteriaSessionTurn,
+  saveSessionAfterClarification,
 } from './buyer-criteria-session.store';
 
 export { appendBuyerCriteriaHistory };
@@ -38,16 +38,16 @@ function toHistoryEntry(request: BuyerChatTurnInput): BuyerChatHistoryEntry {
 
 @Injectable()
 export class BuyerCriteriaService {
-  /** Create a criteria session from AI extract response and return the first system question for Tamar. */
+  /** Create a criteria session from AI extract response and return the first system question for the chat UI. */
   startCriteriaSessionFromAiResponse(response: AiExtractResponse): BuyerChatSystemMessage {
     const extracted = parseCriteriaFromAiResponse(response);
     const date = new Date().toISOString();
     const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted, date);
-    return toBuyerChatSystemMessage(sessionId, systemMessage);
+    return buildChatSystemMessage(sessionId, systemMessage);
   }
 
-  /** Apply a buyer chat turn (answer or skip) and return the next system question for Tamar. */
-  continueCriteriaSessionFromChatTurn(request: BuyerChatTurnInput): BuyerChatSystemMessage {
+  /** Apply a buyer chat turn (answer or skip) and return the next system question for the chat UI. */
+  continueCriteriaSessionFromChat(request: BuyerChatTurnInput): BuyerChatSystemMessage {
     const session = getBuyerCriteriaSession(request.sessionId);
     if (!session) {
       throw new NotFoundException(`Unknown buyer criteria session: ${request.sessionId}`);
@@ -67,7 +67,7 @@ export class BuyerCriteriaService {
 
     appendBuyerCriteriaHistory(request.sessionId, toHistoryEntry(request));
 
-    const updated = applyCriteriaConversationTurn({
+    const updated = applyClarificationTurn({
       criteria: session.criteria,
       conversation: session.conversation,
       action: request.skipped ? 'skip' : 'answer',
@@ -75,12 +75,12 @@ export class BuyerCriteriaService {
     });
 
     const date = new Date().toISOString();
-    const systemMessage = saveBuyerCriteriaSessionTurn(request.sessionId, updated, date);
+    const systemMessage = saveSessionAfterClarification(request.sessionId, updated, date);
     if (systemMessage) {
-      return toBuyerChatSystemMessage(request.sessionId, systemMessage);
+      return buildChatSystemMessage(request.sessionId, systemMessage);
     }
 
-    return toBuyerChatSystemMessage(request.sessionId, {
+    return buildChatSystemMessage(request.sessionId, {
       id: randomUUID(),
       speaker: 'system',
       text: updated.conversation.nextQuestion,

@@ -4,10 +4,10 @@ import {
   parseCriteriaFromAiResponse,
   mergeBuyerCriteria,
   nextFocusedQuestion,
-  applyCriteriaConversationTurn,
+  applyClarificationTurn,
   skipCurrentQuestion,
 } from './buyer-criteria';
-import { sampleAiExtractResponses, sampleConversationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
+import { sampleAiExtractResponses, sampleClarificationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
   it('extracts a basic structured request from a fixture response', () => {
@@ -151,7 +151,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('stores a free-text category answer as keywords when no known category matches', () => {
-    const afterAnswer = applyCriteriaConversationTurn({
+    const afterAnswer = applyClarificationTurn({
       criteria: emptyBuyerCriteria('en'),
       conversation: {
         skipped: ['budget'],
@@ -169,13 +169,13 @@ describe('Week 3 focused questions', () => {
   });
 
   it('applies answer and skip using shared turn fixtures', () => {
-    const afterAnswer = applyCriteriaConversationTurn(sampleConversationTurns.answerMonet());
+    const afterAnswer = applyClarificationTurn(sampleClarificationTurns.answerMonet());
 
     expect(afterAnswer.criteria.creators).toEqual(['Monet']);
     expect(afterAnswer.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
     expect(afterAnswer.conversation.missing).toEqual(['location']);
 
-    const afterSkip = applyCriteriaConversationTurn(sampleConversationTurns.skipLocation());
+    const afterSkip = applyClarificationTurn(sampleClarificationTurns.skipLocation());
 
     expect(afterSkip.conversation.skipped).toEqual(['location']);
     expect(afterSkip.conversation.missing).toEqual([]);
@@ -198,7 +198,7 @@ describe('Week 4 hardConstraints', () => {
 
   it('preserves price constraints after a refinement turn', () => {
     const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
-    const afterTurn = applyCriteriaConversationTurn({
+    const afterTurn = applyClarificationTurn({
       criteria: extracted.criteria,
       conversation: extracted.conversation,
       action: 'answer',
@@ -214,7 +214,7 @@ describe('Week 4 hardConstraints', () => {
     );
   });
 
-  it('derives hardConstraints from Shilat structuredAnswer extraction', () => {
+  it('derives hardConstraints from structured AI extract fields', () => {
     const extracted = parseCriteriaFromAiResponse(structuredAiExtractSamples.blueRingHe());
 
     expect(extracted.criteria.hardConstraints).toEqual(

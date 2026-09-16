@@ -1,6 +1,6 @@
 export type BuyerChatSpeaker = 'system' | 'buyer';
 
-/** System message Tamar shows after extract or a clarification turn. */
+/** System message the chat UI shows after extract or a clarification turn. */
 export type BuyerChatSystemMessage = {
   id: string;
   sessionId: string;
@@ -9,7 +9,7 @@ export type BuyerChatSystemMessage = {
   date: string;
 };
 
-/** Buyer answer or explicit skip sent from Tamar back to the criteria session. */
+/** Buyer answer or explicit skip sent from the chat UI back to the criteria session. */
 export type BuyerChatTurnInput =
   | {
       id: string;
@@ -27,7 +27,7 @@ export type BuyerChatTurnInput =
       date: string;
     };
 
-/** One line in session history — same ids as Tamar chat messages. */
+/** One line in session history — same ids as chat UI messages. */
 export type BuyerChatHistoryEntry =
   | { id: string; speaker: 'system'; text: string; date: string }
   | { id: string; speaker: 'buyer'; skipped: false; text: string; date: string }
@@ -38,7 +38,7 @@ export type BuyerChatHistoryInput =
   | { id: string; speaker: 'buyer'; skipped: false; text: string; date: string }
   | { id: string; speaker: 'buyer'; skipped: true; date: string };
 
-export function toBuyerChatSystemMessage(
+export function buildChatSystemMessage(
   sessionId: string,
   message: { id: string; speaker: 'system'; text: string; date: string },
 ): BuyerChatSystemMessage {

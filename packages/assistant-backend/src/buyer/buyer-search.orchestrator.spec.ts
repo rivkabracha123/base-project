@@ -9,7 +9,7 @@ const fixture = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
 
-// Wraps fixture lots as the single-page PaginatedResult P2's real search() returns.
+// Wraps fixture lots as the single-page PaginatedResult the lots search API returns.
 const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
   data,
   total: data.length,
@@ -45,9 +45,9 @@ const makeLot = (over: Partial<AuctionLot> & { id: string }): AuctionLot => ({
 });
 
 describe('BuyerSearchOrchestrator', () => {
-  it('traces a named fixture from criteria through P2 to a B4-consumable result list', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page(fixture)) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+  it('traces a named fixture from criteria through lots search to grouped results', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(fixture)) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const criteria = emptyBuyerCriteria('en');
     criteria.creators = ['Yitzhak Abrabanel'];
@@ -71,15 +71,15 @@ describe('BuyerSearchOrchestrator', () => {
     });
     expect(outcome.results.current).toEqual([]);
     expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(fixture);
-    expect(p2.search).toHaveBeenCalledWith({
+    expect(lotsSearch.search).toHaveBeenCalledWith({
       query: 'Yitzhak Abrabanel manuscript',
       language: 'en',
     });
   });
 
-  it('records an honest no-result request for P5 without inventing inventory or private data', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+  it('records an honest no-result summary without inventing inventory or private data', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
     const criteria = emptyBuyerCriteria('he');
     criteria.creators = ['Yitzhak Abrabanel'];
     criteria.price = { min: 1000, max: 15000, currency: 'USD' };
@@ -129,13 +129,13 @@ describe('BuyerSearchOrchestrator', () => {
     expect(JSON.stringify(outcome)).not.toContain('conversation');
   });
 
-  it('carries every received hard-filter field onto the B4 results handoff, not just budget and category', async () => {
-    const p2 = {
+  it('carries every received hard-filter field onto the grouped search results output, not just budget and category', async () => {
+    const lotsSearch = {
       search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' }), makeLot({ id: 'lot-2' })])),
     };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
-    // Criteria as B2 hands them over after a refinement, carrying several strict filters.
+    // Criteria after a refinement turn, carrying several strict filters.
     const criteria = emptyBuyerCriteria('en');
     criteria.price = { min: 2000, max: 15000, currency: 'USD' };
     criteria.categories = ['rare_books'];
@@ -154,9 +154,9 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.results.historical).toHaveLength(2);
   });
 
-  it('does not loosen the budget it received when building the handoff', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+  it('does not loosen the budget it received when building the search output', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
     const criteria = emptyBuyerCriteria('en');
     criteria.price = { min: 2000, max: 15000, currency: 'USD' };
 
@@ -173,9 +173,9 @@ describe('BuyerSearchOrchestrator', () => {
     });
   });
 
-  it('carries a selected lot id through to the B4 results handoff', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+  it('carries a selected lot id through to the grouped search results', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
       criteria: emptyBuyerCriteria('en'),
@@ -190,8 +190,8 @@ describe('BuyerSearchOrchestrator', () => {
   });
 
   it('carries the tightened criteria through a refinement turn without reverting to the earlier budget', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     // First turn: a broad request.
     const firstTurn = emptyBuyerCriteria('en');
@@ -199,7 +199,7 @@ describe('BuyerSearchOrchestrator', () => {
     firstTurn.price = { min: 1000, max: 50000, currency: 'USD' };
     await orchestrator.search({ criteria: firstTurn, language: 'en', ...baseLead });
 
-    // Second turn: B2 hands over the refined criteria - narrower budget, extra strict filters.
+    // Second turn: The refined criteria are passed - narrower budget, extra strict filters.
     const refinedTurn = emptyBuyerCriteria('en');
     refinedTurn.categories = ['rare_books'];
     refinedTurn.creators = ['Yitzhak Abrabanel'];
@@ -215,10 +215,10 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.searchRequest.criteria.price).toEqual({ min: 2000, max: 15000, currency: 'USD' });
   });
 
-  it('builds results only from what P2 returned and never reads a raw source', async () => {
+  it('builds results only from what the lots search API returned and never reads a raw source', async () => {
     const returned = [makeLot({ id: 'lot-a' }), makeLot({ id: 'lot-b' })];
-    const p2 = { search: jest.fn().mockResolvedValue(page(returned)) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(returned)) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
     const criteria = emptyBuyerCriteria('en');
     criteria.creators = ['Someone'];
 
@@ -228,8 +228,8 @@ describe('BuyerSearchOrchestrator', () => {
       ...baseLead,
     });
 
-    expect(p2.search).toHaveBeenCalledTimes(1);
-    expect(p2.search).toHaveBeenCalledWith({
+    expect(lotsSearch.search).toHaveBeenCalledTimes(1);
+    expect(lotsSearch.search).toHaveBeenCalledWith({
       query: 'Someone',
       language: 'en',
     });

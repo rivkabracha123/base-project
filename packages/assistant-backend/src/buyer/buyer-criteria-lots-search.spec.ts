@@ -48,10 +48,10 @@ for (const scenario of contract.scenarios) {
       expect(lotsSearch.search).toHaveBeenCalledWith(scenario.expectedRequest);
       expect(outcome.kind).toBe('results');
       if (outcome.kind !== 'results') return;
-      const handedOffIds = [...outcome.results.current, ...outcome.results.historical].map(
+      const groupedLotIds = [...outcome.results.current, ...outcome.results.historical].map(
         (entry) => entry.lot.id,
       );
-      expect(handedOffIds).toEqual([contract.namedLotId]);
+      expect(groupedLotIds).toEqual([contract.namedLotId]);
     });
   });
 }

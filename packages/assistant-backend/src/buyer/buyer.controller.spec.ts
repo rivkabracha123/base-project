@@ -1,18 +1,18 @@
 import { BuyerController } from './buyer.controller';
 import { parseCriteriaFromAiResponse } from './buyer-criteria';
-import { toBuyerChatSystemMessage } from './buyer-chat-api';
+import { buildChatSystemMessage } from './buyer-chat-messages';
 import { sampleAiExtractResponses } from './buyer-criteria.fixtures';
 
 describe('BuyerController', () => {
   const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
   const date = '2026-09-15T09:00:00.000Z';
-  const systemMessageAfterExtract = toBuyerChatSystemMessage('session-1', {
+  const systemMessageAfterExtract = buildChatSystemMessage('session-1', {
     id: 'system-msg-1',
     speaker: 'system',
     text: extracted.conversation.nextQuestion,
     date,
   });
-  const systemMessageAfterTurn = toBuyerChatSystemMessage('session-1', {
+  const systemMessageAfterTurn = buildChatSystemMessage('session-1', {
     id: 'system-msg-2',
     speaker: 'system',
     text: 'Is there a place or origin that matters?',
@@ -38,13 +38,13 @@ describe('BuyerController', () => {
       text: 'Monet',
       date,
     };
-    const service = { continueCriteriaSessionFromChatTurn: jest.fn().mockReturnValue(systemMessageAfterTurn) };
+    const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterTurn) };
     const controller = new BuyerController(service as never);
 
     const result = controller.continueCriteriaSession(turnRequest);
 
     expect(result).toBe(systemMessageAfterTurn);
-    expect(service.continueCriteriaSessionFromChatTurn).toHaveBeenCalledWith(turnRequest);
+    expect(service.continueCriteriaSessionFromChat).toHaveBeenCalledWith(turnRequest);
   });
 
   it('continueCriteriaSession delegates buyer skip to the service', () => {
@@ -55,18 +55,18 @@ describe('BuyerController', () => {
       skipped: true as const,
       date: '2026-09-15T09:01:00.000Z',
     };
-    const systemMessageAfterSkip = toBuyerChatSystemMessage('session-1', {
+    const systemMessageAfterSkip = buildChatSystemMessage('session-1', {
       id: 'system-msg-3',
       speaker: 'system',
       text: extracted.conversation.nextQuestion,
       date: '2026-09-15T09:01:00.000Z',
     });
-    const service = { continueCriteriaSessionFromChatTurn: jest.fn().mockReturnValue(systemMessageAfterSkip) };
+    const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterSkip) };
     const controller = new BuyerController(service as never);
 
     const result = controller.continueCriteriaSession(turnRequest);
 
     expect(result).toBe(systemMessageAfterSkip);
-    expect(service.continueCriteriaSessionFromChatTurn).toHaveBeenCalledWith(turnRequest);
+    expect(service.continueCriteriaSessionFromChat).toHaveBeenCalledWith(turnRequest);
   });
 });

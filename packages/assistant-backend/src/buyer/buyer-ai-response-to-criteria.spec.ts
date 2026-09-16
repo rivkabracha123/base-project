@@ -22,7 +22,7 @@ describe('Criteria from AI extract response', () => {
     expect(response.conversation.nextQuestion).toBe('יש אמן או יוצר מסוים?');
   });
 
-  it('prefers Shilat structuredAnswer over content parsing', () => {
+  it('prefers structured AI fields over free-text content', () => {
     const aiResponse = structuredAiExtractSamples.blueRingHe();
     const response = parseCriteriaFromAiResponse(aiResponse);
 
@@ -33,7 +33,7 @@ describe('Criteria from AI extract response', () => {
     expect(response.conversation.missing).toContain('budget');
   });
 
-  it('rejects isRelevant=false before extract (handled by Tamar, guarded in criteria service)', () => {
+  it('rejects irrelevant AI extract before parsing criteria', () => {
     expect(() => parseCriteriaFromAiResponse(structuredAiExtractSamples.irrelevantHe())).toThrow(
       'השאלה אינה קשורה לקנייה או למכירה',
     );

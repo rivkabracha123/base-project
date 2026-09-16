@@ -3,7 +3,7 @@ import { BuyerCriteriaService } from './buyer-criteria.service';
 import {
   BuyerChatSystemMessage,
   BuyerChatTurnInput,
-} from './buyer-chat-api';
+} from './buyer-chat-messages';
 import { BuyerCriteria, AiExtractResponse } from './buyer-criteria';
 
 @Controller('buyer')
@@ -17,7 +17,7 @@ export class BuyerController {
 
   @Post('criteria/turn')
   continueCriteriaSession(@Body() request: BuyerChatTurnInput): BuyerChatSystemMessage {
-    return this.buyerCriteriaService.continueCriteriaSessionFromChatTurn(request);
+    return this.buyerCriteriaService.continueCriteriaSessionFromChat(request);
   }
 
   @Get('sessions/:sessionId/criteria')

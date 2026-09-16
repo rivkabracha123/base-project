@@ -1,4 +1,4 @@
-import type { CriteriaConversationTurn, StructuredAiExtract, AiExtractResponse } from './buyer-criteria';
+import type { ClarificationTurnInput, StructuredAiExtract, AiExtractResponse } from './buyer-criteria';
 
 export const sampleAiExtractResponses = {
   paintingEn: (): AiExtractResponse => ({
@@ -73,8 +73,8 @@ export const structuredAiExtractSamples = {
   }),
 };
 
-export const sampleConversationTurns = {
-  answerMonet: (): CriteriaConversationTurn => ({
+export const sampleClarificationTurns = {
+  answerMonet: (): ClarificationTurnInput => ({
     action: 'answer',
     message: 'Monet',
     criteria: {
@@ -96,7 +96,7 @@ export const sampleConversationTurns = {
       notes: ['painting search'],
     },
   }),
-  skipLocation: (): CriteriaConversationTurn => ({
+  skipLocation: (): ClarificationTurnInput => ({
     action: 'skip',
     criteria: {
       categories: ['painting'],

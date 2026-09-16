@@ -64,14 +64,14 @@ export function emptyBuyerCriteria(language: BuyerLanguage = 'en'): BuyerCriteri
   };
 }
 
-export type CriteriaConversationTurn = {
+export type ClarificationTurnInput = {
   criteria: BuyerCriteria;
   conversation: BuyerCriteriaConversation;
   action: 'answer' | 'skip';
   message?: string;
 };
 
-/** Validated structured fields from upstream (preferred over free-text content). */
+/** Validated structured fields from the AI extract (preferred over free-text content). */
 export type StructuredAiExtract = {
   role: 'buyer';
   language: BuyerLanguage;
@@ -467,7 +467,7 @@ export function skipCurrentQuestion(
 }
 
 /** Apply one buyer answer or skip to the in-memory criteria conversation state. */
-export function applyCriteriaConversationTurn(state: CriteriaConversationTurn): BuyerCriteriaResponse {
+export function applyClarificationTurn(state: ClarificationTurnInput): BuyerCriteriaResponse {
   if (state.action === 'skip') {
     return skipCurrentQuestion(state.criteria, state.conversation);
   }

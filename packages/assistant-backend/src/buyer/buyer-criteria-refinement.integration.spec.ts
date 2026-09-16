@@ -37,7 +37,7 @@ describe('Criteria refinement across chat and search', () => {
     it('preserves criteria and hardConstraints after answer and skip turns', () => {
       const first = service.startCriteriaSessionFromAiResponse(structuredAiExtractSamples.blueRingHe());
 
-      service.continueCriteriaSessionFromChatTurn({
+      service.continueCriteriaSessionFromChat({
         id: 'buyer-budget',
         sessionId: first.sessionId,
         speaker: 'buyer',
@@ -52,7 +52,7 @@ describe('Criteria refinement across chat and search', () => {
         expect.arrayContaining([expect.objectContaining({ field: 'price', operator: 'range' })]),
       );
 
-      service.continueCriteriaSessionFromChatTurn({
+      service.continueCriteriaSessionFromChat({
         id: 'buyer-skip',
         sessionId: first.sessionId,
         speaker: 'buyer',
@@ -75,7 +75,7 @@ describe('Criteria refinement across chat and search', () => {
   describe('Search after criteria refinement', () => {
     it('passes hardConstraints through to the search orchestrator', async () => {
       const first = service.startCriteriaSessionFromAiResponse(structuredAiExtractSamples.blueRingHe());
-      service.continueCriteriaSessionFromChatTurn({
+      service.continueCriteriaSessionFromChat({
         id: 'buyer-budget',
         sessionId: first.sessionId,
         speaker: 'buyer',
@@ -85,14 +85,14 @@ describe('Criteria refinement across chat and search', () => {
       });
       const criteria = service.getCriteriaForSession(first.sessionId);
 
-      const p2 = {
+      const lotsSearch = {
         search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
       };
-      const orchestrator = new BuyerSearchOrchestrator(p2);
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
       const outcome = await orchestrator.search({
         criteria,
         language: criteria.language,
-        leadId: 'lead-w4-shilat',
+        leadId: 'lead-refinement-demo',
         status: 'new',
         createdAt: '2026-09-14T10:00:00.000Z',
         searchedAt: '2026-09-14T10:01:00.000Z',
@@ -110,7 +110,7 @@ describe('Criteria refinement across chat and search', () => {
 
     it('traces a named refinement example through extract, turn, and search', async () => {
       const first = service.startCriteriaSessionFromAiResponse(refinementExample.initialAiResponse);
-      service.continueCriteriaSessionFromChatTurn({
+      service.continueCriteriaSessionFromChat({
         id: 'buyer-trace',
         sessionId: first.sessionId,
         speaker: 'buyer',
@@ -124,14 +124,14 @@ describe('Criteria refinement across chat and search', () => {
       expect(criteria.creators).toEqual([refinementExample.buyerAnswer]);
       expect(criteria.price).toEqual(extracted.criteria.price);
 
-      const p2 = {
+      const lotsSearch = {
         search: jest.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
       };
-      const orchestrator = new BuyerSearchOrchestrator(p2);
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
       const outcome = await orchestrator.search({
         criteria,
         language: criteria.language,
-        leadId: 'lead-w4-trace',
+        leadId: 'lead-refinement-trace',
         status: 'new',
         createdAt: '2026-09-14T10:00:00.000Z',
         searchedAt: '2026-09-14T10:01:00.000Z',
