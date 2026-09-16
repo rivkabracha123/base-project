@@ -496,7 +496,7 @@ describe('Week 4 — full HTTP handoff: comparables/query → included → valua
     ]);
     expect(valuation.confidence).toEqual({
       level: 'low',
-      explanation: expect.stringContaining('uncalibrated'),
+      explanation: expect.stringContaining('3 comparables (the required minimum)'),
     });
   });
 });
