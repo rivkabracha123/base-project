@@ -99,7 +99,7 @@ export function PriceHistory({ sales, lang }: PriceHistoryProps) {
         {validSales.map((sale) => (
           <li key={sale.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 p-3 text-sm">
             <span><strong>{sale.saleDate}</strong> · {formatCurrency(sale.realizedPrice)} · {sale.auctionHouse.name}</span>
-            <a href={sale.source.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-amber-700 underline">
+            <a href={sale.source.url} target="_blank" rel="noopener noreferrer" className="rounded text-xs font-medium text-amber-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2">
               {isRtl ? 'מקור המכירה' : 'Sale source'}
             </a>
           </li>

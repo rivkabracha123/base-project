@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { AuctionLot, Money } from '@monabid/shared';
 
 interface ResultCardProps {
@@ -8,6 +9,7 @@ interface ResultCardProps {
 
 export function ResultCard({ lot, lang, onSelect }: ResultCardProps) {
   const isRtl = lang === 'he';
+  const [imageUnavailable, setImageUnavailable] = useState(!lot.imageUrl);
   const statusLabel = {
     sold: isRtl ? 'נמכר' : 'Sold',
     unsold: isRtl ? 'לא נמכר' : 'Unsold',
@@ -27,6 +29,22 @@ export function ResultCard({ lot, lang, onSelect }: ResultCardProps) {
 
   return (
     <article className={`rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
+      {imageUnavailable ? (
+        <div
+          className="mb-4 flex aspect-[4/3] items-center justify-center rounded-md bg-slate-100 px-4 text-center text-sm text-slate-500"
+          role="img"
+          aria-label={isRtl ? 'אין תמונה זמינה לפריט זה' : 'No image available for this lot'}
+        >
+          {isRtl ? 'אין תמונה זמינה' : 'No image available'}
+        </div>
+      ) : (
+        <img
+          className="mb-4 aspect-[4/3] w-full rounded-md object-cover"
+          src={lot.imageUrl}
+          alt={lot.title[lang] ?? lot.title.en}
+          onError={() => setImageUnavailable(true)}
+        />
+      )}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
         <span className="font-semibold">{lot.auctionHouse.name}</span>
         <span>{isRtl ? 'סטטוס:' : 'Status:'} {statusLabel}</span>
@@ -52,7 +70,7 @@ export function ResultCard({ lot, lang, onSelect }: ResultCardProps) {
         ) : null}
       </div>
 
-      <button type="button" onClick={() => onSelect(lot.id)} className="mt-4 w-full rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700">
+      <button type="button" onClick={() => onSelect(lot.id)} className="mt-4 w-full rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2">
         {isRtl ? 'לפרטי הפריט' : 'View item details'}
       </button>
     </article>

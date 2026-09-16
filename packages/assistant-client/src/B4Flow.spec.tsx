@@ -25,7 +25,7 @@ if (!lot) {
 afterEach(() => vi.clearAllMocks());
 
 describe('B4 fixture journey', () => {
-  it('opens a selected result and shows its exact source evidence', async () => {
+  it('opens a selected result, preserves safe source evidence, and returns to results', async () => {
     vi.mocked(getLotById).mockResolvedValue(lot);
     await i18n.changeLanguage('en');
     const queryClient = createQueryClient();
@@ -41,9 +41,18 @@ describe('B4 fixture journey', () => {
 
     fireEvent.click((await screen.findAllByRole('button', { name: 'View item details' }))[0]!);
 
-    expect(await screen.findByRole('link', { name: /View Original Lot on Auction Site/ })).toHaveAttribute(
+    const sourceLink = await screen.findByRole('link', { name: /View Original Lot on Auction Site/ });
+
+    expect(sourceLink).toHaveAttribute(
       'href',
       'https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en',
     );
+    expect(sourceLink).toHaveAttribute('target', '_blank');
+    expect(sourceLink).toHaveAttribute('rel', 'noopener noreferrer');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Results' }));
+
+    expect(await screen.findByRole('heading', { name: 'Auction matches' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'View item details' })).not.toHaveLength(0);
   });
 });

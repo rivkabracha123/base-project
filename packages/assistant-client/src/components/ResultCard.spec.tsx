@@ -41,4 +41,55 @@ describe('ResultCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View item details' }));
     expect(onSelect).toHaveBeenCalledWith(soldLotFixture.id);
   });
+
+  it('shows the supplied lot image with an accessible description', () => {
+    render(
+      <ResultCard
+        lot={{ ...soldLotFixture, imageUrl: 'https://fixtures.monabid.test/images/lot-1.jpg' }}
+        lang="en"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: soldLotFixture.title.en })).toHaveAttribute(
+      'src',
+      'https://fixtures.monabid.test/images/lot-1.jpg',
+    );
+  });
+
+  it('shows an honest placeholder when no image is supplied', () => {
+    render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
+
+    expect(screen.getByRole('img', { name: 'No image available for this lot' })).toBeInTheDocument();
+  });
+
+  it('replaces a failed image with the honest placeholder', () => {
+    render(
+      <ResultCard
+        lot={{ ...soldLotFixture, imageUrl: 'https://fixtures.monabid.test/images/missing.jpg' }}
+        lang="en"
+        onSelect={vi.fn()}
+      />,
+    );
+
+    fireEvent.error(screen.getByRole('img', { name: soldLotFixture.title.en }));
+
+    expect(screen.getByRole('img', { name: 'No image available for this lot' })).toBeInTheDocument();
+  });
+
+  it('allows the details button to receive keyboard focus', () => {
+    render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
+
+    const detailsButton = screen.getByRole('button', { name: 'View item details' });
+    detailsButton.focus();
+
+    expect(detailsButton).toHaveFocus();
+  });
+
+  it('uses right-to-left direction and Hebrew action text for Hebrew', () => {
+    render(<ResultCard lot={soldLotFixture} lang="he" onSelect={vi.fn()} />);
+
+    const detailsButton = screen.getByRole('button', { name: 'לפרטי הפריט' });
+    expect(detailsButton.closest('article')).toHaveAttribute('dir', 'rtl');
+  });
 });

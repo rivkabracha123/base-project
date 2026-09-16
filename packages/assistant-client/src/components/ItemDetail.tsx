@@ -24,7 +24,7 @@ export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailPr
 
   return (
     <div className={`mx-auto max-w-3xl rounded-xl border border-gray-100 bg-white p-6 shadow-sm ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
-      <button type="button" onClick={onBack} className="mb-6 flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-950">
+      <button type="button" onClick={onBack} className="mb-6 flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2">
         {isRtl ? 'חזרה לתוצאות החיפוש' : 'Back to Results'}
       </button>
 
@@ -64,7 +64,7 @@ export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailPr
         <div className="rounded-lg border border-amber-100 bg-amber-50/50 p-4 text-sm text-slate-600">
           <p className="mb-2"><strong>{isRtl ? 'ספק נתונים:' : 'Provider:'}</strong> {lot.source.provider}</p>
           <p className="mb-3"><strong>{isRtl ? 'מזהה רשומה:' : 'Record ID:'}</strong> <code>{lot.source.recordId}</code></p>
-          <a href={lot.source.url} target="_blank" rel="noopener noreferrer" className="inline-block rounded bg-amber-700 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800">
+          <a href={lot.source.url} target="_blank" rel="noopener noreferrer" className="inline-block rounded bg-amber-700 px-4 py-2 text-xs font-medium text-white hover:bg-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2">
             {isRtl ? 'צפייה בפריט המקורי באתר המכירה' : 'View Original Lot on Auction Site'}
           </a>
         </div>
@@ -74,7 +74,7 @@ export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailPr
 
       <section className="border-t border-slate-200 pt-6 text-center">
         {!showHelpForm ? (
-          <button type="button" onClick={() => setShowHelpForm(true)} className="w-full rounded-lg bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 md:w-auto">
+          <button type="button" onClick={() => setShowHelpForm(true)} className="w-full rounded-lg bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2 md:w-auto">
             {isRtl ? 'זקוקה לעזרה נוספת ממומחה מונאביד?' : 'Need Manual Help From a Monabid Specialist?'}
           </button>
         ) : (
@@ -83,7 +83,7 @@ export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailPr
             <p className="mb-4 text-xs text-slate-500">{isRtl ? 'אפשר לנסח שאלה. שליחת בקשה תתאפשר לאחר חיבור שירות ההסכמה.' : 'You can write a question. Submission will be available when the consent service is connected.'}</p>
             <textarea aria-label={isRtl ? 'שאלת עזרה' : 'Help request message'} className="mb-3 w-full rounded-md border border-gray-300 p-2 text-sm" rows={3} placeholder={isRtl ? 'מה תרצי לדעת על פריט זה?' : 'What would you like to verify about this lot?'} />
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowHelpForm(false)} className="px-3 py-1 text-xs text-slate-500">{isRtl ? 'ביטול' : 'Cancel'}</button>
+              <button type="button" onClick={() => setShowHelpForm(false)} className="px-3 py-1 text-xs text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2">{isRtl ? 'ביטול' : 'Cancel'}</button>
               <button type="button" disabled className="cursor-not-allowed rounded bg-green-700 px-4 py-2 text-xs text-white opacity-60">{isRtl ? 'שליחת בקשה והסכמה' : 'Submit Request'}</button>
             </div>
           </div>
