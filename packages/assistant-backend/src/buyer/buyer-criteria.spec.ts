@@ -1,17 +1,17 @@
 import {
   applyBuyerAnswer,
   emptyBuyerCriteria,
-  extractBuyerCriteriaFromFixture,
+  parseCriteriaFromAiResponse,
   mergeBuyerCriteria,
   nextFocusedQuestion,
-  processCriteriaTurn,
+  applyClarificationTurn,
   skipCurrentQuestion,
 } from './buyer-criteria';
-import { week3P4Fixtures, week3TurnFixtures } from './buyer-criteria.test-helpers';
+import { sampleAiExtractResponses, sampleClarificationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
   it('extracts a basic structured request from a fixture response', () => {
-    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+    const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
 
     expect(result.criteria.categories).toEqual(['painting']);
     expect(result.criteria.keywords).toEqual(['blue']);
@@ -38,7 +38,7 @@ describe('BuyerCriteria extraction', () => {
   });
 
   it('handles complex fixture with ranges, multiple values, and missing fields', () => {
-    const result = extractBuyerCriteriaFromFixture({
+    const result = parseCriteriaFromAiResponse({
       provider: 'fixture',
       mode: 'fixture',
       content: 'Looking for sculpture, blue or red, from 1920-1930, budget $5k-$15k, location not specified, artist unknown.',
@@ -66,15 +66,15 @@ describe('BuyerCriteria extraction', () => {
 
 describe('Week 3 focused questions', () => {
   it('loads shared fixtures from test helpers', () => {
-    const fromFile = week3P4Fixtures.paintingEn();
-    const fromCode = extractBuyerCriteriaFromFixture(fromFile);
+    const fromFile = sampleAiExtractResponses.paintingEn();
+    const fromCode = parseCriteriaFromAiResponse(fromFile);
 
     expect(fromFile.mode).toBe('fixture');
     expect(fromCode.criteria.categories).toEqual(['painting']);
   });
 
   it('asks one Hebrew question for the first missing search fact', () => {
-    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingHe());
+    const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingHe());
 
     expect(result.criteria.language).toBe('he');
     expect(result.conversation.missing[0]).toBe('creator');
@@ -112,7 +112,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('skips an optional question and moves to the next missing fact', () => {
-    const initial = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
     const afterSkip = skipCurrentQuestion(initial.criteria, initial.conversation);
 
     expect(initial.conversation.missing[0]).toBe('creator');
@@ -123,7 +123,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('does not skip category when search intent is still missing', () => {
-    const unclear = extractBuyerCriteriaFromFixture(week3P4Fixtures.vagueEn());
+    const unclear = parseCriteriaFromAiResponse(sampleAiExtractResponses.vagueEn());
 
     expect(unclear.conversation.missing[0]).toBe('budget');
 
@@ -142,7 +142,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('extracts keywords from the first message so category is not required twice', () => {
-    const result = extractBuyerCriteriaFromFixture(week3P4Fixtures.manuscriptEn());
+    const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.manuscriptEn());
 
     expect(result.criteria.categories).toEqual([]);
     expect(result.criteria.keywords).toEqual(expect.arrayContaining(['rare', 'Hebrew', 'manuscript']));
@@ -151,7 +151,7 @@ describe('Week 3 focused questions', () => {
   });
 
   it('stores a free-text category answer as keywords when no known category matches', () => {
-    const afterAnswer = processCriteriaTurn({
+    const afterAnswer = applyClarificationTurn({
       criteria: emptyBuyerCriteria('en'),
       conversation: {
         skipped: ['budget'],
@@ -169,16 +169,58 @@ describe('Week 3 focused questions', () => {
   });
 
   it('applies answer and skip using shared turn fixtures', () => {
-    const afterAnswer = processCriteriaTurn(week3TurnFixtures.answerMonet());
+    const afterAnswer = applyClarificationTurn(sampleClarificationTurns.answerMonet());
 
     expect(afterAnswer.criteria.creators).toEqual(['Monet']);
     expect(afterAnswer.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
     expect(afterAnswer.conversation.missing).toEqual(['location']);
 
-    const afterSkip = processCriteriaTurn(week3TurnFixtures.skipLocation());
+    const afterSkip = applyClarificationTurn(sampleClarificationTurns.skipLocation());
 
     expect(afterSkip.conversation.skipped).toEqual(['location']);
     expect(afterSkip.conversation.missing).toEqual([]);
     expect(afterSkip.conversation.nextQuestion).toBe('I have the main search facts. Should I continue?');
+  });
+});
+
+describe('Week 4 hardConstraints', () => {
+  it('derives constraints from confirmed criteria fields', () => {
+    const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+
+    expect(extracted.criteria.hardConstraints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'price', operator: 'range' }),
+        expect.objectContaining({ field: 'categories', operator: 'contains' }),
+        expect.objectContaining({ field: 'periods', operator: 'contains' }),
+      ]),
+    );
+  });
+
+  it('preserves price constraints after a refinement turn', () => {
+    const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const afterTurn = applyClarificationTurn({
+      criteria: extracted.criteria,
+      conversation: extracted.conversation,
+      action: 'answer',
+      message: 'Monet',
+    });
+
+    expect(afterTurn.criteria.price).toEqual(extracted.criteria.price);
+    expect(afterTurn.criteria.hardConstraints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'price', operator: 'range' }),
+        expect.objectContaining({ field: 'creators', operator: 'contains', value: ['Monet'] }),
+      ]),
+    );
+  });
+
+  it('derives hardConstraints from structured AI extract fields', () => {
+    const extracted = parseCriteriaFromAiResponse(structuredAiExtractSamples.blueRingHe());
+
+    expect(extracted.criteria.hardConstraints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'categories', value: ['טבעות'] }),
+      ]),
+    );
   });
 });

@@ -14,8 +14,8 @@ import {
   type GroupedResults,
 } from './explained-results';
 
-// Mirrors P2's real POST /api/lots/search: LotsService.search(LotSearchDto): Promise<PaginatedResult<AuctionLot>>.
-export interface P2TextSearch {
+/** Client for POST /api/lots/search (LotsService.search). */
+export interface LotsSearchClient {
   search(request: SearchRequest): Promise<PaginatedSearchResult<AuctionLot>>;
 }
 
@@ -26,7 +26,7 @@ export interface BuyerSearchInput {
   status: string;
   createdAt: string;
   searchedAt: string;
-  /** Lot the buyer picked from an earlier result set, carried through to B4/P5. */
+  /** Lot the buyer picked from an earlier result set. */
   selectedLotId?: string;
 }
 
@@ -43,23 +43,25 @@ export type BuyerSearchOutcome =
       selectedLotId?: string;
     };
 
-// Runs the P2 query, then hands B4 grouped explained results or P5 an honest no-result summary, criteria and hard constraints carried through unchanged.
+/** Runs lots search, then returns grouped explained results or an honest no-result summary. */
 export class BuyerSearchOrchestrator {
-  // Takes the P2 text-search dependency and the request-building service.
   constructor(
-    private readonly p2: P2TextSearch,
+    private readonly lotsSearch: LotsSearchClient,
     private readonly buyerSearch = new BuyerSearchService(),
   ) {}
 
   // Returns grouped explained results or a privacy-safe no-result view, criteria unchanged.
   async search(input: BuyerSearchInput): Promise<BuyerSearchOutcome> {
     const searchRequest = this.buyerSearch.createSearchRequest(input.criteria, input.language);
-    const { data: items } = await this.p2.search(searchRequest);
+    const { data: items } = await this.lotsSearch.search(searchRequest);
 
     const fullRequest: BuyerSearchRequest = {
       criteria: input.criteria,
       language: input.language,
-      hardConstraints: deriveHardConstraints(input.criteria),
+      hardConstraints:
+        input.criteria.hardConstraints.length > 0
+          ? input.criteria.hardConstraints
+          : deriveHardConstraints(input.criteria),
     };
 
     if (items.length > 0) {

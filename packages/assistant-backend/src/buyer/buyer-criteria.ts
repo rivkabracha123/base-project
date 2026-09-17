@@ -64,22 +64,58 @@ export function emptyBuyerCriteria(language: BuyerLanguage = 'en'): BuyerCriteri
   };
 }
 
-export type BuyerCriteriaTurnRequest = {
+export type ClarificationTurnInput = {
   criteria: BuyerCriteria;
   conversation: BuyerCriteriaConversation;
   action: 'answer' | 'skip';
   message?: string;
 };
 
-export type P4FixtureResponse = {
+/** Validated structured fields from the AI extract (preferred over free-text content). */
+export type StructuredAiExtract = {
+  role: 'buyer';
+  language: BuyerLanguage;
+  intent: string;
+  category?: string;
+  creators?: string[];
+  periods?: string[];
+  price?: BuyerPriceRange;
+  keywords?: string[];
+  geography?: string[];
+  hasContactDetails: boolean;
+  hasImages: boolean;
+};
+
+/** AI extract payload (fixture or live) received at POST /buyer/extract. */
+export type AiExtractResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
+  isRelevant?: boolean;
+  error?: string | null;
   content: string;
   summary: string;
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
+  structuredAnswer?: StructuredAiExtract;
 };
+
+export function isStructuredAiExtract(value: unknown): value is StructuredAiExtract {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    candidate.role === 'buyer' &&
+    (candidate.language === 'he' || candidate.language === 'en') &&
+    typeof candidate.intent === 'string' &&
+    candidate.intent.trim().length > 0 &&
+    typeof candidate.hasContactDetails === 'boolean' &&
+    typeof candidate.hasImages === 'boolean'
+  );
+}
 
 const appendUnique = (values: string[], ...additions: Array<string | null | undefined>): string[] =>
   [...new Set([...values, ...additions.filter((value): value is string => Boolean(value?.trim()))])];
@@ -211,6 +247,53 @@ export function nextFocusedQuestion(missing: SearchFact[], language: BuyerLangua
   return field ? FOCUSED_QUESTIONS[field][language] : READY_TO_CONTINUE[language];
 }
 
+export function deriveHardConstraints(criteria: BuyerCriteria): Constraint[] {
+  const constraints: Constraint[] = [];
+
+  if (hasPrice(criteria)) {
+    constraints.push({
+      field: 'price',
+      operator: 'range',
+      value: criteria.price,
+      reason: 'Buyer confirmed budget range',
+    });
+  }
+  if (criteria.categories.length > 0) {
+    constraints.push({
+      field: 'categories',
+      operator: 'contains',
+      value: [...criteria.categories],
+      reason: 'Buyer confirmed category',
+    });
+  }
+  if (criteria.creators.length > 0) {
+    constraints.push({
+      field: 'creators',
+      operator: 'contains',
+      value: [...criteria.creators],
+      reason: 'Buyer confirmed creator',
+    });
+  }
+  if (criteria.periods.length > 0) {
+    constraints.push({
+      field: 'periods',
+      operator: 'contains',
+      value: [...criteria.periods],
+      reason: 'Buyer confirmed period',
+    });
+  }
+  if (criteria.geography.length > 0) {
+    constraints.push({
+      field: 'geography',
+      operator: 'contains',
+      value: [...criteria.geography],
+      reason: 'Buyer confirmed geography',
+    });
+  }
+
+  return constraints;
+}
+
 function withConversation(
   criteria: BuyerCriteria,
   conversation: Partial<BuyerCriteriaConversation> = {},
@@ -223,9 +306,14 @@ function withConversation(
     nextQuestion: '',
   };
   const missing = buildMissingFields(criteria, baseConversation);
+  const normalizedCriteria: BuyerCriteria = {
+    ...criteria,
+    language,
+    hardConstraints: deriveHardConstraints({ ...criteria, language }),
+  };
 
   return {
-    criteria: { ...criteria, language },
+    criteria: normalizedCriteria,
     conversation: {
       ...baseConversation,
       missing,
@@ -234,7 +322,27 @@ function withConversation(
   };
 }
 
-export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): BuyerCriteriaResponse {
+function criteriaFromStructuredAiExtract(structured: StructuredAiExtract): BuyerCriteria {
+  return {
+    ...emptyBuyerCriteria(structured.language),
+    categories: structured.category?.trim() ? [structured.category.trim()] : [],
+    creators: structured.creators ?? [],
+    periods: structured.periods ?? [],
+    keywords: structured.keywords ?? [],
+    geography: structured.geography ?? [],
+    price: structured.price,
+    language: structured.language,
+    hardConstraints: [],
+  };
+}
+
+function parseFromStructuredAiExtract(response: AiExtractResponse, structured: StructuredAiExtract): BuyerCriteriaResponse {
+  return withConversation(criteriaFromStructuredAiExtract(structured), {
+    notes: [response.summary, structured.intent].filter((note) => note.trim().length > 0),
+  });
+}
+
+function parseFromAiTextContent(response: AiExtractResponse): BuyerCriteriaResponse {
   const text = `${response.content} ${response.summary} ${response.recommendation} ${response.nextAction}`;
   const category = parseCategory(text);
   const keywords = extractKeywords(text);
@@ -249,6 +357,19 @@ export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): Bu
   }, {
     notes: [response.summary],
   });
+}
+
+/** Parse AI extract response into criteria plus the next clarification question. */
+export function parseCriteriaFromAiResponse(response: AiExtractResponse): BuyerCriteriaResponse {
+  if (response.isRelevant === false) {
+    throw new Error(response.error ?? 'The request is not related to buying or selling.');
+  }
+
+  if (isStructuredAiExtract(response.structuredAnswer)) {
+    return parseFromStructuredAiExtract(response, response.structuredAnswer);
+  }
+
+  return parseFromAiTextContent(response);
 }
 
 export function mergeBuyerCriteria(
@@ -345,9 +466,10 @@ export function skipCurrentQuestion(
   return withConversation(criteria, { ...conversation, skipped });
 }
 
-export function processCriteriaTurn(request: BuyerCriteriaTurnRequest): BuyerCriteriaResponse {
-  if (request.action === 'skip') {
-    return skipCurrentQuestion(request.criteria, request.conversation);
+/** Apply one buyer answer or skip to the in-memory criteria conversation state. */
+export function applyClarificationTurn(state: ClarificationTurnInput): BuyerCriteriaResponse {
+  if (state.action === 'skip') {
+    return skipCurrentQuestion(state.criteria, state.conversation);
   }
-  return applyBuyerAnswer(request.criteria, request.conversation, request.message ?? '');
+  return applyBuyerAnswer(state.criteria, state.conversation, state.message ?? '');
 }

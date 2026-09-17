@@ -5,7 +5,7 @@ import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 import type { PaginatedSearchResult } from './search-request';
 
-// Wraps fixture lots as the single-page PaginatedResult P2's real search() returns.
+// Wraps fixture lots as the single-page PaginatedResult the lots search API returns.
 const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
   data,
   total: data.length,
@@ -14,7 +14,7 @@ const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
   totalPages: data.length > 0 ? 1 : 0,
 });
 
-// Week 4 CONNECT checkpoint: trace one named fixture through the minimum B3 -> B4 / P5 contract.
+// Demo scenario: trace criteria through search to grouped results or an unmatched-demand summary.
 const contract = JSON.parse(
   readFileSync(
     resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-explained-results.json'),
@@ -40,15 +40,15 @@ const contract = JSON.parse(
 
 const { scenario, expected } = contract;
 
-// The criteria B2 hands over, rebuilt on a real emptyBuyerCriteria base so the fixture cannot drift.
+// The buyer criteria, rebuilt on a real emptyBuyerCriteria base so the fixture cannot drift.
 const buyerCriteria = (): BuyerCriteria => ({
   ...emptyBuyerCriteria(scenario.language),
   ...scenario.criteria,
 });
 
-const p2ResultLots = scenario.p2ResultLots.map((lot) => auctionLotSchema.parse(lot));
+const searchResultLots = scenario.p2ResultLots.map((lot) => auctionLotSchema.parse(lot));
 const lead = {
-  leadId: 'buyer-lead-w4-demo',
+  leadId: 'buyer-lead-explained-results-demo',
   status: 'new',
   createdAt: '2026-09-01T10:00:00.000Z',
   searchedAt: '2026-09-01T10:01:00.000Z',
@@ -59,10 +59,10 @@ const forbiddenKeys = ['profileId', 'sessionId', 'contact', 'conversation'];
 const reasonsFor = (entries: Array<{ lot: AuctionLot; matchReasons: unknown }>) =>
   Object.fromEntries(entries.map((entry) => [entry.lot.id, entry.matchReasons]));
 
-describe('B3 Week 4 explained-results contract (B2 -> B3 -> B4 / P5)', () => {
-  it('groups exactly the P2 lots into current/historical with derived match reasons', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page(p2ResultLots)) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+describe('Search explained results contract (criteria → grouped results / no-match summary)', () => {
+  it('groups exactly the lots search returned into current/historical with derived match reasons', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(searchResultLots)) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
       criteria: buyerCriteria(),
@@ -84,7 +84,7 @@ describe('B3 Week 4 explained-results contract (B2 -> B3 -> B4 / P5)', () => {
       ...reasonsFor(outcome.results.historical),
     }).toEqual(expected.results.matchReasonsByLot);
 
-    // The whole criteria object and its derived hard constraints reach B4 unchanged.
+    // Criteria and derived hard constraints are carried through unchanged on the search output.
     expect(outcome.searchRequest.criteria).toEqual(buyerCriteria());
     expect(outcome.searchRequest.hardConstraints).toEqual(expected.hardConstraints);
 
@@ -94,25 +94,25 @@ describe('B3 Week 4 explained-results contract (B2 -> B3 -> B4 / P5)', () => {
     }
   });
 
-  it('adds no lot P2 did not return', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page(p2ResultLots)) };
-    const outcome = await new BuyerSearchOrchestrator(p2).search({
+  it('adds no lot the lots search API did not return', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(searchResultLots)) };
+    const outcome = await new BuyerSearchOrchestrator(lotsSearch).search({
       criteria: buyerCriteria(),
       language: scenario.language,
       ...lead,
     });
 
     if (outcome.kind !== 'results') throw new Error('expected results');
-    const returnedIds = p2ResultLots.map((lot) => lot.id).sort();
-    const handedOffIds = [...outcome.results.current, ...outcome.results.historical]
+    const returnedIds = searchResultLots.map((lot) => lot.id).sort();
+    const groupedLotIds = [...outcome.results.current, ...outcome.results.historical]
       .map((entry) => entry.lot.id)
       .sort();
-    expect(handedOffIds).toEqual(returnedIds);
+    expect(groupedLotIds).toEqual(returnedIds);
   });
 
   it('recovers from no results with an honest demand summary and no budget relaxation', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page(scenario.p2UnmatchedLots as AuctionLot[])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(scenario.p2UnmatchedLots as AuctionLot[])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
       criteria: buyerCriteria(),
@@ -130,7 +130,7 @@ describe('B3 Week 4 explained-results contract (B2 -> B3 -> B4 / P5)', () => {
     );
     expect(unmatchedDemand.demandSummary.recovery).toBe(expected.demandSummary.recovery);
     expect(unmatchedDemand.demandSummary.hardConstraints).toEqual(expected.hardConstraints);
-    // Budget survived: same bounds B2 sent, nothing widened.
+    // Budget survived: same bounds from criteria, nothing widened.
     expect(unmatchedDemand.searchRequest.criteria.price).toEqual(scenario.criteria.price);
 
     const serialized = JSON.stringify(outcome);
