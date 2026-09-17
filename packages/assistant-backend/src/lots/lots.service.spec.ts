@@ -66,7 +66,7 @@ describe('LotsService', () => {
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
       expect.stringContaining(`LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query)`),
-      { query: '%Atereth%' }
+      expect.objectContaining({ query: '%Atereth%' })
     );
   });
 
@@ -119,6 +119,22 @@ describe('LotsService', () => {
     await expect(new LotsService(repository).findOne('missing')).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  describe('full-text search (title/description)', () => {
+    it('adds a PostgreSQL full-text match clause alongside the partial-text LIKE clause', async () => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+      const repository = mockRepo(queryBuilder);
+
+      await new LotsService(repository).search({ query: 'Atereth', language: 'en' });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `to_tsvector('english', lot.payload->'title'->>'en') @@ plainto_tsquery('english', :ftsQuery)`
+        ),
+        expect.objectContaining({ ftsQuery: 'Atereth' }),
+      );
+    });
+  });
+
   describe('structured filters', () => {
     // The list facets share one mechanism: an `IN` clause on a JSON path, added
     // via `andWhere` so it composes with (rather than replaces) the text search.
@@ -146,6 +162,60 @@ describe('LotsService', () => {
         expect.stringContaining('LIKE'),
         expect.objectContaining({ query: expect.stringContaining('atereth') }),
       );
+    });
+
+    describe('category and creator aliases', () => {
+      it('resolves a category alias to its canonical token before building the IN clause', async () => {
+        const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { categories: ['ספרים נדירים'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
+          { categories: ['rare_books'] },
+        );
+      });
+
+      it('resolves a creator alias to its canonical token before building the IN clause', async () => {
+        const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { creators: ['יצחק אברבנאל'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'creator' IN (:...creators)"),
+          { creators: ['yitzhak_abrabanel'] },
+        );
+      });
+
+      it('resolves each value independently when a filter mixes an alias with an already-canonical token', async () => {
+        const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { categories: ['Rare Books', 'rare_books'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
+          { categories: ['rare_books', 'rare_books'] },
+        );
+      });
+
+      it('still applies the category clause when it is unresolvable, even alongside another valid filter', async () => {
+        const queryBuilder = createMockQueryBuilder([], 0);
+
+        await new LotsService(mockRepo(queryBuilder)).search({
+          filters: { categories: ['zzz-unmapped-term'], auctionHouseIds: ['house-kestenbaum'] },
+        });
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
+          { categories: ['zzz-unmapped-term'] },
+        );
+      });
     });
 
     it('adds no filter clause when filters are absent', async () => {

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { AuctionLot, PaginatedResult } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
+import { resolveCategoryAlias, resolveCreatorAlias } from './lot-alias';
 import type { LotFiltersDto, LotSearchDto } from './lot-search.dto';
 
 function hasAnyFilter(filters?: LotFiltersDto): boolean {
@@ -53,8 +54,14 @@ export class LotsService {
 
     const qb = this.lots.createQueryBuilder('lot');
 
-    // Free-text match over the bilingual title and description. `%` / `_` in the
-    // term are escaped so they match literally (e.g. "25%").
+    // Free-text match over the bilingual title and description, two ways: a
+    // partial (substring) match and a Postgres full-text match, OR'd together
+    // so either one finding the lot is enough. `%` / `_` in the LIKE term are
+    // escaped so they match literally (e.g. "25%"); the full-text side takes
+    // the unescaped term since `plainto_tsquery` has its own tokenizing, not
+    // LIKE wildcard semantics. Hebrew has no built-in Postgres dictionary, so
+    // its full-text config is `simple` (tokenizes only, no stemming) while
+    // English uses `english` (stemmed).
     if (normalizedQuery) {
       const escapedQuery = normalizedQuery.replace(/[\\%_]/g, (char) => `\\${char}`);
       qb.andWhere(
@@ -62,23 +69,32 @@ export class LotsService {
           LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
           LOWER(lot.payload->'title'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
           LOWER(lot.payload->'description'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
-          LOWER(lot.payload->'description'->>'he') LIKE LOWER(:query) ESCAPE '\\'
+          LOWER(lot.payload->'description'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
+          to_tsvector('english', lot.payload->'title'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
+          to_tsvector('simple', lot.payload->'title'->>'he') @@ plainto_tsquery('simple', :ftsQuery) OR
+          to_tsvector('english', lot.payload->'description'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
+          to_tsvector('simple', lot.payload->'description'->>'he') @@ plainto_tsquery('simple', :ftsQuery)
         )`,
-        { query: `%${escapedQuery}%` }
+        { query: `%${escapedQuery}%`, ftsQuery: normalizedQuery }
       );
     }
 
     // Each populated list facet adds an `IN` clause on its JSON path. Values are
     // bound parameters, never interpolated. Empty arrays are skipped: `IN ()` is
-    // invalid SQL.
-    const listFacets: ReadonlyArray<['categories' | 'creators' | 'auctionHouseIds', string]> = [
-      ['categories', "lot.payload->>'category'"],
-      ['creators', "lot.payload->>'creator'"],
-      ['auctionHouseIds', "lot.payload->'auctionHouse'->>'id'"],
+    // invalid SQL. Category and creator values pass through their alias resolver
+    // first; a value with no curated alias is kept as-is rather than dropped, so
+    // the clause is never silently skipped.
+    const listFacets: ReadonlyArray<
+      ['categories' | 'creators' | 'auctionHouseIds', string, ((value: string) => string | undefined) | undefined]
+    > = [
+      ['categories', "lot.payload->>'category'", resolveCategoryAlias],
+      ['creators', "lot.payload->>'creator'", resolveCreatorAlias],
+      ['auctionHouseIds', "lot.payload->'auctionHouse'->>'id'", undefined],
     ];
-    for (const [key, path] of listFacets) {
-      const values = filters?.[key];
-      if (values?.length) {
+    for (const [key, path, resolve] of listFacets) {
+      const rawValues = filters?.[key];
+      if (rawValues?.length) {
+        const values = resolve ? rawValues.map((value) => resolve(value) ?? value) : rawValues;
         qb.andWhere(`${path} IN (:...${key})`, { [key]: values });
       }
     }
