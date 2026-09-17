@@ -1,12 +1,12 @@
-const { Test } = require('@nestjs/testing');
-const { getRepositoryToken } = require('@nestjs/typeorm');
-const { StaffOperationEntity } = require('../database/staff-operation.entity');
-const { BUYER_LEAD_DASHBOARD_SOURCE } = require('./buyer-lead-dashboard-source');
-const { StaffOperationsController } = require('./staff-operations.controller');
-const { StaffOperationsService } = require('./staff-operations.service');
+import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { StaffOperationEntity } from '../database/staff-operation.entity';
+import { BUYER_LEAD_DASHBOARD_SOURCE } from './buyer-lead-dashboard-source';
+import { StaffOperationsController } from './staff-operations.controller';
+import { StaffOperationsService } from './staff-operations.service';
 
 describe('Staff operations buyer lead contract', () => {
-  async function createController(repository, buyerLeadDashboardSource) {
+  async function createController(repository: unknown, buyerLeadDashboardSource: unknown) {
     const module = await Test.createTestingModule({
       controllers: [StaffOperationsController],
       providers: [

@@ -2,6 +2,7 @@ import { Controller, Get, Param } from '@nestjs/common';
 import { StaffOperationsService } from './staff-operations.service';
 import { StaffOperationListItem } from './staff-operation-list-item';
 import { StaffBuyerLeadDetail } from './staff-buyer-lead-detail';
+import { StaffSellerLeadDetail } from './staff-seller-lead-detail';
 
 @Controller('staff-operations')
 export class StaffOperationsController {
@@ -13,7 +14,11 @@ export class StaffOperationsController {
   }
 
   @Get('leads/:leadId')
-  async getBuyerLeadDetail(@Param('leadId') leadId: string): Promise<StaffBuyerLeadDetail> {
+  async getLeadDetail(@Param('leadId') leadId: string): Promise<StaffBuyerLeadDetail | StaffSellerLeadDetail> {
+    return this.staffOpsService.getLeadDetail(leadId);
+  }
+
+  async getBuyerLeadDetail(leadId: string): Promise<StaffBuyerLeadDetail> {
     return this.staffOpsService.getBuyerLeadDetail(leadId);
   }
 }

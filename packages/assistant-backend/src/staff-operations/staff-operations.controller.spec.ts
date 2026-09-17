@@ -1,4 +1,4 @@
-const { StaffOperationsController } = require('./staff-operations.controller');
+import { StaffOperationsController } from './staff-operations.controller';
 
 describe('StaffOperationsController', () => {
   it('returns the privacy-limited lead list supplied by its domain service', async () => {
@@ -13,7 +13,7 @@ describe('StaffOperationsController', () => {
       },
     ];
     const staffOperationsService = { findAll: jest.fn().mockResolvedValue(leads) };
-    const controller = new StaffOperationsController(staffOperationsService);
+    const controller = new StaffOperationsController(staffOperationsService as never);
 
     await expect(controller.getLeads()).resolves.toEqual(leads);
     expect(staffOperationsService.findAll).toHaveBeenCalledTimes(1);
@@ -42,9 +42,39 @@ describe('StaffOperationsController', () => {
     const staffOperationsService = {
       getBuyerLeadDetail: jest.fn().mockResolvedValue(leadDetail),
     };
-    const controller = new StaffOperationsController(staffOperationsService);
+    const controller = new StaffOperationsController(staffOperationsService as never);
 
     await expect(controller.getBuyerLeadDetail('buyer-lead-001')).resolves.toEqual(leadDetail);
     expect(staffOperationsService.getBuyerLeadDetail).toHaveBeenCalledWith('buyer-lead-001');
+  });
+
+  it('returns a privacy-limited seller lead detail through the shared lead route', async () => {
+    const leadDetail = {
+      id: '11111111-1111-4111-8111-111111111111',
+      type: 'seller',
+      status: 'submitted',
+      item: { title: 'Synthetic silver menorah' },
+      evidence: [{ id: 'evidence-001', type: 'image' }],
+      comparables: [],
+      valuation: null,
+      recommendation: null,
+      alternatives: [],
+      sellerChoice: null,
+      catalogDraft: null,
+      contact: {
+        preferredName: 'Synthetic Seller',
+        email: null,
+        phone: null,
+        serviceConsentGranted: false,
+      },
+      history: [],
+    };
+    const staffOperationsService = {
+      getLeadDetail: jest.fn().mockResolvedValue(leadDetail),
+    };
+    const controller = new StaffOperationsController(staffOperationsService as never);
+
+    await expect(controller.getLeadDetail('11111111-1111-4111-8111-111111111111')).resolves.toEqual(leadDetail);
+    expect(staffOperationsService.getLeadDetail).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
   });
 });

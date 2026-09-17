@@ -2,9 +2,20 @@ import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createQueryClient } from './app/query-client';
-import i18n from './i18n';
+import { createQueryClient } from '../app/query-client';
+import i18n from '../i18n';
 import { StaffOperationsDashboard } from './StaffOperationsDashboard';
+
+const leads = [
+  {
+    id: 'buyer-lead', type: 'buyer', clientName: 'קונה סינתטי', status: 'new',
+    requestDetails: 'מחפש כתב יד נדיר.', createdAt: '2026-08-31T11:15:00.000Z',
+  },
+  {
+    id: 'seller-lead', type: 'seller', clientName: 'מוכרת סינתטית', status: 'reviewing',
+    requestDetails: 'מבקשת להגיש פריט למכירה.', createdAt: '2026-08-30T15:30:00.000Z',
+  },
+];
 
 function renderDashboard() {
   const queryClient = createQueryClient();
@@ -24,6 +35,43 @@ afterEach(async () => {
   await i18n.changeLanguage('he');
 });
 
+describe('StaffOperationsDashboard', () => {
+  it('renders synthetic buyer and seller leads returned by the dashboard API', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(leads), { status: 200 })));
+
+    renderDashboard();
+
+    expect(await screen.findByText('קונה סינתטי')).toBeInTheDocument();
+    expect(screen.getByText('מוכרת סינתטית')).toBeInTheDocument();
+    expect(screen.getByText('קונה')).toBeInTheDocument();
+    expect(screen.getByText('מוכר')).toBeInTheDocument();
+  });
+
+  it('shows a loading state while the dashboard API is pending', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})));
+
+    renderDashboard();
+
+    expect(await screen.findByRole('status')).toHaveTextContent('טוען את לוח הבקרה התפעולי');
+  });
+
+  it('shows a retryable error when the dashboard API fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
+
+    renderDashboard();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('לא ניתן לטעון את הפניות כרגע.');
+    expect(screen.getByRole('button', { name: 'נסו שוב' })).toBeInTheDocument();
+  });
+
+  it('shows an empty state when the dashboard API returns no leads', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })));
+
+    renderDashboard();
+
+    expect(await screen.findByRole('heading', { name: 'אין פניות להצגה כרגע.' })).toBeInTheDocument();
+  });
+});
 describe('StaffOperationsDashboard Week 3', () => {
   it('renders dashboard labels in English when English is active', async () => {
     await i18n.changeLanguage('en');
@@ -254,5 +302,118 @@ describe('StaffOperationsDashboard Week 3', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Missing Buyer/ }));
 
     expect(await screen.findByText('הפנייה שנבחרה לא נמצאה.')).toBeInTheDocument();
+  });
+});
+describe('StaffOperationsDashboard Week 4', () => {
+  it('shows a privacy-limited supported seller lead after selecting it', async () => {
+    await i18n.changeLanguage('en');
+    const sellerLead = {
+      id: '11111111-1111-4111-8111-111111111111',
+      type: 'seller',
+      clientName: 'Synthetic Seller',
+      status: 'submitted',
+      requestDetails: 'Synthetic silver menorah.',
+      createdAt: '2026-09-14T10:00:00.000Z',
+    };
+    const sellerLeadDetail = {
+      id: '11111111-1111-4111-8111-111111111111',
+      type: 'seller',
+      status: 'submitted',
+      createdAt: '2026-09-14T10:00:00.000Z',
+      updatedAt: '2026-09-14T11:00:00.000Z',
+      item: { title: 'Synthetic silver menorah', category: 'judaica' },
+      evidence: [{ id: 'evidence-001', type: 'image' }],
+      comparables: [{ id: 'sale-001', source: { label: 'Source unavailable', url: null } }],
+      valuation: {
+        status: 'supported',
+        reportId: 'report-001',
+        valuationRange: { min: 1200, max: 1800, currency: 'USD' },
+      },
+      recommendation: { houseName: 'Synthetic Auction House', reason: 'Judaica focus' },
+      alternatives: [],
+      sellerChoice: { houseName: 'Synthetic Auction House' },
+      catalogDraft: { title: 'Synthetic silver menorah' },
+      contact: {
+        preferredName: 'Synthetic Seller',
+        email: 'seller.demo@example.test',
+        phone: null,
+        serviceConsentGranted: true,
+      },
+      history: [{ at: '2026-09-14T11:00:00.000Z', event: 'submitted', actor: 'seller' }],
+      profileId: 'never-render-profile-id',
+      sessionId: 'never-render-session-id',
+      marketingConsent: true,
+      evidencePath: '/private/evidence.jpg',
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input) => {
+      if (String(input).endsWith('/seller-leads/11111111-1111-4111-8111-111111111111')) {
+        return Promise.resolve(new Response(JSON.stringify(sellerLeadDetail), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify([sellerLead]), { status: 200 }));
+    }));
+
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Synthetic Seller/ }));
+
+    expect(await screen.findAllByText('Synthetic silver menorah')).toHaveLength(2);
+    expect(screen.getByText(/evidence-001/)).toBeInTheDocument();
+    expect(screen.getByText(/sale-001/)).toBeInTheDocument();
+    expect(screen.getByText('seller.demo@example.test')).toBeInTheDocument();
+    expect(screen.queryByText('never-render-profile-id')).not.toBeInTheDocument();
+    expect(screen.queryByText('never-render-session-id')).not.toBeInTheDocument();
+    expect(screen.queryByText('/private/evidence.jpg')).not.toBeInTheDocument();
+  });
+
+  it('shows a seller refusal without a price range and withholds contact without consent', async () => {
+    await i18n.changeLanguage('en');
+    const sellerLead = {
+      id: '22222222-2222-4222-8222-222222222222',
+      type: 'seller',
+      clientName: 'Refusal Seller',
+      status: 'reviewing',
+      requestDetails: 'Synthetic manuscript.',
+      createdAt: '2026-09-14T10:00:00.000Z',
+    };
+    const sellerLeadDetail = {
+      id: '22222222-2222-4222-8222-222222222222',
+      type: 'seller',
+      status: 'reviewing',
+      createdAt: '2026-09-14T10:00:00.000Z',
+      updatedAt: '2026-09-14T11:00:00.000Z',
+      item: { title: 'Synthetic manuscript' },
+      evidence: [{ id: 'evidence-002', type: 'provenance' }],
+      comparables: [{ id: 'sale-002', source: { label: 'Source unavailable', url: null } }],
+      valuation: { status: 'refusal', reportId: 'report-002', reason: 'insufficient_comparables' },
+      recommendation: null,
+      alternatives: [],
+      sellerChoice: null,
+      catalogDraft: null,
+      contact: {
+        preferredName: 'Refusal Seller',
+        email: null,
+        phone: null,
+        serviceConsentGranted: false,
+      },
+      history: [{ at: '2026-09-14T11:00:00.000Z', event: 'ranked', actor: 'system' }],
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input) => {
+      if (String(input).endsWith('/seller-leads/22222222-2222-4222-8222-222222222222')) {
+        return Promise.resolve(new Response(JSON.stringify(sellerLeadDetail), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify([sellerLead]), { status: 200 }));
+    }));
+
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Refusal Seller/ }));
+
+    expect(await screen.findByText(/Expert review required/)).toBeInTheDocument();
+    expect(screen.getByText(/insufficient_comparables/)).toBeInTheDocument();
+    expect(screen.queryByText('withhold.demo@example.test')).not.toBeInTheDocument();
+    expect(screen.queryByText('+972-50-0000000')).not.toBeInTheDocument();
+    expect(screen.queryByText(/1200/)).not.toBeInTheDocument();
   });
 });
