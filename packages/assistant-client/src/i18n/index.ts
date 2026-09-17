@@ -4,8 +4,9 @@ import { resources } from './resources';
 
 void i18n.use(initReactI18next).init({
   resources,
-  lng: 'en',
-  fallbackLng: 'en',
+  // Hebrew is the temporary display language until the anonymous profile loads.
+  lng: 'he',
+  fallbackLng: 'he',
   interpolation: { escapeValue: false },
 });
 
