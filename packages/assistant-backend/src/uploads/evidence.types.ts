@@ -12,7 +12,11 @@ export const MAX_FILES_PER_UPLOAD = 10;
 export const EVIDENCE_METADATA_FILE = "evidence.json";
 
 export type AllowedMimeType = (typeof ALLOWED_MIME_TYPES)[number];
-export type EvidenceReference = SellerEvidenceReference;
+
+export interface EvidenceReference extends SellerEvidenceReference {
+  itemId: string;
+  downloadUri: string;
+}
 
 export interface UploadedFile {
   originalname: string;
