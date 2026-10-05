@@ -1,10 +1,10 @@
-const pino = require('pino');
-const { HTTP_LOG_REDACT_PATHS } = require('./http-logger');
+import pino from 'pino';
+import { HTTP_LOG_REDACT_PATHS } from './http-logger';
 
 describe('HTTP log privacy', () => {
   it('redacts authentication, cookies, request bodies, and set-cookie headers', () => {
-    const writes = [];
-    const logger = pino({ redact: HTTP_LOG_REDACT_PATHS }, { write: (line) => writes.push(line) });
+    const writes: string[] = [];
+    const logger = pino({ redact: HTTP_LOG_REDACT_PATHS }, { write: (line: string) => writes.push(line) });
 
     logger.info({
       req: {
