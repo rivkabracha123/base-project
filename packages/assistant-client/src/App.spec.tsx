@@ -26,7 +26,7 @@ if (!lot) {
 const profile = {
   id: 'profile-1',
   sessionId: 'test-session-1',
-  language: 'en',
+  language: 'en' as const,
   preferredName: null,
   email: null,
   phone: null,
