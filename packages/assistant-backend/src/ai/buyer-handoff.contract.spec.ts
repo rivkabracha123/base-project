@@ -13,13 +13,13 @@ describe('BuyerHandoffContract', () => {
   });
 
 //test Checks that a malformed buyer answer structure is rejected before being passed forward 
-  it('rejects a handoff with a non-string missing fact', () => {
+  it('rejects a handoff with a non-string keyword', () => {
     expect(
       isBuyerHandoffContract({
         language: 'en',
         intent: 'Find a ring',
         category: 'rings',
-        missingFacts: ['budget', 5000],
+        keywords: ['ring', 5000],
         hasContactDetails: false,
         hasImages: false,
       }),

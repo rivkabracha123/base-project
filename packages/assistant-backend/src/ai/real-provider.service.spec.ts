@@ -1,11 +1,30 @@
-import { RealProviderService } from './real-provider.service';
+import { RealProviderService, sanitizePrompt } from './real-provider.service';
 //test real provider service
 describe('RealProviderService', () => {
   it('calls the OpenAI-compatible endpoint and returns the model content', async () => {
+    const modelResponse = {
+      isRelevant: true,
+      error: null,
+      summary: 'מוצג פריט רלוונטי',
+      recommendation: 'הצג אפשרויות דומות',
+      nextAction: 'בקש מידע נוסף',
+      confidence: 'medium',
+      structuredAnswer: {
+        role: 'buyer',
+        language: 'he',
+        intent: 'Find a blue ring.',
+        category: 'rings',
+        periods: ['2021'],
+        keywords: ['blue'],
+        hasContactDetails: false,
+        hasImages: false,
+      },
+    };
+
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: 'תשובה אמיתית מה-provider' } }],
+        choices: [{ message: { content: JSON.stringify(modelResponse) } }],
       }),
     });
 
@@ -22,7 +41,8 @@ describe('RealProviderService', () => {
 //make sure that the result equals the expected output
     expect(result.provider).toBe('real');
     expect(result.mode).toBe('real');
-    expect(result.content).toBe('תשובה אמיתית מה-provider');
+    expect(result.content).toBe(JSON.stringify(modelResponse));
+    expect(result.structuredAnswer).toEqual(modelResponse.structuredAnswer);
     expect(fetchMock).toHaveBeenCalledWith(
       'https://example.com/v1/chat/completions',
       expect.objectContaining({
@@ -30,5 +50,16 @@ describe('RealProviderService', () => {
         headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
       }),
     );
+  });
+//test to remove contact details
+  it('removes contact details and inline image data before sending the prompt', () => {
+    const sanitized = sanitizePrompt(
+      'Contact me at buyer@example.com or 050-1234567. data:image/png;base64,abc123',
+    );
+
+    expect(sanitized).not.toContain('buyer@example.com');
+    expect(sanitized).not.toContain('050-1234567');
+    expect(sanitized).toContain('[contact removed]');
+    expect(sanitized).toContain('[image removed]');
   });
 });
