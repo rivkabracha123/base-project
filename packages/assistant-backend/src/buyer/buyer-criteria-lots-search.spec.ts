@@ -6,7 +6,7 @@ import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import type { PaginatedSearchResult, SearchRequest } from './search-request';
 
-// B3 <-> P2 Week 4 CONNECT: shared named-fixture proof for both verification reports; see the fixture's own `description`.
+// Shared named-fixture proof for criteria → lots search; see the fixture's own `description`.
 const contract = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-p2-connect.json'), 'utf8'),
 ) as {
@@ -28,16 +28,16 @@ const lead = {
 };
 
 for (const scenario of contract.scenarios) {
-  describe(`B3 <-> P2 Week 4 connect contract: ${scenario.name} (named fixture: ${contract.namedLotId})`, () => {
-    it('builds exactly the SearchRequest P2 expects for this scenario', () => {
+  describe(`Criteria to lots search request: ${scenario.name} (named fixture: ${contract.namedLotId})`, () => {
+    it('builds exactly the SearchRequest the lots API expects for this scenario', () => {
       expect(criteriaToSearchRequest(scenario.criteria, scenario.language)).toEqual(
         scenario.expectedRequest,
       );
     });
 
-    it('consumes exactly the PaginatedResult shape P2 returns and hands the named lot to B4', async () => {
-      const p2 = { search: jest.fn().mockResolvedValue(contract.expectedResponse) };
-      const orchestrator = new BuyerSearchOrchestrator(p2);
+    it('consumes the paginated lots response and hands the named lot to results', async () => {
+      const lotsSearch = { search: jest.fn().mockResolvedValue(contract.expectedResponse) };
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
       const outcome = await orchestrator.search({
         criteria: scenario.criteria,
@@ -45,13 +45,13 @@ for (const scenario of contract.scenarios) {
         ...lead,
       });
 
-      expect(p2.search).toHaveBeenCalledWith(scenario.expectedRequest);
+      expect(lotsSearch.search).toHaveBeenCalledWith(scenario.expectedRequest);
       expect(outcome.kind).toBe('results');
       if (outcome.kind !== 'results') return;
-      const handedOffIds = [...outcome.results.current, ...outcome.results.historical].map(
+      const groupedLotIds = [...outcome.results.current, ...outcome.results.historical].map(
         (entry) => entry.lot.id,
       );
-      expect(handedOffIds).toEqual([contract.namedLotId]);
+      expect(groupedLotIds).toEqual([contract.namedLotId]);
     });
   });
 }

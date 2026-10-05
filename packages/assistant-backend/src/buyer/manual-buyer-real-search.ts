@@ -1,7 +1,7 @@
 import AppDataSource from '../database/data-source';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { LotsService } from '../lots/lots.service';
-import { BuyerSearchOrchestrator, type P2TextSearch } from './buyer-search.orchestrator';
+import { BuyerSearchOrchestrator, type LotsSearchClient } from './buyer-search.orchestrator';
 import type { BuyerCriteria } from './buyer-criteria';
 import type { SearchRequest } from './search-request';
 
@@ -29,7 +29,7 @@ async function run(): Promise<void> {
   await AppDataSource.initialize();
   const repository = AppDataSource.getRepository(AuctionLotEntity);
   const lotsService = new LotsService(repository);
-  const p2: P2TextSearch = { search: (request: SearchRequest) => lotsService.search(request) };
+  const p2: LotsSearchClient = { search: (request: SearchRequest) => lotsService.search(request) };
   const orchestrator = new BuyerSearchOrchestrator(p2);
 
   const now = new Date().toISOString();

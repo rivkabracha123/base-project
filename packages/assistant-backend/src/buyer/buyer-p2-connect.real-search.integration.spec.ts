@@ -5,7 +5,7 @@ import type { Repository } from 'typeorm';
 import type { AuctionLotEntity } from '../database/auction-lot.entity';
 import { LotsService } from '../lots/lots.service';
 import type { BuyerCriteria } from './buyer-criteria';
-import { BuyerSearchOrchestrator, type P2TextSearch } from './buyer-search.orchestrator';
+import { BuyerSearchOrchestrator, type LotsSearchClient } from './buyer-search.orchestrator';
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import type { SearchRequest } from './search-request';
 
@@ -43,7 +43,7 @@ for (const scenario of contract.scenarios) {
 
     // Mali's real search — no mocked "P2", just her service with a faked DB layer.
     const lotsService = new LotsService(repository);
-    const p2: P2TextSearch = { search: (request: SearchRequest) => lotsService.search(request) };
+    const p2: LotsSearchClient = { search: (request: SearchRequest) => lotsService.search(request) };
     const orchestrator = new BuyerSearchOrchestrator(p2);
 
     const searchRequest = criteriaToSearchRequest(scenario.criteria, scenario.language);
