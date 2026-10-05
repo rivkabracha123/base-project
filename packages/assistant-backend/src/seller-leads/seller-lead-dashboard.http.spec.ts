@@ -67,7 +67,7 @@ describe('SellerLeadsController dashboard detail (P5 contract)', () => {
       history: detail.history,
       createdAt: new Date(detail.createdAt),
       updatedAt: new Date(detail.updatedAt),
-    } as SellerLeadEntity;
+    } as unknown as SellerLeadEntity;
   }
 
   it('GET /api/seller-leads/:leadId returns the privacy-limited dashboard DTO', async () => {
