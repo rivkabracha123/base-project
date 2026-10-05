@@ -33,7 +33,7 @@ function createHarness() {
     findOneBy: jest.fn(async (where: { id: string }) => stored.find((lead) => lead.id === where.id) ?? null),
   } as unknown as Repository<SellerLeadEntity>;
 
-  return { logged, saved, stored, repository, service: new SellerLeadsService(repository, logger) };
+  return { logged, saved, stored, repository, logger, service: new SellerLeadsService(repository, logger) };
 }
 
 function draftLead(overrides: Partial<SellerLeadEntity> = {}): SellerLeadEntity {
@@ -95,6 +95,38 @@ describe('SellerLeadsService', () => {
         phone: enquiry.contact.phone,
       },
     });
+  });
+
+  it('copies profileId and contact from P3 when an anonymous session is present', async () => {
+    const { saved, repository, logger } = createHarness();
+    const profiles = {
+      getOrCreateBySessionId: jest.fn(async () => ({
+        id: 'profile-from-p3',
+        sessionId: 'sess-p3',
+        language: 'he' as const,
+        preferredName: 'P3 Seller',
+        email: 'p3.seller@example.test',
+        phone: null,
+        serviceConsent: { granted: true, grantedAt: '2026-09-01T00:00:00.000Z' },
+        marketingConsent: { granted: true },
+        createdAt: '2026-09-01T00:00:00.000Z',
+        updatedAt: '2026-09-01T00:00:00.000Z',
+      })),
+    };
+    const service = new SellerLeadsService(repository, logger, profiles as never);
+
+    await service.draft(enquiry, 'sess-p3');
+
+    expect(profiles.getOrCreateBySessionId).toHaveBeenCalledWith('sess-p3');
+    expect(saved[0]).toMatchObject({
+      profileId: 'profile-from-p3',
+      contact: {
+        preferredName: 'P3 Seller',
+        email: 'p3.seller@example.test',
+      },
+      serviceConsent: true,
+    });
+    expect(JSON.stringify(saved[0])).not.toMatch(/marketingConsent/);
   });
 
   it('lists the drafted enquiries newest first for the staff dashboard', async () => {

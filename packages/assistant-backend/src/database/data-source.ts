@@ -6,6 +6,8 @@ import { DataSource } from 'typeorm';
 import { AuctionLotEntity } from './auction-lot.entity';
 import { CreateAuctionLots1710000000000 } from './1710000000000-create-auction-lots';
 import { CreateMonabidBasicSchema1710000000001 } from './1710000000001-create-monabid-basic-schema';
+import { UserProfileEntity } from './user-profile.entity';
+import { CreateUserProfiles1730000000000 } from './1730000000000-create-user-profiles';
 import { SellerLeadEntity } from './seller-lead.entity';
 import { CreateSellerLeads1788220800000 } from './1788220800000-create-seller-leads';
 import { AddSellerLeadRecommendation1788220800001 } from './1788220800001-add-seller-lead-recommendation';
@@ -20,10 +22,11 @@ const databaseUrl =
 const AppDataSource = new DataSource({
   type: 'postgres',
   url: databaseUrl,
-  entities: [AuctionLotEntity, SellerLeadEntity],
+  entities: [AuctionLotEntity, UserProfileEntity, SellerLeadEntity],
   migrations: [
     CreateAuctionLots1710000000000,
     CreateMonabidBasicSchema1710000000001,
+    CreateUserProfiles1730000000000,
     CreateSellerLeads1788220800000,
     AddSellerLeadRecommendation1788220800001,
     AddSellerLeadChoice1788220800002,

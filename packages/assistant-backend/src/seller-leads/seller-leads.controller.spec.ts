@@ -21,7 +21,7 @@ describe('SellerLeadsController', () => {
     const controller = new SellerLeadsController({ draft } as unknown as SellerLeadsService);
 
     await expect(controller.create(enquiry)).resolves.toEqual({ id: 'lead-1' });
-    expect(draft).toHaveBeenCalledWith(enquiry);
+    expect(draft).toHaveBeenCalledWith(enquiry, undefined);
   });
 
   it('exposes the draft enquiry route under the seller-leads path', () => {

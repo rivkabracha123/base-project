@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { sellerLeadDashboardDetailFixture, sellerLeadDashboardDetailSchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
+import { UserProfileEntity } from '../database/user-profile.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
 const FORBIDDEN = /profileId|sessionId|marketingConsent|conversation|signedUrl|file:\/\/|\\\\Users\\/i;
@@ -23,6 +24,12 @@ describe('SellerLeadsController dashboard detail (P5 contract)', () => {
         findOneBy: jest.fn(async (where: { id: string }) => stored.find((lead) => lead.id === where.id) ?? null),
         create: jest.fn((lead: SellerLeadEntity) => lead),
         save: jest.fn(async (lead: SellerLeadEntity) => lead),
+      })
+      .overrideProvider(getRepositoryToken(UserProfileEntity))
+      .useValue({
+        findOneBy: jest.fn(async () => null),
+        create: jest.fn((row: Partial<UserProfileEntity>) => Object.assign(new UserProfileEntity(), row)),
+        save: jest.fn(async (row: UserProfileEntity) => row),
       })
       .compile();
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import type {
   HouseRanking,
   SellerChoice,
@@ -20,8 +20,11 @@ export class SellerLeadsController {
 
   /** S5 Week 2: create an internal draft enquiry. Does not contact an auction house. */
   @Post()
-  async create(@Body() enquiry: CreateSellerLeadDto): Promise<{ id: string }> {
-    const lead = await this.sellerLeads.draft(enquiry);
+  async create(
+    @Body() enquiry: CreateSellerLeadDto,
+    @Headers('x-anonymous-session-id') sessionId?: string,
+  ): Promise<{ id: string }> {
+    const lead = await this.sellerLeads.draft(enquiry, sessionId);
 
     return { id: lead.id };
   }
@@ -38,6 +41,16 @@ export class SellerLeadsController {
       },
       query.houses,
     );
+  }
+
+  /**
+   * S1 callback when the confirmed catalog draft is ready.
+   * POST the draft; the 200 JSON is what Tamar should render (houses + catalog).
+   */
+  @Post('s1-handoff')
+  @HttpCode(200)
+  receiveS1Handoff(@Body() payload: unknown): ReturnType<SellerLeadsService['receiveS1Handoff']> {
+    return this.sellerLeads.receiveS1Handoff(payload);
   }
 
   /** S5 Week 3: rank P1 houses for this lead and persist the ranking for P5. */

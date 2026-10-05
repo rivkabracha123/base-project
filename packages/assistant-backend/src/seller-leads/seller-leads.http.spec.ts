@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { houseRankingSchema, sellerChoiceSchema, sellerLeadSummarySchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
+import { UserProfileEntity } from '../database/user-profile.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
 describe('SellerLeadsController house ranking (contract)', () => {
@@ -29,6 +30,12 @@ describe('SellerLeadsController house ranking (contract)', () => {
           }
           return saved;
         }),
+      })
+      .overrideProvider(getRepositoryToken(UserProfileEntity))
+      .useValue({
+        findOneBy: jest.fn(async () => null),
+        create: jest.fn((row: Partial<UserProfileEntity>) => Object.assign(new UserProfileEntity(), row)),
+        save: jest.fn(async (row: UserProfileEntity) => row),
       })
       .compile();
 
@@ -233,6 +240,33 @@ describe('SellerLeadsController house ranking (contract)', () => {
     const rows = sellerLeadSummarySchema.array().parse(await list.json());
     expect(rows[0]?.status).toBe('submitted');
     expect(rows[0]?.catalogDraft?.en).toBe('Abstract landscape study');
+  });
+
+  it('POST /api/seller-leads/s1-handoff accepts S1 callback draft and returns ranking plus catalog', async () => {
+    const response = await postRanking('/api/seller-leads/s1-handoff', {
+      language: { preferred: 'he' },
+      item: {
+        id: 'item-001',
+        category: 'paintings',
+        title: 'Abstract landscape study',
+        evidenceIds: ['evidence-001'],
+        catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
+      },
+      evidence: [{ id: 'evidence-001', type: 'seller_statement', uri: 'file:///secret.jpg' }],
+      confirmedFacts: { category: 'paintings' },
+      seller: { preferredName: 'Maya' },
+    });
+
+    expect(response.status).toBe(200);
+    const body = response.body as {
+      ranking: { recommendation: { house: { active: boolean } } | null };
+      catalogDraft: { en: string };
+      evidence: Array<{ id: string; type: string }>;
+    };
+    expect(houseRankingSchema.parse(body.ranking).recommendation?.house.active).toBe(true);
+    expect(body.catalogDraft.en).toBe('Abstract landscape study');
+    expect(body.evidence).toEqual([{ id: 'evidence-001', type: 'seller_statement' }]);
+    expect(JSON.stringify(body)).not.toMatch(/file:|Maya/i);
   });
 
   it('rejects a missing category with 400', async () => {

@@ -19,6 +19,18 @@ describe('seller lead schema', () => {
     expect(databaseOptions(config).migrations).toContain(CreateSellerLeads1788220800000);
   });
 
+  it('registers the P3 user_profiles entity and migration so S5 can call GET /api/profiles/me', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { UserProfileEntity } = await import('./user-profile.entity');
+    const { CreateUserProfiles1730000000000 } = await import('./1730000000000-create-user-profiles');
+
+    expect(databaseOptions(config).entities).toContain(UserProfileEntity);
+    expect(databaseOptions(config).migrations).toContain(CreateUserProfiles1730000000000);
+    expect(AppDataSource.options.entities).toContain(UserProfileEntity);
+    expect(AppDataSource.options.migrations).toContain(CreateUserProfiles1730000000000);
+  });
+
   it('registers the seller lead entity and migration with the migration CLI data source', async () => {
     const { default: AppDataSource } = await import('./data-source');
     const { SellerLeadEntity } = await import('./seller-lead.entity');

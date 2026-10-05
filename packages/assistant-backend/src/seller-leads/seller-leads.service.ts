@@ -8,14 +8,19 @@ import {
   type LoggerService,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type {
-  HouseRanking,
-  PreparedAuctionHouse,
-  RankingItem,
-  SellerLeadHistoryEvent,
+import {
+  dashboardValuationSchema,
+  receiveConfirmedItemHandoff,
+  sellerContactFromP3Profile,
+  type HouseRanking,
+  type PreparedAuctionHouse,
+  type RankingItem,
+  type SellerLeadHistoryEvent,
+  type SellerLeadValuation,
 } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
+import { ProfilesService } from '../profiles/profiles.service';
 import type { CreateSellerLeadDto } from './create-seller-lead.dto';
 import { loadPreparedHouses } from './house-rank-fixture';
 import { rankActiveHouses } from './house-rank';
@@ -44,6 +49,11 @@ function claimText(payload: SubmitSellerLeadDto): string {
   ].join(' ');
 }
 
+/** Class-validator sees a wide DTO; persist the S4 discriminated union Zod already checked. */
+function toStoredValuation(valuation: SubmitSellerLeadDto['valuation']): SellerLeadValuation {
+  return dashboardValuationSchema.parse(valuation);
+}
+
 /** S5 service: internal seller leads. Never emails or contacts an auction house. */
 @Injectable()
 export class SellerLeadsService {
@@ -53,14 +63,40 @@ export class SellerLeadsService {
     @Optional()
     @Inject(Logger)
     private readonly logger: LoggerService = new Logger(SellerLeadsService.name),
+    @Optional()
+    private readonly profiles?: ProfilesService,
   ) {}
 
+  /** Copy P3 current-profile fields onto a draft enquiry when the anonymous session is present. */
+  async applyP3Profile(
+    enquiry: CreateSellerLeadDto,
+    sessionId?: string,
+  ): Promise<CreateSellerLeadDto> {
+    if (!sessionId || !this.profiles) return enquiry;
+
+    const fromP3 = sellerContactFromP3Profile(await this.profiles.getOrCreateBySessionId(sessionId));
+    if (!fromP3.serviceConsent) {
+      throw new BadRequestException('P3 service consent is required before creating a seller lead');
+    }
+
+    return {
+      profileId: fromP3.profileId,
+      serviceConsent: true,
+      contact: {
+        preferredName: fromP3.preferredName || enquiry.contact.preferredName,
+        email: fromP3.email ?? enquiry.contact.email,
+        phone: fromP3.phone ?? enquiry.contact.phone,
+      },
+    };
+  }
+
   /** S5 Week 2: persist an internal lead. Logs the id only — never email/phone. */
-  async draft(enquiry: CreateSellerLeadDto): Promise<SellerLeadEntity> {
+  async draft(enquiry: CreateSellerLeadDto, sessionId?: string): Promise<SellerLeadEntity> {
+    const payload = await this.applyP3Profile(enquiry, sessionId);
     const lead = await this.sellerLeads.save(
       this.sellerLeads.create({
-        profileId: enquiry.profileId,
-        contact: enquiry.contact,
+        profileId: payload.profileId,
+        contact: payload.contact,
         recommendation: null,
         sellerChoice: null,
         catalogDraft: null,
@@ -68,7 +104,7 @@ export class SellerLeadsService {
         evidence: null,
         valuation: null,
         comparables: null,
-        serviceConsent: enquiry.serviceConsent === true,
+        serviceConsent: payload.serviceConsent === true,
         status: 'draft',
         history: [historyEvent('drafted', 'system')],
       }),
@@ -86,6 +122,29 @@ export class SellerLeadsService {
       `Ranked ${ranking.alternatives.length + (ranking.recommendation ? 1 : 0)} active prepared houses`,
     );
     return ranking;
+  }
+
+  /**
+   * S1 callback: confirmed SellerItemDraft / buildHandoffPayload in, ranking + copied catalog out.
+   * Does not create a lead (contact/consent stay on P3) and never contacts a house.
+   */
+  receiveS1Handoff(payload: unknown): {
+    ranking: HouseRanking;
+    catalogDraft: { he: string; en: string };
+    item: { id: string; category: string; title: string; evidenceIds: string[] };
+    evidence: Array<{ id: string; type: string }>;
+  } {
+    try {
+      const copied = receiveConfirmedItemHandoff(payload);
+      return {
+        ranking: this.rankHouses(copied.rankingItem),
+        catalogDraft: copied.catalogDraft,
+        item: copied.item,
+        evidence: copied.evidence,
+      };
+    } catch {
+      throw new BadRequestException('S1 handoff must include item id, category, title, and catalogDraft');
+    }
   }
 
   /** S5 Week 3: write the ranking onto the lead without touching sellerChoice. */
@@ -162,7 +221,7 @@ export class SellerLeadsService {
     lead.catalogDraft = payload.catalogDraft;
     lead.item = payload.item;
     lead.evidence = payload.evidence;
-    lead.valuation = payload.valuation;
+    lead.valuation = toStoredValuation(payload.valuation);
     lead.comparables = payload.comparables ?? lead.comparables;
     lead.status = 'submitted';
     lead.history = [...(lead.history ?? []), historyEvent('submitted', 'seller')];

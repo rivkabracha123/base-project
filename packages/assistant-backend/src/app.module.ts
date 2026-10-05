@@ -5,6 +5,8 @@ import { environmentSchema } from './config/environment';
 import { AuctionLotEntity } from './database/auction-lot.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
 import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
+import { UserProfileEntity } from './database/user-profile.entity';
+import { CreateUserProfiles1730000000000 } from './database/1730000000000-create-user-profiles';
 import { SellerLeadEntity } from './database/seller-lead.entity';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
 import { ValuationCalculationModule } from './valuation-calculation/valuation-calculation.module';
@@ -15,6 +17,7 @@ import { AddSellerLeadDashboard1788220800004 } from './database/1788220800004-ad
 import { ComparablesModule } from './comparables/comparables.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
+import { ProfilesModule } from './profiles/profiles.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
 import { StorageModule } from './storage/storage.module';
@@ -32,10 +35,11 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
   return {
     type: 'postgres',
     url: config.getOrThrow<string>('DATABASE_URL'),
-    entities: [AuctionLotEntity, SellerLeadEntity],
+    entities: [AuctionLotEntity, UserProfileEntity, SellerLeadEntity],
     migrations: [
       CreateAuctionLots1710000000000,
       CreateMonabidBasicSchema1710000000001,
+      CreateUserProfiles1730000000000,
       CreateSellerLeads1788220800000,
       AddSellerLeadRecommendation1788220800001,
       AddSellerLeadChoice1788220800002,
@@ -56,6 +60,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     ComparablesModule,
     HealthModule,
     LotsModule,
+    ProfilesModule,
     SellerIntakeModule,
     SellerLeadsModule,
     StorageModule,
