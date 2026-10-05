@@ -5,7 +5,7 @@ import {
   sellerLeadDashboardDetailSchema,
   sellerLeadSummarySchema,
   submitSellerLeadSchema,
-  dashboardValuationSchema,
+  sellerLeadValuationSchema,
 } from './house-recommendation';
 
 describe('preparedAuctionHouseFixtureSchema', () => {
@@ -147,7 +147,7 @@ describe('sellerLeadDashboardDetailSchema', () => {
   });
 
   it('accepts a refusal DashboardValuationDto without a price range', () => {
-    const valuation = dashboardValuationSchema.parse({
+    const valuation = sellerLeadValuationSchema.parse({
       status: 'refusal',
       reportId: 'valuation-refusal-001',
       reason: 'insufficient_comparable_sales',
@@ -166,7 +166,7 @@ describe('sellerLeadDashboardDetailSchema', () => {
 
   it('rejects a supported valuation without a USD range', () => {
     expect(() =>
-      dashboardValuationSchema.parse({
+      sellerLeadValuationSchema.parse({
         status: 'supported',
         reportId: 'valuation-001',
         comparableCount: 1,

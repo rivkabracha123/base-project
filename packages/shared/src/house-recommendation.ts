@@ -107,10 +107,11 @@ const dashboardValuationSharedFields = {
 };
 
 /**
- * S4 DashboardValuationDto. S5 copies this onto the lead and returns it to P5 as valuation.
+ * S5 copy stored on the lead and returned to P5. S4's canonical DashboardValuationDto
+ * is `dashboardValuationSchema` in dashboard-valuation.ts (HTTPS sources, sale dates).
  * S5 does not recalculate. Unverified sources use label "Source unavailable" and url: null.
  */
-export const dashboardValuationSchema = z.discriminatedUnion('status', [
+export const sellerLeadValuationSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('supported'),
     ...dashboardValuationSharedFields,
@@ -126,8 +127,6 @@ export const dashboardValuationSchema = z.discriminatedUnion('status', [
     reason: z.string().min(1),
   }),
 ]);
-
-export const sellerLeadValuationSchema = dashboardValuationSchema;
 
 export const sellerLeadStatusSchema = z.enum(['draft', 'submitted']);
 
@@ -220,7 +219,7 @@ export type SellerChoice = z.infer<typeof sellerChoiceSchema>;
 export type CatalogDraft = z.infer<typeof catalogDraftSchema>;
 export type SellerLeadItem = z.infer<typeof sellerLeadItemSchema>;
 export type SellerLeadEvidence = z.infer<typeof sellerLeadEvidenceSchema>;
-export type DashboardValuation = z.infer<typeof dashboardValuationSchema>;
+export type DashboardValuation = z.infer<typeof sellerLeadValuationSchema>;
 export type SellerLeadValuation = DashboardValuation;
 export type SellerLeadStatus = z.infer<typeof sellerLeadStatusSchema>;
 export type SellerLeadHistoryEvent = z.infer<typeof sellerLeadHistoryEventSchema>;

@@ -1,4 +1,4 @@
-import { dashboardValuationSchema } from '@monabid/shared';
+import { sellerLeadValuationSchema } from '@monabid/shared';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -125,7 +125,7 @@ export class DashboardValuationConfidenceDto {
 @ValidatorConstraint({ name: 'dashboardValuationDto' })
 class IsDashboardValuationDto implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
-    return dashboardValuationSchema.safeParse(value).success;
+    return sellerLeadValuationSchema.safeParse(value).success;
   }
 
   defaultMessage(): string {

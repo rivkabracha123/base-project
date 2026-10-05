@@ -11,6 +11,7 @@ export * from './comparable';
 export * from './house-recommendation';
 export * from './s5-demo-fixtures';
 export {
+  dashboardValuationSchema,
   dashboardValuationSourceSchema,
   sellerLeadValuationSnapshotSchema,
   type DashboardValuationDto,

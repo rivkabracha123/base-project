@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
-  dashboardValuationSchema,
+  sellerLeadValuationSchema,
   receiveConfirmedItemHandoff,
   sellerContactFromP3Profile,
   type HouseRanking,
@@ -51,7 +51,7 @@ function claimText(payload: SubmitSellerLeadDto): string {
 
 /** Class-validator sees a wide DTO; persist the S4 discriminated union Zod already checked. */
 function toStoredValuation(valuation: SubmitSellerLeadDto['valuation']): SellerLeadValuation {
-  return dashboardValuationSchema.parse(valuation);
+  return sellerLeadValuationSchema.parse(valuation);
 }
 
 /** S5 service: internal seller leads. Never emails or contacts an auction house. */
