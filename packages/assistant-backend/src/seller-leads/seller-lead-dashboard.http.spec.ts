@@ -1,38 +1,17 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { sellerLeadDashboardDetailSchema } from '@monabid/shared';
+import { sellerLeadDashboardDetailFixture, sellerLeadDashboardDetailSchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
-const fixturePath = resolve(__dirname, '../../../../fixtures/demo-scenarios/seller-lead-dashboard-detail.json');
 const FORBIDDEN = /profileId|sessionId|marketingConsent|conversation|signedUrl|file:\/\/|\\\\Users\\/i;
 
 describe('SellerLeadsController dashboard detail (P5 contract)', () => {
   let app: INestApplication;
   let baseUrl: string;
   const stored: SellerLeadEntity[] = [];
-  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
-    leadId: string;
-    dashboardDetail: {
-      leadId: string;
-      status: 'submitted';
-      createdAt: string;
-      updatedAt: string;
-      item: SellerLeadEntity['item'];
-      evidence: SellerLeadEntity['evidence'];
-      comparables: SellerLeadEntity['comparables'];
-      valuation: SellerLeadEntity['valuation'];
-      recommendation: NonNullable<SellerLeadEntity['recommendation']>['recommendation'];
-      alternatives: NonNullable<SellerLeadEntity['recommendation']>['alternatives'];
-      sellerChoice: SellerLeadEntity['sellerChoice'];
-      catalogDraft: SellerLeadEntity['catalogDraft'];
-      contact: { preferredName: string; email: string | null; phone: string | null; serviceConsentGranted: boolean };
-      history: SellerLeadEntity['history'];
-    };
-  };
+  const fixture = sellerLeadDashboardDetailFixture;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({

@@ -4,6 +4,7 @@ import {
   houseRankingSchema,
   sellerChoiceSchema,
   sellerLeadSummarySchema,
+  sellerFinalLeadFixture,
   submitSellerLeadSchema,
   type AuctionLot,
   type HouseRanking,
@@ -14,7 +15,6 @@ import {
 } from '@monabid/shared';
 import lotFixtures from '../../../../fixtures/auction-data/lots.json';
 import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draft-enquiry.json';
-import finalLeadFixture from '../../../../fixtures/demo-scenarios/seller-final-lead.json';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 
@@ -37,7 +37,7 @@ export async function getSampleLot(language: string, signal?: AbortSignal): Prom
   return auctionLotSchema.parse(await response.json());
 }
 
-export const sellerFinalLeadFixture = finalLeadFixture;
+export { sellerFinalLeadFixture };
 
 /** S5 Week 2: create an internal draft lead. Uses P3-shaped contact (fixture or seller-entered). */
 export async function createSellerLead(
@@ -101,7 +101,7 @@ export async function saveSellerHouseChoice(
 /** S5 Week 5: persist catalog draft and mark the internal lead submitted. Never contacts a house. */
 export async function submitFinalSellerLead(
   leadId: string,
-  handoff: SubmitSellerLead = submitSellerLeadSchema.parse(finalLeadFixture.handoff),
+  handoff: SubmitSellerLead = submitSellerLeadSchema.parse(sellerFinalLeadFixture.handoff),
   signal?: AbortSignal,
 ): Promise<SellerLeadSummary> {
   const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/final`, {

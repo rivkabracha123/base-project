@@ -9,3 +9,4 @@ export * from './auction-lot';
 export * from './seller-item-draft';
 export * from './comparable';
 export * from './house-recommendation';
+export * from './s5-demo-fixtures';

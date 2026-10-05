@@ -1,22 +1,12 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { houseRankingSchema, sellerLeadSummarySchema, submitSellerLeadSchema, type RankingItem } from '@monabid/shared';
+import { houseRankingSchema, sellerFinalLeadFixture, sellerLeadSummarySchema, submitSellerLeadSchema } from '@monabid/shared';
 import { loadPreparedHouses } from './house-rank-fixture';
 import { rankActiveHouses } from './house-rank';
 import { SellerLeadsController } from './seller-leads.controller';
 import type { SellerLeadsService } from './seller-leads.service';
 
-const fixturePath = resolve(__dirname, '../../../../fixtures/demo-scenarios/seller-final-lead.json');
-
 describe('prepared final-lead fixture', () => {
   it('traces confirmed item, catalog draft, valuation, and house choice into a P5 dashboard row', async () => {
-    const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
-      item: RankingItem;
-      chosenHouseId: string;
-      expectedRecommendationId: string;
-      request: { profileId: string; contact: { preferredName: string; email?: string } };
-      handoff: unknown;
-    };
+    const fixture = sellerFinalLeadFixture;
 
     const handoff = submitSellerLeadSchema.parse(fixture.handoff);
     const ranking = houseRankingSchema.parse(rankActiveHouses(loadPreparedHouses(), fixture.item));
