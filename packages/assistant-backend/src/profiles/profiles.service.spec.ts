@@ -10,6 +10,7 @@ describe('ProfilesService', () => {
     findOneBy: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    delete: jest.Mock;
   };
   let service: ProfilesService;
 
@@ -63,6 +64,7 @@ describe('ProfilesService', () => {
       findOneBy: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     };
 
     // The service does not exist yet. This line is intentional in TDD:
@@ -436,5 +438,21 @@ describe('ProfilesService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  // Week 5, Test 1: Delete is scoped to the requesting session only.
+  it('deletes only the profile scoped to the given session', async () => {
+    repository.delete.mockResolvedValue({ affected: 1 });
+
+    await service.deleteBySessionId('session-1');
+
+    expect(repository.delete).toHaveBeenCalledWith({ sessionId: 'session-1' });
+  });
+
+  // Week 5, Test 2: Deleting a session with no profile is idempotent, not an error.
+  it('resolves without throwing when the session has no profile to delete', async () => {
+    repository.delete.mockResolvedValue({ affected: 0 });
+
+    await expect(service.deleteBySessionId('session-without-profile')).resolves.toBeUndefined();
   });
 });

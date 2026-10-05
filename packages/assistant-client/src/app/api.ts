@@ -93,6 +93,16 @@ export async function updateCurrentProfile(
   return userProfileSchema.parse(await response.json());
 }
 
+// Week 5: delete the current anonymous session's profile.
+export async function deleteCurrentProfile(): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/profiles/me`, {
+    method: 'DELETE',
+    headers: profileHeaders(),
+  });
+
+  if (!response.ok) throw new Error(`Profile deletion failed with status ${response.status}`);
+}
+
 // Keep dashboard data limited to the fields required for manual review.
 const staffLeadListSchema = z.array(z.object({
   id: z.string().min(1),
