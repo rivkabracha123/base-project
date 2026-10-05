@@ -12,14 +12,18 @@ import {
   AiExtractResponse,
   parseCriteriaFromAiResponse,
   applyClarificationTurn,
+  createGuidedFallbackCriteriaResponse,
+  detectBuyerLanguage,
 } from './buyer-criteria';
 import {
   appendBuyerCriteriaHistory,
   createBuyerCriteriaSession,
   getBuyerCriteriaSession,
+  getBuyerCriteriaSessionSnapshot,
   resetBuyerCriteriaSessions,
   saveSessionAfterClarification,
 } from './buyer-criteria-session.store';
+import { buildBuyerCriteriaReviewResponse, type BuyerCriteriaReviewResponse } from './buyer-criteria-review';
 
 export { appendBuyerCriteriaHistory };
 
@@ -40,7 +44,12 @@ function toHistoryEntry(request: BuyerChatTurnInput): BuyerChatHistoryEntry {
 export class BuyerCriteriaService {
   /** Create a criteria session from AI extract response and return the first system question for the chat UI. */
   startCriteriaSessionFromAiResponse(response: AiExtractResponse): BuyerChatSystemMessage {
-    const extracted = parseCriteriaFromAiResponse(response);
+    let extracted;
+    try {
+      extracted = parseCriteriaFromAiResponse(response);
+    } catch {
+      extracted = createGuidedFallbackCriteriaResponse(detectBuyerLanguage(response.content));
+    }
     const date = new Date().toISOString();
     const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted, date);
     return buildChatSystemMessage(sessionId, systemMessage);
@@ -113,6 +122,22 @@ export class BuyerCriteriaService {
       throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);
     }
     return [...session.history];
+  }
+
+  getCriteriaReview(sessionId: string): BuyerCriteriaReviewResponse {
+    const session = getBuyerCriteriaSession(sessionId);
+    if (!session) {
+      throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);
+    }
+    return buildBuyerCriteriaReviewResponse(sessionId, session.criteria, session.conversation);
+  }
+
+  getSessionSnapshot(sessionId: string) {
+    try {
+      return getBuyerCriteriaSessionSnapshot(sessionId);
+    } catch {
+      throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);
+    }
   }
 
   resetSessionsForTests(): void {

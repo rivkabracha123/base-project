@@ -24,4 +24,14 @@ export class BuyerController {
   getCriteriaForSession(@Param('sessionId') sessionId: string): BuyerCriteria {
     return this.buyerCriteriaService.getCriteriaForSession(sessionId);
   }
+
+  @Get('sessions/:sessionId/review')
+  getCriteriaReview(@Param('sessionId') sessionId: string) {
+    return this.buyerCriteriaService.getCriteriaReview(sessionId);
+  }
+
+  @Get('sessions/:sessionId')
+  getSessionSnapshot(@Param('sessionId') sessionId: string) {
+    return this.buyerCriteriaService.getSessionSnapshot(sessionId);
+  }
 }
