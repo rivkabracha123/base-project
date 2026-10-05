@@ -11,6 +11,7 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "seed": "tsx src/database/seed.ts",
+    "manual:buyer:real-search": "tsx src/buyer/manual-buyer-real-search.ts",
     "reset": "typeorm-ts-node-commonjs schema:drop -d src/database/data-source.ts && npm run migration:run && npm run seed"
   },
   "dependencies": {
