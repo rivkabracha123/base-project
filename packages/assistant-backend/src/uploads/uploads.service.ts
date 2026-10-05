@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { LocalFileStorage } from "../storage/local-file-storage.service";
-import { ALLOWED_MIME_TYPES, EVIDENCE_METADATA_FILE, MAX_FILE_SIZE_BYTES, MAX_FILES_PER_UPLOAD, AllowedMimeType, EvidenceReference, UploadedFile } from "./evidence.types";
+import { ALLOWED_MIME_TYPES, EVIDENCE_METADATA_FILE, MAX_FILE_SIZE_BYTES, MAX_FILES_PER_UPLOAD, AllowedMimeType, EvidenceReference, UploadedFile, EvidenceUploadCallback } from "./evidence.types";
 
 @Injectable()
 export class UploadsService {
@@ -33,70 +33,103 @@ export class UploadsService {
     profileId: string,
     itemId: string,
     files: UploadedFile[],
+    onComplete?: EvidenceUploadCallback,
   ): Promise<EvidenceReference[]> {
-    if (!itemId || itemId.trim().length === 0) {
-      throw new BadRequestException("itemId is required");
-    }
-
-    const existing = await this.listEvidence(profileId);
-
-    // One upload batch per item is the required business rule.
-    if (existing.some((entry) => entry.itemId === itemId)) {
-      throw new BadRequestException("This item already has uploaded evidence");
-    }
-
-    if (files.length > MAX_FILES_PER_UPLOAD) {
-      throw new BadRequestException("Too many files");
-    }
-
-    for (const file of files) {
-      if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(file.mimetype)) {
-        throw new BadRequestException("Unsupported file type");
-      }
-
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        throw new PayloadTooLargeException("File too large");
-      }
-
-      if (file.originalname.includes("..") || /[/\\]/.test(file.originalname)) {
-        throw new BadRequestException("Unsafe filename");
-      }
-    }
-
-    const evidence: EvidenceReference[] = [];
-
     try {
-      for (const file of files) {
-        const fileId = randomUUID();
-
-        await this.storage.write(profileId, fileId, file.buffer);
-
-        evidence.push({
-          fileId,
-          profileId,
-          itemId,
-          originalName: file.originalname,
-          mimeType: file.mimetype as AllowedMimeType,
-          size: file.size,
-          previewUri: `/api/evidence/${encodeURIComponent(profileId)}/${encodeURIComponent(fileId)}`,
-          downloadUri: `/api/evidence/${encodeURIComponent(profileId)}/${encodeURIComponent(fileId)}/download`,
-        });
+      if (!itemId || itemId.trim().length === 0) {
+        throw new BadRequestException("itemId is required");
       }
 
-      await this.storage.write(
-        profileId,
-        EVIDENCE_METADATA_FILE,
-        Buffer.from(JSON.stringify([...existing, ...evidence])),
-      );
+      const existing = await this.listEvidence(profileId);
 
-      return [...existing, ...evidence];
+      // One upload batch per item is the required business rule.
+      if (existing.some((entry) => entry.itemId === itemId)) {
+        throw new BadRequestException(
+          "This item already has uploaded evidence",
+        );
+      }
+
+      if (files.length > MAX_FILES_PER_UPLOAD) {
+        throw new BadRequestException("Too many files");
+      }
+
+      for (const file of files) {
+        if (
+          !(ALLOWED_MIME_TYPES as readonly string[]).includes(file.mimetype)
+        ) {
+          throw new BadRequestException("Unsupported file type");
+        }
+
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          throw new PayloadTooLargeException("File too large");
+        }
+
+        if (
+          file.originalname.includes("..") ||
+          /[/\\]/.test(file.originalname)
+        ) {
+          throw new BadRequestException("Unsafe filename");
+        }
+      }
+
+      const evidence: EvidenceReference[] = [];
+
+      try {
+        for (const file of files) {
+          const fileId = randomUUID();
+
+          await this.storage.write(profileId, fileId, file.buffer);
+
+          evidence.push({
+            fileId,
+            profileId,
+            itemId,
+            originalName: file.originalname,
+            mimeType: file.mimetype as AllowedMimeType,
+            size: file.size,
+            previewUri: `/api/evidence/${encodeURIComponent(
+              profileId,
+            )}/${encodeURIComponent(fileId)}`,
+            downloadUri: `/api/evidence/${encodeURIComponent(
+              profileId,
+            )}/${encodeURIComponent(fileId)}/download`,
+          });
+        }
+
+        await this.storage.write(
+          profileId,
+          EVIDENCE_METADATA_FILE,
+          Buffer.from(JSON.stringify([...existing, ...evidence])),
+        );
+
+        const result = [...existing, ...evidence];
+
+        onComplete?.({
+          success: true,
+          evidence: result,
+        });
+
+        return result;
+      } catch (error) {
+        // Keep storage consistent if a later write fails after some files were already written.
+        await Promise.all(
+          evidence.map((item) =>
+            this.storage
+              .delete(profileId, item.fileId)
+              .catch(() => undefined),
+          ),
+        );
+
+        throw error;
+      }
     } catch (error) {
-      // Keep storage consistent if a later write fails after some files were already written.
-      await Promise.all(
-        evidence.map((item) =>
-          this.storage.delete(profileId, item.fileId).catch(() => undefined),
-        ),
-      );
+      onComplete?.({
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Evidence upload failed",
+      });
 
       throw error;
     }
@@ -106,7 +139,11 @@ export class UploadsService {
     profileId: string,
     fileId: string,
     includeOriginalName = false,
-  ): Promise<{ buffer: Buffer; mimeType: string; originalName?: string }> {
+  ): Promise<{
+    buffer: Buffer;
+    mimeType: string;
+    originalName?: string;
+  }> {
     const items = await this.listEvidence(profileId);
     const item = items.find((entry) => entry.fileId === fileId);
 
@@ -145,8 +182,8 @@ export class UploadsService {
       }
     }
 
-    const reordered = fileIds.map((fileId) =>
-      existing.find((item) => item.fileId === fileId)!,
+    const reordered = fileIds.map(
+      (fileId) => existing.find((item) => item.fileId === fileId)!,
     );
 
     await this.storage.write(
@@ -189,3 +226,4 @@ export class UploadsService {
     }
   }
 }
+

@@ -18,6 +18,20 @@ export interface EvidenceReference extends SellerEvidenceReference {
   downloadUri: string;
 }
 
+export type EvidenceUploadResult =
+  | {
+      success: true;
+      evidence: EvidenceReference[];
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+export type EvidenceUploadCallback = (
+  result: EvidenceUploadResult,
+) => void;
+
 export interface UploadedFile {
   originalname: string;
   mimetype: string;

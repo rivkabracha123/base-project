@@ -94,5 +94,13 @@ Using `mock-profile-week3-normal`:
 4. Delete `A.jpg`.
 5. The remaining order is `C.jpg`, `B.jpg`.
 
-S1 and S5 should consume the returned `EvidenceReference` objects and use the preview/download endpoints. They should not access `.local-storage` directly.
+## Consumer handoff
+
+- S1 consumes `EvidenceReference` objects for item corrections and previews.
+- S5 consumes only the `fileId` values from those references. It does not receive image bytes or need preview metadata from S2.
+
+To extract the IDs from an S2 response:
+
+```ts
+const evidenceIds = references.map(({ fileId }) => fileId);
 

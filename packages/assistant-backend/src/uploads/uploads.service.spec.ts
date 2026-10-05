@@ -96,6 +96,87 @@ describe("UploadsService", () => {
     });
   });
 
+  describe("upload completion callback", () => {
+    it("calls the callback once after the evidence and metadata are stored", async () => {
+      const events: string[] = [];
+      const originalWrite = storage.write.bind(storage);
+      const write = jest.spyOn(storage, "write");
+
+      write.mockImplementation(async (profileId, fileId, contents) => {
+        await originalWrite(profileId, fileId, contents);
+        events.push(
+          fileId === EVIDENCE_METADATA_FILE ? "metadata-written" : "file-written",
+        );
+      });
+
+      const onComplete = jest.fn((result: { success: boolean }) => {
+        events.push(result.success ? "callback-success" : "callback-failure");
+      });
+
+      const result = await service.addEvidence(
+        "profile-a",
+        "item-1",
+        [createImage("front.jpg")],
+        onComplete,
+      );
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith({
+        success: true,
+        evidence: result,
+      });
+      expect(events).toEqual([
+        "file-written",
+        "metadata-written",
+        "callback-success",
+      ]);
+      await expect(service.listEvidence("profile-a")).resolves.toEqual(result);
+    });
+
+    it("calls the callback once with a validation failure", async () => {
+      const onComplete = jest.fn();
+
+      await expect(
+        service.addEvidence(
+          "profile-a",
+          "item-1",
+          [createImage("notes.pdf", "application/pdf")],
+          onComplete,
+        ),
+      ).rejects.toThrow("Unsupported file type");
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith({
+        success: false,
+        error: "Unsupported file type",
+      });
+      await expect(service.listEvidence("profile-a")).resolves.toEqual([]);
+    });
+
+    it("calls the callback once with a storage failure", async () => {
+      const onComplete = jest.fn();
+      jest.spyOn(storage, "write").mockRejectedValueOnce(
+        new Error("Storage failure"),
+      );
+
+      await expect(
+        service.addEvidence(
+          "profile-a",
+          "item-1",
+          [createImage("front.jpg")],
+          onComplete,
+        ),
+      ).rejects.toThrow("Storage failure");
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith({
+        success: false,
+        error: "Storage failure",
+      });
+      await expect(service.listEvidence("profile-a")).resolves.toEqual([]);
+    });
+  });
+
   describe("file safety", () => {
     it.each([
       ["image/jpeg", "photo.jpg"],
@@ -264,7 +345,9 @@ describe("UploadsService", () => {
         mimeType: "image/jpeg",
         size: 2048,
         previewUri: expect.stringMatching(/^\/api\/evidence\/profile-a\//),
-        downloadUri: expect.stringMatching(/^\/api\/evidence\/profile-a\/.*\/download$/),
+        downloadUri: expect.stringMatching(
+          /^\/api\/evidence\/profile-a\/.*\/download$/,
+        ),
       });
     });
   });
