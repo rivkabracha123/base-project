@@ -6,6 +6,7 @@ import { BuyerChat } from './buyer/BuyerChat';
 import { AppHeader } from './components/AppHeader';
 import { ResultsPage } from './components/ResultPage';
 import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
+import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
 
 export function App() {
   return (
@@ -19,6 +20,8 @@ export function App() {
         <Route path="/lots/:id" element={<LotPage />} />
         <Route path="/chat" element={<BuyerChat />} />
         <Route path="*" element={<Navigate to="/results" replace />} />
+  {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
+        <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
       </Routes>
     </>
   );

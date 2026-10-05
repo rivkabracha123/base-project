@@ -25,6 +25,15 @@ import { ProfilesModule } from './profiles/profiles.module';
 import { StorageModule } from './storage/storage.module';
 
 import { StaffOperationsModule } from './staff-operations/staff-operations.module';
+import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
+import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
+import { ValuationCalculationModule } from './valuation-calculation/valuation-calculation.module';
+import { AddSellerLeadRecommendation1788220800001 } from './database/1788220800001-add-seller-lead-recommendation';
+import { AddSellerLeadChoice1788220800002 } from './database/1788220800002-add-seller-lead-choice';
+import { ComparablesModule } from './comparables/comparables.module';
+import { SellerIntakeModule } from './seller-intake/seller-intake.module';
+import { SellerLeadsModule } from './seller-leads/seller-leads.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 /**
  * Root application module for the Monabid Assistant backend.
@@ -51,10 +60,14 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     ],
     migrations: [
       CreateAuctionLots1710000000000,
+      CreateMonabidBasicSchema1710000000001,
       CreateTeamTables1710000000001,
       CreateBuyerTables1710000000002,
       CreateStaffOperations1725000000000,
       CreateUserProfiles1730000000000,
+      CreateSellerLeads1788220800000,
+      AddSellerLeadRecommendation1788220800001,
+      AddSellerLeadChoice1788220800002,
     ],
     synchronize: false,
   };
@@ -75,6 +88,11 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     ProfilesModule,
     StorageModule,
     StaffOperationsModule,
+    ComparablesModule,
+    SellerIntakeModule,
+    SellerLeadsModule,
+    ValuationCalculationModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}
