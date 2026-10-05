@@ -53,9 +53,11 @@ export class UploadsService {
 
         evidence.push({
           fileId,
+          profileId,
           originalName: file.originalname,
           mimeType: file.mimetype as AllowedMimeType,
           size: file.size,
+          previewUri: `/api/evidence/${encodeURIComponent(profileId)}/${encodeURIComponent(fileId)}`,
         });
       }
 
