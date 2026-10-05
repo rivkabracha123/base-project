@@ -1,33 +1,40 @@
-import type { HouseRanking, SellerChoice } from '@monabid/shared';
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
-/** P3-shaped contact S5 stores on the internal enquiry (name + email or phone). */
-export interface SellerLeadContact {
-  preferredName: string;
-  email?: string;
-  phone?: string;
-}
-
-/** S5 seller enquiry row handed to P5 (contact + ranking + optional sellerChoice). */
 @Entity({ name: 'seller_leads' })
 export class SellerLeadEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryColumn({ type: 'varchar' })
+  id!: string;
 
-  @Column({ name: 'profile_id', type: 'varchar' })
-  profileId: string;
+  @Column({ name: 'seller_name', type: 'varchar' })
+  sellerName!: string;
 
-  @Column({ type: 'jsonb' })
-  contact: SellerLeadContact;
+  @Column({ type: 'varchar', nullable: true })
+  email?: string | null;
 
-  /** S5 Week 3 ranked recommendation (reasons + alternatives). Never replaced by sellerChoice. */
-  @Column({ type: 'jsonb', nullable: true })
-  recommendation: HouseRanking | null;
+  @Column({ type: 'varchar', nullable: true })
+  phone?: string | null;
 
-  /** S5 Week 4 seller override. Separate column so the ranking stays intact for P5. */
-  @Column({ name: 'seller_choice', type: 'jsonb', nullable: true })
-  sellerChoice: SellerChoice | null;
+  @Column({ name: 'item_title', type: 'varchar' })
+  itemTitle!: string;
 
-  @Column({ name: 'created_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
+  @Column({ name: 'item_category', type: 'varchar', nullable: true })
+  itemCategory?: string | null;
+
+  @Column({ name: 'suggested_house', type: 'varchar', nullable: true })
+  suggestedHouse?: string | null;
+
+  @Column({ name: 'valuation_range', type: 'varchar', nullable: true })
+  valuationRange?: string | null;
+
+  @Column({ type: 'varchar', default: 'new' })
+  status!: string;
+
+  @Column({ type: 'boolean', default: false })
+  consent!: boolean;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
 }

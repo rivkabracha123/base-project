@@ -1,11 +1,12 @@
 import React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProfileLanguageLoader } from './app/ProfileLanguageLoader';
-import { AppHeader } from './components/AppHeader';
-import { StaffOperationsDashboard } from './StaffOperationsDashboard';
+import { LotPage } from './app/LotPage';
 import { SampleLotPage } from './app/SampleLotPage';
-// Avishag's task API page
-import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
+import { BuyerChat } from './buyer/BuyerChat';
+import { AppHeader } from './components/AppHeader';
+import { ResultsPage } from './components/ResultPage';
+import { StaffOperationsDashboard } from './StaffOperationsDashboard';
 
 export function App() {
   return (
@@ -15,9 +16,10 @@ export function App() {
       <Routes>
         <Route path="/staff-operations" element={<StaffOperationsDashboard />} />
         <Route path="/sample" element={<SampleLotPage />} />
-        {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
-        <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
-        <Route path="*" element={<Navigate to="/sample" replace />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/lots/:id" element={<LotPage />} />
+        <Route path="/chat" element={<BuyerChat />} />
+        <Route path="*" element={<Navigate to="/results" replace />} />
       </Routes>
     </>
   );
