@@ -9,4 +9,17 @@ export * from './auction-lot';
 export * from './seller-item-draft';
 export * from './comparable';
 export * from './house-recommendation';
-export * from './dashboard-valuation';
+export * from './s5-demo-fixtures';
+export {
+  dashboardValuationSchema,
+  dashboardValuationSourceSchema,
+  sellerLeadValuationSnapshotSchema,
+  type DashboardValuationDto,
+  type DashboardValuationSource,
+  type SellerLeadValuationSnapshot,
+} from './dashboard-valuation';
+export * from './user-profile';
+export * from './profile-contact-snapshot';
+export * from './p3-current-profile';
+export * from './s1-seller-handoff';
+export * from './seller-enquiry-events';
