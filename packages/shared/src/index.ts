@@ -10,3 +10,4 @@ export * from './seller-item-draft';
 export * from './comparable';
 export * from './house-recommendation';
 export * from './dashboard-valuation';
+export * from './valuation-history';

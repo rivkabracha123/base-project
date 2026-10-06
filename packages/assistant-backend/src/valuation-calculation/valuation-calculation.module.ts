@@ -2,11 +2,13 @@
 import { Module } from '@nestjs/common';
 import { ValuationCalculationController } from './valuation-calculation.controller';
 import { ValuationCalculationService } from './valuation-calculation.service';
+import { ScenarioComparisonController } from './scenario-comparison.controller';
+import { ScenarioComparisonService } from './scenario-comparison.service';
 
 @Module({
   // External connection
-  controllers: [ValuationCalculationController],
+  controllers: [ValuationCalculationController, ScenarioComparisonController],
   // Performs the connections
-  providers: [ValuationCalculationService],
+  providers: [ValuationCalculationService, ScenarioComparisonService],
 })
 export class ValuationCalculationModule {}
