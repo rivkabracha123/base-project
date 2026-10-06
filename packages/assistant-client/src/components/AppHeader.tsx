@@ -12,6 +12,14 @@ export function AppHeader() {
         <Link to="/sample" className="font-semibold text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           {t('appName')}
         </Link>
+        <nav className="flex items-center gap-4">
+          <Link to="/chat/buyer" className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            {t('navigation.buyer')}
+          </Link>
+          <Link to="/chat/seller" className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            {t('navigation.seller')}
+          </Link>
+        </nav>
         <Button
           onPress={() => void i18n.changeLanguage(nextLanguage)}
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"

@@ -4,7 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { environmentSchema } from './config/environment';
 import { AuctionLotEntity } from './database/auction-lot.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
-import { ChatModule } from './chat/chat.module';
+import { BuyerChatModule } from './buyer-chat/buyer-chat.module';
+import { SellerChatModule } from './seller-chat/seller-chat.module';
 import { CreateTeamTables1710000000001 } from './database/1710000000001-create-team-tables';
 import { CreateBuyerTables1710000000002 } from './database/1710000000002-create-buyer-tables';
 import { AiProviderConfigEntity } from './database/ai-provider-config.entity';
@@ -46,7 +47,8 @@ import { StorageModule } from './storage/storage.module';
     BuyerModule,
     HealthModule,
     LotsModule,
-    ChatModule,
+    BuyerChatModule,
+    SellerChatModule,
     StorageModule,
   ],
 })

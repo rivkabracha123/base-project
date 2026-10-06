@@ -2,7 +2,7 @@ export const resources = {
   en: {
     translation: {
       appName: 'Monabid Assistant',
-      navigation: { sample: 'Sample lot' },
+      navigation: { sample: 'Sample lot', buyer: 'Find an item', seller: 'Sell an item' },
       sample: {
         eyebrow: 'Foundation example',
         title: 'A source-backed auction lot',
@@ -19,6 +19,7 @@ export const resources = {
       chat: {
         send: 'Send', inputLabel: 'Message', loading: 'Loading conversation…',
         error: "Couldn't load the conversation.", retry: 'Try again',
+        sendError: 'Something went wrong. Please try again.',
       },
       language: 'עברית',
     },
@@ -26,7 +27,7 @@ export const resources = {
   he: {
     translation: {
       appName: 'העוזר של מונביד',
-      navigation: { sample: 'פריט לדוגמה' },
+      navigation: { sample: 'פריט לדוגמה', buyer: 'חיפוש פריט', seller: 'מכירת פריט' },
       sample: {
         eyebrow: 'דוגמת תשתית',
         title: 'פריט מכירה עם מקור',
@@ -43,6 +44,7 @@ export const resources = {
       chat: {
         send: 'שליחה', inputLabel: 'הודעה', loading: 'טוען שיחה…',
         error: 'לא הצלחנו לטעון את השיחה.', retry: 'נסו שוב',
+        sendError: 'משהו השתבש. נסו שוב.',
       },
       language: 'English',
     },

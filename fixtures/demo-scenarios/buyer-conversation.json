@@ -1,32 +1,36 @@
 {
   "id": "buyer-conversation-basic-bilingual",
   "fixtureIds": ["lot-kestenbaum-54554-121421"],
-  "expectedOutcome": "The buyer chat screen renders a typed Hebrew or English conversation - buyer and assistant messages, one result group of source-backed lots, and one error message - and drops anything that fails validation.",
+  "expectedOutcome": "The buyer chat screen renders a typed Hebrew or English conversation - buyer and system messages, a results-found message followed by one result group of source-backed lots, and one error message - and drops anything that fails validation.",
   "conversations": {
     "he": [
       {
-        "kind": "buyer",
+        "speaker": "buyer",
         "id": "he-1",
-        "at": "2026-01-01T10:00:00.000Z",
+        "sessionId": "fixture-session-he",
+        "skipped": false,
+        "date": "2026-01-01T10:00:00.000Z",
         "text": "אני מחפשת כתבי יד עבריים נדירים, עד 15,000 דולר"
       },
       {
-        "kind": "assistant",
+        "speaker": "system",
         "id": "he-2",
-        "at": "2026-01-01T10:00:05.000Z",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:05.000Z",
         "text": "מחפש בארכיון ההיסטורי…"
       },
       {
-        "kind": "assistant",
+        "speaker": "results-found",
         "id": "he-3",
-        "at": "2026-01-01T10:00:10.000Z",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:10.000Z",
         "text": "מצאתי פריטים מתאימים בטווח המחיר הזה"
       },
       {
-        "kind": "result-group",
+        "speaker": "result-group",
         "id": "he-4",
-        "at": "2026-01-01T10:00:15.000Z",
-        "title": "פריטים דומים",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:15.000Z",
         "lots": [
           {
             "id": "lot-kestenbaum-54554-121421",
@@ -62,49 +66,57 @@
         ]
       },
       {
-        "kind": "error",
+        "speaker": "error",
         "id": "he-5",
-        "at": "2026-01-01T10:00:20.000Z",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:20.000Z",
         "code": "results_failed",
         "text": "טעינת התוצאות נכשלה. נסו שוב."
       },
       {
-        "kind": "buyer",
+        "speaker": "buyer",
         "id": "he-6",
-        "at": "2026-01-01T10:00:25.000Z",
+        "sessionId": "fixture-session-he",
+        "skipped": false,
+        "date": "2026-01-01T10:00:25.000Z",
         "text": "יש פריטים דומים גם מתחומים אחרים, כמו אמנות יודאיקה?"
       },
       {
-        "kind": "assistant",
+        "speaker": "system",
         "id": "he-7",
-        "at": "2026-01-01T10:00:30.000Z",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:30.000Z",
         "text": "כן. מצאתי כמה פריטי אמנות יודאיקה בטווח המחיר שלך."
       }
     ],
     "en": [
       {
-        "kind": "buyer",
+        "speaker": "buyer",
         "id": "en-1",
-        "at": "2026-01-01T10:00:00.000Z",
+        "sessionId": "fixture-session-en",
+        "skipped": false,
+        "date": "2026-01-01T10:00:00.000Z",
         "text": "I'm looking for rare Hebrew manuscripts, up to $15,000"
       },
       {
-        "kind": "assistant",
+        "speaker": "system",
         "id": "en-2",
-        "at": "2026-01-01T10:00:05.000Z",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:05.000Z",
         "text": "Searching the historical archive…"
       },
       {
-        "kind": "assistant",
+        "speaker": "results-found",
         "id": "en-3",
-        "at": "2026-01-01T10:00:10.000Z",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:10.000Z",
         "text": "I found matching items in this price range"
       },
       {
-        "kind": "result-group",
+        "speaker": "result-group",
         "id": "en-4",
-        "at": "2026-01-01T10:00:15.000Z",
-        "title": "Nearby lots",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:15.000Z",
         "lots": [
           {
             "id": "lot-kestenbaum-54554-121421",
@@ -140,22 +152,26 @@
         ]
       },
       {
-        "kind": "error",
+        "speaker": "error",
         "id": "en-5",
-        "at": "2026-01-01T10:00:20.000Z",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:20.000Z",
         "code": "results_failed",
         "text": "Loading results failed. Please try again."
       },
       {
-        "kind": "buyer",
+        "speaker": "buyer",
         "id": "en-6",
-        "at": "2026-01-01T10:00:25.000Z",
+        "sessionId": "fixture-session-en",
+        "skipped": false,
+        "date": "2026-01-01T10:00:25.000Z",
         "text": "Are there similar items from other fields too, like Judaica art?"
       },
       {
-        "kind": "assistant",
+        "speaker": "system",
         "id": "en-7",
-        "at": "2026-01-01T10:00:30.000Z",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:30.000Z",
         "text": "Yes. I found several Judaica art pieces within your price range."
       }
     ]
