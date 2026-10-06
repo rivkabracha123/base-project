@@ -24,7 +24,16 @@ describe('BuyerController', () => {
     const search = { searchForSession: jest.fn() };
     const bridge = { openConversation: jest.fn() };
     const p4 = { generateBuyerExtract: jest.fn() };
-    const controller = new BuyerController(service as never, search as never, bridge as never, p4 as never);
+    const orchestrator = { handleMessage: jest.fn() };
+    const saleHistory = { getHistory: jest.fn() };
+    const controller = new BuyerController(
+      service as never,
+      search as never,
+      bridge as never,
+      p4 as never,
+      orchestrator as never,
+      saleHistory as never,
+    );
 
     const result = controller.startCriteriaSession(sampleAiExtractResponses.paintingEn());
 
@@ -45,7 +54,16 @@ describe('BuyerController', () => {
     const search = { searchForSession: jest.fn() };
     const bridge = { openConversation: jest.fn() };
     const p4 = { generateBuyerExtract: jest.fn() };
-    const controller = new BuyerController(service as never, search as never, bridge as never, p4 as never);
+    const orchestrator = { handleMessage: jest.fn() };
+    const saleHistory = { getHistory: jest.fn() };
+    const controller = new BuyerController(
+      service as never,
+      search as never,
+      bridge as never,
+      p4 as never,
+      orchestrator as never,
+      saleHistory as never,
+    );
 
     const result = controller.continueCriteriaSession(turnRequest);
 
@@ -71,7 +89,16 @@ describe('BuyerController', () => {
     const search = { searchForSession: jest.fn() };
     const bridge = { openConversation: jest.fn() };
     const p4 = { generateBuyerExtract: jest.fn() };
-    const controller = new BuyerController(service as never, search as never, bridge as never, p4 as never);
+    const orchestrator = { handleMessage: jest.fn() };
+    const saleHistory = { getHistory: jest.fn() };
+    const controller = new BuyerController(
+      service as never,
+      search as never,
+      bridge as never,
+      p4 as never,
+      orchestrator as never,
+      saleHistory as never,
+    );
 
     const result = controller.continueCriteriaSession(turnRequest);
 

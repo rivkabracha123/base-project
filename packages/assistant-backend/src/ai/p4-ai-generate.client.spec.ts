@@ -9,9 +9,9 @@ describe('P4AiGenerateClient', () => {
     const client = new P4AiGenerateClient(config);
 
     const result = await client.generateBuyerExtract({
-      role: 'buyer',
-      userMessage: 'blue painting under $10k',
+      prompt: 'blue painting under $10k',
       language: 'en',
+      selectedLot: null,
     });
 
     expect(result.extract.mode).toBe('fixture');

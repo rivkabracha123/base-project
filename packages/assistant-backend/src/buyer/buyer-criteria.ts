@@ -340,10 +340,19 @@ function withConversation(
   };
 }
 
+function normalizeStructuredCategory(category: string | undefined): string | null {
+  if (!category?.trim()) return null;
+  const trimmed = category.trim();
+  if (trimmed.includes('ציור')) return 'painting';
+  if (trimmed.includes('פסל')) return 'sculpture';
+  return trimmed;
+}
+
 function criteriaFromStructuredAiExtract(structured: StructuredAiExtract): BuyerCriteria {
+  const category = normalizeStructuredCategory(structured.category);
   return {
     ...emptyBuyerCriteria(structured.language),
-    categories: structured.category?.trim() ? [structured.category.trim()] : [],
+    categories: category ? [category] : [],
     creators: structured.creators ?? [],
     periods: structured.periods ?? [],
     keywords: structured.keywords ?? [],

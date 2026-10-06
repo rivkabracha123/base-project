@@ -1,35 +1,88 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AiExtractResponse } from '../buyer/buyer-criteria';
-import type { P4AiGenerateRequest, P4AiGenerateResponse, P4IntentRoute } from './p4-ai.types';
+import { detectBuyerLanguage, type AiExtractResponse } from '../buyer/buyer-criteria';
+import { B2_SEARCH_LOTS_FUNCTION } from './p4-buyer-routing';
+import { buildFixtureAiExtract } from './fixture-ai-extract';
+import type { P4AiGenerateResponse, P4IntentRoute, ShilatAiGenerateRequest } from './p4-ai.types';
+import { P4_SEARCH_READINESS_PROBE_MESSAGE } from './p4-ai.types';
 
-function detectLanguage(message: string, hint?: 'he' | 'en'): 'he' | 'en' {
-  if (hint) return hint;
-  return /[\u0590-\u05FF]/.test(message) ? 'he' : 'en';
+function fixtureExtract(request: ShilatAiGenerateRequest): AiExtractResponse {
+  const language = request.language ?? detectBuyerLanguage(request.prompt);
+  return buildFixtureAiExtract(request.prompt, language);
 }
 
-function fixtureExtract(request: P4AiGenerateRequest): AiExtractResponse {
-  const language = detectLanguage(request.userMessage, request.language);
+function readIntentRoute(record: Record<string, unknown>): P4IntentRoute {
+  const raw =
+    record.intentRoute && typeof record.intentRoute === 'object'
+      ? (record.intentRoute as Record<string, unknown>)
+      : record;
+
+  const functionName =
+    typeof raw.functionName === 'string'
+      ? raw.functionName
+      : typeof record.functionName === 'string'
+        ? record.functionName
+        : typeof record.function === 'string'
+          ? record.function
+          : null;
+
+  const intent = typeof raw.intent === 'string' ? raw.intent : null;
+  const readyForFunction = raw.readyForFunction === true || record.readyForFunction === true || record.ready === true;
+  const missingFields = Array.isArray(raw.missingFields)
+    ? raw.missingFields.filter((f): f is string => typeof f === 'string')
+    : undefined;
+  const argsRaw = raw.arguments ?? record.arguments;
+  const arguments_ =
+    argsRaw && typeof argsRaw === 'object' && !Array.isArray(argsRaw)
+      ? (argsRaw as Record<string, unknown>)
+      : undefined;
+
   return {
-    provider: 'fixture',
-    mode: 'fixture',
-    content: request.userMessage,
-    summary: language === 'he' ? 'בקשת קונה (fixture)' : 'Buyer request (fixture)',
-    recommendation: language === 'he' ? 'המשך שאלות' : 'Continue clarification',
-    nextAction: language === 'he' ? 'שאל על חסר' : 'Ask missing facts',
-    confidence: 'medium',
+    intent,
+    functionName,
+    readyForFunction,
+    missingFields,
+    arguments: arguments_,
   };
 }
 
-function normalizeIntentRoute(raw: unknown, readyForFunction: boolean): P4IntentRoute {
-  if (!raw || typeof raw !== 'object') {
-    return { functionName: null, readyForFunction };
+function normalizeExtract(record: Record<string, unknown>, fallback: AiExtractResponse): AiExtractResponse {
+  if (record.extract && typeof record.extract === 'object') {
+    return record.extract as AiExtractResponse;
   }
-  const route = raw as Record<string, unknown>;
-  const functionName = typeof route.functionName === 'string' ? route.functionName : null;
-  const ready =
-    typeof route.readyForFunction === 'boolean' ? route.readyForFunction : readyForFunction;
-  return { functionName, readyForFunction: ready };
+
+  if (typeof record.content !== 'string') {
+    return fallback;
+  }
+
+  const provider = record.provider === 'real' ? 'real' : 'fixture';
+  const mode = record.mode === 'real' ? 'real' : 'fixture';
+  const confidence: AiExtractResponse['confidence'] =
+    record.confidence === 'medium' ? 'medium' : 'low';
+
+  return {
+    provider,
+    mode,
+    isRelevant: record.isRelevant !== false,
+    error: typeof record.error === 'string' ? record.error : record.error === null ? null : undefined,
+    content: record.content,
+    summary: typeof record.summary === 'string' ? record.summary : '',
+    recommendation: typeof record.recommendation === 'string' ? record.recommendation : '',
+    nextAction: typeof record.nextAction === 'string' ? record.nextAction : '',
+    confidence,
+    structuredAnswer:
+      record.structuredAnswer && typeof record.structuredAnswer === 'object'
+        ? (record.structuredAnswer as AiExtractResponse['structuredAnswer'])
+        : undefined,
+  };
+}
+
+function readFunctionParameters(record: Record<string, unknown>, route: P4IntentRoute): Record<string, unknown> | null {
+  const raw = record.functionParameters ?? record.parameters ?? record.payload ?? route.arguments;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  return null;
 }
 
 function normalizeP4Response(body: unknown, fallbackExtract: AiExtractResponse): P4AiGenerateResponse {
@@ -38,20 +91,20 @@ function normalizeP4Response(body: unknown, fallbackExtract: AiExtractResponse):
       extract: fallbackExtract,
       readyForFunction: false,
       intentRoute: { functionName: null, readyForFunction: false },
+      functionParameters: null,
     };
   }
 
   const record = body as Record<string, unknown>;
-  const readyForFunction = record.readyForFunction === true;
-  const extract =
-    record.extract && typeof record.extract === 'object'
-      ? (record.extract as AiExtractResponse)
-      : fallbackExtract;
+  const intentRoute = readIntentRoute(record);
+  const extract = normalizeExtract(record, fallbackExtract);
+  const readyForFunction = intentRoute.readyForFunction || record.readyForFunction === true;
 
   return {
     extract,
     readyForFunction,
-    intentRoute: normalizeIntentRoute(record.intentRoute, readyForFunction),
+    intentRoute: { ...intentRoute, readyForFunction },
+    functionParameters: readFunctionParameters(record, intentRoute),
   };
 }
 
@@ -59,18 +112,19 @@ function normalizeP4Response(body: unknown, fallbackExtract: AiExtractResponse):
 export class P4AiGenerateClient {
   constructor(private readonly config: ConfigService) {}
 
-  async generateBuyerExtract(request: P4AiGenerateRequest): Promise<P4AiGenerateResponse> {
+  async generateBuyerExtract(request: ShilatAiGenerateRequest): Promise<P4AiGenerateResponse> {
     const mode = this.config.get<string>('AI_PROVIDER_MODE') ?? 'fixture';
     const fallback = fixtureExtract(request);
 
     if (mode !== 'real') {
-      const readinessProbe = request.userMessage.includes('Evaluate readiness for search');
+      const readinessProbe = request.prompt === P4_SEARCH_READINESS_PROBE_MESSAGE;
       return {
         extract: fallback,
         readyForFunction: readinessProbe,
         intentRoute: readinessProbe
-          ? { functionName: 'searchLots', readyForFunction: true }
+          ? { functionName: B2_SEARCH_LOTS_FUNCTION, readyForFunction: true }
           : { functionName: null, readyForFunction: false },
+        functionParameters: readinessProbe ? { sessionId: request.sessionId ?? null } : null,
       };
     }
 
@@ -87,12 +141,20 @@ export class P4AiGenerateClient {
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
+    const wireBody: ShilatAiGenerateRequest = {
+      prompt: request.prompt,
+      language: request.language,
+      sessionId: request.sessionId,
+      selectedLot: request.selectedLot ?? null,
+      lots: request.lots,
+    };
+
     let response: Response;
     try {
       response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify(request),
+        body: JSON.stringify(wireBody),
       });
     } catch {
       throw new ServiceUnavailableException('AI generate request failed.');

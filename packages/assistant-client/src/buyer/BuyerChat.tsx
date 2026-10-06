@@ -3,7 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { ItemCard, PageShell, type ItemCardLabels } from '@monabid/ui';
 import { useTranslation } from 'react-i18next';
 import { getConversation } from '../app/api';
+import { submitBuyerChatMessage } from './buyer-chat-flow';
+import { buyerChatUpdateToMessage } from './buyer-chat-update-mapper';
+import { loadStoredBuyerChatMessages, saveStoredBuyerChatMessages } from './buyer-chat-storage';
 import type { BuyerMessage } from './messages';
+
+const liveBuyerFlow = import.meta.env.VITE_BUYER_LIVE_FLOW === 'true';
 
 function bubbleClass(kind: BuyerMessage['kind']) {
   const base = 'max-w-lg whitespace-pre-wrap text-sm';
@@ -47,6 +52,12 @@ function ChatMessage({
   );
 }
 
+function appendMessages(language: 'he' | 'en', prev: BuyerMessage[], additions: BuyerMessage[]): BuyerMessage[] {
+  const next = [...prev, ...additions];
+  saveStoredBuyerChatMessages(language, next);
+  return next;
+}
+
 export function BuyerChat() {
   const { i18n, t } = useTranslation();
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
@@ -66,14 +77,27 @@ export function BuyerChat() {
   const query = useQuery({
     queryKey: ['buyer-conversation', language],
     queryFn: ({ signal }) => getConversation(language, signal),
+    enabled: !liveBuyerFlow,
   });
 
+  const [liveMessages, setLiveMessages] = useState<BuyerMessage[]>(() =>
+    liveBuyerFlow ? loadStoredBuyerChatMessages(language) : [],
+  );
   const [sentMessages, setSentMessages] = useState<BuyerMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [flowPending, setFlowPending] = useState(false);
 
-  const messages = [...(query.data ?? []), ...sentMessages];
-  const isLoading = query.isPending;
-  const isError = query.isError;
+  useEffect(() => {
+    if (liveBuyerFlow) {
+      setLiveMessages(loadStoredBuyerChatMessages(language));
+    }
+  }, [language]);
+
+  const messages = liveBuyerFlow
+    ? liveMessages
+    : [...(query.data ?? []), ...sentMessages];
+  const isLoading = liveBuyerFlow ? flowPending : query.isPending;
+  const isError = !liveBuyerFlow && query.isError;
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -82,28 +106,54 @@ export function BuyerChat() {
     bottomRef.current?.scrollIntoView?.({ block: 'end' });
   }, [messages.length]);
 
-  function sendDraft() {
+  async function sendDraft() {
     const text = draft.trim();
     if (!text || isLoading) return;
 
     const at = new Date().toISOString();
-    setSentMessages((prev) => [
-      ...prev,
-      { kind: 'buyer', id: `local-${prev.length + 1}`, at, text },
-    ]);
+    const buyerMessage: BuyerMessage = {
+      kind: 'buyer',
+      id: `buyer-${at}`,
+      at,
+      text,
+    };
+
     setDraft('');
+
+    if (liveBuyerFlow) {
+      setLiveMessages((prev) => appendMessages(language, prev, [buyerMessage]));
+      setFlowPending(true);
+      try {
+        await submitBuyerChatMessage(
+          text,
+          (update) => {
+            const mapped = buyerChatUpdateToMessage(update);
+            setLiveMessages((prev) => appendMessages(language, prev, [mapped]));
+          },
+          { language, context: {} },
+        );
+      } catch {
+        /* error update already pushed via onUpdate */
+      } finally {
+        setFlowPending(false);
+        inputRef.current?.focus();
+      }
+      return;
+    }
+
+    setSentMessages((prev) => [...prev, buyerMessage]);
     inputRef.current?.focus();
   }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    sendDraft();
+    void sendDraft();
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      sendDraft();
+      void sendDraft();
     }
   }
 
@@ -117,7 +167,7 @@ export function BuyerChat() {
         </ol>
         {isLoading && (
           <p role="status" dir={dir} className="text-sm text-neutral-500">
-            {t('chat.loading')}
+            {liveBuyerFlow ? t('chat.sending', { defaultValue: 'Sending…' }) : t('chat.loading')}
           </p>
         )}
         {isError && (

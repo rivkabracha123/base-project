@@ -1,9 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
-import type { P4AiGenerateResponse, P4BuyerAiContext, P4IntentRoute } from '../ai/p4-ai.types';
-import { P4_BUYER_FUNCTION_ROUTES } from '../ai/p4-ai.types';
+import { toSearchReadinessRoute } from '../ai/p4-buyer-routing';
+import {
+  P4_SEARCH_READINESS_PROBE_MESSAGE,
+  mergeBuyerContextIntoShilatRequest,
+  type P4AiGenerateResponse,
+  type P4BuyerAiContext,
+  type P4IntentRoute,
+} from '../ai/p4-ai.types';
 import { BuyerChatSystemMessage } from './buyer-chat-messages';
-import { buildMissingFields } from './buyer-criteria';
+import { buildMissingFields, detectBuyerLanguage } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { getBuyerCriteriaSession } from './buyer-criteria-session.store';
 import type { OpenBuyerConversationRequest } from './buyer-conversation.dto';
@@ -21,16 +27,11 @@ export class BuyerP4BridgeService {
   ) {}
 
   async openConversation(request: OpenBuyerConversationRequest): Promise<OpenBuyerConversationResponse> {
-    const language =
-      request.language ??
-      (/[\u0590-\u05FF]/.test(request.message) ? 'he' : 'en');
+    const language = request.language ?? detectBuyerLanguage(request.message);
 
-    const ai = await this.p4.generateBuyerExtract({
-      role: 'buyer',
-      userMessage: request.message.trim(),
-      language,
-      context: request.context,
-    });
+    const ai = await this.p4.generateBuyerExtract(
+      mergeBuyerContextIntoShilatRequest(request.message.trim(), language, request.context),
+    );
 
     const chat = this.criteriaService.startCriteriaSessionFromAiResponse(ai.extract);
 
@@ -49,27 +50,24 @@ export class BuyerP4BridgeService {
       return { functionName: null, readyForFunction: false };
     }
 
-    const ai = await this.p4.generateBuyerExtract({
-      role: 'buyer',
-      userMessage: 'Buyer criteria are complete. Evaluate readiness for search.',
-      language: session.criteria.language,
-      context: {
+    const ai = await this.p4.generateBuyerExtract(
+      mergeBuyerContextIntoShilatRequest(P4_SEARCH_READINESS_PROBE_MESSAGE, session.criteria.language, {
         ...context,
         sessionId,
-      },
-    });
+      }),
+    );
 
-    if (!ai.readyForFunction) {
-      return { functionName: null, readyForFunction: false };
-    }
+    return toSearchReadinessRoute(ai);
+  }
 
-    const functionName =
-      ai.intentRoute.functionName ?? P4_BUYER_FUNCTION_ROUTES.searchLots.functionName;
-
-    if (functionName === P4_BUYER_FUNCTION_ROUTES.searchLots.functionName) {
-      return { functionName, readyForFunction: true };
-    }
-
-    return { functionName, readyForFunction: true };
+  /** P4 on any buyer turn — routing only; B2 executes via BuyerP4FunctionExecutor. */
+  async routeBuyerMessage(
+    prompt: string,
+    language: 'he' | 'en',
+    context?: P4BuyerAiContext,
+  ): Promise<P4AiGenerateResponse> {
+    return this.p4.generateBuyerExtract(
+      mergeBuyerContextIntoShilatRequest(prompt.trim(), language, context),
+    );
   }
 }
