@@ -4,16 +4,21 @@ import { SampleLotPage } from './app/SampleLotPage';
 import { BuyerChat } from './buyer/BuyerChat';
 import { AppHeader } from './components/AppHeader';
 import { ResultsPage } from './components/ResultPage';
+import { ProfileLanguageLoader } from './app/ProfileLanguageLoader';
+import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
 
 export function App() {
   return (
     <>
+      <ProfileLanguageLoader />
       <AppHeader />
       <Routes>
+
         <Route path="/sample" element={<SampleLotPage />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/lots/:id" element={<LotPage />} />
         <Route path="/chat" element={<BuyerChat />} />
+        <Route path="/staff-operations" element={<StaffOperationsDashboard />} />
         <Route path="*" element={<Navigate to="/results" replace />} />
       </Routes>
     </>

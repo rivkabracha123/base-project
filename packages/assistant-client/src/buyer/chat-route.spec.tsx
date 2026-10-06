@@ -15,8 +15,8 @@ describe('/chat route', () => {
   it('renders the buyer chat screen at /chat', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify(mockConversation.en), { status: 200 }),
+      vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify(mockConversation.en), { status: 200 })),
       ),
     );
     const queryClient = createQueryClient();

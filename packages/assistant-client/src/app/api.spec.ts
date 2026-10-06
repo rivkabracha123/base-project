@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockConversation } from '../buyer/mock-conversation';
-import { getConversation, getLotById } from './api';
+import { getAnonymousSessionId, getConversation, getLotById } from './api';
 
 const lot = {
   id: 'lot-1',
@@ -18,6 +18,30 @@ const lot = {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  localStorage.clear();
+});
+
+describe('getAnonymousSessionId', () => {
+  it('creates and saves an identifier for a new browser', () => {
+    const randomUUID = vi.fn(() => 'new-test-session-id');
+    vi.stubGlobal('crypto', { randomUUID });
+
+    const sessionId = getAnonymousSessionId();
+
+    expect(sessionId).toBe('new-test-session-id');
+    expect(localStorage.getItem('anonymousSessionId')).toBe('new-test-session-id');
+  });
+
+  it('reuses an identifier already saved in the browser', () => {
+    localStorage.setItem('anonymousSessionId', 'saved-test-session-id');
+    const randomUUID = vi.fn(() => 'replacement-session-id');
+    vi.stubGlobal('crypto', { randomUUID });
+
+    const sessionId = getAnonymousSessionId();
+
+    expect(sessionId).toBe('saved-test-session-id');
+    expect(randomUUID).not.toHaveBeenCalled();
+  });
 });
 
 describe('getLotById', () => {
