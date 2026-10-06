@@ -332,4 +332,63 @@ describe('SellerLeadsService', () => {
       'Seller lead 22222222-2222-4222-8222-222222222222 was not found',
     );
   });
+
+  it('returns live S4 valuation on S1 handoff without copying seller contact', async () => {
+    const itemValuation = {
+      calculateFromItem: jest.fn().mockResolvedValue({
+        status: 'supported',
+        reportId: 'live-s4-report',
+        itemId: 'item-001',
+        itemVersion: 'confirmed',
+        calculationVersion: 'weighted-usd-population-sd-v1',
+        comparableCount: 1,
+        confidence: { level: 'medium', explanation: 'S4 confidence from comparable count.' },
+        limitations: ['Historical fixture rates and supplied evidence only; no current-market or growth adjustment.'],
+        comparables: [
+          {
+            id: 'lot-1',
+            source: 'demo',
+            saleDate: '2024-03-10',
+            originalPrice: 800,
+            originalCurrency: 'USD',
+            normalizedPrice: 800,
+            weight: 1,
+          },
+        ],
+        excludedComparables: [],
+        valuationRange: { min: 700, max: 900, currency: 'USD' },
+      }),
+    };
+    const { repository, logger } = createHarness();
+    const service = new SellerLeadsService(repository, logger, undefined, itemValuation as never);
+
+    const received = await service.receiveS1Handoff({
+      language: { preferred: 'he' },
+      item: {
+        id: 'item-001',
+        category: 'paintings',
+        title: 'Abstract landscape study',
+        evidenceIds: ['evidence-001'],
+        catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
+        materials: ['oil'],
+      },
+      evidence: [{ id: 'evidence-001', type: 'seller_statement', uri: 'file:///secret.jpg' }],
+      confirmedFacts: { category: 'paintings' },
+      seller: { preferredName: 'Maya' },
+    });
+
+    expect(itemValuation.calculateFromItem).toHaveBeenCalledWith({
+      itemId: 'item-001',
+      itemVersion: 'confirmed',
+      item: { category: 'paintings', materials: ['oil'] },
+    });
+    expect(received.valuation?.status).toBe('supported');
+    expect(received.valuation && 'valuationRange' in received.valuation && received.valuation.valuationRange).toEqual({
+      min: 700,
+      max: 900,
+      currency: 'USD',
+    });
+    expect(received.comparables).toEqual([{ id: 'lot-1', source: 'Source unavailable' }]);
+    expect(JSON.stringify(received)).not.toMatch(/file:|Maya/i);
+  });
 });

@@ -168,11 +168,36 @@ describe('seller enquiry route', () => {
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         );
       }
-      if (url.includes('house-rankings')) {
-        return new Response(JSON.stringify(ranking), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
+      if (method === 'POST' && url.includes('/seller-leads/s1-handoff')) {
+        return new Response(
+          JSON.stringify({
+            ranking,
+            catalogDraft: { he: 'ציור מאושר', en: 'S1 Confirmed Painting' },
+            item: {
+              id: 'item-s1',
+              category: 'paintings',
+              title: 'S1 Confirmed Painting',
+              evidenceIds: ['evidence-s1'],
+            },
+            evidence: [{ id: 'evidence-s1', type: 'seller_statement' }],
+            valuation: {
+              status: 'supported',
+              reportId: 'live-s4',
+              comparableCount: 1,
+              confidence: {
+                level: 'low',
+                explanation:
+                  'Confidence is uncalibrated; low is a conservative default pending expert review, not a probability.',
+              },
+              limitations: ['Historical fixture rates and supplied evidence only; no current-market or growth adjustment.'],
+              comparables: [{ id: 'lot-live', source: { label: 'Source unavailable', url: null } }],
+              excludedComparables: [],
+              valuationRange: { min: 900, max: 1100, currency: 'USD' },
+            },
+            comparables: [{ id: 'lot-live', source: 'Source unavailable' }],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
       }
       if (url.includes('/profiles/me')) {
         return new Response('not found', { status: 404 });
@@ -194,13 +219,11 @@ describe('seller enquiry route', () => {
     expect((await screen.findAllByText('S1 Confirmed Painting')).length).toBeGreaterThan(0);
     expect(screen.getByText('evidence-s1')).toBeInTheDocument();
     expect(screen.queryByText('file:///secret.jpg')).not.toBeInTheDocument();
+    expect(screen.getByText(/Indicative range: 900–1100 USD/)).toBeInTheDocument();
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/seller-leads/house-rankings'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ category: 'paintings', preferredLanguage: 'he' }),
-        }),
+        expect.stringContaining('/seller-leads/s1-handoff'),
+        expect.objectContaining({ method: 'POST' }),
       );
     });
   });

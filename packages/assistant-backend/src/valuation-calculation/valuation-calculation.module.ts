@@ -4,9 +4,8 @@ import { ValuationCalculationController } from './valuation-calculation.controll
 import { ValuationCalculationService } from './valuation-calculation.service';
 
 @Module({
-  // External connection
   controllers: [ValuationCalculationController],
-  // Performs the connections
   providers: [ValuationCalculationService],
+  exports: [ValuationCalculationService],
 })
 export class ValuationCalculationModule {}
