@@ -1,4 +1,35 @@
-import { buildLookup, resolveCategoryAlias, resolveCreatorAlias } from './lot-alias';
+import {
+  buildLookup,
+  resolveCategoryAlias,
+  resolveCreatorAlias,
+  resolveGeographyAlias,
+  resolveMediaAlias,
+  resolvePeriodAlias,
+} from './lot-alias';
+
+describe('resolvePeriodAlias', () => {
+  it.each(['15th century', '15TH CENTURY', '15th-century'])(
+    'formats the English period "%s" as a canonical token',
+    (value: string) => {
+      expect(resolvePeriodAlias(value)).toBe('15th_century');
+    },
+  );
+});
+
+describe('resolveMediaAlias', () => {
+  it.each(['Oil on Canvas', 'OIL ON CANVAS', 'oil-on-canvas'])(
+    'formats the English medium "%s" as a canonical token',
+    (value: string) => {
+      expect(resolveMediaAlias(value)).toBe('oil_on_canvas');
+    },
+  );
+});
+
+describe('resolveGeographyAlias', () => {
+  it.each(['Italy', 'ITALY', ' italy '])('formats the English place "%s" as a canonical token', (value: string) => {
+    expect(resolveGeographyAlias(value)).toBe('italy');
+  });
+});
 
 describe('buildLookup', () => {
   it('rejects a phrase that maps to two different tokens', () => {

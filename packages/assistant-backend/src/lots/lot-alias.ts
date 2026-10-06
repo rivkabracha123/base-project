@@ -48,3 +48,15 @@ export function resolveCategoryAlias(value: string): string | undefined {
 export function resolveCreatorAlias(value: string): string | undefined {
   return creatorAliases[normalize(value)] ?? toCanonicalToken(value);
 }
+
+export function resolveGeographyAlias(value: string): string | undefined {
+  return toCanonicalToken(value);
+}
+
+export function resolveMediaAlias(value: string): string | undefined {
+  return toCanonicalToken(value);
+}
+
+export function resolvePeriodAlias(value: string): string | undefined {
+  return toCanonicalToken(value);
+}

@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
-import type { LotSearchDto } from './lot-search.dto';
+import type { LotFiltersDto, LotSearchDto } from './lot-search.dto';
 import { LotsService } from './lots.service';
 
 const payload = {
@@ -193,6 +193,10 @@ describe('LotsService', () => {
       ['categories', "lot.payload->>'category'", ['rare_books', 'manuscripts']],
       ['creators', "lot.payload->>'creator'", ["yitzhak_abrabanel", "o'brien"]],
       ['auctionHouseIds', "lot.payload->'auctionHouse'->>'id'", ['house-kestenbaum']],
+      ['geography', "lot.payload->>'geography'", ['italy', 'israel']],
+      ['media', "lot.payload->>'medium'", ['oil_on_canvas', 'printed_book']],
+      ['statuses', "lot.payload->>'status'", ['sold', 'upcoming']],
+      ['periods', "lot.payload->>'period'", ['16th_century', '20th_century']],
     ])('narrows on %s with a parameterized IN clause alongside the text query', async (facet: string, path: string, values: string[]) => {
       const queryBuilder = createMockQueryBuilder([{ payload }], 1);
 
@@ -212,6 +216,28 @@ describe('LotsService', () => {
         expect.stringContaining('LIKE'),
         expect.objectContaining({ query: expect.stringContaining('atereth') }),
       );
+    });
+
+    // Every filter must count as a filter on its own: a search with no text that
+    // carries only this one still reaches the database instead of short-circuiting.
+    it.each([
+      ['categories', { categories: ['rare_books'] }],
+      ['creators', { creators: ['yitzhak_abrabanel'] }],
+      ['auctionHouseIds', { auctionHouseIds: ['house-kestenbaum'] }],
+      ['geography', { geography: ['italy'] }],
+      ['media', { media: ['oil_on_canvas'] }],
+      ['statuses', { statuses: ['sold'] }],
+      ['periods', { periods: ['16th_century'] }],
+      ['dateRange.from', { dateRange: { from: '2025-01-01' } }],
+      ['dateRange.to', { dateRange: { to: '2025-12-31' } }],
+      ['price.min', { price: { min: 100 } }],
+      ['price.max', { price: { max: 1500 } }],
+    ])('runs a search on the %s filter alone, without text', async (_name: string, filters: LotFiltersDto) => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+      await new LotsService(mockRepo(queryBuilder)).search({ filters });
+
+      expect(queryBuilder.getManyAndCount).toHaveBeenCalled();
     });
 
     describe('category and creator aliases', () => {

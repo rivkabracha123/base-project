@@ -3,7 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { AuctionLot, PaginatedResult } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
-import { resolveCategoryAlias, resolveCreatorAlias } from './lot-alias';
+import {
+  resolveCategoryAlias,
+  resolveCreatorAlias,
+  resolveGeographyAlias,
+  resolveMediaAlias,
+  resolvePeriodAlias,
+} from './lot-alias';
 import type { LotFiltersDto, LotSearchDto } from './lot-search.dto';
 
 function hasAnyFilter(filters?: LotFiltersDto): boolean {
@@ -12,6 +18,10 @@ function hasAnyFilter(filters?: LotFiltersDto): boolean {
     filters.categories?.length ||
       filters.creators?.length ||
       filters.auctionHouseIds?.length ||
+      filters.geography?.length ||
+      filters.media?.length ||
+      filters.statuses?.length ||
+      filters.periods?.length ||
       filters.dateRange?.from ||
       filters.dateRange?.to ||
       filters.price?.min != null ||
@@ -88,11 +98,19 @@ export class LotsService {
     // first; a value with no curated alias is kept as-is rather than dropped, so
     // the clause is never silently skipped.
     const listFacets: ReadonlyArray<
-      ['categories' | 'creators' | 'auctionHouseIds', string, ((value: string) => string | undefined) | undefined]
+      [
+        'categories' | 'creators' | 'auctionHouseIds' | 'geography' | 'media' | 'statuses' | 'periods',
+        string,
+        ((value: string) => string | undefined) | undefined,
+      ]
     > = [
       ['categories', "lot.payload->>'category'", resolveCategoryAlias],
       ['creators', "lot.payload->>'creator'", resolveCreatorAlias],
       ['auctionHouseIds', "lot.payload->'auctionHouse'->>'id'", undefined],
+      ['geography', "lot.payload->>'geography'", resolveGeographyAlias],
+      ['media', "lot.payload->>'medium'", resolveMediaAlias],
+      ['statuses', "lot.payload->>'status'", undefined],
+      ['periods', "lot.payload->>'period'", resolvePeriodAlias],
     ];
     for (const [key, path, resolve] of listFacets) {
       const rawValues = filters?.[key];
