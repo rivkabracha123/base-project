@@ -20,6 +20,14 @@ export function AppHeader() {
           <Link to="/sample" className="font-semibold text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             {t('appName')}
           </Link>
+          {import.meta.env.DEV && (
+            <Link
+              to="/seller/gallery"
+              className="text-sm font-medium text-slate-700 hover:text-slate-950"
+            >
+              {t('navigation.gallery')}
+            </Link>
+          )}
         </nav>
         <Button
           onPress={() => void i18n.changeLanguage(nextLanguage)}
