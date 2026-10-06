@@ -6,6 +6,7 @@ interface SellerIntakeResponse {
   missingFields?: string[];
   nextQuestion?: { field: string; he: string; en: string } | null;
   conversation?: { assistantSummary?: { he?: string; en?: string } };
+  functionCall?: { functionToRun: string | null; object: unknown } | null;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
@@ -80,7 +81,23 @@ export async function connectSellerLevels(
     }
 
     const body = await response.json() as SellerIntakeResponse;
-    await sendSellerMessage(getSystemText(body), onUpdate);
+    let functionResult: { functionToRun: string | null; result: unknown } | undefined;
+    if (body.functionCall?.functionToRun) {
+      const workflowResponse = await fetch(`${API_BASE_URL}/seller-workflow/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId, structuredAnswer: body.functionCall }),
+      });
+      if (!workflowResponse.ok) {
+        throw new Error(`Seller workflow request failed (${workflowResponse.status})`);
+      }
+      functionResult = await workflowResponse.json() as { functionToRun: string | null; result: unknown };
+    }
+    await onUpdate({
+      speaker: 'system',
+      text: getSystemText(body),
+      ...(functionResult ? functionResult : {}),
+    });
   } catch (error) {
     const update: SellerUpdate = {
       speaker: 'error',

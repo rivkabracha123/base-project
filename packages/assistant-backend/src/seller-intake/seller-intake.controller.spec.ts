@@ -4,6 +4,9 @@ import { Test } from '@nestjs/testing';
 import { SellerIntakeController } from './seller-intake.controller';
 import { SellerIntakeService } from './seller-intake.service';
 import { SellerIntakeAiMock } from './seller-intake-ai.mock';
+import { AiService } from '../ai/ai.service';
+import { SellerIntakeAiAdapter } from './seller-intake-ai.adapter';
+import { SELLER_INTAKE_AI_PROVIDER } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 
 // Tests for the Seller Intake Controller.
@@ -84,6 +87,9 @@ describe('SellerIntakeController', () => {
       providers: [
         SellerIntakeService,
         SellerIntakeAiMock,
+        SellerIntakeAiAdapter,
+        { provide: SELLER_INTAKE_AI_PROVIDER, useExisting: SellerIntakeAiAdapter },
+        { provide: AiService, useValue: { generate: jest.fn(async () => { throw new Error('down'); }) } },
         { provide: SellerIntakeDraftsService, useValue: drafts },
       ],
     })
