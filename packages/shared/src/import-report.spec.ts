@@ -49,6 +49,22 @@ describe('validateAuctionLotFixture', () => {
     expect(result.report.rejected).toBe(2);
   });
 
+  it('rejects only the duplicate-ID records, keeping unrelated valid records', () => {
+    const result = validateAuctionLotFixture([
+      makeLot({ id: 'lot-1' }),
+      makeLot({ id: 'lot-1', lotNumber: '2' }), // duplicate: same id, different content
+      makeLot({ id: 'lot-2' }), // unrelated valid record
+    ]);
+
+    expect(result.records.map((lot) => lot.id)).toEqual(['lot-2']);
+    expect(result.report).toMatchObject({
+      total: 3,
+      accepted: 1,
+      rejected: 2,
+      duplicateIds: ['lot-1'],
+    });
+  });
+
   it('rejects incomplete records before import', () => {
     const result = validateAuctionLotFixture([{ id: 'incomplete' }]);
 
@@ -56,6 +72,98 @@ describe('validateAuctionLotFixture', () => {
     expect(result.report.accepted).toBe(0);
     expect(result.report.rejected).toBe(1);
     expect(result.report.validationErrors).toHaveLength(1);
+  });
+
+  it('accepts valid records and rejects only the broken one from a mixed batch', () => {
+    const brokenRecord = { id: 'broken-1' }; // missing every required field but id
+
+    const result = validateAuctionLotFixture([
+      makeLot({ id: 'lot-1' }),
+      makeLot({ id: 'lot-2' }),
+      brokenRecord,
+    ]);
+
+    expect(result.records.map((lot) => lot.id)).toEqual(['lot-1', 'lot-2']);
+    expect(result.report).toMatchObject({
+      total: 3,
+      accepted: 2,
+      rejected: 1,
+    });
+  });
+
+  it('rejects a record missing a single required field without affecting others', () => {
+    const { category: _category, ...missingCategory } = makeLot({ id: 'lot-3' });
+
+    const result = validateAuctionLotFixture([
+      makeLot({ id: 'lot-1' }),
+      missingCategory,
+      makeLot({ id: 'lot-2' }),
+    ]);
+
+    expect(result.records.map((lot) => lot.id)).toEqual(['lot-1', 'lot-2']);
+    expect(result.report).toMatchObject({
+      total: 3,
+      accepted: 2,
+      rejected: 1,
+    });
+  });
+
+  it('accepts a record that only has required fields, with every optional field missing', () => {
+    const { realizedPrice: _realizedPrice, ...minimalLot } = makeLot({ id: 'lot-4', status: 'upcoming' });
+
+    const result = validateAuctionLotFixture([minimalLot]);
+
+    expect(result.records).toEqual([minimalLot]);
+    expect(result.report).toMatchObject({
+      total: 1,
+      accepted: 1,
+      rejected: 0,
+    });
+  });
+
+  it('rejects multiple broken records in the same batch, not just one', () => {
+    const missingId = { title: { en: 'No id' } };
+    const { category: _category, ...missingCategory } = makeLot({ id: 'lot-6' });
+
+    const result = validateAuctionLotFixture([
+      makeLot({ id: 'lot-1' }),
+      missingId,
+      makeLot({ id: 'lot-2' }),
+      missingCategory,
+    ]);
+
+    expect(result.records.map((lot) => lot.id)).toEqual(['lot-1', 'lot-2']);
+    expect(result.report).toMatchObject({
+      total: 4,
+      accepted: 2,
+      rejected: 2,
+    });
+  });
+
+  it('reports zero total/accepted/rejected for an empty fixture array', () => {
+    const result = validateAuctionLotFixture([]);
+
+    expect(result.records).toEqual([]);
+    expect(result.report).toEqual({
+      total: 0,
+      accepted: 0,
+      rejected: 0,
+      duplicateIds: [],
+      validationErrors: [],
+    });
+  });
+
+  it('reports zero total/accepted/rejected for non-array input', () => {
+    const result = validateAuctionLotFixture(null);
+
+    expect(result.records).toEqual([]);
+    expect(result.report).toEqual({
+      total: 0,
+      accepted: 0,
+      rejected: 0,
+      duplicateIds: [],
+      validationErrors: [],
+    });
   });
 
   it('keeps the committed fixture free of private contact fields', async () => {
