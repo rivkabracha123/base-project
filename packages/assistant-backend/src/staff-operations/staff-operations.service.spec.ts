@@ -33,6 +33,65 @@ describe('StaffOperationsService', () => {
     expect(repository.find).toHaveBeenCalledWith({ order: { createdAt: 'DESC' } });
   });
 
+  it('includes the safe lead category from the stored dashboard payload', async () => {
+    const repository = {
+      find: jest.fn().mockResolvedValue([{
+        id: 'lead-category', type: 'buyer', clientName: 'Synthetic Buyer', status: 'new',
+        requestDetails: 'Looking for a rare manuscript.', createdAt: new Date('2026-08-31T11:15:00.000Z'),
+        payload: { category: 'rare_books', contact: { email: 'do-not-expose@example.test' } },
+      }]),
+    };
+    const service = createService(repository);
+
+    await expect(service.findAll()).resolves.toEqual([expect.objectContaining({ category: 'rare_books' })]);
+  });
+
+  it('keeps the category available for an older synthetic demonstration lead', async () => {
+    const repository = {
+      find: jest.fn().mockResolvedValue([{
+        id: 'buyer-lead-001', type: 'buyer', clientName: 'Synthetic Buyer', status: 'new',
+        requestDetails: 'Looking for a rare manuscript.', createdAt: new Date('2026-08-31T11:15:00.000Z'), payload: {},
+      }]),
+    };
+    const service = createService(repository);
+
+    await expect(service.findAll()).resolves.toEqual([expect.objectContaining({ category: 'rare_hebrew_manuscript' })]);
+  });
+
+  it('persists an approved status change, next action, and short activity note', async () => {
+    const lead = {
+      id: 'pipeline-lead', type: 'buyer', clientName: 'Synthetic Buyer', status: 'new',
+      requestDetails: 'Looking for a manuscript.', createdAt: new Date('2026-09-01T10:00:00.000Z'), payload: {},
+    };
+    const repository = { findOneBy: jest.fn().mockResolvedValue(lead), save: jest.fn().mockImplementation(async (value) => value) };
+    const service = createService(repository);
+
+    const result = await service.updatePipeline('pipeline-lead', {
+      status: 'reviewing', nextAction: 'Review the matching lots.', note: 'Opened the request for review.',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ status: 'reviewing', nextAction: 'Review the matching lots.' }));
+    expect(result.statusHistory).toEqual(expect.arrayContaining([expect.objectContaining({ from: 'new', to: 'reviewing' })]));
+    expect(result.activityNotes).toEqual([expect.objectContaining({ text: 'Opened the request for review.' })]);
+    expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'reviewing',
+      payload: expect.objectContaining({ staffPipeline: expect.any(Object) }),
+    }));
+  });
+
+  it('does not persist a skipped pipeline status', async () => {
+    const repository = {
+      findOneBy: jest.fn().mockResolvedValue({
+        id: 'pipeline-lead', type: 'buyer', status: 'new', createdAt: new Date(), payload: {},
+      }),
+      save: jest.fn(),
+    };
+    const service = createService(repository);
+
+    await expect(service.updatePipeline('pipeline-lead', { status: 'qualified' })).rejects.toThrow('Invalid staff lead status transition');
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
   it('maps a results outcome from a dashboard buyer lead source', async () => {
     const staffLead = {
       id: 'buyer-lead-001',
