@@ -2,7 +2,7 @@ export const resources = {
   en: {
     translation: {
       appName: 'Monabid Assistant',
-      navigation: { sample: 'Sample lot', houses: 'Auction houses' },
+      navigation: { sample: 'Sample lot', houses: 'Auction houses', dashboard: 'Staff dashboard' },
       sample: {
         eyebrow: 'Foundation example',
         title: 'A source-backed auction lot',
@@ -44,6 +44,36 @@ export const resources = {
         unavailable: 'Unavailable',
         catalogDraft: 'Catalog draft',
         history: 'History',
+        confidence: 'Confidence',
+        constraintBudget: 'Buyer budget: up to {{amount}}',
+        constraintFormat: 'Requested item must be {{format}}',
+        buyerLead: 'Buyer enquiry',
+        sellerLead: 'Seller enquiry',
+        requester: 'Enquirer',
+        syntheticBuyer: 'Synthetic buyer',
+        syntheticSeller: 'Synthetic seller',
+        anonymousBuyer: 'Anonymous buyer',
+        demoRareManuscriptRequest: 'Rare Hebrew manuscript, maximum budget {{amount}}.',
+        anonymousDemand: 'Anonymous demand',
+        demoNoMatchRequest: 'Original manuscript request with no matching result.',
+        demoLeads: {
+          lead1: { name: 'Israel Israeli', summary: 'Question about the bidding process for a public auction of Judaica items.' },
+          lead2: { name: 'Dana Levy', summary: 'Request for payment information for new buyers.' },
+          lead3: { name: 'Sarah Cohen', summary: 'Request to add an antique philosophy book to the auction catalogue.' },
+          lead4: { name: 'Yossi Mizrahi', summary: 'Arrange a valuation for a set of old silver items.' },
+        },
+        terms: {
+          statusNew: 'New', statusPending: 'Pending follow-up', statusInProgress: 'In progress', statusCompleted: 'Completed',
+          statusDraft: 'Draft', statusDrafted: 'Draft created', statusReviewing: 'Under review', statusRanked: 'Ranked',
+          statusChoseHouse: 'Auction house selected', statusSubmitted: 'Submitted', valuationSupported: 'Supported by evidence',
+          valuationRefusal: 'Professional review required', noResults: 'No matching results', current: 'Current', historical: 'Historical',
+          evidenceImage: 'Image', evidenceProvenance: 'Provenance document', evidenceSellerStatement: 'Seller statement',
+          actorSystem: 'System', actorSeller: 'Seller', confidenceLow: 'Low', fieldCategory: 'Category', fieldFormat: 'Item type',
+          fieldTitle: 'Title', fieldId: 'Identifier', fieldEvidenceIds: 'Attached evidence', fieldBudgetMax: 'Maximum budget',
+          fieldMax: 'Maximum', fieldCurrency: 'Currency', formatOriginal: 'Original', operatorAtMost: 'Up to', operatorEquals: 'Equals',
+          categoryRareHebrewManuscript: 'Rare Hebrew manuscript', reasonBuyerBudget: 'Buyer budget', reasonBuyerRequest: 'Buyer request',
+          sourceUnavailable: 'Source unavailable', sourcePublicSaleRecord: 'Public sale record', insufficientComparables: 'Insufficient comparable sales',
+        },
         },
       // S5 Week 4 house-choice screen (EN). Must not claim commission, shipping, or that a house will accept the item.
       houses: {
@@ -78,7 +108,7 @@ export const resources = {
   he: {
     translation: {
       appName: 'העוזר של מונביד',
-      navigation: { sample: 'פריט לדוגמה', houses: 'בתי מכירות' },
+      navigation: { sample: 'פריט לדוגמה', houses: 'בתי מכירות', dashboard: 'לוח בקרה' },
       sample: {
         eyebrow: 'דוגמת תשתית',
         title: 'פריט מכירה עם מקור',
@@ -120,6 +150,36 @@ export const resources = {
         unavailable: 'לא זמין',
         catalogDraft: 'טיוטת קטלוג',
         history: 'היסטוריה',
+        confidence: 'רמת ביטחון',
+        constraintBudget: 'תקציב הקונה הוא עד {{amount}}',
+        constraintFormat: 'הפריט המבוקש צריך להיות {{format}}',
+        buyerLead: 'פניית קונה',
+        sellerLead: 'פניית מוכר',
+        requester: 'הפונה',
+        syntheticBuyer: 'קונה סינתטי',
+        syntheticSeller: 'מוכר סינתטי',
+        anonymousBuyer: 'קונה אנונימי',
+        demoRareManuscriptRequest: 'מחפש כתב יד עברי נדיר, בתקציב מרבי של {{amount}}.',
+        anonymousDemand: 'בקשה אנונימית',
+        demoNoMatchRequest: 'בקשה לכתב יד מקורי שלא נמצאה לה תוצאה מתאימה.',
+        demoLeads: {
+          lead1: { name: 'ישראל ישראלי', summary: 'שאלה לגבי תהליך הצעת מחיר למכירה פומבית של פריטי יודאיקה.' },
+          lead2: { name: 'דנה לוי', summary: 'בקשה לקבלת פרטים על תנאי התשלום לקונים חדשים.' },
+          lead3: { name: 'שרה כהן', summary: 'בקשה להעלאת ספר פילוסופיה עתיק לקטלוג המכירה.' },
+          lead4: { name: 'יוסי מזרחי', summary: 'תיאום הערכת שווי לסט פריטי כסף ישנים.' },
+        },
+        terms: {
+          statusNew: 'חדשה', statusPending: 'ממתינה לטיפול', statusInProgress: 'בטיפול', statusCompleted: 'הושלמה',
+          statusDraft: 'טיוטה', statusDrafted: 'טיוטה נוצרה', statusReviewing: 'בבדיקה', statusRanked: 'דורגה',
+          statusChoseHouse: 'נבחר בית מכירות', statusSubmitted: 'נשלחה', valuationSupported: 'נתמכת בראיות',
+          valuationRefusal: 'נדרשת בדיקה מקצועית', noResults: 'לא נמצאו תוצאות מתאימות', current: 'עדכני', historical: 'היסטורי',
+          evidenceImage: 'תמונה', evidenceProvenance: 'מסמך מקור', evidenceSellerStatement: 'הצהרת מוכר/ת',
+          actorSystem: 'המערכת', actorSeller: 'המוכר/ת', confidenceLow: 'נמוכה', fieldCategory: 'קטגוריה', fieldFormat: 'סוג פריט',
+          fieldTitle: 'כותרת', fieldId: 'מזהה', fieldEvidenceIds: 'ראיות מצורפות', fieldBudgetMax: 'תקציב מרבי',
+          fieldMax: 'מקסימום', fieldCurrency: 'מטבע', formatOriginal: 'מקורי', operatorAtMost: 'עד', operatorEquals: 'שווה ל',
+          categoryRareHebrewManuscript: 'כתב יד עברי נדיר', reasonBuyerBudget: 'תקציב הקונה', reasonBuyerRequest: 'בקשת הקונה',
+          sourceUnavailable: 'מקור לא זמין', sourcePublicSaleRecord: 'רישום מכירה פומבית', insufficientComparables: 'אין מספיק מכירות להשוואה',
+        },
         },
       // S5 Week 4 house-choice screen (HE). Same rules: no commission, shipping, or acceptance claims.
       houses: {

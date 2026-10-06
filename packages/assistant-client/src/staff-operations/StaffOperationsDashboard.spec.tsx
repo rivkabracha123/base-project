@@ -4,7 +4,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client';
 import i18n from '../i18n';
-import { StaffOperationsDashboard } from './StaffOperationsDashboard';
+import { resources } from '../i18n/resources';
+import { dashboardTermKeys, displayTerm, StaffOperationsDashboard } from './StaffOperationsDashboard';
 
 const leads = [
   {
@@ -36,15 +37,57 @@ afterEach(async () => {
 });
 
 describe('StaffOperationsDashboard', () => {
+  it.each(['he', 'en'] as const)('translates every dashboard term in %s', async language => {
+    await i18n.changeLanguage(language);
+
+    for (const [term, translationKey] of Object.entries(dashboardTermKeys)) {
+      expect(displayTerm(term, language)).toBe(i18n.t(`dashboard.terms.${translationKey}`));
+      expect(displayTerm(term, language)).not.toContain('dashboard.terms.');
+    }
+  });
+
   it('renders synthetic buyer and seller leads returned by the dashboard API', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(leads), { status: 200 })));
 
     renderDashboard();
 
-    expect(await screen.findByText('קונה סינתטי')).toBeInTheDocument();
-    expect(screen.getByText('מוכרת סינתטית')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /קונה סינתטי/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /מוכרת סינתטית/ })).toBeInTheDocument();
     expect(screen.getByText('קונה')).toBeInTheDocument();
     expect(screen.getByText('מוכר')).toBeInTheDocument();
+  });
+
+  it('localizes the unmatched-demand demonstration card in Hebrew', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{
+      id: 'anonymous-demand',
+      type: 'buyer',
+      clientName: 'Anonymous Demand',
+      status: 'new',
+      requestDetails: 'Original manuscript request with no matching result.',
+      createdAt: '2026-09-07T11:58:37.000Z',
+    }]), { status: 200 })));
+
+    renderDashboard();
+
+    expect(await screen.findByRole('button', { name: new RegExp(resources.he.translation.dashboard.anonymousDemand) })).toBeInTheDocument();
+    expect(screen.getByText(resources.he.translation.dashboard.demoNoMatchRequest)).toBeInTheDocument();
+  });
+
+  it('shows the known Hebrew demonstration lead in English when English is selected', async () => {
+    await i18n.changeLanguage('en');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{
+      id: 'lead-2',
+      type: 'buyer',
+      clientName: 'דנה לוי',
+      status: 'pending',
+      requestDetails: 'בקשה לקבלת פרטים על תנאי התשלום לקונים חדשים',
+      createdAt: '2026-08-31T11:15:00.000Z',
+    }]), { status: 200 })));
+
+    renderDashboard();
+
+    expect(await screen.findByRole('button', { name: new RegExp(resources.en.translation.dashboard.demoLeads.lead2.name) })).toBeInTheDocument();
+    expect(screen.getByText(resources.en.translation.dashboard.demoLeads.lead2.summary)).toBeInTheDocument();
   });
 
   it('shows a loading state while the dashboard API is pending', async () => {
@@ -80,6 +123,17 @@ describe('StaffOperationsDashboard Week 3', () => {
     renderDashboard();
 
     expect(await screen.findByRole('heading', { name: 'Staff operations dashboard' })).toBeInTheDocument();
+  });
+
+  it('updates the existing dashboard when the selected application language changes', async () => {
+    await i18n.changeLanguage('en');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })));
+
+    renderDashboard();
+
+    expect(await screen.findByRole('heading', { name: resources.en.translation.dashboard.title })).toBeInTheDocument();
+    await i18n.changeLanguage('he');
+    expect(await screen.findByRole('heading', { name: resources.he.translation.dashboard.title })).toBeInTheDocument();
   });
 
   it('shows a privacy-limited buyer lead detail after selecting a buyer lead', async () => {
@@ -130,16 +184,15 @@ describe('StaffOperationsDashboard Week 3', () => {
 
     renderDashboard();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Synthetic Buyer/ }));
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(resources.he.translation.dashboard.syntheticBuyer) }));
 
-    expect(await screen.findAllByText(/rare_hebrew_manuscript/)).toHaveLength(2);
+    expect(await screen.findAllByText(/כתב יד עברי נדיר/)).toHaveLength(2);
     expect(screen.getByText((_, element) => (
       element?.tagName === 'LI' && element.textContent === '121421 · נוכחי'
     ))).toBeInTheDocument();
     expect(screen.getByText((_, element) => (
       element?.tagName === 'LI' && element.textContent === '121424 · היסטורי'
     ))).toBeInTheDocument();
-    expect(screen.getByText(/no_results/)).toBeInTheDocument();
     expect(screen.queryByText('internal-profile-id')).not.toBeInTheDocument();
     expect(screen.queryByText('never-render-session')).not.toBeInTheDocument();
     expect(screen.queryByText('never render this')).not.toBeInTheDocument();
@@ -411,7 +464,7 @@ describe('StaffOperationsDashboard Week 4', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Refusal Seller/ }));
 
     expect(await screen.findByText(/Expert review required/)).toBeInTheDocument();
-    expect(screen.getByText(/insufficient_comparables/)).toBeInTheDocument();
+    expect(screen.getByText(/Insufficient comparable sales/)).toBeInTheDocument();
     expect(screen.queryByText('withhold.demo@example.test')).not.toBeInTheDocument();
     expect(screen.queryByText('+972-50-0000000')).not.toBeInTheDocument();
     expect(screen.queryByText(/1200/)).not.toBeInTheDocument();
