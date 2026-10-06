@@ -49,11 +49,47 @@ Original currencies are available per comparable. Count equals comparables.lengt
 - comparables are accepted sold evidence with positive prices and weights and available
   FX. Credibility/similarity filtering belongs to S3 and is not independently verified by S4.
 - Missing FX generates `missing_exchange_rate_data` exclusions. Outliers appear only
-  when explicitly excluded upstream; S4 does not automatically detect outliers.
-- Confidence is currently always low and explicitly uncalibrated. The shared enum
-  reserves medium/high without inventing thresholds. Limitations are always nonempty.
-- External exclusion reasons must be suitable for public display before entering S4;
-  this mapper does not classify or redact arbitrary text supplied upstream.
+  when explicitly excluded upstream; S4 does not automatically detect outliers. The full
+  S4 report records this in `outlierTreatment` (method `none`, no removed comparables).
+- Confidence is computed from comparable count and price spread (low, medium or high) by the
+  rule in docs/s4-confidence-rules.pdf. Its thresholds are a team-adjustable proposal, not
+  calibrated against outcomes, so it is not a probability. Refusals carry no confidence.
+  Limitations are always nonempty.
+- Privacy projection (`privacy-projection.ts`): S4 projects externally supplied strings before they
+  enter a report. Ids, source, item id/version must be identifier-shaped and free of email, URL,
+  credential keywords or phone numbers, or they are replaced; exclusion reasons are kept only as
+  lowercase codes or approved S3 templates (seller-supplied materials text is dropped), otherwise
+  they become `exclusion_reason_withheld_for_privacy`. Limitation: an opaque identifier-shaped
+  token cannot be told apart from a legitimate identifier and is not detected. Shared production
+  request logging (`main.ts`) is outside S4 ownership and does not redact `req.url`/`req.query`;
+  the infrastructure owner must follow up.
+
+## Agreements recorded (S4 with S5 and P5)
+
+These are the agreements reported by Aluma (S4) from her discussions; the wording below is
+copied from the replies she received.
+
+### Racheli / S5
+
+- In `sellerLeadDashboardDetailSchema`, the `valuation` field is the full
+  `dashboardValuationSchema` / `DashboardValuationDto`: `comparableCount`, `confidence`,
+  `limitations`, `comparables` and `excludedComparables`, for both supported and refusal.
+- `itemId`, `itemVersion` and `calculationVersion` stay in the server-side
+  `SellerLeadValuationSnapshot` envelope and are not returned by GET.
+- S5 copies/maps to the full DTO without recalculating. `toSellerLeadValuationSnapshot(report)`
+  stays with S4. When the schemas in `packages/shared/src/dashboard-valuation.ts` are in shared,
+  S5 consumes them from there.
+
+### Rivka Bracha / P5
+
+- P5 approves `DashboardValuationDto` and the documented limitations, and consumes it only
+  through S5's SellerLead API.
+- Supported shows range, comparable count, confidence, limitations and evidence. Refusal shows
+  reason, comparable count, limitations and evidence only, with no price range.
+- P5 documents that "Source unavailable" is not a link, and does not show `itemId`,
+  `itemVersion` or `calculationVersion`.
+- Open point: P5's note says confidence is currently always low and uncalibrated. S4 now computes
+  low/medium/high by docs/s4-confidence-rules.pdf; P5 should update that note to match.
 
 ## Validation
 

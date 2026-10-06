@@ -1,10 +1,13 @@
-// Executes Heni's real scoring/partitioning code and the S4 service with a documented
-// TEST-ONLY mapping. This is a contract example, NOT a production S1/S3/S4 adapter.
+// Executes Heni's real ComparablesService (through her public findComparables method, never her
+// internal scoring/partitioning helpers) and the S4 service, with a documented TEST-ONLY mapping.
+// This is a contract example, NOT a production S1/S3/S4 adapter.
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { auctionLotSchema, comparableEvidenceSchema, type ComparableEvidence } from '@monabid/shared';
-import { partitionAndSort, scoreComparable } from '../comparables/comparable-score';
+import type { Repository } from 'typeorm';
+import { auctionLotSchema, comparableEvidenceSchema, type AuctionLot, type ComparableEvidence } from '@monabid/shared';
+import { AuctionLotEntity } from '../database/auction-lot.entity';
+import { ComparablesService } from '../comparables/comparables.service';
 import { ValuationCalculationService } from './valuation-calculation.service';
 import { input, type WeightedInputFixture } from './fx-range.fixtures';
 
@@ -12,17 +15,26 @@ jest.mock('./valuation-calculation.fixtures', () => ({
   USD_EXCHANGE_RATE_FIXTURES: jest.requireActual('./fx-range.fixtures').syntheticUsdRates,
 }));
 
-function selectedEvidence(): ComparableEvidence {
+function makeEntity(lot: AuctionLot): AuctionLotEntity {
+  return { id: lot.id, payload: lot, sourceProvider: lot.source.provider, sourceRecordId: lot.source.recordId,
+    createdAt: new Date(), updatedAt: new Date() };
+}
+
+async function selectedEvidence(): Promise<ComparableEvidence> {
   const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../fixtures/auction-data/lots.json'), 'utf8'));
   const template = auctionLotSchema.parse(fixture[0]);
 
-  return partitionAndSort([800, 1000, 1200, 900].map((amount, index) => {
-    const lot = auctionLotSchema.parse({ ...template, id: `contract-${index}`, category: 'furniture',
-      status: index === 3 ? 'unsold' : 'sold', saleDate: '2024-03-10',
-      realizedPrice: index === 3 ? undefined : { amount, currency: 'USD' } });
-
-    return scoreComparable(lot, { category: 'furniture' });
+  const lots = [800, 1000, 1200, 900].map((amount, index) => auctionLotSchema.parse({
+    ...template, id: `contract-${index}`, category: 'furniture',
+    status: index === 3 ? 'unsold' : 'sold', saleDate: '2024-03-10',
+    realizedPrice: index === 3 ? undefined : { amount, currency: 'USD' },
   }));
+
+  const repository = {
+    find: jest.fn().mockResolvedValue(lots.map(makeEntity)),
+  } as unknown as Repository<AuctionLotEntity>;
+
+  return new ComparablesService(repository).findComparables({ category: 'furniture' });
 }
 
 // Explicit proposed boundary: Heni.score -> S4.weight; realizedPrice -> soldPrice.
@@ -50,7 +62,7 @@ function toRequest(evidence: ComparableEvidence): WeightedInputFixture & {
 describe('Week 3: Heni evidence contract examples', () => {
 
   it('calculates using the real scored realized-sale evidence through the explicit fixture mapping', async () => {
-    const evidence = comparableEvidenceSchema.parse(selectedEvidence());
+    const evidence = comparableEvidenceSchema.parse(await selectedEvidence());
 
     expect(evidence.included).toHaveLength(3);
     expect(evidence.excluded).toHaveLength(1);
@@ -66,7 +78,7 @@ describe('Week 3: Heni evidence contract examples', () => {
   });
 
   it('retains Heni exclusion reasons without using excluded lots in the formula', async () => {
-    const request = toRequest(selectedEvidence());
+    const request = toRequest(await selectedEvidence());
     const report = await new ValuationCalculationService().calculateValuation(request);
 
     expect(report.includedComparableIds).not.toContain('contract-3');
@@ -74,10 +86,10 @@ describe('Week 3: Heni evidence contract examples', () => {
   });
 
   it('refuses if the selected-evidence report contains only two included realized sales', async () => {
-    const evidence = selectedEvidence();
+    const evidence = await selectedEvidence();
     const removed = evidence.included.pop()!;
 
-    evidence.excluded.push({ ...removed, included: false, exclusionReason: 'Synthetic expert exclusion' });
+    evidence.excluded.push({ ...removed, included: false, exclusionReason: 'synthetic_expert_exclusion' });
 
     const request = toRequest(evidence);
     const report = await new ValuationCalculationService().calculateValuation(request);
@@ -88,7 +100,7 @@ describe('Week 3: Heni evidence contract examples', () => {
   });
 
   it('does not mutate the actual scored evidence when producing a valuation', async () => {
-    const evidence = selectedEvidence();
+    const evidence = await selectedEvidence();
     const before = JSON.parse(JSON.stringify(evidence));
 
     await new ValuationCalculationService().calculateValuation(toRequest(evidence));
@@ -97,7 +109,7 @@ describe('Week 3: Heni evidence contract examples', () => {
   });
 
   it('produces a supported report matching the downstream valuation contract', async () => {
-    const request = toRequest(selectedEvidence());
+    const request = toRequest(await selectedEvidence());
     const report = await new ValuationCalculationService().calculateValuation(request);
 
     expect(report.status).toBe('supported');
@@ -121,10 +133,10 @@ describe('Week 3: Heni evidence contract examples', () => {
   });
 
   it('preserves audit information when the downstream report is a refusal', async () => {
-    const evidence = selectedEvidence();
+    const evidence = await selectedEvidence();
     const removed = evidence.included.pop()!;
 
-    evidence.excluded.push({ ...removed, included: false, exclusionReason: 'Synthetic expert exclusion' });
+    evidence.excluded.push({ ...removed, included: false, exclusionReason: 'synthetic_expert_exclusion' });
 
     const request = toRequest(evidence);
     const report = await new ValuationCalculationService().calculateValuation(request);
