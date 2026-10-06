@@ -8,5 +8,6 @@ import { SellerLeadsService } from './seller-leads.service';
   imports: [TypeOrmModule.forFeature([SellerLeadEntity])],
   controllers: [SellerLeadsController],
   providers: [SellerLeadsService],
+  exports: [SellerLeadsService],
 })
 export class SellerLeadsModule {}

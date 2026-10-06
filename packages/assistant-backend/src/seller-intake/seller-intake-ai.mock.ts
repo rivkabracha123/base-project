@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { SellerItemDraft } from '@monabid/shared';
 import { SellerIntakeService } from './seller-intake.service';
+import type { MissingSellerQuestion } from './seller-intake.service';
 
 const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
   id: 'seller-item-draft-001',
@@ -117,19 +118,58 @@ const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
 // Simulates Shilat Ben Gigi — AI connection: deterministic seller-intake output without external JSON files.
 @Injectable()
 export class SellerIntakeAiMock {
+  private readonly sessions = new Map<string, { input: string }>();
+
   constructor(private readonly sellerIntakeService: SellerIntakeService) {}
 
-  analyze(input: string): SellerItemDraft & {
+  analyze(input: string, sessionId?: string): SellerItemDraft & {
     provider: 'fixture-mock';
     missingFields: string[];
+    nextQuestion: MissingSellerQuestion | null;
+    sessionId?: string;
+    answerAccepted?: boolean;
+    answerError?: string;
   } {
     const fixture = createDeterministicSellerItemDraft();
-    const reviewState = this.sellerIntakeService.buildReviewState(input);
+    const previous = sessionId ? this.sessions.get(sessionId) : undefined;
+    const previousState = previous
+      ? this.sellerIntakeService.buildReviewState(previous.input)
+      : undefined;
+    const expectedQuestion = previousState
+      ? this.sellerIntakeService.askNextSellerQuestion(previousState)
+      : null;
+    const answerAccepted = !previous || !expectedQuestion || this.answerMatchesField(expectedQuestion.field, input);
+    const answerError = answerAccepted
+      ? undefined
+      : `Answer does not match the requested field: ${expectedQuestion?.field}`;
+    const combinedInput = previous && answerAccepted
+      ? `${previous.input} ${input}`
+      : previous?.input ?? input;
+
+    if (sessionId && answerAccepted) {
+      this.sessions.set(sessionId, { input: combinedInput });
+    }
+
+    const reviewState = this.sellerIntakeService.buildReviewState(combinedInput);
 
     return {
-      ...this.sellerIntakeService.createDraftFromSellerInput(fixture, input),
+      ...this.sellerIntakeService.createDraftFromSellerInput(fixture, combinedInput),
       missingFields: this.sellerIntakeService.askMissingSellerDetails(reviewState),
+      nextQuestion: this.sellerIntakeService.askNextSellerQuestion(reviewState),
       provider: 'fixture-mock' as const,
+      ...(sessionId ? { sessionId } : {}),
+      ...(previous ? { answerAccepted } : {}),
+      ...(answerError ? { answerError } : {}),
     };
+  }
+
+  private answerMatchesField(field: MissingSellerQuestion['field'], input: string): boolean {
+    const text = input.toLowerCase();
+
+    if (field === 'dimensions') return /\d+\s*(?:x|על|by)\s*\d+/i.test(input);
+    if (field === 'condition') return text.includes('condition') || text.includes('מצב') || text.includes('repair') || text.includes('damag');
+    if (field === 'marks') return text.includes('mark') || text.includes('stamp') || text.includes('inscription') || input.includes('סימן') || input.includes('חותמת') || input.includes('כיתוב');
+    if (field === 'signatures') return text.includes('signed') || text.includes('signature') || text.includes('חתום') || text.includes('חתימה');
+    return text.includes('family') || text.includes('provenance') || text.includes('history') || input.includes('משפחה') || input.includes('מקור') || input.includes('היסטוריה');
   }
 }

@@ -26,14 +26,17 @@ import { StorageModule } from './storage/storage.module';
 
 import { StaffOperationsModule } from './staff-operations/staff-operations.module';
 import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
+import { SellerIntakeDraftEntity } from './database/seller-intake-draft.entity';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
 import { ValuationCalculationModule } from './valuation-calculation/valuation-calculation.module';
 import { AddSellerLeadRecommendation1788220800001 } from './database/1788220800001-add-seller-lead-recommendation';
 import { AddSellerLeadChoice1788220800002 } from './database/1788220800002-add-seller-lead-choice';
+import { CreateSellerIntakeDrafts1788220800003 } from './database/1788220800003-create-seller-intake-drafts';
 import { ComparablesModule } from './comparables/comparables.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { SellerWorkflowModule } from './seller-workflow/seller-workflow.module';
 
 /**
  * Root application module for the Monabid Assistant backend.
@@ -57,6 +60,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       BuyerRequestEntity,
       BuyerCriteriaEntity,
       BuyerConversationEntity,
+      SellerIntakeDraftEntity,
     ],
     migrations: [
       CreateAuctionLots1710000000000,
@@ -68,6 +72,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateSellerLeads1788220800000,
       AddSellerLeadRecommendation1788220800001,
       AddSellerLeadChoice1788220800002,
+      CreateSellerIntakeDrafts1788220800003,
     ],
     synchronize: false,
   };
@@ -93,6 +98,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     SellerLeadsModule,
     ValuationCalculationModule,
     UploadsModule,
+    SellerWorkflowModule,
   ],
 })
 export class AppModule {}
