@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFiles, UseInterceptors} from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UploadedFiles, UseInterceptors } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE_BYTES, UploadedFile } from "./evidence.types";
@@ -8,30 +8,47 @@ import { UploadsService } from "./uploads.service";
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
-  @Post(":profileId")
+  @Post(":profileId/items/:itemId")
   @UseInterceptors(
-    // Multer defaults to memory storage when no destination or storage engine
-    // is configured, so UploadsService remains in full control of persistence.
     FilesInterceptor("files", MAX_FILES_PER_UPLOAD, {
       limits: { fileSize: MAX_FILE_SIZE_BYTES },
+      fileFilter: (_req, file, callback) => {
+        if (file.originalname.includes("..") || /[/\\]/.test(file.originalname)) {
+          return callback(new BadRequestException("Unsafe filename"), false);
+        }
+
+        callback(null, true);
+      },
     }),
   )
   upload(
     @Param("profileId") profileId: string,
+    @Param("itemId") itemId: string,
     @UploadedFiles() files: UploadedFile[],
   ) {
-    return this.uploadsService.addEvidence(profileId, files ?? []);
+    return this.uploadsService.addEvidence(profileId, itemId, files ?? []);
   }
 
   @Get(":profileId")
-  list(@Param("profileId") profileId: string) {
-    return this.uploadsService.listEvidence(profileId);
+  list(
+    @Param("profileId") profileId: string,
+    @Query("itemId") itemId?: string,
+  ) {
+    return this.uploadsService.listEvidence(profileId, itemId);
+  }
+
+  @Get(":profileId/items/:itemId")
+  listByItem(
+    @Param("profileId") profileId: string,
+    @Param("itemId") itemId: string,
+  ) {
+    return this.uploadsService.listEvidence(profileId, itemId);
   }
 
   @Patch(":profileId/order")
   async reorder(
     @Param("profileId") profileId: string,
-    @Body() body: { fileIds?: unknown }, // Validate the complete reorder request before changing the persisted evidence order.
+    @Body() body: { fileIds?: unknown },
   ) {
     if (
       !Array.isArray(body?.fileIds) ||
@@ -51,18 +68,6 @@ export class UploadsController {
     };
   }
 
-  @Delete(":profileId/:fileId")
-  async delete(
-    @Param("profileId") profileId: string,
-    @Param("fileId") fileId: string,
-  ) {
-    await this.uploadsService.deleteEvidence(profileId, fileId);
-
-    return {
-      success: true,
-    };
-  }
-
   @Get(":profileId/:fileId")
   async preview(
     @Param("profileId") profileId: string,
@@ -76,5 +81,34 @@ export class UploadsController {
 
     res.setHeader("Content-Type", mimeType);
     res.send(buffer);
+  }
+
+  @Get(":profileId/:fileId/download")
+  async download(
+    @Param("profileId") profileId: string,
+    @Param("fileId") fileId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { buffer, mimeType, originalName } =
+      await this.uploadsService.readImage(profileId, fileId, true);
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(originalName ?? "download")}"`,
+    );
+    res.send(buffer);
+  }
+
+  @Delete(":profileId/:fileId")
+  async delete(
+    @Param("profileId") profileId: string,
+    @Param("fileId") fileId: string,
+  ) {
+    await this.uploadsService.deleteEvidence(profileId, fileId);
+
+    return {
+      success: true,
+    };
   }
 }

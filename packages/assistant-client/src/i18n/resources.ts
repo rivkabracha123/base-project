@@ -2,7 +2,7 @@ export const resources = {
   en: {
     translation: {
       appName: 'Monabid Assistant',
-      navigation: { sample: 'Sample lot', houses: 'Auction houses', enquiry: 'Seller enquiry' },
+      navigation: { sample: 'Sample lot', houses: 'Auction houses', gallery: 'Gallery', enquiry: 'Seller enquiry' },
       sample: {
         eyebrow: 'Foundation example',
         title: 'A source-backed auction lot',
@@ -73,7 +73,7 @@ export const resources = {
   he: {
     translation: {
       appName: 'העוזר של מונביד',
-      navigation: { sample: 'פריט לדוגמה', houses: 'בתי מכירות', enquiry: 'פניית מוכר' },
+      navigation: { sample: 'פריט לדוגמה', houses: 'בתי מכירות', gallery: 'גלריה', enquiry: 'פניית מוכר' },
       sample: {
         eyebrow: 'דוגמת תשתית',
         title: 'פריט מכירה עם מקור',

@@ -47,7 +47,7 @@ describe("UploadsService", () => {
     });
 
     it("stores a single uploaded image and returns it in the gallery", async () => {
-      const result = await service.addEvidence("profile-a", [
+      const result = await service.addEvidence("profile-a", "item-1", [
         createImage("front.jpg"),
       ]);
 
@@ -55,7 +55,7 @@ describe("UploadsService", () => {
     });
 
     it("returns the mime type together with the image bytes", async () => {
-      const [item] = await service.addEvidence("profile-a", [
+      const [item] = await service.addEvidence("profile-a", "item-1", [
         createImage("front.jpg", "image/jpeg"),
       ]);
 
@@ -65,7 +65,7 @@ describe("UploadsService", () => {
     });
 
     it("stores multiple images from a single upload call", async () => {
-      const result = await service.addEvidence("profile-a", [
+      const result = await service.addEvidence("profile-a", "item-1", [
         createImage("front.jpg"),
         createImage("back.png", "image/png"),
         createImage("side.webp", "image/webp"),
@@ -75,7 +75,7 @@ describe("UploadsService", () => {
     });
 
     it("preserves the original filename and mime type as metadata", async () => {
-      const result = await service.addEvidence("profile-a", [
+      const result = await service.addEvidence("profile-a", "item-1", [
         createImage("front.jpg", "image/jpeg"),
       ]);
 
@@ -86,7 +86,7 @@ describe("UploadsService", () => {
     });
 
     it("returns a preview reference that can be used to fetch the image", async () => {
-      const [item] = await service.addEvidence("profile-a", [
+      const [item] = await service.addEvidence("profile-a", "item-1", [
         createImage("front.jpg", "image/jpeg", 1024, "synthetic-image-content"),
       ]);
 
@@ -96,13 +96,94 @@ describe("UploadsService", () => {
     });
   });
 
+  describe("upload completion callback", () => {
+    it("calls the callback once after the evidence and metadata are stored", async () => {
+      const events: string[] = [];
+      const originalWrite = storage.write.bind(storage);
+      const write = jest.spyOn(storage, "write");
+
+      write.mockImplementation(async (profileId, fileId, contents) => {
+        await originalWrite(profileId, fileId, contents);
+        events.push(
+          fileId === EVIDENCE_METADATA_FILE ? "metadata-written" : "file-written",
+        );
+      });
+
+      const onComplete = jest.fn((result: { success: boolean }) => {
+        events.push(result.success ? "callback-success" : "callback-failure");
+      });
+
+      const result = await service.addEvidence(
+        "profile-a",
+        "item-1",
+        [createImage("front.jpg")],
+        onComplete,
+      );
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith({
+        success: true,
+        evidence: result,
+      });
+      expect(events).toEqual([
+        "file-written",
+        "metadata-written",
+        "callback-success",
+      ]);
+      await expect(service.listEvidence("profile-a")).resolves.toEqual(result);
+    });
+
+    it("calls the callback once with a validation failure", async () => {
+      const onComplete = jest.fn();
+
+      await expect(
+        service.addEvidence(
+          "profile-a",
+          "item-1",
+          [createImage("notes.pdf", "application/pdf")],
+          onComplete,
+        ),
+      ).rejects.toThrow("Unsupported file type");
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith({
+        success: false,
+        error: "Unsupported file type",
+      });
+      await expect(service.listEvidence("profile-a")).resolves.toEqual([]);
+    });
+
+    it("calls the callback once with a storage failure", async () => {
+      const onComplete = jest.fn();
+      jest.spyOn(storage, "write").mockRejectedValueOnce(
+        new Error("Storage failure"),
+      );
+
+      await expect(
+        service.addEvidence(
+          "profile-a",
+          "item-1",
+          [createImage("front.jpg")],
+          onComplete,
+        ),
+      ).rejects.toThrow("Storage failure");
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onComplete).toHaveBeenCalledWith({
+        success: false,
+        error: "Storage failure",
+      });
+      await expect(service.listEvidence("profile-a")).resolves.toEqual([]);
+    });
+  });
+
   describe("file safety", () => {
     it.each([
       ["image/jpeg", "photo.jpg"],
       ["image/png", "photo.png"],
       ["image/webp", "photo.webp"],
     ])("accepts allowed image type %s", async (mimeType, fileName) => {
-      const result = await service.addEvidence("profile-a", [
+      const result = await service.addEvidence("profile-a", "item-1", [
         createImage(fileName, mimeType),
       ]);
 
@@ -114,16 +195,16 @@ describe("UploadsService", () => {
         createImage(`photo-${i}.jpg`),
       );
 
-      await expect(service.addEvidence("profile-a", files)).rejects.toThrow(
-        "Too many files",
-      );
+      await expect(
+        service.addEvidence("profile-a", "item-1", files),
+      ).rejects.toThrow("Too many files");
     });
 
     it("does not save any files if one of them fails validation", async () => {
       const write = jest.spyOn(storage, "write");
 
       await expect(
-        service.addEvidence("profile-a", [
+        service.addEvidence("profile-a", "item-1", [
           createImage("good.jpg"),
           createImage("bad.pdf", "application/pdf"),
         ]),
@@ -134,7 +215,7 @@ describe("UploadsService", () => {
 
     it("rejects unsupported file types", async () => {
       await expect(
-        service.addEvidence("profile-a", [
+        service.addEvidence("profile-a", "item-1", [
           createImage("document.pdf", "application/pdf"),
         ]),
       ).rejects.toThrow();
@@ -144,7 +225,7 @@ describe("UploadsService", () => {
       const tooLarge = 10 * 1024 * 1024 + 1;
 
       await expect(
-        service.addEvidence("profile-a", [
+        service.addEvidence("profile-a", "item-1", [
           createImage("huge.jpg", "image/jpeg", tooLarge),
         ]),
       ).rejects.toThrow();
@@ -152,12 +233,14 @@ describe("UploadsService", () => {
 
     it("rejects unsafe filenames", async () => {
       await expect(
-        service.addEvidence("profile-a", [createImage("../../outside.jpg")]),
+        service.addEvidence("profile-a", "item-1", [
+          createImage("../../outside.jpg"),
+        ]),
       ).rejects.toThrow();
     });
 
     it("accepts filenames with spaces and non-English characters", async () => {
-      const result = await service.addEvidence("profile-a", [
+      const result = await service.addEvidence("profile-a", "item-1", [
         createImage("תמונה 1.jpg"),
       ]);
 
@@ -167,16 +250,15 @@ describe("UploadsService", () => {
 
   describe("profile isolation", () => {
     it("keeps same-named files separate between profiles", async () => {
-      const [itemA] = await service.addEvidence("profile-a", [
+      const [itemA] = await service.addEvidence("profile-a", "item-a", [
         createImage("photo.jpg", "image/jpeg", 1024, "profile-a"),
       ]);
 
-      const [itemB] = await service.addEvidence("profile-b", [
+      const [itemB] = await service.addEvidence("profile-b", "item-b", [
         createImage("photo.jpg", "image/jpeg", 1024, "profile-b"),
       ]);
 
       const resultA = await service.readImage("profile-a", itemA!.fileId);
-
       const resultB = await service.readImage("profile-b", itemB!.fileId);
 
       expect(resultA.buffer.toString()).toBe("profile-a");
@@ -184,7 +266,7 @@ describe("UploadsService", () => {
     });
 
     it("prevents one profile from reading another profile file", async () => {
-      const [item] = await service.addEvidence("profile-a", [
+      const [item] = await service.addEvidence("profile-a", "item-1", [
         createImage("private.jpg", "image/jpeg", 1024, "private"),
       ]);
 
@@ -201,7 +283,7 @@ describe("UploadsService", () => {
       write.mockRejectedValueOnce(new Error("Storage failure"));
 
       await expect(
-        service.addEvidence("profile-a", [
+        service.addEvidence("profile-a", "item-1", [
           createImage("front.jpg"),
           createImage("back.jpg"),
         ]),
@@ -219,9 +301,9 @@ describe("UploadsService", () => {
         "Disk corrupted",
       );
     });
+
     it("cleans up already-written files when a later upload write fails", async () => {
       const originalWrite = storage.write.bind(storage);
-
       let imageWrites = 0;
 
       const write = jest.spyOn(storage, "write");
@@ -239,7 +321,7 @@ describe("UploadsService", () => {
       });
 
       await expect(
-        service.addEvidence("profile-a", [
+        service.addEvidence("profile-a", "item-1", [
           createImage("front.jpg"),
           createImage("back.jpg"),
         ]),
@@ -251,24 +333,28 @@ describe("UploadsService", () => {
 
   describe("evidence contract", () => {
     it("returns evidence references with the required metadata", async () => {
-      const [item] = await service.addEvidence("profile-a", [
+      const [item] = await service.addEvidence("profile-a", "item-1", [
         createImage("front.jpg", "image/jpeg", 2048),
       ]);
 
       expect(item).toEqual({
         fileId: expect.any(String),
         profileId: "profile-a",
+        itemId: "item-1",
         originalName: "front.jpg",
         mimeType: "image/jpeg",
         size: 2048,
         previewUri: expect.stringMatching(/^\/api\/evidence\/profile-a\//),
+        downloadUri: expect.stringMatching(
+          /^\/api\/evidence\/profile-a\/.*\/download$/,
+        ),
       });
     });
   });
 
   describe("ordering", () => {
     it("changes the order of evidence", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
         createImage("C.jpg"),
@@ -288,7 +374,7 @@ describe("UploadsService", () => {
     });
 
     it("persists the new evidence order", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
         createImage("C.jpg"),
@@ -310,7 +396,7 @@ describe("UploadsService", () => {
     });
 
     it("rejects an unknown evidence id during reorder", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
       ]);
@@ -324,7 +410,7 @@ describe("UploadsService", () => {
     });
 
     it("rejects duplicate evidence ids during reorder", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
       ]);
@@ -338,7 +424,7 @@ describe("UploadsService", () => {
     });
 
     it("rejects an incomplete evidence list during reorder", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
         createImage("C.jpg"),
@@ -353,11 +439,11 @@ describe("UploadsService", () => {
     });
 
     it("does not reorder another profile evidence", async () => {
-      const evidenceA = await service.addEvidence("profile-a", [
+      const evidenceA = await service.addEvidence("profile-a", "item-a", [
         createImage("A.jpg"),
       ]);
 
-      await service.addEvidence("profile-b", [createImage("B.jpg")]);
+      await service.addEvidence("profile-b", "item-b", [createImage("B.jpg")]);
 
       await expect(
         service.reorderEvidence("profile-b", [evidenceA[0]!.fileId]),
@@ -371,7 +457,7 @@ describe("UploadsService", () => {
 
   describe("deletion", () => {
     it("deletes one evidence item", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
         createImage("C.jpg"),
@@ -388,7 +474,7 @@ describe("UploadsService", () => {
     });
 
     it("removes the evidence file from storage", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
       ]);
 
@@ -400,7 +486,7 @@ describe("UploadsService", () => {
     });
 
     it("removes deleted evidence from metadata", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
       ]);
@@ -408,13 +494,12 @@ describe("UploadsService", () => {
       await service.deleteEvidence("profile-a", evidence[0]!.fileId);
 
       const result = await service.listEvidence("profile-a");
-
       expect(result).toHaveLength(1);
       expect(result[0]!.fileId).toBe(evidence[1]!.fileId);
     });
 
     it("preserves remaining evidence after deletion", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
         createImage("C.jpg"),
@@ -430,7 +515,7 @@ describe("UploadsService", () => {
     });
 
     it("rejects deleting an unknown evidence id", async () => {
-      await service.addEvidence("profile-a", [createImage("A.jpg")]);
+      await service.addEvidence("profile-a", "item-1", [createImage("A.jpg")]);
 
       await expect(
         service.deleteEvidence("profile-a", "unknown-file-id"),
@@ -438,11 +523,11 @@ describe("UploadsService", () => {
     });
 
     it("cannot delete evidence belonging to another profile", async () => {
-      const evidenceA = await service.addEvidence("profile-a", [
+      const evidenceA = await service.addEvidence("profile-a", "item-a", [
         createImage("A.jpg", "image/jpeg", 1024, "profile-a"),
       ]);
 
-      await service.addEvidence("profile-b", [
+      await service.addEvidence("profile-b", "item-b", [
         createImage("B.jpg", "image/jpeg", 1024, "profile-b"),
       ]);
 
@@ -461,7 +546,7 @@ describe("UploadsService", () => {
     });
 
     it("can delete the last remaining evidence", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
       ]);
 
@@ -473,14 +558,13 @@ describe("UploadsService", () => {
 
   describe("ordering and deletion storage failures", () => {
     it("preserves the previous order when reorder persistence fails", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
         createImage("B.jpg"),
         createImage("C.jpg"),
       ]);
 
       const originalWrite = storage.write.bind(storage);
-
       const write = jest.spyOn(storage, "write");
 
       write.mockImplementation(async (profileId, fileId, contents) => {
@@ -511,7 +595,7 @@ describe("UploadsService", () => {
     });
 
     it("reports deletion storage failure clearly", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg"),
       ]);
 
@@ -523,8 +607,9 @@ describe("UploadsService", () => {
         service.deleteEvidence("profile-a", evidence[0]!.fileId),
       ).rejects.toThrow("Storage failure");
     });
+
     it("restores the deleted file when metadata persistence fails", async () => {
-      const evidence = await service.addEvidence("profile-a", [
+      const evidence = await service.addEvidence("profile-a", "item-1", [
         createImage("A.jpg", "image/jpeg", 1024, "original-content"),
         createImage("B.jpg", "image/jpeg", 1024, "remaining-content"),
       ]);
