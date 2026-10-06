@@ -5,7 +5,7 @@ export class CreateSellerLeads1788220800000 implements MigrationInterface {
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "seller_enquiries" (
+      CREATE TABLE "seller_leads" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "profile_id" varchar NOT NULL,
         "contact" jsonb NOT NULL,
@@ -15,6 +15,6 @@ export class CreateSellerLeads1788220800000 implements MigrationInterface {
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('DROP TABLE "seller_enquiries"');
+    await queryRunner.query('DROP TABLE "seller_leads"');
   }
 }

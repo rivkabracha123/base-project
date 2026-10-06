@@ -1,10 +1,15 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { isBuyerHandoffContract, type BuyerHandoffContract } from './buyer-handoff';
 import { isSellerHandoffContract, type SellerHandoffContract } from './seller-handoff';
+import type { IntentRoute } from './intent-router';
 
 export type AiRole = 'buyer' | 'seller';
 
 export class GenerateAiRequestDto {
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+
   @IsString()
   prompt!: string;
 
@@ -44,6 +49,8 @@ export class GenerateAiResponseDto {
   confidence!: 'low' | 'medium';
 
   structuredAnswer!: StructuredAnswer;
+
+  intentRoute?: IntentRoute;
 }
 
 //check if the response is valid and has the correct shape
@@ -94,6 +101,9 @@ export function isGenerateAiResponseDto(value: unknown, expectedRole?: AiRole): 
     return false;
   }
 
+  if (response.intentRoute !== undefined && !isIntentRoute(response.intentRoute)) {
+    return false;
+  }
   const structuredAnswer = response.structuredAnswer;
   if (
     expectedRole &&
@@ -103,4 +113,16 @@ export function isGenerateAiResponseDto(value: unknown, expectedRole?: AiRole): 
   }
 
   return isBuyerHandoffContract(structuredAnswer) || isSellerHandoffContract(structuredAnswer);
+}
+
+function isIntentRoute(value: unknown): value is IntentRoute {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const route = value as Record<string, unknown>;
+  const intents = ['get_lot_details', 'same_item_sale_history', 'search_similar_lots', 'search_auction_lots', 'unknown'];
+  const functions = ['getLotById', 'getComparableSaleHistory'];
+  return intents.includes(String(route.intent)) &&
+    (route.functionName === null || (typeof route.functionName === 'string' && functions.includes(route.functionName))) &&
+    typeof route.readyForFunction === 'boolean' &&
+    Array.isArray(route.missingFields) && route.missingFields.every(field => typeof field === 'string') &&
+    Boolean(route.arguments) && typeof route.arguments === 'object' && !Array.isArray(route.arguments);
 }

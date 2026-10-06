@@ -2,7 +2,16 @@ export const resources = {
   en: {
     translation: {
       appName: 'Monabid Assistant',
-      navigation: { sample: 'Sample lot', houses: 'Auction houses', enquiry: 'Seller enquiry' },
+      assistant: {
+        newConversation: 'New conversation', dialogue: 'Conversation messages',
+        history: 'Conversation history', historyEmpty: 'No saved conversations yet.', historyError: 'Could not load history.', newer: 'Newer', older: 'Older',
+        eyebrow: 'Guided assistant', title: 'Tell us what you need', intro: 'You can correct the request and continue after missing details are identified.',
+        buyer: 'Buyer', seller: 'Seller', prompt: 'Your request', send: 'Send', retry: 'Try again', saving: 'Working…',
+        fallback: 'The provider is unavailable. Guided questions are active.', irrelevant: 'Please keep the request about buying or selling an item.',
+        missing: 'Missing information', budget: 'Budget', summary: 'Summary', recommendation: 'Recommendation', next: 'Next step', saved: 'Draft saved in this browser.',
+        empty: 'Send a request to begin.', request: 'I am looking for a blue ring from 2021, budget up to 5000.',
+      },
+      navigation: { sample: 'Sample lot', assistant: 'Assistant', houses: 'Auction houses', enquiry: 'Seller enquiry' },
       sample: {
         eyebrow: 'Foundation example',
         title: 'A source-backed auction lot',
@@ -110,7 +119,16 @@ export const resources = {
   he: {
     translation: {
       appName: 'העוזר של מונביד',
-      navigation: { sample: 'פריט לדוגמה', houses: 'בתי מכירות', enquiry: 'פניית מוכר' },
+      navigation: { sample: 'פריט לדוגמה', assistant: 'העוזר', houses: 'בתי מכירות', enquiry: 'פניית מוכר' },
+      assistant: {
+        newConversation: 'שיחה חדשה', dialogue: 'הודעות השיחה',
+        history: 'היסטוריית שיחות', historyEmpty: 'אין עדיין שיחות שמורות.', historyError: 'לא ניתן לטעון את ההיסטוריה.', newer: 'חדשות יותר', older: 'ישנות יותר',
+        eyebrow: 'עוזר מונחה', title: 'ספרו לנו מה אתם צריכים', intro: 'אפשר לתקן את הבקשה ולהמשיך אחרי זיהוי פרטים חסרים.',
+        buyer: 'קונה', seller: 'מוכר', prompt: 'הבקשה שלכם', send: 'שליחה', retry: 'נסו שוב', saving: 'מעבד…',
+        fallback: 'הספק אינו זמין. הופעלו שאלות מונחות.', irrelevant: 'נא להישאר בנושא קנייה או מכירה של פריט.',
+        missing: 'מידע חסר', budget: 'תקציב', summary: 'סיכום', recommendation: 'המלצה', next: 'הצעד הבא', saved: 'הטיוטה נשמרה בדפדפן הזה.',
+        empty: 'שלחו בקשה כדי להתחיל.', request: 'אני מחפשת טבעת כחולה משנת 2021, בתקציב עד 5000 שקל.',
+      },
       sample: {
         eyebrow: 'דוגמת תשתית',
         title: 'פריט מכירה עם מקור',

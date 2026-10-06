@@ -1,7 +1,7 @@
 import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client';
 import i18n from '../i18n';
 import { StaffOperationsDashboard } from './StaffOperationsDashboard';
@@ -29,6 +29,10 @@ function renderDashboard() {
     ),
   );
 }
+
+beforeEach(async () => {
+  await i18n.changeLanguage('he');
+});
 
 afterEach(async () => {
   vi.unstubAllGlobals();

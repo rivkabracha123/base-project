@@ -1,4 +1,7 @@
 import 'reflect-metadata';
+import { AddAiConversations1750000000000 } from './1750000000000-add-ai-conversations';
+import { AiHistoryEntity } from './ai-history.entity';
+import { CreateAiHistory1740000000000 } from './1740000000000-create-ai-history';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { AuctionLotEntity } from './auction-lot.entity';
@@ -40,6 +43,7 @@ const AppDataSource = new DataSource({
     BuyerCriteriaEntity,
     BuyerConversationEntity,
     SellerIntakeDraftEntity,
+    AiHistoryEntity,
   ],
   migrations: [
     CreateAuctionLots1710000000000,
@@ -48,6 +52,8 @@ const AppDataSource = new DataSource({
     CreateBuyerTables1710000000002,
     CreateStaffOperations1725000000000,
     CreateUserProfiles1730000000000,
+    CreateAiHistory1740000000000,
+    AddAiConversations1750000000000,
     CreateSellerLeads1788220800000,
     AddSellerLeadRecommendation1788220800001,
     AddSellerLeadChoice1788220800002,

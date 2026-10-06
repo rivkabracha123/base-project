@@ -25,14 +25,13 @@ export { appendBuyerCriteriaHistory };
 
 function toHistoryEntry(request: BuyerChatTurnInput): BuyerChatHistoryEntry {
   if (request.skipped) {
-    return { id: request.id, speaker: 'buyer', skipped: true, date: request.date };
+    return { id: request.id, speaker: 'buyer', skipped: true };
   }
   return {
     id: request.id,
     speaker: 'buyer',
     skipped: false,
     text: request.text.trim(),
-    date: request.date,
   };
 }
 
@@ -41,8 +40,7 @@ export class BuyerCriteriaService {
   /** Create a criteria session from AI extract response and return the first system question for the chat UI. */
   startCriteriaSessionFromAiResponse(response: AiExtractResponse): BuyerChatSystemMessage {
     const extracted = parseCriteriaFromAiResponse(response);
-    const date = new Date().toISOString();
-    const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted, date);
+    const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted);
     return buildChatSystemMessage(sessionId, systemMessage);
   }
 
@@ -74,8 +72,7 @@ export class BuyerCriteriaService {
       message: request.skipped ? undefined : request.text.trim(),
     });
 
-    const date = new Date().toISOString();
-    const systemMessage = saveSessionAfterClarification(request.sessionId, updated, date);
+    const systemMessage = saveSessionAfterClarification(request.sessionId, updated);
     if (systemMessage) {
       return buildChatSystemMessage(request.sessionId, systemMessage);
     }
@@ -84,7 +81,6 @@ export class BuyerCriteriaService {
       id: randomUUID(),
       speaker: 'system',
       text: updated.conversation.nextQuestion,
-      date,
     });
   }
 

@@ -33,6 +33,64 @@ import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draf
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const anonymousSessionStorageKey = 'anonymousSessionId';
+const aiResponseSchema = z.object({
+  provider: z.enum(['fixture', 'real']), mode: z.enum(['fixture', 'real']),
+  fallbackMode: z.literal('guided').optional(), isRelevant: z.boolean(),
+  error: z.string().nullable(), content: z.string(), summary: z.string(),
+  recommendation: z.string(), nextAction: z.string(),
+  confidence: z.enum(['low', 'medium']), structuredAnswer: z.record(z.unknown()),
+  intentRoute: z.object({
+    intent: z.enum(['get_lot_details', 'same_item_sale_history', 'search_similar_lots', 'search_auction_lots', 'unknown']),
+    functionName: z.enum(['getLotById', 'getComparableSaleHistory']).nullable(),
+    readyForFunction: z.boolean(), missingFields: z.array(z.string()), arguments: z.record(z.unknown()),
+  }).optional(),
+});
+const historyPageSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().uuid(), conversationId: z.string().uuid(), userId: z.string(), prompt: z.string(),
+    role: z.enum(['buyer', 'seller']), language: z.enum(['he', 'en']),
+    response: aiResponseSchema, createdAt: z.string().datetime(),
+  })),
+  total: z.number().int().nonnegative(), page: z.number().int().positive(),
+  pageSize: z.number().int().positive(),
+});
+export type AiHistoryPage = z.infer<typeof historyPageSchema>;
+export type AiExchange = AiHistoryPage['items'][number];
+
+export async function getAiConversation(conversationId: string, signal?: AbortSignal) {
+  const response = await fetch(`${apiBaseUrl}/ai/conversations/${encodeURIComponent(conversationId)}`, { headers: profileHeaders(), signal });
+  if (!response.ok) throw new Error(`Conversation request failed with status ${response.status}`);
+  return z.object({ conversationId: z.string().uuid(), entries: historyPageSchema.shape.items }).parse(await response.json());
+}
+
+export async function getAiHistory(page = 1, signal?: AbortSignal): Promise<AiHistoryPage> {
+  const response = await fetch(`${apiBaseUrl}/ai/history?page=${page}`, { headers: profileHeaders(), signal });
+  if (!response.ok) throw new Error(`History request failed with status ${response.status}`);
+  return historyPageSchema.parse(await response.json());
+}
+
+export type AiRole = 'buyer' | 'seller';
+
+export type AiResponse = {
+  provider: 'fixture' | 'real';
+  mode: 'fixture' | 'real';
+  fallbackMode?: 'guided';
+  isRelevant: boolean;
+  error: string | null;
+  content: string;
+  summary: string;
+  recommendation: string;
+  nextAction: string;
+  confidence: 'low' | 'medium';
+  structuredAnswer: Record<string, unknown>;
+  intentRoute?: {
+    intent: 'get_lot_details' | 'same_item_sale_history' | 'search_similar_lots' | 'search_auction_lots' | 'unknown';
+    functionName: 'getLotById' | 'getComparableSaleHistory' | null;
+    readyForFunction: boolean;
+    missingFields: string[];
+    arguments: Record<string, unknown>;
+  };
+};
 
 export interface UpdateCurrentProfileInput {
   preferredName?: string;
@@ -68,6 +126,20 @@ export function getAnonymousSessionId(): string {
   const newSessionId = crypto.randomUUID();
   localStorage.setItem(anonymousSessionStorageKey, newSessionId);
   return newSessionId;
+}
+//function to generate AI response based on prompt, role, and language
+export async function generateAi(prompt: string, role: AiRole, language: 'he' | 'en', conversationId?: string) {
+  const response = await fetch(`${apiBaseUrl}/ai/generate`, {
+    method: 'POST',
+    headers: {
+      ...profileHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ prompt, role, language, conversationId }),
+  });
+
+  if (!response.ok) throw new Error(`AI request failed with status ${response.status}`);
+  return aiResponseSchema.extend({ conversationId: z.string().uuid(), exchangeId: z.string().uuid() }).parse(await response.json());
 }
 
 function profileHeaders(): HeadersInit {

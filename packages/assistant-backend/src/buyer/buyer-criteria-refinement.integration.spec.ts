@@ -3,8 +3,6 @@ import { BuyerCriteriaService } from './buyer-criteria.service';
 import { refinementExample, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
-const buyerAt = '2026-09-15T09:00:00.000Z';
-
 describe('Criteria refinement across chat and search', () => {
   const service = new BuyerCriteriaService();
 
@@ -43,7 +41,6 @@ describe('Criteria refinement across chat and search', () => {
         speaker: 'buyer',
         skipped: false,
         text: '$10000',
-        date: buyerAt,
       });
       const afterBudget = service.getCriteriaForSession(first.sessionId);
 
@@ -57,7 +54,6 @@ describe('Criteria refinement across chat and search', () => {
         sessionId: first.sessionId,
         speaker: 'buyer',
         skipped: true,
-        date: '2026-09-15T09:01:00.000Z',
       });
       const afterSkip = service.getSessionResponse(first.sessionId);
 
@@ -66,7 +62,7 @@ describe('Criteria refinement across chat and search', () => {
       expect(afterSkip.criteria.price).toEqual(afterBudget.price);
       expect(service.getHistory(first.sessionId)).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ speaker: 'buyer', skipped: true, date: '2026-09-15T09:01:00.000Z' }),
+          expect.objectContaining({ speaker: 'buyer', skipped: true }),
         ]),
       );
     });
@@ -81,7 +77,6 @@ describe('Criteria refinement across chat and search', () => {
         speaker: 'buyer',
         skipped: false,
         text: '$10000',
-        date: buyerAt,
       });
       const criteria = service.getCriteriaForSession(first.sessionId);
 
@@ -116,7 +111,6 @@ describe('Criteria refinement across chat and search', () => {
         speaker: 'buyer',
         skipped: false,
         text: refinementExample.buyerAnswer,
-        date: buyerAt,
       });
       const criteria = service.getCriteriaForSession(first.sessionId);
       const extracted = parseCriteriaFromAiResponse(refinementExample.initialAiResponse);

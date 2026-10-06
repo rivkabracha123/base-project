@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProfileLanguageLoader } from './app/ProfileLanguageLoader';
 import { LotPage } from './app/LotPage';
 import { SampleLotPage } from './app/SampleLotPage';
+import { AssistantPage } from './app/AssistantPage';
 import { BuyerChat } from './buyer/BuyerChat';
 import { AppHeader } from './components/AppHeader';
 import { ResultsPage } from './components/ResultPage';
@@ -15,6 +16,7 @@ export function App() {
       <ProfileLanguageLoader />
       <AppHeader />
       <Routes>
+        <Route path="/assistant" element={<AssistantPage />} />
         <Route path="/sample" element={<SampleLotPage />} />
         <Route path="/staff-operations" element={<StaffOperationsDashboard />} />
         <Route path="/results" element={<ResultsPage />} />

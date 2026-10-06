@@ -17,6 +17,9 @@ import { BuyerConversationEntity } from './database/buyer-conversation.entity';
 import { BuyerCriteriaEntity } from './database/buyer-criteria.entity';
 import { BuyerRequestEntity } from './database/buyer-request.entity';
 import { SellerLeadEntity } from './database/seller-lead.entity';
+import { AiHistoryEntity } from './database/ai-history.entity';
+import { CreateAiHistory1740000000000 } from './database/1740000000000-create-ai-history';
+import { AddAiConversations1750000000000 } from './database/1750000000000-add-ai-conversations';
 import { BuyerModule } from './buyer/buyer.module';
 import { AiModule } from './ai/ai.module';
 import { HealthModule } from './health/health.module';
@@ -57,6 +60,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       UserProfileEntity,
       StaffOperationEntity,
       SellerLeadEntity,
+      AiHistoryEntity,
       AnonymousProfileEntity,
       AiProviderConfigEntity,
       BuyerRequestEntity,
@@ -71,6 +75,8 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateBuyerTables1710000000002,
       CreateStaffOperations1725000000000,
       CreateUserProfiles1730000000000,
+      CreateAiHistory1740000000000,
+      AddAiConversations1750000000000,
       CreateSellerLeads1788220800000,
       AddSellerLeadRecommendation1788220800001,
       AddSellerLeadChoice1788220800002,
@@ -90,11 +96,11 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       useFactory: databaseOptions,
     }),
     AiModule,
+    ProfilesModule,
     BuyerModule,
     ChatModule,
     HealthModule,
     LotsModule,
-    ProfilesModule,
     StorageModule,
     StaffOperationsModule,
     ComparablesModule,

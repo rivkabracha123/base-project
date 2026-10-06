@@ -5,18 +5,15 @@ import { sampleAiExtractResponses } from './buyer-criteria.fixtures';
 
 describe('BuyerController', () => {
   const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
-  const date = '2026-09-15T09:00:00.000Z';
   const systemMessageAfterExtract = buildChatSystemMessage('session-1', {
     id: 'system-msg-1',
     speaker: 'system',
     text: extracted.conversation.nextQuestion,
-    date,
   });
   const systemMessageAfterTurn = buildChatSystemMessage('session-1', {
     id: 'system-msg-2',
     speaker: 'system',
     text: 'Is there a place or origin that matters?',
-    date,
   });
 
   it('startCriteriaSession delegates to the service', () => {
@@ -36,7 +33,6 @@ describe('BuyerController', () => {
       speaker: 'buyer' as const,
       skipped: false as const,
       text: 'Monet',
-      date,
     };
     const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterTurn) };
     const controller = new BuyerController(service as never);
@@ -53,13 +49,11 @@ describe('BuyerController', () => {
       sessionId: 'session-1',
       speaker: 'buyer' as const,
       skipped: true as const,
-      date: '2026-09-15T09:01:00.000Z',
     };
     const systemMessageAfterSkip = buildChatSystemMessage('session-1', {
       id: 'system-msg-3',
       speaker: 'system',
       text: extracted.conversation.nextQuestion,
-      date: '2026-09-15T09:01:00.000Z',
     });
     const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterSkip) };
     const controller = new BuyerController(service as never);
