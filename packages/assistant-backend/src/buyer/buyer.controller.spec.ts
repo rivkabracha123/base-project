@@ -21,7 +21,10 @@ describe('BuyerController', () => {
 
   it('startCriteriaSession delegates to the service', () => {
     const service = { startCriteriaSessionFromAiResponse: jest.fn().mockReturnValue(systemMessageAfterExtract) };
-    const controller = new BuyerController(service as never);
+    const search = { searchForSession: jest.fn() };
+    const bridge = { openConversation: jest.fn() };
+    const p4 = { generateBuyerExtract: jest.fn() };
+    const controller = new BuyerController(service as never, search as never, bridge as never, p4 as never);
 
     const result = controller.startCriteriaSession(sampleAiExtractResponses.paintingEn());
 
@@ -39,7 +42,10 @@ describe('BuyerController', () => {
       date,
     };
     const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterTurn) };
-    const controller = new BuyerController(service as never);
+    const search = { searchForSession: jest.fn() };
+    const bridge = { openConversation: jest.fn() };
+    const p4 = { generateBuyerExtract: jest.fn() };
+    const controller = new BuyerController(service as never, search as never, bridge as never, p4 as never);
 
     const result = controller.continueCriteriaSession(turnRequest);
 
@@ -62,7 +68,10 @@ describe('BuyerController', () => {
       date: '2026-09-15T09:01:00.000Z',
     });
     const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterSkip) };
-    const controller = new BuyerController(service as never);
+    const search = { searchForSession: jest.fn() };
+    const bridge = { openConversation: jest.fn() };
+    const p4 = { generateBuyerExtract: jest.fn() };
+    const controller = new BuyerController(service as never, search as never, bridge as never, p4 as never);
 
     const result = controller.continueCriteriaSession(turnRequest);
 
