@@ -3,8 +3,25 @@ export interface StaffLead {
   type: 'buyer' | 'seller';
   clientName: string;
   status: string;
+  /** Optional until every lead-producing API includes its item category. */
+  category?: string;
   requestDetails: string;
   createdAt: string;
+}
+
+export type StaffPipelineStatus = 'new' | 'reviewing' | 'contacted' | 'qualified' | 'item_found' | 'negotiating' | 'won' | 'lost' | 'closed';
+
+export interface StaffLeadPipeline {
+  status: StaffPipelineStatus;
+  nextAction: string | null;
+  statusHistory: Array<{ at: string; from: StaffPipelineStatus | null; to: StaffPipelineStatus }>;
+  activityNotes: Array<{ at: string; text: string }>;
+}
+
+export interface UpdateStaffLeadPipelineInput {
+  status?: StaffPipelineStatus;
+  nextAction?: string;
+  note?: string;
 }
 
 export interface BuyerLeadContact {
