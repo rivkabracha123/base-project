@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { validateAuctionLotFixture, type AuctionLot } from './import-report';
+import type { AuctionLot } from './auction-lot';
+import { validateAuctionLotFixture } from './import-report';
 
 // A minimal in-memory stand-in for the real upsert-by-id behavior in seed.ts
 // (repository.upsert(records, ['id'])) — test-only, not production code.
@@ -55,7 +56,7 @@ describe('repeatable fixture import', () => {
     store.importBatch([{ ...baseLot, id: 'lot-1', realizedPrice: { amount: 1200, currency: 'USD' } }]);
 
     expect(store.all()).toHaveLength(1);
-    expect(store.all()[0].realizedPrice).toEqual({ amount: 1200, currency: 'USD' });
+    expect(store.all()[0]?.realizedPrice).toEqual({ amount: 1200, currency: 'USD' });
   });
 
   it('re-importing with a status change from upcoming to sold applies the full update', () => {
