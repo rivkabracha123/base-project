@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { SellerItemDraft } from '@monabid/shared';
 import { SellerIntakeService } from './seller-intake.service';
 import type { MissingSellerQuestion } from './seller-intake.service';
+import type { SellerIntakeAiProvider, SellerIntakeAiResult } from './seller-intake-ai.provider';
 
 const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
   id: 'seller-item-draft-001',
@@ -117,19 +118,12 @@ const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
 
 // Simulates Shilat Ben Gigi — AI connection: deterministic seller-intake output without external JSON files.
 @Injectable()
-export class SellerIntakeAiMock {
+export class SellerIntakeAiMock implements SellerIntakeAiProvider {
   private readonly sessions = new Map<string, { input: string }>();
 
   constructor(private readonly sellerIntakeService: SellerIntakeService) {}
 
-  analyze(input: string, sessionId?: string): SellerItemDraft & {
-    provider: 'fixture-mock';
-    missingFields: string[];
-    nextQuestion: MissingSellerQuestion | null;
-    sessionId?: string;
-    answerAccepted?: boolean;
-    answerError?: string;
-  } {
+  analyze(input: string, sessionId?: string): SellerIntakeAiResult {
     const fixture = createDeterministicSellerItemDraft();
     const previous = sessionId ? this.sessions.get(sessionId) : undefined;
     const previousState = previous

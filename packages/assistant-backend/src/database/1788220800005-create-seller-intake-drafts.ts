@@ -1,13 +1,13 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateSellerIntakeDrafts1788220800003 implements MigrationInterface {
-  name = 'CreateSellerIntakeDrafts1788220800003';
+export class CreateSellerIntakeDrafts1788220800005 implements MigrationInterface {
+  name = 'CreateSellerIntakeDrafts1788220800005';
 
   // יוצר טבלת טיוטות S1 עם בידוד לפי פרופיל ושיחה ושמירת גרסאות.
   // Creates the S1 draft table with profile/session isolation and version tracking.
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "seller_intake_drafts" (
+      CREATE TABLE IF NOT EXISTS "seller_intake_drafts" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "profile_id" varchar NOT NULL,
         "session_id" varchar NOT NULL,

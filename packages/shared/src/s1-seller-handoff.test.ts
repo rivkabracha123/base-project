@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest';
+import {
+  leadHandoffFromS1Draft,
+  rankingItemFromS1Draft,
+  confirmedItemDraftSchema,
+  defaultRankingItem,
+  receiveConfirmedItemHandoff,
+} from './s1-seller-handoff';
+
+const valuation = {
+  status: 'supported' as const,
+  reportId: 'valuation-001',
+  comparableCount: 1,
+  confidence: {
+    level: 'low' as const,
+    explanation: 'Confidence is uncalibrated; low is a conservative default pending expert review, not a probability.',
+  },
+  limitations: ['Historical fixture rates and supplied evidence only; no current-market or growth adjustment.'],
+  comparables: [{ id: 'comp-001', source: { label: 'prepared-fixture', url: null } }],
+  excludedComparables: [],
+  valuationRange: { min: 800, max: 1200, currency: 'USD' as const },
+};
+
+const efratDraft = {
+  language: { preferred: 'he' },
+  item: {
+    id: 'item-001',
+    category: 'paintings',
+    title: 'Abstract landscape study',
+    evidenceIds: ['evidence-001'],
+    catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
+  },
+  evidence: [
+    {
+      id: 'evidence-001',
+      type: 'seller_statement',
+      uri: 'file:///secret.jpg',
+      previewUri: '/uploads/secret.jpg',
+    },
+  ],
+  confirmedFacts: { category: 'paintings' },
+  uncertainFacts: [{ field: 'era', status: 'uncertain', value: '1980s' }],
+  seller: { preferredName: 'Maya', name: 'Maya Cohen' },
+};
+
+describe('confirmed item draft consumer for seller enquiry', () => {
+  it('ranks from confirmed category and preferred language', () => {
+    const draft = confirmedItemDraftSchema.parse(efratDraft);
+    expect(rankingItemFromS1Draft(draft)).toEqual({
+      category: 'paintings',
+      preferredLanguage: 'he',
+    });
+  });
+
+  it('falls back when S1 is missing', () => {
+    expect(rankingItemFromS1Draft(null)).toEqual(defaultRankingItem);
+  });
+
+  it('copies catalog, item, and evidence ids without URIs, contact, or uncertain facts', () => {
+    const handoff = leadHandoffFromS1Draft(confirmedItemDraftSchema.parse(efratDraft), valuation);
+    expect(handoff.catalogDraft).toEqual(efratDraft.item.catalogDraft);
+    expect(handoff.item).toEqual({
+      id: 'item-001',
+      category: 'paintings',
+      title: 'Abstract landscape study',
+      evidenceIds: ['evidence-001'],
+    });
+    expect(handoff.evidence).toEqual([{ id: 'evidence-001', type: 'seller_statement' }]);
+    expect(JSON.stringify(handoff)).not.toMatch(/file:|previewUri|Maya|1980s|uncertain/i);
+  });
+
+  it('accepts S1 callback payload and strips URIs and contact', () => {
+    const received = receiveConfirmedItemHandoff(efratDraft);
+    expect(received.rankingItem.category).toBe('paintings');
+    expect(received.catalogDraft.en).toBe('Abstract landscape study');
+    expect(received.evidence).toEqual([{ id: 'evidence-001', type: 'seller_statement' }]);
+    expect(JSON.stringify(received)).not.toMatch(/file:|previewUri|Maya/i);
+  });
+});

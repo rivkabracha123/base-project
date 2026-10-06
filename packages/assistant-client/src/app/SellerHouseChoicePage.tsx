@@ -3,7 +3,16 @@ import { ErrorState, LoadingState, PageShell } from '@monabid/ui';
 import type { HouseRanking, RankedHouse } from '@monabid/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createSellerLead, rankHousesForLead, saveSellerHouseChoice } from './api';
+import {
+  createSellerLead,
+  getS1SellerDraft,
+  grantP3ServiceConsent,
+  rankHouses,
+  rankHousesForLead,
+  rankingItemFromS1Draft,
+  saveSellerHouseChoice,
+} from './api';
+import { HouseJourneyCard, JourneyBubble } from './SellerJourneyChrome';
 
 /**
  * S5 Week 4 screen: recommended house + alternatives, then save a seller pick.
@@ -20,147 +29,107 @@ export function SellerHouseChoicePage() {
   // S5: which radio is selected. Undefined means “keep the S5 recommendation”.
   const [selectedHouseId, setSelectedHouseId] = useState<string>();
 
-  // S5 load path: draft internal lead (Week 2), then rank houses for that lead (Week 3).
+  // Show ranking without storing a lead (P3 consent is only required when saving).
   const rankingQuery = useQuery({
     queryKey: ['seller-house-ranking'],
     queryFn: async ({ signal }) => {
-      const leadId = await createSellerLead(signal);
-      const ranking = await rankHousesForLead(leadId, signal);
-      return { leadId, ranking };
+      const draft = await getS1SellerDraft(signal);
+      const ranking = await rankHouses(signal, rankingItemFromS1Draft(draft));
+      return { ranking };
     },
   });
 
   // S5 Week 4: POST /choice. Internal only — does not email or contact a house.
   const choiceMutation = useMutation({
-    mutationFn: (houseId: string) => {
-      const leadId = rankingQuery.data?.leadId;
-      if (!leadId) throw new Error('Draft enquiry is not ready');
+    mutationFn: async (houseId: string) => {
+      const granted = await grantP3ServiceConsent();
+      if (!granted) throw new Error('P3 service consent is required');
+      const draft = await getS1SellerDraft();
+      const item = rankingItemFromS1Draft(draft);
+      const leadId = await createSellerLead();
+      await rankHousesForLead(leadId, undefined, item);
       return saveSellerHouseChoice(leadId, houseId);
     },
   });
 
   const ranking = rankingQuery.data?.ranking;
   const options = ranking ? selectableHouses(ranking) : [];
+  const houseId = selectedHouseId ?? ranking?.recommendation?.house.id;
 
   return (
-    <PageShell>
-      <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">{t('houses.eyebrow')}</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{t('houses.title')}</h1>
-      <p className="mb-4 mt-3 max-w-2xl text-slate-600">{t('houses.intro')}</p>
-      {/* S5 durable rule: internal Monabid enquiry only — never auto-contact a house. */}
-      <p className="mb-8 max-w-2xl text-sm text-slate-500">{t('houses.internalOnly')}</p>
+    <div className="min-h-screen bg-[#f6f1e8]">
+      <PageShell>
+        <div className="mx-auto max-w-3xl">
+          <p className="text-sm font-semibold uppercase tracking-wide text-amber-800/80">{t('houses.eyebrow')}</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-stone-950">{t('houses.title')}</h1>
+          <p className="mb-4 mt-3 text-stone-600">{t('houses.intro')}</p>
+          <p className="mb-8 text-sm text-stone-500">{t('houses.internalOnly')}</p>
 
-      {rankingQuery.isPending ? <LoadingState label={t('houses.loading')} /> : null}
-      {rankingQuery.isError ? (
-        <ErrorState
-          title={t('houses.error')}
-          retryLabel={t('houses.retry')}
-          onRetry={() => void rankingQuery.refetch()}
-        />
-      ) : null}
+          {rankingQuery.isPending ? <LoadingState label={t('houses.loading')} /> : null}
+          {rankingQuery.isError ? (
+            <ErrorState
+              title={t('houses.error')}
+              retryLabel={t('houses.retry')}
+              onRetry={() => void rankingQuery.refetch()}
+            />
+          ) : null}
 
-      {ranking ? (
-        <form
-          className="space-y-6"
-          onSubmit={(event) => {
-            event.preventDefault();
-            // If they never clicked a radio, S5 saves the recommended house as their choice.
-            const houseId = selectedHouseId ?? ranking.recommendation?.house.id;
-            if (houseId) choiceMutation.mutate(houseId);
-          }}
-        >
-          <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-            <h2 className="text-lg font-semibold text-slate-950">{t('houses.recommended')}</h2>
-            {ranking.recommendation ? (
-              <HouseOption
-                row={ranking.recommendation}
-                selectedId={selectedHouseId ?? ranking.recommendation.house.id}
-                onSelect={setSelectedHouseId}
-              />
-            ) : (
-              <p className="mt-2 text-slate-600">{t('houses.none')}</p>
-            )}
-          </section>
-
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-semibold text-slate-950">{t('houses.alternatives')}</h2>
-            {ranking.alternatives.length === 0 ? (
-              <p className="mt-2 text-slate-600">{t('houses.noAlternatives')}</p>
-            ) : (
-              <ul className="mt-3 space-y-4">
+          {ranking ? (
+            <form
+              className="space-y-6"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (houseId) choiceMutation.mutate(houseId);
+              }}
+            >
+              <JourneyBubble>{t('enquiry.promptHouses')}</JourneyBubble>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {ranking.recommendation ? (
+                  <HouseJourneyCard
+                    row={ranking.recommendation}
+                    selectedId={houseId}
+                    recommended
+                    onSelect={setSelectedHouseId}
+                  />
+                ) : (
+                  <p className="text-stone-600">{t('houses.none')}</p>
+                )}
                 {ranking.alternatives.map((row) => (
-                  <li key={row.house.id}>
-                    <HouseOption
-                      row={row}
-                      selectedId={selectedHouseId ?? ranking.recommendation?.house.id}
-                      onSelect={setSelectedHouseId}
-                    />
-                  </li>
+                  <HouseJourneyCard
+                    key={row.house.id}
+                    row={row}
+                    selectedId={houseId}
+                    onSelect={setSelectedHouseId}
+                  />
                 ))}
-              </ul>
-            )}
-          </section>
+              </div>
+              {ranking.alternatives.length === 0 ? (
+                <p className="text-sm text-stone-500">{t('houses.noAlternatives')}</p>
+              ) : null}
 
-          <p className="text-sm text-slate-500">{t('houses.choiceHint')}</p>
-          <button
-            type="submit"
-            disabled={choiceMutation.isPending || options.length === 0}
-            className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {t('houses.saveChoice')}
-          </button>
-        </form>
-      ) : null}
+              <p className="text-sm text-stone-500">{t('houses.choiceHint')}</p>
+              <button
+                type="submit"
+                disabled={choiceMutation.isPending || options.length === 0}
+                className="w-full rounded-full bg-[#b08948] px-4 py-3 text-sm font-medium text-white hover:bg-[#9a753c] focus:outline-none focus:ring-2 focus:ring-amber-700 disabled:opacity-50"
+              >
+                {t('houses.saveChoice')}
+              </button>
+            </form>
+          ) : null}
 
-      {choiceMutation.isSuccess ? (
-        <p role="status" className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-green-900">
-          {t('houses.saved', { house: choiceMutation.data.houseName })}
-        </p>
-      ) : null}
-      {choiceMutation.isError ? (
-        <p role="alert" className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-900">
-          {t('houses.saveError')}
-        </p>
-      ) : null}
-    </PageShell>
-  );
-}
-
-/** S5: one radio — house name plus ranking reasons (why this house was scored). */
-function HouseOption({
-  row,
-  selectedId,
-  onSelect,
-}: {
-  row: RankedHouse;
-  selectedId?: string;
-  onSelect: (houseId: string) => void;
-}) {
-  const { t } = useTranslation();
-  const inputId = `house-${row.house.id}`;
-
-  return (
-    <div className="mt-3">
-      <label htmlFor={inputId} className="flex cursor-pointer items-start gap-3">
-        <input
-          id={inputId}
-          type="radio"
-          name="seller-house"
-          value={row.house.id}
-          checked={selectedId === row.house.id}
-          onChange={() => onSelect(row.house.id)}
-          className="mt-1"
-        />
-        <span>
-          <span className="block font-medium text-slate-950">{row.house.name}</span>
-          <span className="mt-1 block text-sm text-slate-600">{t('houses.reasons')}</span>
-          <ul className="mt-1 list-disc ps-5 text-sm text-slate-600">
-            {row.reasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        </span>
-      </label>
+          {choiceMutation.isSuccess ? (
+            <p role="status" className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+              {t('houses.saved', { house: choiceMutation.data.houseName })}
+            </p>
+          ) : null}
+          {choiceMutation.isError ? (
+            <p role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
+              {t('houses.saveError')}
+            </p>
+          ) : null}
+        </div>
+      </PageShell>
     </div>
   );
 }

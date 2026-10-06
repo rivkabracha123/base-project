@@ -19,6 +19,18 @@ describe('seller lead schema', () => {
     expect(databaseOptions(config).migrations).toContain(CreateSellerLeads1788220800000);
   });
 
+  it('registers the P3 user_profiles entity and migration so S5 can call GET /api/profiles/me', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { UserProfileEntity } = await import('./user-profile.entity');
+    const { CreateUserProfiles1730000000000 } = await import('./1730000000000-create-user-profiles');
+
+    expect(databaseOptions(config).entities).toContain(UserProfileEntity);
+    expect(databaseOptions(config).migrations).toContain(CreateUserProfiles1730000000000);
+    expect(AppDataSource.options.entities).toContain(UserProfileEntity);
+    expect(AppDataSource.options.migrations).toContain(CreateUserProfiles1730000000000);
+  });
+
   it('registers the seller lead entity and migration with the migration CLI data source', async () => {
     const { default: AppDataSource } = await import('./data-source');
     const { SellerLeadEntity } = await import('./seller-lead.entity');
@@ -99,22 +111,22 @@ describe('seller lead schema', () => {
     const { databaseOptions } = await import('../app.module');
     const { default: AppDataSource } = await import('./data-source');
     const { SellerIntakeDraftEntity } = await import('./seller-intake-draft.entity');
-    const { CreateSellerIntakeDrafts1788220800003 } = await import('./1788220800003-create-seller-intake-drafts');
+    const { CreateSellerIntakeDrafts1788220800005 } = await import('./1788220800005-create-seller-intake-drafts');
 
     expect(databaseOptions(config).entities).toContain(SellerIntakeDraftEntity);
-    expect(databaseOptions(config).migrations).toContain(CreateSellerIntakeDrafts1788220800003);
+    expect(databaseOptions(config).migrations).toContain(CreateSellerIntakeDrafts1788220800005);
     expect(AppDataSource.options.entities).toContain(SellerIntakeDraftEntity);
-    expect(AppDataSource.options.migrations).toContain(CreateSellerIntakeDrafts1788220800003);
+    expect(AppDataSource.options.migrations).toContain(CreateSellerIntakeDrafts1788220800005);
   });
 
   it('creates a profile/session-scoped JSONB draft table with version tracking', async () => {
-    const { CreateSellerIntakeDrafts1788220800003 } = await import('./1788220800003-create-seller-intake-drafts');
+    const { CreateSellerIntakeDrafts1788220800005 } = await import('./1788220800005-create-seller-intake-drafts');
     const queries: string[] = [];
     const queryRunner = { query: async (sql: string) => { queries.push(sql); } } as unknown as QueryRunner;
-    const migration = new CreateSellerIntakeDrafts1788220800003();
+    const migration = new CreateSellerIntakeDrafts1788220800005();
 
     await migration.up(queryRunner);
-    expect(queries[0]).toContain('CREATE TABLE "seller_intake_drafts"');
+    expect(queries[0]).toContain('CREATE TABLE IF NOT EXISTS "seller_intake_drafts"');
     expect(queries[0]).toContain('"profile_id"');
     expect(queries[0]).toContain('"session_id"');
     expect(queries[0]).toContain('"draft" jsonb');
@@ -123,5 +135,69 @@ describe('seller lead schema', () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP TABLE "seller_intake_drafts"');
+  });
+
+  it('registers the final-lead column migration', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { AddSellerLeadFinal1788220800003 } = await import('./1788220800003-add-seller-lead-final');
+
+    expect(databaseOptions(config).migrations).toContain(AddSellerLeadFinal1788220800003);
+    expect(AppDataSource.options.migrations).toContain(AddSellerLeadFinal1788220800003);
+  });
+
+  it('adds and drops the catalog draft, item, evidence, valuation, status, and history columns', async () => {
+    const { AddSellerLeadFinal1788220800003 } = await import('./1788220800003-add-seller-lead-final');
+
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+
+    const migration = new AddSellerLeadFinal1788220800003();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('ADD COLUMN "catalog_draft" jsonb');
+    expect(queries[0]).toContain('ADD COLUMN "status" varchar NOT NULL DEFAULT \'draft\'');
+    expect(queries[0]).toContain('ADD COLUMN "history" jsonb');
+
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('DROP COLUMN "catalog_draft"');
+  });
+
+  it('registers the dashboard-detail column migration', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { AddSellerLeadDashboard1788220800004 } = await import(
+      './1788220800004-add-seller-lead-dashboard'
+    );
+
+    expect(databaseOptions(config).migrations).toContain(AddSellerLeadDashboard1788220800004);
+    expect(AppDataSource.options.migrations).toContain(AddSellerLeadDashboard1788220800004);
+  });
+
+  it('adds and drops comparables, service consent, and updated_at', async () => {
+    const { AddSellerLeadDashboard1788220800004 } = await import(
+      './1788220800004-add-seller-lead-dashboard'
+    );
+
+    const queries: string[] = [];
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
+
+    const migration = new AddSellerLeadDashboard1788220800004();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('ADD COLUMN "comparables" jsonb');
+    expect(queries[0]).toContain('ADD COLUMN "service_consent" boolean NOT NULL DEFAULT true');
+    expect(queries[0]).toContain('ADD COLUMN "updated_at" timestamptz');
+
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('DROP COLUMN "updated_at"');
   });
 });
