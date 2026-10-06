@@ -224,6 +224,22 @@ describe('SellerIntakeService', () => {
     expect(result.missingFields).toEqual(['condition', 'marks', 'provenance']);
   });
 
+  it('keeps a session and rejects an answer that does not match the current question', () => {
+    const aiMock = new SellerIntakeAiMock(service);
+
+    const first = aiMock.analyze('I have a painting.', 'session-w5');
+    expect(first.nextQuestion?.field).toBe('dimensions');
+
+    const invalid = aiMock.analyze('It is in good condition.', 'session-w5');
+    expect(invalid.answerAccepted).toBe(false);
+    expect(invalid.answerError).toContain('dimensions');
+    expect(invalid.nextQuestion?.field).toBe('dimensions');
+
+    const accepted = aiMock.analyze('60 x 80 cm', 'session-w5');
+    expect(accepted.answerAccepted).toBe(true);
+    expect(accepted.nextQuestion?.field).toBe('condition');
+  });
+
   it('separates missing and uncertain information', () => {
     const reviewState = service.buildReviewState(
       'I have a painting. It is 60 x 80 cm and signed. I think it was made in the 1980s.'
@@ -295,6 +311,35 @@ describe('SellerIntakeService', () => {
     expect(service.askMissingSellerDetails(reviewState)).toEqual(['marks', 'provenance']);
   });
 
+  it('creates bilingual questions only for missing seller details', () => {
+    const reviewState = service.buildReviewState(
+      'I have a painting, 60 x 80 cm, good condition, signed.',
+    );
+
+    expect(service.askMissingSellerQuestions(reviewState)).toEqual([
+      {
+        field: 'marks',
+        he: 'האם יש על הפריט סימנים, חותמות או כיתובים?',
+        en: 'Are there any marks, stamps, or inscriptions on the item?',
+      },
+      {
+        field: 'provenance',
+        he: 'מה ידוע על מקור הפריט וההיסטוריה שלו?',
+        en: "What is known about the item's provenance and history?",
+      },
+    ]);
+  });
+
+  it('returns only the next missing question for sequential seller answers', () => {
+    const reviewState = service.buildReviewState('I have a painting.');
+
+    expect(service.askNextSellerQuestion(reviewState)).toEqual({
+      field: 'dimensions',
+      he: 'מהן מידות הפריט, כולל רוחב וגובה בסנטימטרים?',
+      en: 'What are the item dimensions, including width and height in centimeters?',
+    });
+  });
+
  // Week 3: Verify that seller corrections update the review state
   // and that only explicitly confirmed facts become confirmed.
 it('updates seller corrections and fact confirmation status', () => {
@@ -344,6 +389,32 @@ it('updates seller corrections and fact confirmation status', () => {
     );
   });
 
+  it('persists a seller-approved correction, updates the catalog draft, and requests recalculation', () => {
+    const draft = service.createDraftFromSellerInput(
+      fixture,
+      'I have a painting, 60 x 80 cm, signed.',
+    );
+
+    const correctedDraft = service.applySellerDraftCorrection(
+      draft,
+      'provenance',
+      'Family archive',
+    );
+
+    expect(correctedDraft.confirmedFacts.provenance).toBe('Family archive');
+    expect(correctedDraft.item.provenance).toBe('Family archive');
+    expect(correctedDraft.item.catalogDraft.en).toContain('provenance: Family archive');
+    expect(correctedDraft.missingFields).not.toContain('provenance');
+    expect(correctedDraft.recalculationRequired).toBe(true);
+    expect(correctedDraft.revisionHistory.at(-1)).toEqual(
+      expect.objectContaining({
+        actor: 'seller',
+        changes: ['provenance'],
+      }),
+    );
+    expect(correctedDraft.sellerConfirmation.status).toBe('partial');
+  });
+
   it('does not expose fixture facts as confirmed before seller approval', () => {
     const draft = service.createDraftFromSellerInput(
       fixture,
@@ -354,6 +425,69 @@ it('updates seller corrections and fact confirmation status', () => {
     expect(draft.item.provenance).toBeUndefined();
     expect(draft.item.condition).toBeUndefined();
     expect(draft.sellerConfirmation.status).toBe('pending');
+  });
+
+  it('confirms only requested available facts and keeps unconfirmed catalog fields explicit', () => {
+    const draft = service.createDraftFromSellerInput(
+      fixture,
+      'I have a painting, 60 x 80 cm, signed.',
+    );
+
+    const confirmed = service.confirmSellerFacts(draft, ['category', 'dimensions']);
+
+    expect(confirmed.confirmedFacts.category).toBe('paintings');
+    expect(confirmed.confirmedFacts.dimensions?.widthCm).toBe(60);
+    expect(confirmed.confirmedFacts.condition).toBeUndefined();
+    expect(confirmed.recalculationRequired).toBe(true);
+    expect(confirmed.revisionHistory.at(-1)).toEqual(expect.objectContaining({
+      actor: 'seller',
+      changes: ['category', 'dimensions'],
+    }));
+    expect(confirmed.item.catalogDraft.en).toContain('condition not confirmed');
+    expect(confirmed.item.catalogDraft.en).toContain('signature not confirmed');
+    expect(confirmed.sellerConfirmation.status).toBe('partial');
+  });
+
+  it('marks the seller confirmation complete only after every required fact is confirmed', () => {
+    let draft = service.createDraftFromSellerInput(
+      fixture,
+      'I have a painting, 60 x 80 cm, good condition, marked, signed, from a family archive.',
+    );
+    draft = service.confirmSellerFacts(draft, ['dimensions', 'condition', 'marks', 'signatures', 'provenance']);
+
+    expect(draft.sellerConfirmation.status).toBe('complete');
+    expect(draft.confirmedFacts).toEqual(expect.objectContaining({
+      dimensions: expect.any(Object),
+      condition: expect.any(String),
+      markings: expect.any(String),
+      signatures: expect.any(String),
+      provenance: expect.any(String),
+    }));
+  });
+
+  it('preserves a seller correction and revision history when another intake turn arrives', () => {
+    const initial = service.createDraftFromSellerInput(fixture, 'I have a painting.');
+    const corrected = service.applySellerDraftCorrection(initial, 'provenance', 'Family archive');
+    const nextTurn = service.createDraftFromSellerInput(fixture, 'It is in good condition.');
+
+    const merged = service.mergeNewIntakeTurn(corrected, nextTurn);
+
+    expect(merged.confirmedFacts.provenance).toBe('Family archive');
+    expect(merged.item.provenance).toBe('Family archive');
+    expect(merged.revisionHistory).toEqual(corrected.revisionHistory);
+    expect(merged.recalculationRequired).toBe(true);
+    expect(merged.item.catalogDraft.en).toContain('provenance: Family archive');
+  });
+
+  it('does not ask again for a fact already corrected and confirmed in an earlier turn', () => {
+    const initial = service.createDraftFromSellerInput(fixture, 'I have a painting.');
+    const corrected = service.applySellerDraftCorrection(initial, 'provenance', 'Family archive');
+    const nextTurn = service.createDraftFromSellerInput(fixture, 'It is in good condition.');
+
+    const merged = service.mergeNewIntakeTurn(corrected, nextTurn);
+
+    expect(merged.missingFields).not.toContain('provenance');
+    expect(merged.uncertainFacts.some((fact) => fact.field === 'provenance')).toBe(false);
   });
 
   it('builds a safe handoff payload', () => {

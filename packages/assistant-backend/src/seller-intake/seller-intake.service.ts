@@ -9,6 +9,46 @@ const REQUIRED_SELLER_DETAILS = [
   'provenance',
 ] as const;
 
+const MISSING_SELLER_QUESTION_COPY = {
+  dimensions: {
+    he: 'מהן מידות הפריט, כולל רוחב וגובה בסנטימטרים?',
+    en: 'What are the item dimensions, including width and height in centimeters?',
+  },
+  condition: {
+    he: 'מה מצב הפריט? אנא תארו פגמים, תיקונים או סימני בלאי.',
+    en: 'What is the condition of the item? Please describe defects, repairs, or wear.',
+  },
+  marks: {
+    he: 'האם יש על הפריט סימנים, חותמות או כיתובים?',
+    en: 'Are there any marks, stamps, or inscriptions on the item?',
+  },
+  signatures: {
+    he: 'האם הפריט חתום? אם כן, היכן נמצאת החתימה ומה כתוב בה?',
+    en: 'Is the item signed? If so, where is the signature and what does it say?',
+  },
+  provenance: {
+    he: 'מה ידוע על מקור הפריט וההיסטוריה שלו?',
+    en: 'What is known about the item\'s provenance and history?',
+  },
+} as const;
+
+export type MissingSellerQuestion = {
+  field: (typeof REQUIRED_SELLER_DETAILS)[number];
+  he: string;
+  en: string;
+};
+
+type SellerDraftCorrectionField =
+  | 'category'
+  | 'materials'
+  | 'dimensions'
+  | 'condition'
+  | 'marks'
+  | 'signatures'
+  | 'provenance';
+
+type SellerDraftCorrectionValue = string | string[] | { widthCm: number; heightCm: number };
+
 @Injectable()
 export class SellerIntakeService {
   // Build a review state from the seller's initial intake text.
@@ -100,12 +140,17 @@ export class SellerIntakeService {
       },
       condition: reviewState.condition === 'Not yet confirmed' ? undefined : reviewState.condition,
       markings: reviewState.markings === 'Not yet confirmed' ? undefined : reviewState.markings,
+      signatures: reviewState.signatures === 'Not yet confirmed' ? undefined : reviewState.signatures,
       provenance: reviewState.provenance,
     };
 
     return this.createDraftSellerItem({
       ...fixture,
-      item,
+      item: {
+        ...item,
+        catalogDraft: this.buildCatalogDraft({}),
+      },
+      missingFields: reviewState.missingFields,
       confirmedFacts: {},
       sellerConfirmation: {
         ...fixture.sellerConfirmation,
@@ -262,6 +307,23 @@ export class SellerIntakeService {
       return REQUIRED_SELLER_DETAILS.filter((field) => reviewState.missingFields.includes(field));
   }
 
+  // Turn missing fields into bilingual seller-facing questions for the chat flow.
+  askMissingSellerQuestions(
+    reviewState?: ReturnType<SellerIntakeService['buildReviewState']>,
+  ): MissingSellerQuestion[] {
+    return this.askMissingSellerDetails(reviewState).map((field) => ({
+      field: field as MissingSellerQuestion['field'],
+      ...MISSING_SELLER_QUESTION_COPY[field as MissingSellerQuestion['field']],
+    }));
+  }
+
+  // Return only the next question so the seller can answer one detail at a time.
+  askNextSellerQuestion(
+    reviewState?: ReturnType<SellerIntakeService['buildReviewState']>,
+  ): MissingSellerQuestion | null {
+    return this.askMissingSellerQuestions(reviewState)[0] ?? null;
+  }
+
   // Apply a seller approval or correction to one specific field.
   confirmOrCorrectField(field: string, value: string): { field: string; value: string } {
     return { field, value };
@@ -321,6 +383,180 @@ export class SellerIntakeService {
         noValuation: true,
         noContactCapture: true,
       },
+    };
+  }
+
+  // מעדכן עובדה לפי תיקון שאישרה המוכרת, מתעד גרסה ומסמן צורך בחישוב מחדש.
+  // Applies a seller-approved correction, records a revision, and flags recalculation.
+  applySellerDraftCorrection(
+    draft: SellerItemDraft,
+    field: SellerDraftCorrectionField,
+    value: SellerDraftCorrectionValue,
+  ): SellerItemDraft {
+    const itemField = field === 'marks' ? 'markings' : field;
+    const confirmedValue = field === 'dimensions' && typeof value === 'object' && !Array.isArray(value)
+      ? {
+          values: [
+            { label: 'width', value: value.widthCm, unit: 'cm' },
+            { label: 'height', value: value.heightCm, unit: 'cm' },
+          ],
+          widthCm: value.widthCm,
+          heightCm: value.heightCm,
+          unit: 'cm',
+        }
+      : value;
+    const nextItem = {
+      ...draft.item,
+      [itemField]: confirmedValue,
+    };
+    const nextConfirmedFacts = {
+      ...draft.confirmedFacts,
+      [itemField]: confirmedValue,
+    };
+    const remainingMissingFields = (draft.missingFields ?? []).filter((item) => item !== field);
+    const revision = this.appendRevisionEntry('seller', `Seller corrected ${field}`, [field]);
+
+    return {
+      ...draft,
+      item: {
+        ...nextItem,
+        catalogDraft: this.buildCatalogDraft(nextConfirmedFacts),
+      },
+      confirmedFacts: nextConfirmedFacts,
+      missingFields: remainingMissingFields,
+      recalculationRequired: true,
+      revisionHistory: [...draft.revisionHistory, revision],
+      sellerConfirmation: {
+        ...draft.sellerConfirmation,
+          status: this.hasAllRequiredConfirmedFacts(nextConfirmedFacts) ? 'complete' : 'partial',
+        lastConfirmedAt: revision.timestamp,
+        notes: 'Seller-approved facts are available for downstream review.',
+      },
+    };
+  }
+
+  // מאשר רק עובדות זמינות שהמוכרת בחרה לאשר ומעדכן את טיוטת הקטלוג.
+  // Confirms only available facts explicitly selected by the seller and updates the catalog draft.
+  confirmSellerFacts(draft: SellerItemDraft, fields: SellerDraftCorrectionField[]): SellerItemDraft {
+    if (fields.length === 0) {
+      throw new Error('At least one seller fact must be confirmed');
+    }
+
+    const confirmedValues: SellerItemDraft['confirmedFacts'] = {};
+    const item = draft.item;
+    const availableValues: Partial<Record<SellerDraftCorrectionField, unknown>> = {
+      category: item.category !== 'unknown' ? item.category : undefined,
+      materials: item.materials.length > 0 ? item.materials : undefined,
+      dimensions: item.dimensions.widthCm !== undefined && item.dimensions.heightCm !== undefined
+        ? item.dimensions
+        : undefined,
+      condition: item.condition,
+      marks: item.markings,
+      signatures: item.signatures,
+      provenance: item.provenance,
+    };
+
+    for (const field of fields) {
+      const value = availableValues[field];
+        if (value === undefined || value === '' || value === 'Not yet confirmed'
+          || (Array.isArray(value) && value.length === 0)) {
+        throw new Error(`Cannot confirm missing or unknown fact: ${field}`);
+      }
+      const itemField = field === 'marks' ? 'markings' : field;
+      Object.assign(confirmedValues, { [itemField]: value });
+    }
+
+    const nextConfirmedFacts = { ...draft.confirmedFacts, ...confirmedValues };
+    const revision = this.appendRevisionEntry('seller', 'Seller confirmed extracted facts', fields);
+    return {
+      ...draft,
+      item: {
+        ...draft.item,
+        catalogDraft: this.buildCatalogDraft(nextConfirmedFacts),
+      },
+      confirmedFacts: nextConfirmedFacts,
+      recalculationRequired: true,
+      revisionHistory: [...draft.revisionHistory, revision],
+        sellerConfirmation: {
+          ...draft.sellerConfirmation,
+          status: this.hasAllRequiredConfirmedFacts(nextConfirmedFacts) ? 'complete' : 'partial',
+          lastConfirmedAt: revision.timestamp,
+          notes: 'Seller-approved facts are available for downstream review.',
+        },
+    };
+  }
+
+  // משלב תור שיחה חדש תוך שמירה על עובדות מאושרות, תיקונים והיסטוריית גרסאות קודמים.
+  // Merges a new intake turn while preserving previously confirmed facts, corrections, and revision history.
+  mergeNewIntakeTurn(previous: SellerItemDraft, incoming: SellerItemDraft): SellerItemDraft {
+    const confirmedFacts = previous.confirmedFacts;
+    const confirmedFieldNames = new Set([
+      ...(confirmedFacts.dimensions ? ['dimensions'] : []),
+      ...(confirmedFacts.condition ? ['condition'] : []),
+      ...(confirmedFacts.markings ? ['marks'] : []),
+      ...(confirmedFacts.signatures ? ['signatures'] : []),
+      ...(confirmedFacts.provenance ? ['provenance'] : []),
+      ...(confirmedFacts.category ? ['category'] : []),
+      ...(confirmedFacts.materials ? ['materials'] : []),
+    ]);
+    const confirmedItemValues = {
+      ...(confirmedFacts.category ? { category: confirmedFacts.category } : {}),
+      ...(confirmedFacts.materials ? { materials: confirmedFacts.materials } : {}),
+      ...(confirmedFacts.dimensions ? { dimensions: confirmedFacts.dimensions } : {}),
+      ...(confirmedFacts.condition ? { condition: confirmedFacts.condition } : {}),
+      ...(confirmedFacts.markings ? { markings: confirmedFacts.markings } : {}),
+      ...(confirmedFacts.signatures ? { signatures: confirmedFacts.signatures } : {}),
+      ...(confirmedFacts.provenance ? { provenance: confirmedFacts.provenance } : {}),
+    };
+
+    return {
+      ...incoming,
+      id: previous.id,
+      item: {
+        ...incoming.item,
+        ...confirmedItemValues,
+        id: previous.item.id,
+        catalogDraft: this.buildCatalogDraft(confirmedFacts),
+        evidenceIds: previous.item.evidenceIds,
+      },
+      evidence: previous.evidence,
+      factEvidence: previous.factEvidence,
+      confirmedFacts,
+      missingFields: (incoming.missingFields ?? []).filter((field) => !confirmedFieldNames.has(field)),
+      uncertainFacts: incoming.uncertainFacts.filter((fact) => !confirmedFieldNames.has(fact.field)),
+      revisionHistory: previous.revisionHistory,
+      recalculationRequired: previous.recalculationRequired,
+      sellerConfirmation: previous.sellerConfirmation,
+      handoff: previous.handoff,
+    };
+  }
+
+  // בודק אם כל חמש העובדות הנדרשות אושרו לפני סימון הטיוטה כהשלמה.
+  // Checks whether all five required facts are confirmed before marking the draft complete.
+  private hasAllRequiredConfirmedFacts(facts: SellerItemDraft['confirmedFacts']): boolean {
+    return facts.dimensions !== undefined
+      && facts.condition !== undefined
+      && facts.markings !== undefined
+      && facts.signatures !== undefined
+      && facts.provenance !== undefined;
+  }
+
+  // בונה תיאור קטלוג מעובדות מאושרות בלבד ומציין במפורש פרטים שטרם אושרו.
+  // Builds catalog copy from confirmed facts only and labels unconfirmed details explicitly.
+  buildCatalogDraft(confirmedFacts: SellerItemDraft['confirmedFacts']): { he: string; en: string } {
+    const category = confirmedFacts.category ?? 'category not confirmed';
+    const materials = confirmedFacts.materials?.join(', ') ?? 'materials not confirmed';
+    const dimensions = confirmedFacts.dimensions
+      ? `${confirmedFacts.dimensions.widthCm ?? '?'}x${confirmedFacts.dimensions.heightCm ?? '?'} cm`
+      : 'dimensions not confirmed';
+    const condition = confirmedFacts.condition ?? 'condition not confirmed';
+    const markings = confirmedFacts.markings ?? 'markings not confirmed';
+    const signatures = confirmedFacts.signatures ?? 'signature not confirmed';
+    const provenance = confirmedFacts.provenance ?? 'provenance not confirmed';
+
+    return {
+      he: `קטגוריה: ${confirmedFacts.category ?? 'לא אושרה'}; חומרים: ${confirmedFacts.materials?.join(', ') ?? 'לא אושרו'}; מידות: ${confirmedFacts.dimensions ? dimensions : 'לא אושרו'}; מצב: ${confirmedFacts.condition ?? 'לא אושר'}; סימונים: ${confirmedFacts.markings ?? 'לא אושרו'}; חתימה: ${confirmedFacts.signatures ?? 'לא אושרה'}; מקור: ${confirmedFacts.provenance ?? 'לא אושר'}.`,
+      en: `Category: ${category}; materials: ${materials}; dimensions: ${dimensions}; condition: ${condition}; markings: ${markings}; signature: ${signatures}; provenance: ${provenance}.`,
     };
   }
 

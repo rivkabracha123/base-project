@@ -2,9 +2,13 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { resources } from './resources';
 
+export function getBrowserLanguage(language = typeof navigator === 'undefined' ? 'en' : navigator.language): 'he' | 'en' {
+  return language.toLowerCase().startsWith('he') ? 'he' : 'en';
+}
+
 void i18n.use(initReactI18next).init({
   resources,
-  lng: 'en',
+  lng: getBrowserLanguage(),
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
 });
