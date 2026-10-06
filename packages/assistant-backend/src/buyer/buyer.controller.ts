@@ -31,7 +31,7 @@ export class BuyerController {
 
   /** B2 handler for Shilat functionName getComparableSaleHistory. */
   @Post('comparable-sale-history')
-  comparableSaleHistory(@Body() request: ComparableSaleHistoryRequest) {
+  async comparableSaleHistory(@Body() request: ComparableSaleHistoryRequest) {
     return this.buyerComparableSaleHistoryService.getHistory(request);
   }
 

@@ -9,7 +9,7 @@ import type { P4AiGenerateResponse, P4BuyerAiContext } from '../ai/p4-ai.types';
 import type { BuyerChatUpdate } from './buyer-chat-update';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { findBuyerFixtureLot } from './fixture-lots.pool';
+import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { BuyerSessionSearchService } from './buyer-session-search.service';
 
 export type P4FunctionExecutionContext = {
@@ -29,6 +29,7 @@ export class BuyerP4FunctionExecutor {
     private readonly saleHistory: BuyerComparableSaleHistoryService,
     private readonly sessionSearch: BuyerSessionSearchService,
     private readonly criteriaService: BuyerCriteriaService,
+    private readonly lotsResolver: BuyerLotsResolverService,
   ) {}
 
   /** Run the function Shilat named, push chat updates. Returns true if a handler ran. */
@@ -41,11 +42,11 @@ export class BuyerP4FunctionExecutor {
     const routeName = ai.intentRoute.functionName;
 
     if (action.kind === 'getComparableSaleHistory' || shouldRunComparableSaleHistory(ai, ctx.p4Context)) {
-      return this.runComparableSaleHistory(ai, ctx, updates);
+      return await this.runComparableSaleHistory(ai, ctx, updates);
     }
 
     if (action.kind === 'getLotById' || routeName === SHILAT_FUNCTION_GET_LOT_BY_ID) {
-      return this.runGetLotById(ai, ctx, updates);
+      return await this.runGetLotById(ai, ctx, updates);
     }
 
     if (action.kind === 'searchLots' || routeName === B2_SEARCH_LOTS_FUNCTION) {
@@ -70,11 +71,11 @@ export class BuyerP4FunctionExecutor {
     return false;
   }
 
-  private runComparableSaleHistory(
+  private async runComparableSaleHistory(
     ai: P4AiGenerateResponse,
     ctx: P4FunctionExecutionContext,
     updates: BuyerChatUpdate[],
-  ): boolean {
+  ): Promise<boolean> {
     const request = this.saleHistory.resolveFromP4Context(
       ai.intentRoute.arguments ?? ai.functionParameters ?? undefined,
       ctx.p4Context,
@@ -93,7 +94,7 @@ export class BuyerP4FunctionExecutor {
     }
 
     try {
-      const result = this.saleHistory.getHistory(request);
+      const result = await this.saleHistory.getHistory(request);
       updates.push({ speaker: 'system', text: result.summary });
       if (result.sales.length > 0) {
         updates.push({ speaker: 'result-group', title: result.title, lots: result.sales });
@@ -111,11 +112,11 @@ export class BuyerP4FunctionExecutor {
     return true;
   }
 
-  private runGetLotById(
+  private async runGetLotById(
     ai: P4AiGenerateResponse,
     ctx: P4FunctionExecutionContext,
     updates: BuyerChatUpdate[],
-  ): boolean {
+  ): Promise<boolean> {
     if (!ai.intentRoute.readyForFunction) {
       return false;
     }
@@ -127,7 +128,7 @@ export class BuyerP4FunctionExecutor {
       return false;
     }
 
-    const lot = findBuyerFixtureLot(lotId);
+    const lot = await this.lotsResolver.findLot(lotId);
     if (!lot) {
       updates.push({
         speaker: 'error',

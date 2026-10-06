@@ -6,6 +6,8 @@ import { ItemDetail } from '../components/ItemDetail';
 import { itemHistoryLotFixtures, upcomingLotWithHistoryFixture } from './local-history-demo.fixture';
 import { getLotById } from './api';
 
+const liveBuyerFlowEnabled = import.meta.env.VITE_BUYER_LIVE_FLOW === 'true';
+
 export function LotPage() {
   const { i18n, t } = useTranslation();
   const { id } = useParams();
@@ -31,6 +33,11 @@ export function LotPage() {
           lang={language}
           historyLots={isLocalHistoryDemo ? itemHistoryLotFixtures : undefined}
           onBack={() => navigate('/results')}
+          onOpenChat={
+            liveBuyerFlowEnabled
+              ? () => navigate(`/chat?selectedLotId=${encodeURIComponent(lot.id)}`)
+              : undefined
+          }
         />
       ) : null}
     </PageShell>

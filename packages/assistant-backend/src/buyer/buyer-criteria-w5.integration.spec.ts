@@ -3,7 +3,6 @@ import { sampleAiExtractResponses, structuredAiExtractSamples } from './buyer-cr
 
 describe('Buyer criteria W5 integration', () => {
   const service = new BuyerCriteriaService();
-  const date = '2026-10-05T10:00:00.000Z';
 
   beforeEach(() => {
     service.resetSessionsForTests();
@@ -17,7 +16,6 @@ describe('Buyer criteria W5 integration', () => {
       sessionId: first.sessionId,
       speaker: 'buyer',
       skipped: true,
-      date,
     });
 
     const review = service.getCriteriaReview(first.sessionId);

@@ -42,7 +42,6 @@ describe('BuyerP4BridgeService', () => {
         sessionId: opened.chat.sessionId,
         speaker: 'buyer',
         skipped: true,
-        date: new Date().toISOString(),
       });
     }
 

@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { AuctionLot } from '@monabid/shared';
 import { getBuyerCriteriaSession } from './buyer-criteria-session.store';
-import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-import { FixtureLotsSearchClient } from './fixture-lots-search.client';
+import { BuyerSearchOrchestrator, type LotsSearchClient } from './buyer-search.orchestrator';
 
 export type BuyerSessionSearchGroup = {
   title: string;
@@ -15,7 +14,11 @@ export type BuyerSessionSearchResponse =
 
 @Injectable()
 export class BuyerSessionSearchService {
-  private readonly orchestrator = new BuyerSearchOrchestrator(new FixtureLotsSearchClient());
+  private readonly orchestrator: BuyerSearchOrchestrator;
+
+  constructor(lotsSearch: LotsSearchClient) {
+    this.orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+  }
 
   async searchForSession(sessionId: string): Promise<BuyerSessionSearchResponse> {
     const session = getBuyerCriteriaSession(sessionId);

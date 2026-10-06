@@ -65,7 +65,6 @@ export class BuyerChatOrchestratorService {
               sessionId,
               speaker: 'buyer',
               skipped: true,
-              date: at,
             }
           : {
               id: turnId,
@@ -73,7 +72,6 @@ export class BuyerChatOrchestratorService {
               speaker: 'buyer',
               skipped: false,
               text: trimmed,
-              date: at,
             },
       );
       updates.push({ speaker: 'system', text: reply.text });
@@ -90,7 +88,23 @@ export class BuyerChatOrchestratorService {
 
     await this.runP4Functions(sessionId, language, p4Context, lastAi, updates);
 
-    return { sessionId, updates };
+    return {
+      sessionId,
+      updates,
+      turn: {
+        at,
+        buyer: {
+          message: trimmed,
+          skipped: isSkip,
+          messageId: request.messageId,
+          language: request.language,
+          context: request.context,
+        },
+        ...(lastAi ? { p4: lastAi } : {}),
+        /** What Tamar may render — criteria + function results only (no Shilat prose on screen). */
+        updates: [...updates],
+      },
+    };
   }
 
   private async runP4Functions(

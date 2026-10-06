@@ -136,12 +136,21 @@ export class P4AiGenerateClient {
     }
 
     const apiKey = this.config.get<string>('AI_GENERATE_API_KEY');
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const anonymousSessionId =
+      request.sessionId?.trim() ||
+      this.config.get<string>('AI_ANONYMOUS_SESSION_ID') ||
+      'buyer-b2-dev-session';
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-anonymous-session-id': anonymousSessionId,
+    };
     if (apiKey) {
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const wireBody: ShilatAiGenerateRequest = {
+    // Shilat W5 POST /api/ai/generate requires role; extra fields forward when her DTO adds them.
+    const wireBody: ShilatAiGenerateRequest & { role: 'buyer' } = {
+      role: 'buyer',
       prompt: request.prompt,
       language: request.language,
       sessionId: request.sessionId,

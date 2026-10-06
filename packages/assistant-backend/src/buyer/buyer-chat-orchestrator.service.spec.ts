@@ -1,11 +1,14 @@
 import { ConfigService } from '@nestjs/config';
 import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { BuyerChatOrchestratorService } from './buyer-chat-orchestrator.service';
+import type { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
 import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
 import { BuyerSessionSearchService } from './buyer-session-search.service';
+import { FixtureLotsSearchClient } from './fixture-lots-search.client';
+import { findBuyerFixtureLot, resolveBuyerFixtureLots } from './fixture-lots.pool';
 
 describe('BuyerChatOrchestratorService', () => {
   function createOrchestrator() {
@@ -15,8 +18,17 @@ describe('BuyerChatOrchestratorService', () => {
     const p4 = new P4AiGenerateClient(config);
     const criteria = new BuyerCriteriaService();
     const bridge = new BuyerP4BridgeService(p4, criteria);
-    const saleHistory = new BuyerComparableSaleHistoryService();
-    const executor = new BuyerP4FunctionExecutor(saleHistory, new BuyerSessionSearchService(), criteria);
+    const lotsResolver = {
+      findLot: jest.fn(async (id: string) => findBuyerFixtureLot(id) ?? null),
+      resolveLotPool: jest.fn(async (refs?: { id: string }[]) => resolveBuyerFixtureLots(refs)),
+    } as unknown as BuyerLotsResolverService;
+    const saleHistory = new BuyerComparableSaleHistoryService(lotsResolver);
+    const executor = new BuyerP4FunctionExecutor(
+      saleHistory,
+      new BuyerSessionSearchService(new FixtureLotsSearchClient()),
+      criteria,
+      lotsResolver,
+    );
     return { orchestrator: new BuyerChatOrchestratorService(bridge, criteria, executor), criteria };
   }
 

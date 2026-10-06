@@ -6,7 +6,7 @@ import { BuyerChat } from './BuyerChat';
 import { mockConversation } from './mock-conversation';
 import i18n from '../i18n';
 
-//רץ אחרי כל בדיקה מבטל mocks ומחזיר לשפה אנגלית 
+//רץ אחרי כל בדיקה מבטל mocks ומחזיר לשפה אנגלית
 afterEach(async () => {
   vi.unstubAllGlobals();
   await i18n.changeLanguage('en');

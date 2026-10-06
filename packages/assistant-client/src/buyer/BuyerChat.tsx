@@ -2,10 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ItemCard, PageShell, type ItemCardLabels } from '@monabid/ui';
 import { useTranslation } from 'react-i18next';
-import { getConversation } from '../app/api';
-import { submitBuyerChatMessage } from './buyer-chat-flow';
+import { useSearchParams } from 'react-router-dom';
+import { getConversation, getLotById } from '../app/api';
+import {
+  getBuyerChatFlowSnapshot,
+  restoreBuyerChatFlowState,
+  submitBuyerChatMessage,
+  type BuyerChatFlowContext,
+} from './buyer-chat-flow';
 import { buyerChatUpdateToMessage } from './buyer-chat-update-mapper';
-import { loadStoredBuyerChatMessages, saveStoredBuyerChatMessages } from './buyer-chat-storage';
+import {
+  appendStoredBuyerChatTurn,
+  loadStoredBuyerChatState,
+  saveStoredBuyerChatState,
+} from './buyer-chat-storage';
 import type { BuyerMessage } from './messages';
 
 const liveBuyerFlow = import.meta.env.VITE_BUYER_LIVE_FLOW === 'true';
@@ -52,14 +62,9 @@ function ChatMessage({
   );
 }
 
-function appendMessages(language: 'he' | 'en', prev: BuyerMessage[], additions: BuyerMessage[]): BuyerMessage[] {
-  const next = [...prev, ...additions];
-  saveStoredBuyerChatMessages(language, next);
-  return next;
-}
-
 export function BuyerChat() {
   const { i18n, t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
   const locale = language === 'he' ? 'he-IL' : 'en-US';
   const dir = language === 'he' ? 'rtl' : 'ltr';
@@ -80,22 +85,71 @@ export function BuyerChat() {
     enabled: !liveBuyerFlow,
   });
 
-  const [liveMessages, setLiveMessages] = useState<BuyerMessage[]>(() =>
-    liveBuyerFlow ? loadStoredBuyerChatMessages(language) : [],
-  );
+  const initialLive = liveBuyerFlow ? loadStoredBuyerChatState(language) : { messages: [] };
+  const [liveMessages, setLiveMessages] = useState<BuyerMessage[]>(() => initialLive.messages);
+  const [chatContext, setChatContext] = useState<BuyerChatFlowContext>(() => initialLive.context ?? {});
+  const [backendSessionId, setBackendSessionId] = useState<string | undefined>(() => initialLive.sessionId);
   const [sentMessages, setSentMessages] = useState<BuyerMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [flowPending, setFlowPending] = useState(false);
 
+  function persistLiveState(
+    messages: BuyerMessage[],
+    sessionId?: string,
+    context?: BuyerChatFlowContext,
+  ): void {
+    saveStoredBuyerChatState(language, {
+      messages,
+      sessionId: sessionId ?? backendSessionId,
+      context: context ?? chatContext,
+    });
+  }
+
+  function appendMessages(prev: BuyerMessage[], additions: BuyerMessage[]): BuyerMessage[] {
+    const next = [...prev, ...additions];
+    persistLiveState(next);
+    return next;
+  }
+
   useEffect(() => {
-    if (liveBuyerFlow) {
-      setLiveMessages(loadStoredBuyerChatMessages(language));
-    }
+    if (!liveBuyerFlow) return;
+    const stored = loadStoredBuyerChatState(language);
+    setLiveMessages(stored.messages);
+    setChatContext(stored.context ?? {});
+    setBackendSessionId(stored.sessionId);
+    restoreBuyerChatFlowState({
+      sessionId: stored.sessionId,
+      language,
+      context: stored.context,
+    });
   }, [language]);
 
-  const messages = liveBuyerFlow
-    ? liveMessages
-    : [...(query.data ?? []), ...sentMessages];
+  useEffect(() => {
+    if (!liveBuyerFlow) return;
+    const selectedLotId = searchParams.get('selectedLotId')?.trim();
+    if (!selectedLotId) return;
+
+    let cancelled = false;
+    void getLotById(selectedLotId, language).then((lot) => {
+      if (cancelled) return;
+      const nextContext: BuyerChatFlowContext = {
+        selectedLot: {
+          id: lot.id,
+          ...(lot.itemKey ? { itemKey: lot.itemKey } : {}),
+        },
+        lots: [lot],
+      };
+      setChatContext(nextContext);
+      restoreBuyerChatFlowState({ sessionId: backendSessionId, language, context: nextContext });
+      persistLiveState(liveMessages, backendSessionId, nextContext);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, language, liveBuyerFlow]);
+
+  const messages = liveBuyerFlow ? liveMessages : [...(query.data ?? []), ...sentMessages];
   const isLoading = liveBuyerFlow ? flowPending : query.isPending;
   const isError = !liveBuyerFlow && query.isError;
 
@@ -121,16 +175,32 @@ export function BuyerChat() {
     setDraft('');
 
     if (liveBuyerFlow) {
-      setLiveMessages((prev) => appendMessages(language, prev, [buyerMessage]));
+      setLiveMessages((prev) => appendMessages(prev, [buyerMessage]));
       setFlowPending(true);
+      const contextForSend = getBuyerChatFlowSnapshot().context;
       try {
         await submitBuyerChatMessage(
           text,
           (update) => {
             const mapped = buyerChatUpdateToMessage(update);
-            setLiveMessages((prev) => appendMessages(language, prev, [mapped]));
+            setLiveMessages((prev) => appendMessages(prev, [mapped]));
           },
-          { language, context: {} },
+          {
+            language,
+            context: contextForSend,
+            onSessionId: (sessionId) => {
+              setBackendSessionId(sessionId);
+              const stored = loadStoredBuyerChatState(language);
+              saveStoredBuyerChatState(language, {
+                ...stored,
+                sessionId,
+                context: contextForSend,
+              });
+            },
+            onTurnLog: (turn) => {
+              appendStoredBuyerChatTurn(language, turn);
+            },
+          },
         );
       } catch {
         /* error update already pushed via onUpdate */
