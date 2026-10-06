@@ -75,6 +75,34 @@ describe('ComparablesService', () => {
     expect(first.excluded.map(s => s.lot.id)).toEqual(second.excluded.map(s => s.lot.id));
   });
 
+  it('passes the returned evidence to the S1 callback once', async () => {
+    const service = makeService([soldRareBook, unsoldRareBook, soldJudaica]);
+    const callback = jest.fn();
+    const result = await service.findComparables({ category: 'rare_books', materials: ['paper'] }, callback);
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith(result);
+  });
+
+  it('waits for an async callback before resolving', async () => {
+    const service = makeService([soldRareBook]);
+    const order: string[] = [];
+    await service.findComparables({ category: 'rare_books' }, async () => {
+      await Promise.resolve();
+      order.push('callback');
+    });
+    order.push('resolved');
+    expect(order).toEqual(['callback', 'resolved']);
+  });
+
+  it('does not call the callback when the lot query fails', async () => {
+    const failure = new Error('database unavailable');
+    const repository = { find: jest.fn().mockRejectedValue(failure) } as unknown as Repository<AuctionLotEntity>;
+    const service = new ComparablesService(repository);
+    const callback = jest.fn();
+    await expect(service.findComparables({ category: 'rare_books' }, callback)).rejects.toBe(failure);
+    expect(callback).not.toHaveBeenCalled();
+  });
+
   it('every result carries the full lot payload and a non-empty reason', async () => {
     const service = makeService([soldRareBook, unsoldRareBook]);
     const result = await service.findComparables({ category: 'rare_books' });
