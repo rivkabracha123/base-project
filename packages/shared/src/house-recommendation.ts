@@ -93,14 +93,13 @@ const dashboardExcludedComparableSchema = z.object({
 });
 
 const dashboardValuationConfidenceSchema = z.object({
-  level: z.literal('low'),
+  level: z.enum(['low', 'medium', 'high']),
   explanation: z.string().min(1),
 });
 
 const dashboardValuationSharedFields = {
   reportId: z.string().min(1),
   comparableCount: z.number().int().nonnegative(),
-  confidence: dashboardValuationConfidenceSchema,
   limitations: z.array(z.string().min(1)).min(1),
   comparables: z.array(dashboardValuationComparableSchema),
   excludedComparables: z.array(dashboardExcludedComparableSchema),
@@ -110,11 +109,13 @@ const dashboardValuationSharedFields = {
  * S5 copy stored on the lead and returned to P5. S4's canonical DashboardValuationDto
  * is `dashboardValuationSchema` in dashboard-valuation.ts (HTTPS sources, sale dates).
  * S5 does not recalculate. Unverified sources use label "Source unavailable" and url: null.
+ * Refusal may omit confidence to match S4's dashboard projection.
  */
 export const sellerLeadValuationSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('supported'),
     ...dashboardValuationSharedFields,
+    confidence: dashboardValuationConfidenceSchema,
     valuationRange: z.object({
       min: z.number(),
       max: z.number(),
@@ -124,6 +125,7 @@ export const sellerLeadValuationSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('refusal'),
     ...dashboardValuationSharedFields,
+    confidence: dashboardValuationConfidenceSchema.optional(),
     reason: z.string().min(1),
   }),
 ]);

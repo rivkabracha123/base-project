@@ -45,7 +45,7 @@ export class SellerLeadsController {
 
   /**
    * S1 callback when the confirmed catalog draft is ready.
-   * POST the draft; the 200 JSON is what Tamar should render (houses + catalog).
+   * POST the draft; the 200 JSON is ranking + catalog + live S4 valuation for the seller UI.
    */
   @Post('s1-handoff')
   @HttpCode(200)

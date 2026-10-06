@@ -13,6 +13,7 @@ import {
   rankHouses,
   rankHousesForLead,
   rankingItemFromS1Draft,
+  receiveS1SellerHandoff,
   saveSellerHouseChoice,
   sellerFinalLeadFixture,
   submitFinalSellerLead,
@@ -50,9 +51,14 @@ export function SellerEnquiryPage() {
     queryFn: ({ signal }) => getS1SellerDraft(signal),
   });
   const rankingItem = useMemo(() => rankingItemFromS1Draft(s1DraftQuery.data), [s1DraftQuery.data]);
+  const journeyQuery = useQuery({
+    queryKey: ['s1-seller-handoff', s1DraftQuery.data],
+    enabled: s1DraftQuery.isFetched && Boolean(s1DraftQuery.data),
+    queryFn: ({ signal }) => receiveS1SellerHandoff(s1DraftQuery.data!, signal),
+  });
   const rankingQuery = useQuery({
     queryKey: ['seller-enquiry-ranking', rankingItem],
-    enabled: s1DraftQuery.isFetched,
+    enabled: s1DraftQuery.isFetched && !s1DraftQuery.data,
     queryFn: ({ signal }) => rankHouses(signal, rankingItem),
   });
   const p3Contact = useMemo(
@@ -67,9 +73,13 @@ export function SellerEnquiryPage() {
     if (p3Contact.phone) setPhone(p3Contact.phone);
   }, [p3Contact]);
 
-  const ranking = rankingQuery.data;
+  const ranking = journeyQuery.data?.ranking ?? rankingQuery.data;
   const options = ranking ? selectableHouses(ranking) : [];
-  const handoff = finalHandoffFromS1(s1DraftQuery.data ?? null);
+  const handoff = finalHandoffFromS1(
+    s1DraftQuery.data ?? null,
+    journeyQuery.data?.valuation,
+    journeyQuery.data?.comparables,
+  );
   const catalogDraft = handoff.catalogDraft;
   const item = handoff.item;
   const missingCatalog = !catalogDraft.he.trim() || !catalogDraft.en.trim();
@@ -126,12 +136,17 @@ export function SellerEnquiryPage() {
           <p className="mb-4 mt-3 text-stone-600">{t('enquiry.intro')}</p>
           <p className="mb-8 text-sm text-stone-500">{t('enquiry.internalOnly')}</p>
 
-          {s1DraftQuery.isPending || rankingQuery.isFetching ? <LoadingState label={t('enquiry.loading')} /> : null}
-          {rankingQuery.isError ? (
+          {s1DraftQuery.isPending || journeyQuery.isFetching || rankingQuery.isFetching ? (
+            <LoadingState label={t('enquiry.loading')} />
+          ) : null}
+          {journeyQuery.isError || rankingQuery.isError ? (
             <ErrorState
               title={t('enquiry.error')}
               retryLabel={t('enquiry.retry')}
-              onRetry={() => void rankingQuery.refetch()}
+              onRetry={() => {
+                void journeyQuery.refetch();
+                void rankingQuery.refetch();
+              }}
             />
           ) : null}
 

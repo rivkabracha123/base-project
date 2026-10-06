@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { houseRankingSchema, sellerChoiceSchema, sellerLeadSummarySchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
+import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { UserProfileEntity } from '../database/user-profile.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
@@ -37,6 +38,8 @@ describe('SellerLeadsController house ranking (contract)', () => {
         create: jest.fn((row: Partial<UserProfileEntity>) => Object.assign(new UserProfileEntity(), row)),
         save: jest.fn(async (row: UserProfileEntity) => row),
       })
+      .overrideProvider(getRepositoryToken(AuctionLotEntity))
+      .useValue({ find: jest.fn(async () => []) })
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -262,11 +265,13 @@ describe('SellerLeadsController house ranking (contract)', () => {
       ranking: { recommendation: { house: { active: boolean } } | null };
       catalogDraft: { en: string };
       evidence: Array<{ id: string; type: string }>;
+      valuation: { status: string } | null;
     };
     expect(houseRankingSchema.parse(body.ranking).recommendation?.house.active).toBe(true);
     expect(body.catalogDraft.en).toBe('Abstract landscape study');
     expect(body.evidence).toEqual([{ id: 'evidence-001', type: 'seller_statement' }]);
     expect(JSON.stringify(body)).not.toMatch(/file:|Maya/i);
+    expect(body.valuation === null || (body.valuation && typeof body.valuation.status === 'string')).toBe(true);
   });
 
   it('rejects a missing category with 400', async () => {

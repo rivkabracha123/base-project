@@ -114,8 +114,8 @@ export class DashboardExcludedComparableDto {
 }
 
 export class DashboardValuationConfidenceDto {
-  @IsIn(['low'])
-  level: 'low';
+  @IsIn(['low', 'medium', 'high'])
+  level: 'low' | 'medium' | 'high';
 
   @IsString()
   @IsNotEmpty()
@@ -145,9 +145,10 @@ export class SellerLeadValuationDto {
   @Min(0)
   comparableCount: number;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => DashboardValuationConfidenceDto)
-  confidence: DashboardValuationConfidenceDto;
+  confidence?: DashboardValuationConfidenceDto;
 
   @IsArray()
   @ArrayMinSize(1)

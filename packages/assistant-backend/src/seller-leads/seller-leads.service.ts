@@ -9,18 +9,23 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
-  sellerLeadValuationSchema,
+  itemVersionFromS1Draft,
   receiveConfirmedItemHandoff,
   sellerContactFromP3Profile,
+  sellerItemFromS1Draft,
+  sellerLeadValuationSchema,
   type HouseRanking,
   type PreparedAuctionHouse,
   type RankingItem,
+  type SellerLeadComparableRef,
   type SellerLeadHistoryEvent,
   type SellerLeadValuation,
 } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { ProfilesService } from '../profiles/profiles.service';
+import { toSellerLeadValuationSnapshot } from '../valuation-calculation/dashboard-valuation';
+import { ItemValuationService } from '../valuation-calculation/item-valuation.service';
 import type { CreateSellerLeadDto } from './create-seller-lead.dto';
 import { loadPreparedHouses } from './house-rank-fixture';
 import { rankActiveHouses } from './house-rank';
@@ -65,6 +70,8 @@ export class SellerLeadsService {
     private readonly logger: LoggerService = new Logger(SellerLeadsService.name),
     @Optional()
     private readonly profiles?: ProfilesService,
+    @Optional()
+    private readonly itemValuation?: ItemValuationService,
   ) {}
 
   /** Copy P3 current-profile fields onto a draft enquiry when the anonymous session is present. */
@@ -125,25 +132,60 @@ export class SellerLeadsService {
   }
 
   /**
-   * S1 callback: confirmed SellerItemDraft / buildHandoffPayload in, ranking + copied catalog out.
+   * S1 callback: confirmed SellerItemDraft / buildHandoffPayload in,
+   * ranking + copied catalog + live S3/S4 valuation out.
    * Does not create a lead (contact/consent stay on P3) and never contacts a house.
    */
-  receiveS1Handoff(payload: unknown): {
+  async receiveS1Handoff(payload: unknown): Promise<{
     ranking: HouseRanking;
     catalogDraft: { he: string; en: string };
     item: { id: string; category: string; title: string; evidenceIds: string[] };
     evidence: Array<{ id: string; type: string }>;
-  } {
+    valuation: SellerLeadValuation | null;
+    comparables: SellerLeadComparableRef[];
+  }> {
+    let copied: ReturnType<typeof receiveConfirmedItemHandoff>;
     try {
-      const copied = receiveConfirmedItemHandoff(payload);
-      return {
-        ranking: this.rankHouses(copied.rankingItem),
-        catalogDraft: copied.catalogDraft,
-        item: copied.item,
-        evidence: copied.evidence,
-      };
+      copied = receiveConfirmedItemHandoff(payload);
     } catch {
       throw new BadRequestException('S1 handoff must include item id, category, title, and catalogDraft');
+    }
+
+    const ranking = this.rankHouses(copied.rankingItem);
+    const live = await this.liveS4Valuation(payload, copied.item.id);
+    return {
+      ranking,
+      catalogDraft: copied.catalogDraft,
+      item: copied.item,
+      evidence: copied.evidence,
+      valuation: live.valuation,
+      comparables: live.comparables,
+    };
+  }
+
+  /** Copy S4's dashboard snapshot. Never recalculate and never invent a refusal. */
+  private async liveS4Valuation(
+    payload: unknown,
+    itemId: string,
+  ): Promise<{ valuation: SellerLeadValuation | null; comparables: SellerLeadComparableRef[] }> {
+    if (!this.itemValuation) return { valuation: null, comparables: [] };
+    try {
+      const report = await this.itemValuation.calculateFromItem({
+        itemId,
+        itemVersion: itemVersionFromS1Draft(payload),
+        item: sellerItemFromS1Draft(payload),
+      });
+      const parsed = sellerLeadValuationSchema.safeParse(toSellerLeadValuationSnapshot(report).dashboard);
+      if (!parsed.success) return { valuation: null, comparables: [] };
+      return {
+        valuation: parsed.data,
+        comparables: parsed.data.comparables.map((row) => ({
+          id: row.id,
+          source: row.source.label,
+        })),
+      };
+    } catch {
+      return { valuation: null, comparables: [] };
     }
   }
 

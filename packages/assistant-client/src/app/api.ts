@@ -11,6 +11,7 @@ import {
   sellerChoiceSchema,
   sellerContactFromP3Profile,
   sellerLeadSummarySchema,
+  sellerLeadValuationSchema,
   sellerFinalLeadFixture,
   submitSellerLeadSchema,
   emitSellerEnquiryEvent,
@@ -22,6 +23,7 @@ import {
   type ConfirmedItemDraft,
   type SellerChoice,
   type SellerLeadSummary,
+  type SellerLeadValuation,
   type SubmitSellerLead,
 } from '@monabid/shared';
 import lotFixtures from '../../../../fixtures/auction-data/lots.json';
@@ -105,14 +107,57 @@ export async function getSampleLot(language: string, signal?: AbortSignal): Prom
 
 export { sellerFinalLeadFixture };
 
-export function finalHandoffFromS1(draft: ConfirmedItemDraft | null): SubmitSellerLead {
+export function finalHandoffFromS1(
+  draft: ConfirmedItemDraft | null,
+  valuation?: SellerLeadValuation | null,
+  comparables?: SubmitSellerLead['comparables'],
+): SubmitSellerLead {
   const fallback = submitSellerLeadSchema.parse(sellerFinalLeadFixture.handoff);
-  if (!draft) return fallback;
+  if (!draft) {
+    return valuation
+      ? submitSellerLeadSchema.parse({ ...fallback, valuation, ...(comparables ? { comparables } : {}) })
+      : fallback;
+  }
   try {
-    return leadHandoffFromS1Draft(draft, fallback.valuation);
+    const copied = leadHandoffFromS1Draft(draft, valuation ?? fallback.valuation);
+    return submitSellerLeadSchema.parse({
+      ...copied,
+      ...(comparables?.length ? { comparables } : {}),
+    });
   } catch {
     return fallback;
   }
+}
+
+export type SellerJourneyBundle = {
+  ranking: HouseRanking;
+  catalogDraft: { he: string; en: string };
+  item: { id: string; category: string; title: string; evidenceIds: string[] };
+  evidence: Array<{ id: string; type: string }>;
+  valuation: SellerLeadValuation | null;
+  comparables: NonNullable<SubmitSellerLead['comparables']>;
+};
+
+/** S1 confirmed draft in; S5 ranking plus live S3/S4 valuation out. */
+export async function receiveS1SellerHandoff(
+  draft: ConfirmedItemDraft,
+  signal?: AbortSignal,
+): Promise<SellerJourneyBundle | null> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/s1-handoff`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draft),
+    signal,
+  });
+  if (!response.ok) return null;
+  const body = (await response.json()) as SellerJourneyBundle;
+  if (!body?.ranking || !body.catalogDraft) return null;
+  const parsedValuation = body.valuation ? sellerLeadValuationSchema.safeParse(body.valuation) : null;
+  return {
+    ...body,
+    valuation: parsedValuation?.success ? parsedValuation.data : null,
+    comparables: body.comparables ?? [],
+  };
 }
 
 /** S5 Week 2: create an internal draft lead. Contact/profile come from P3 when available. */
