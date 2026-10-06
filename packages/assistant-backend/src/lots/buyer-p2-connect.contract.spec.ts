@@ -20,7 +20,9 @@ for (const scenario of contract.scenarios) {
     const entities = contract.expectedResponse.data.map((payload) => ({ payload }));
     const queryBuilder = {
       andWhere: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn().mockResolvedValue([entities, contract.expectedResponse.total]),

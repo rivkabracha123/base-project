@@ -19,6 +19,18 @@ function hasAnyFilter(filters?: LotFiltersDto): boolean {
   );
 }
 
+// A lot matches a field when the partial (LIKE) or the full-text condition finds
+// the term in its English or Hebrew text. Used by both the filter and the ranking,
+// so a returned lot always gets a consistent rank.
+function textMatch(field: 'title' | 'description'): string {
+  return `(
+    LOWER(lot.payload->'${field}'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
+    LOWER(lot.payload->'${field}'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
+    to_tsvector('english', lot.payload->'${field}'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
+    to_tsvector('simple', lot.payload->'${field}'->>'he') @@ plainto_tsquery('simple', :ftsQuery)
+  )`;
+}
+
 @Injectable()
 export class LotsService {
   // Reads canonical lots from the database without remapping source metadata.
@@ -64,19 +76,10 @@ export class LotsService {
     // English uses `english` (stemmed).
     if (normalizedQuery) {
       const escapedQuery = normalizedQuery.replace(/[\\%_]/g, (char) => `\\${char}`);
-      qb.andWhere(
-        `(
-          LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
-          LOWER(lot.payload->'title'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
-          LOWER(lot.payload->'description'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
-          LOWER(lot.payload->'description'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
-          to_tsvector('english', lot.payload->'title'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
-          to_tsvector('simple', lot.payload->'title'->>'he') @@ plainto_tsquery('simple', :ftsQuery) OR
-          to_tsvector('english', lot.payload->'description'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
-          to_tsvector('simple', lot.payload->'description'->>'he') @@ plainto_tsquery('simple', :ftsQuery)
-        )`,
-        { query: `%${escapedQuery}%`, ftsQuery: normalizedQuery }
-      );
+      qb.andWhere(`(${textMatch('title')} OR ${textMatch('description')})`, {
+        query: `%${escapedQuery}%`,
+        ftsQuery: normalizedQuery,
+      });
     }
 
     // Each populated list facet adds an `IN` clause on its JSON path. Values are
@@ -137,10 +140,20 @@ export class LotsService {
     // Calculate pagination parameters
     const offset = (page - 1) * limit;
 
-    // A stable, deterministic order so pages never overlap or drop rows.
-    // Relevance ranking replaces this ordering in a later week; the tie-break
-    // on the primary key must remain regardless.
-    qb.orderBy('lot.id', 'ASC');
+    // Ranking only orders rows that already passed the filters, never adds or drops
+    // one. Strongest first: title match, description match, newest sale, then id so
+    // the order is identical on every run.
+    const ranking: Array<[string, 'ASC' | 'DESC']> = [];
+    if (normalizedQuery) {
+      qb.addSelect(`CASE WHEN ${textMatch('title')} THEN 1 ELSE 0 END`, 'title_match');
+      qb.addSelect(`CASE WHEN ${textMatch('description')} THEN 1 ELSE 0 END`, 'description_match');
+      ranking.push(['title_match', 'DESC'], ['description_match', 'DESC']);
+    }
+    qb.addSelect("lot.payload->>'saleDate'", 'sale_date');
+    ranking.push(['sale_date', 'DESC'], ['lot.id', 'ASC']);
+    ranking.forEach(([column, direction], index) =>
+      index === 0 ? qb.orderBy(column, direction) : qb.addOrderBy(column, direction),
+    );
 
     // Apply pagination and fetch items with total matching count
     const [entities, total] = await qb

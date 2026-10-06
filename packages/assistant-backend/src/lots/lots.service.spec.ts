@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
+import type { LotSearchDto } from './lot-search.dto';
 import { LotsService } from './lots.service';
 
 const payload = {
@@ -25,7 +26,9 @@ describe('LotsService', () => {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     orWhere: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     getManyAndCount: jest.fn().mockResolvedValue([entities, total]),
@@ -62,8 +65,6 @@ describe('LotsService', () => {
     });
     expect(queryBuilder.skip).toHaveBeenCalledWith(0);
     expect(queryBuilder.take).toHaveBeenCalledWith(10);
-    // Pagination is only deterministic with a stable sort order.
-    expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
       expect.stringContaining(`LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query)`),
       expect.objectContaining({ query: '%Atereth%' })
@@ -132,6 +133,55 @@ describe('LotsService', () => {
         ),
         expect.objectContaining({ ftsQuery: 'Atereth' }),
       );
+    });
+  });
+
+  describe('deterministic ranking', () => {
+    it('orders title matches before description-only matches, then recency, then id', async () => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+      await new LotsService(mockRepo(queryBuilder)).search({ query: 'Abrabanel' });
+
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('title_match', 'DESC');
+      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(1, 'description_match', 'DESC');
+      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(2, 'sale_date', 'DESC');
+      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(3, 'lot.id', 'ASC');
+    });
+
+    // Ranking is only an ORDER BY: if a ranking column ever reached the WHERE
+    // clause it could drop or add rows and weaken a strict filter.
+    it('keeps the ranking columns out of the WHERE clause so strict filters stay strict', async () => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+      await new LotsService(mockRepo(queryBuilder)).search({
+        query: 'Abrabanel',
+        filters: { price: { max: 1500, currency: 'USD' } },
+      });
+
+      const where = queryBuilder.andWhere.mock.calls.map((call: unknown[]) => call[0]).join(' ');
+      expect(where).toContain('<= :priceMax');
+      expect(where).not.toMatch(/title_match|description_match|sale_date/);
+    });
+
+    it('adds no text-match columns when there is no text to match', async () => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+      await new LotsService(mockRepo(queryBuilder)).search({ filters: { categories: ['rare_books'] } });
+
+      const aliases = queryBuilder.addSelect.mock.calls.map((call: unknown[]) => call[1]);
+      expect(aliases).toEqual(['sale_date']);
+    });
+
+    it.each([
+      ['with text', { query: 'Abrabanel' }],
+      ['without text', { filters: { categories: ['rare_books'] } }],
+    ])('always ends the order with the lot id tie-break %s', async (_label: string, criteria: LotSearchDto) => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+      await new LotsService(mockRepo(queryBuilder)).search(criteria);
+
+      const calls = queryBuilder.addOrderBy.mock.calls;
+      expect(calls[calls.length - 1]).toEqual(['lot.id', 'ASC']);
     });
   });
 
@@ -335,7 +385,9 @@ describe('LotsService', () => {
         expect.stringContaining('IN (:...categories)'),
         { categories: ['no_such_category'] },
       );
-      expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');
+      // no text to match, so only recency and the id tie-break order the rows
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('sale_date', 'DESC');
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('lot.id', 'ASC');
       expect(result).toEqual({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 });
     });
   });

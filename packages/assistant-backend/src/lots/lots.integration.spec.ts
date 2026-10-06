@@ -31,7 +31,9 @@ describe('Lots API (integration)', () => {
   const queryBuilder = {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
     getManyAndCount: jest.fn().mockResolvedValue([[{ payload: lot }], 1]),
@@ -101,7 +103,7 @@ describe('Lots API (integration)', () => {
     const response = await postSearch({ query: 'book', page: 2, limit: 5 });
 
     expect(response.status).toBe(200);
-    expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');
+    expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('lot.id', 'ASC');
     expect(queryBuilder.skip).toHaveBeenCalledWith(5);
     expect(queryBuilder.take).toHaveBeenCalledWith(5);
   });
