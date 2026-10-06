@@ -1,5 +1,4 @@
 import type { EvidenceReference } from "./evidence.types";
-
 import type { CorrectionsEvidenceInput } from "./evidence-corrections.types";
 
 export class EvidenceCorrectionsAdapter {
@@ -13,6 +12,7 @@ export class EvidenceCorrectionsAdapter {
         ...item,
         profileId,
         previewUri: `/api/evidence/${profileId}/${item.fileId}`,
+        downloadUri: `/api/evidence/${profileId}/${item.fileId}/download`,
       })),
     };
   }

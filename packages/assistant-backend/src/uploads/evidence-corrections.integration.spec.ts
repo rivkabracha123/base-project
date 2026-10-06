@@ -34,9 +34,11 @@ describe("Evidence corrections integration", () => {
   it("passes profile-isolated evidence references to corrections", async () => {
     const profileA = "corrections-profile-a";
     const profileB = "corrections-profile-b";
+    const itemA = "item-a";
+    const itemB = "item-b";
 
-    // Profile A uploads two images.
-    const evidenceA = await uploadsService.addEvidence(profileA, [
+    // Upload evidence for Profile A and bind it to a specific item.
+    const evidenceA = await uploadsService.addEvidence(profileA, itemA, [
       {
         originalname: "front.jpg",
         mimetype: "image/jpeg",
@@ -51,8 +53,8 @@ describe("Evidence corrections integration", () => {
       },
     ]);
 
-    // Profile B uploads a private image.
-    const evidenceB = await uploadsService.addEvidence(profileB, [
+    // Upload evidence for Profile B and keep it isolated.
+    const evidenceB = await uploadsService.addEvidence(profileB, itemB, [
       {
         originalname: "private.jpg",
         mimetype: "image/jpeg",
