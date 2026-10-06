@@ -20,17 +20,23 @@ export function AppHeader() {
   });
 
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className="border-b border-stone-200 bg-[#f6f1e8]">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <nav className="flex items-center gap-4">
           {/* S5 Week 4: open the house recommendation / choice screen */}
           <Link
             to="/seller/houses"
-            className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
           >
             {t('navigation.houses')}
           </Link>
-          <Link to="/sample" className="font-semibold text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <Link
+            to="/seller/enquiry"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
+          >
+            {t('navigation.enquiry')}
+          </Link>
+          <Link to="/sample" className="font-semibold text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700">
             {t('appName')}
           </Link>
         </nav>

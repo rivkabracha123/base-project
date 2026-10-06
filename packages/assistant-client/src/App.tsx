@@ -6,6 +6,7 @@ import { BuyerChat } from './buyer/BuyerChat';
 import { AppHeader } from './components/AppHeader';
 import { ResultsPage } from './components/ResultPage';
 import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
+import { SellerEnquiryPage } from './app/SellerEnquiryPage';
 import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
 
 export function App() {
@@ -19,9 +20,11 @@ export function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/lots/:id" element={<LotPage />} />
         <Route path="/chat" element={<BuyerChat />} />
-        <Route path="*" element={<Navigate to="/results" replace />} />
   {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
         <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
+        {/* S5 Week 5: catalog draft review and final internal lead */}
+        <Route path="/seller/enquiry" element={<SellerEnquiryPage />} />
+        <Route path="*" element={<Navigate to="/results" replace />} />
       </Routes>
     </>
   );
