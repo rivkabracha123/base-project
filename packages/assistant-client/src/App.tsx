@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppHeader } from './components/AppHeader';
 import { SampleLotPage } from './app/SampleLotPage';
+import { SellerEnquiryPage } from './app/SellerEnquiryPage';
 import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
 import { EvidenceGallery } from './app/evidenceGallery'
 
@@ -18,6 +19,8 @@ export function App() {
             element={<EvidenceGallery profileId="demo-profile-gallery" />}
         />
         )}
+        {/* S5 Week 5: catalog draft review and final internal lead */}
+        <Route path="/seller/enquiry" element={<SellerEnquiryPage />} />
         <Route path="*" element={<Navigate to="/sample" replace />} />
       </Routes>
     </>

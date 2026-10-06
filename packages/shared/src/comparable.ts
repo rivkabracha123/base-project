@@ -24,3 +24,7 @@ export const comparableEvidenceSchema = z.object({
 export type SellerItem = z.infer<typeof sellerItemSchema>;
 export type ScoredComparable = z.infer<typeof scoredComparableSchema>;
 export type ComparableEvidence = z.infer<typeof comparableEvidenceSchema>;
+
+// S1 → S3 callback: receives the same ComparableEvidence that findComparables returns, so S1 can
+// continue its seller flow when comparables are ready (same shape as S1's SellerWorkflowResultCallback).
+export type ComparableEvidenceCallback = (evidence: ComparableEvidence) => void | Promise<void>;

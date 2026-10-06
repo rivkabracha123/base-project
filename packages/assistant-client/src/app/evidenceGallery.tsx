@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MoreVertical } from 'lucide-react';
 import {
   useEffect,
   useRef,
@@ -91,7 +90,17 @@ function PhotoActionsMenu({
         onClick={() => setOpen((value) => !value)}
         className="rounded-full bg-black/60 p-2 text-white hover:bg-black/75 focus:outline-none focus:ring-2 focus:ring-white"
       >
-        <MoreVertical size={18} aria-hidden="true" />
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="5" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="12" cy="19" r="1.5" />
+        </svg>
       </button>
 
       {open && (

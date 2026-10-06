@@ -62,6 +62,17 @@ describe('seller house-choice route', () => {
       const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
       const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
 
+      if (method === 'PATCH' && url.includes('/profiles/me')) {
+        return new Response(
+          JSON.stringify({
+            id: 'profile-p3-live',
+            preferredName: 'Synthetic Seller',
+            email: 'synthetic.seller@example.test',
+            serviceConsent: { granted: true, grantedAt: '2026-10-05T00:00:00.000Z', channel: 'web' },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
       if (method === 'POST' && /\/seller-leads\/[^/]+\/choice/.test(url)) {
         return new Response(JSON.stringify(expectedChoice), {
           status: 200,
