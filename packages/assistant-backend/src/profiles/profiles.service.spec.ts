@@ -18,41 +18,18 @@ describe('ProfilesService', () => {
     id: string,
     sessionId: string,
     language: 'he' | 'en',
-    overrides: Partial<UserProfileEntity> = {},
   ): UserProfileEntity => {
     // This fake entity includes the same conversion method as the real entity.
-    // Its fields are read at conversion time, after an update may have changed them.
-    const profile = {
-      id,
-      sessionId,
-      language,
-      grammaticalForm: undefined,
-      preferredName: undefined,
-      email: undefined,
-      phone: undefined,
-      serviceConsent: { granted: false },
-      marketingConsent: { granted: false },
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-      ...overrides,
-    } as UserProfileEntity;
+    // Its language is read at conversion time, after an update may have changed it.
+    const profile = { id, sessionId, language } as UserProfileEntity;
     profile.toUserProfile = () => ({
       id: profile.id,
       sessionId: profile.sessionId,
       language: profile.language as 'he' | 'en',
-      grammaticalForm: profile.grammaticalForm as
-        | 'masculine'
-        | 'feminine'
-        | 'neutral'
-        | 'unspecified'
-        | undefined,
-      preferredName: profile.preferredName ?? null,
-      email: profile.email ?? null,
-      phone: profile.phone ?? null,
-      serviceConsent: profile.serviceConsent as any,
-      marketingConsent: profile.marketingConsent as any,
-      createdAt: profile.createdAt.toISOString(),
-      updatedAt: profile.updatedAt.toISOString(),
+      serviceConsent: { granted: false },
+      marketingConsent: { granted: false },
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
     });
     return profile;
   };
