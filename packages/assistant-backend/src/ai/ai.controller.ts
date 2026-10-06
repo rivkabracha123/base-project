@@ -10,6 +10,7 @@ export class AiController {
   async generate(@Body() body: GenerateAiRequestDto): Promise<GenerateAiResponseDto> {
     return this.aiService.generate({
       prompt: body.prompt,
+      role: body.role,
       language: body.language,
     });
   }

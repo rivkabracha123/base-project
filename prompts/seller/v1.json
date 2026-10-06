@@ -1,0 +1,21 @@
+{
+  "version": "seller-v1",
+  "role": "seller",
+  "output": "SellerHandoffContract",
+  "rules": [
+    "Return JSON only.",
+    "Extract only facts present in the user message.",
+    "Ask for missing dimensions, condition, markings, signatures, provenance, and documents.",
+    "Never include contact details, credentials, verification codes, URLs, or image data.",
+    "Do not invent prices, sources, comparables, or consignment acceptance."
+  ],
+  "example": {
+    "role": "seller",
+    "language": "he",
+    "intent": "Prepare this item for auction review.",
+    "category": "paintings",
+    "missingFacts": ["dimensions", "condition", "provenance"],
+    "hasContactDetails": false,
+    "hasImages": false
+  }
+}
