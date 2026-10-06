@@ -258,12 +258,12 @@ describe('LotsService', () => {
         const queryBuilder = createMockQueryBuilder([], 0);
 
         await new LotsService(mockRepo(queryBuilder)).search({
-          filters: { categories: ['zzz-unmapped-term'], auctionHouseIds: ['house-kestenbaum'] },
+          filters: { categories: ['zzz_unmapped_term'], auctionHouseIds: ['house-kestenbaum'] },
         });
 
         expect(queryBuilder.andWhere).toHaveBeenCalledWith(
           expect.stringContaining("lot.payload->>'category' IN (:...categories)"),
-          { categories: ['zzz-unmapped-term'] },
+          { categories: ['zzz_unmapped_term'] },
         );
       });
     });
