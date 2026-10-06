@@ -139,4 +139,32 @@ describe('Lots API (integration)', () => {
     expect(body.data.map((entry: AuctionLot) => entry.id)).toEqual(['lot-valid-1', 'lot-valid-2']);
     expect(body.data.every((entry: AuctionLot) => entry.title?.en && entry.category)).toBe(true);
   });
+
+  it('serves a record with every optional field missing, fully intact', async () => {
+    const minimalRecord = {
+      id: 'lot-minimal-1',
+      source: { provider: 'demo', recordId: 'minimal-1', url: 'https://example.com/minimal-1', retrievedAt: '2025-01-01T00:00:00.000Z' },
+      auctionHouse: { id: 'house-1', name: 'Demo House' },
+      auctionTitle: 'Demo Auction',
+      lotNumber: '1',
+      title: { en: 'Minimal lot' },
+      description: { en: 'No optional fields at all.' },
+      category: 'rare_books',
+      saleDate: '2025-01-01',
+      status: 'upcoming',
+    };
+    const { records: validatedRecords } = validateAuctionLotFixture([minimalRecord]);
+    expect(validatedRecords).toHaveLength(1); // sanity check: minimal record is accepted, not rejected
+
+    queryBuilder.getManyAndCount.mockResolvedValueOnce([
+      validatedRecords.map((payload) => ({ payload })),
+      validatedRecords.length,
+    ]);
+
+    const response = await postSearch({ filters: { categories: ['rare_books'] } });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([minimalRecord]);
+  });
 });
