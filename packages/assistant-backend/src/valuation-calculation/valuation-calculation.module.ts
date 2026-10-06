@@ -8,7 +8,8 @@ import { ScenarioComparisonService } from './scenario-comparison.service';
 @Module({
   // External connection
   controllers: [ValuationCalculationController, ScenarioComparisonController],
-  // Performs the connections
+  // Performs the connections; the calculation service is exported for S5 (seller leads).
   providers: [ValuationCalculationService, ScenarioComparisonService],
+  exports: [ValuationCalculationService],
 })
 export class ValuationCalculationModule {}

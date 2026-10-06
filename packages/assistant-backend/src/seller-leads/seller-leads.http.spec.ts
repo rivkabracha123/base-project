@@ -1,8 +1,10 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { houseRankingSchema, sellerChoiceSchema } from '@monabid/shared';
+import { houseRankingSchema, sellerChoiceSchema, sellerLeadSummarySchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
+import { AuctionLotEntity } from '../database/auction-lot.entity';
+import { UserProfileEntity } from '../database/user-profile.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
 describe('SellerLeadsController house ranking (contract)', () => {
@@ -30,6 +32,14 @@ describe('SellerLeadsController house ranking (contract)', () => {
           return saved;
         }),
       })
+      .overrideProvider(getRepositoryToken(UserProfileEntity))
+      .useValue({
+        findOneBy: jest.fn(async () => null),
+        create: jest.fn((row: Partial<UserProfileEntity>) => Object.assign(new UserProfileEntity(), row)),
+        save: jest.fn(async (row: UserProfileEntity) => row),
+      })
+      .overrideProvider(getRepositoryToken(AuctionLotEntity))
+      .useValue({ find: jest.fn(async () => []) })
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -86,8 +96,17 @@ describe('SellerLeadsController house ranking (contract)', () => {
       contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
       recommendation: null,
       sellerChoice: null,
+      catalogDraft: null,
+      item: null,
+      evidence: null,
+      valuation: null,
+      comparables: null,
+      serviceConsent: true,
+      status: 'draft',
+      history: [],
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    });
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as SellerLeadEntity);
 
     const response = await postRanking('/api/seller-leads/lead-1/house-rankings', {
       category: 'rare_books',
@@ -113,8 +132,17 @@ describe('SellerLeadsController house ranking (contract)', () => {
       contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
       recommendation: null,
       sellerChoice: null,
+      catalogDraft: null,
+      item: null,
+      evidence: null,
+      valuation: null,
+      comparables: null,
+      serviceConsent: true,
+      status: 'draft',
+      history: [],
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    });
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as SellerLeadEntity);
 
     const item = {
       category: 'rare_books',
@@ -146,6 +174,104 @@ describe('SellerLeadsController house ranking (contract)', () => {
     expect(houseRankingSchema.parse(rows[0]?.recommendation).recommendation?.house.id).toBe(
       'house-kestenbaum',
     );
+  });
+
+  it('submits a catalog draft as the final internal lead for the dashboard', async () => {
+    stored.length = 0;
+    stored.push({
+      id: 'lead-1',
+      profileId: 'profile-synthetic-seller-1',
+      contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
+      recommendation: null,
+      sellerChoice: null,
+      catalogDraft: null,
+      item: null,
+      evidence: null,
+      valuation: null,
+      comparables: null,
+      serviceConsent: true,
+      status: 'draft',
+      history: [],
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    const item = {
+      category: 'rare_books',
+      geography: 'United States',
+      preferredLanguage: 'en',
+    };
+    await postRanking('/api/seller-leads/lead-1/house-rankings', item);
+    await postRanking('/api/seller-leads/lead-1/choice', { houseId: 'house-kedem' });
+
+    const handoff = {
+      catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
+      item: {
+        id: 'item-001',
+        category: 'paintings',
+        title: 'Abstract landscape study',
+        evidenceIds: ['evidence-001'],
+      },
+      evidence: [{ id: 'evidence-001', type: 'seller_statement' }],
+      valuation: {
+        status: 'refusal',
+        reportId: 'valuation-refusal-001',
+        reason: 'insufficient_evidence',
+        comparableCount: 0,
+        confidence: {
+          level: 'low',
+          explanation:
+            'Confidence is uncalibrated; low is a conservative default pending expert review, not a probability.',
+        },
+        limitations: ['Insufficient sold comparables for a supported range.'],
+        comparables: [],
+        excludedComparables: [],
+      },
+    };
+    const submitted = await postRanking('/api/seller-leads/lead-1/final', handoff);
+    expect(submitted.status).toBe(200);
+    const row = sellerLeadSummarySchema.parse(submitted.body);
+    expect(row.status).toBe('submitted');
+    expect(row.catalogDraft).toEqual(handoff.catalogDraft);
+    expect(row.valuation?.status).toBe('refusal');
+    expect(row.sellerChoice?.houseId).toBe('house-kedem');
+    expect(row.recommendation?.recommendation?.house.id).toBe('house-kestenbaum');
+    expect(row.history.map((entry) => entry.event)).toContain('submitted');
+    expect(JSON.stringify(row)).not.toMatch(/commission|will accept/i);
+
+    const list = await fetch(`${baseUrl}/api/seller-leads`);
+    const rows = sellerLeadSummarySchema.array().parse(await list.json());
+    expect(rows[0]?.status).toBe('submitted');
+    expect(rows[0]?.catalogDraft?.en).toBe('Abstract landscape study');
+  });
+
+  it('POST /api/seller-leads/s1-handoff accepts S1 callback draft and returns ranking plus catalog', async () => {
+    const response = await postRanking('/api/seller-leads/s1-handoff', {
+      language: { preferred: 'he' },
+      item: {
+        id: 'item-001',
+        category: 'paintings',
+        title: 'Abstract landscape study',
+        evidenceIds: ['evidence-001'],
+        catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
+      },
+      evidence: [{ id: 'evidence-001', type: 'seller_statement', uri: 'file:///secret.jpg' }],
+      confirmedFacts: { category: 'paintings' },
+      seller: { preferredName: 'Maya' },
+    });
+
+    expect(response.status).toBe(200);
+    const body = response.body as {
+      ranking: { recommendation: { house: { active: boolean } } | null };
+      catalogDraft: { en: string };
+      evidence: Array<{ id: string; type: string }>;
+      valuation: { status: string } | null;
+    };
+    expect(houseRankingSchema.parse(body.ranking).recommendation?.house.active).toBe(true);
+    expect(body.catalogDraft.en).toBe('Abstract landscape study');
+    expect(body.evidence).toEqual([{ id: 'evidence-001', type: 'seller_statement' }]);
+    expect(JSON.stringify(body)).not.toMatch(/file:|Maya/i);
+    expect(body.valuation === null || (body.valuation && typeof body.valuation.status === 'string')).toBe(true);
   });
 
   it('rejects a missing category with 400', async () => {

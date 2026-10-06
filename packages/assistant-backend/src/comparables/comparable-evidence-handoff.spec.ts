@@ -500,3 +500,200 @@ describe('Week 4 — full HTTP handoff: comparables/query → included → valua
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Week 5 — named fixture "week5-sparse-trace": sparse evidence through the same real HTTP
+// boundary into Aluma's real /valuation endpoint (black-box, unmodified). S3 applies no three-sale
+// minimum and no price rule: it always returns the full explained evidence, and S4 alone decides
+// refusal and records outlier treatment. Excluded evidence is sent as S4's excludedComparables so
+// the test proves S3's reasons survive S4's privacy projection instead of being withheld.
+// ---------------------------------------------------------------------------
+
+const w5Strong: AuctionLot = {
+  id: 'w5-lot-strong-newer',
+  source: { provider: 'demo', recordId: 'w5-strong-newer', url: 'https://example.com/w5-strong-newer', retrievedAt: '2025-01-01T00:00:00.000Z' },
+  auctionHouse: { id: 'house-1', name: 'Demo House' },
+  auctionTitle: 'Demo Auction',
+  lotNumber: '1',
+  title: { en: 'Oil on canvas landscape' },
+  description: { en: 'A signed oil on canvas painting, well preserved.' },
+  category: 'paintings',
+  saleDate: '2024-03-10',
+  status: 'sold',
+  realizedPrice: { amount: 4000, currency: 'USD' },
+};
+
+const w5StrongOlder: AuctionLot = {
+  ...w5Strong,
+  id: 'w5-lot-strong-older',
+  source: { ...w5Strong.source, recordId: 'w5-strong-older', url: 'https://example.com/w5-strong-older' },
+  saleDate: '2024-01-20',
+  realizedPrice: { amount: 3600, currency: 'USD' },
+};
+
+const w5ZeroPrice: AuctionLot = {
+  ...w5Strong,
+  id: 'w5-lot-zero-price',
+  source: { ...w5Strong.source, recordId: 'w5-zero-price', url: 'https://example.com/w5-zero-price' },
+  saleDate: '2024-02-20',
+  realizedPrice: { amount: 0, currency: 'USD' },
+};
+
+const w5Weak: AuctionLot = {
+  ...w5Strong,
+  id: 'w5-lot-weak-bronze',
+  source: { ...w5Strong.source, recordId: 'w5-weak-bronze', url: 'https://example.com/w5-weak-bronze' },
+  title: { en: 'Bronze sculpture' },
+  description: { en: 'A cast bronze figure on a marble base.' },
+  saleDate: '2024-02-01',
+  realizedPrice: { amount: 900, currency: 'USD' },
+};
+
+const w5UnsoldEstimate: AuctionLot = {
+  ...w5Strong,
+  id: 'w5-lot-unsold-estimate',
+  source: { ...w5Strong.source, recordId: 'w5-unsold-estimate', url: 'https://example.com/w5-unsold-estimate' },
+  saleDate: '2024-02-15',
+  status: 'unsold',
+  realizedPrice: undefined,
+  estimate: { low: { amount: 3000, currency: 'USD' }, high: { amount: 5000, currency: 'USD' } },
+};
+
+const week5Lots: AuctionLot[] = [w5Strong, w5StrongOlder, w5ZeroPrice, w5Weak, w5UnsoldEstimate];
+
+// Test-only: S3 exclusions become S4's excludedComparables (evidence, not formula input), the same
+// split Aluma's mapper documents. exclusionReason is always set on excluded entries.
+function toExcludedComparable(scored: { lot: AuctionLot; exclusionReason?: string }): { id: string; reason: string } {
+  return { id: scored.lot.id, reason: scored.exclusionReason! };
+}
+
+describe('Week 5 — named fixture "week5-sparse-trace": sparse evidence → S4 refusal with S3 reasons intact', () => {
+  let comparablesApp: INestApplication;
+  let comparablesBaseUrl: string;
+  let valuationApp: INestApplication;
+  let valuationBaseUrl: string;
+  let findAuctionLots: jest.Mock;
+
+  beforeAll(async () => {
+    findAuctionLots = jest.fn().mockResolvedValue(week5Lots.map(makeEntity));
+
+    const comparablesModuleRef = await Test.createTestingModule({ imports: [ComparablesModule] })
+      .overrideProvider(getRepositoryToken(AuctionLotEntity))
+      .useValue({ find: findAuctionLots })
+      .compile();
+    comparablesApp = comparablesModuleRef.createNestApplication();
+    comparablesApp.setGlobalPrefix('api');
+    comparablesApp.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    await comparablesApp.listen(0, '127.0.0.1');
+    comparablesBaseUrl = await comparablesApp.getUrl();
+
+    const valuationModuleRef = await Test.createTestingModule({ imports: [ValuationCalculationModule] }).compile();
+    valuationApp = valuationModuleRef.createNestApplication();
+    valuationApp.setGlobalPrefix('api');
+    valuationApp.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    await valuationApp.listen(0, '127.0.0.1');
+    valuationBaseUrl = await valuationApp.getUrl();
+  });
+
+  afterAll(async () => {
+    await comparablesApp.close();
+    await valuationApp.close();
+  });
+
+  async function queryComparables(body: unknown) {
+    const response = await fetch(`${comparablesBaseUrl}/api/comparables/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(200);
+    return comparableEvidenceSchema.parse(await response.json());
+  }
+
+  async function requestValuation(itemVersion: string, evidence: Awaited<ReturnType<typeof queryComparables>>) {
+    const response = await fetch(`${valuationBaseUrl}/api/valuation-calculation/valuation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemId: 'w5-item',
+        itemVersion,
+        comparables: evidence.included.map(toComparableSaleInput),
+        excludedComparables: evidence.excluded.map(toExcludedComparable),
+      }),
+    });
+    expect(response.status).toBe(201);
+    return response.json();
+  }
+
+  it('two credible sales: S3 returns all five explained candidates and S4 refuses, keeping every S3 reason un-withheld', async () => {
+    const evidence = await queryComparables({ category: 'paintings', materials: ['oil', 'canvas'] });
+
+    expect(evidence.included.map(s => s.lot.id)).toEqual(['w5-lot-strong-newer', 'w5-lot-strong-older']);
+    const excludedById = new Map(evidence.excluded.map(s => [s.lot.id, s.exclusionReason]));
+    expect([...excludedById.keys()].sort()).toEqual(['w5-lot-unsold-estimate', 'w5-lot-weak-bronze', 'w5-lot-zero-price']);
+
+    const valuation = await requestValuation('v1', evidence);
+
+    expect(valuation).toMatchObject({
+      status: 'refusal',
+      reason: 'insufficient_comparable_sales',
+      itemVersion: 'v1',
+      comparableCount: 2,
+      includedComparableIds: ['w5-lot-strong-newer', 'w5-lot-strong-older'],
+    });
+    expect(valuation).not.toHaveProperty('valuationRange');
+    expect(valuation.excludedComparables).toEqual(expect.arrayContaining([
+      { id: 'w5-lot-zero-price', reason: 'No realized price recorded — lot cannot contribute to valuation evidence' },
+      { id: 'w5-lot-unsold-estimate', reason: 'Not a completed sale (status: unsold) — unsold estimates do not count as realized prices' },
+      // S4 keeps S3's weak-similarity template and drops the seller-supplied materials note.
+      { id: 'w5-lot-weak-bronze', reason: 'Similarity too weak to count as credible evidence (score 0.70 below 0.8)' },
+    ]));
+    expect(JSON.stringify(valuation.excludedComparables)).not.toMatch(/exclusion_reason_withheld_for_privacy/);
+  });
+
+  it('one credible sale: S3 still returns the evidence and S4 refuses without a range', async () => {
+    findAuctionLots.mockResolvedValueOnce([w5Strong, w5UnsoldEstimate].map(makeEntity));
+
+    const evidence = await queryComparables({ category: 'paintings', materials: ['oil', 'canvas'] });
+    expect(evidence.included.map(s => s.lot.id)).toEqual(['w5-lot-strong-newer']);
+    expect(evidence.excluded.map(s => s.lot.id)).toEqual(['w5-lot-unsold-estimate']);
+
+    const valuation = await requestValuation('v1', evidence);
+    expect(valuation).toMatchObject({ status: 'refusal', reason: 'insufficient_comparable_sales', comparableCount: 1 });
+    expect(valuation).not.toHaveProperty('valuationRange');
+  });
+
+  it('zero candidates: S3 returns empty evidence and S4 refuses without a range', async () => {
+    findAuctionLots.mockResolvedValueOnce([]);
+
+    const evidence = await queryComparables({ category: 'paintings', materials: ['oil', 'canvas'] });
+    expect(evidence).toEqual({ included: [], excluded: [] });
+
+    const valuation = await requestValuation('v1', evidence);
+    expect(valuation).toMatchObject({ status: 'refusal', reason: 'insufficient_comparable_sales', comparableCount: 0 });
+    expect(valuation).not.toHaveProperty('valuationRange');
+  });
+
+  it('correction: changed confirmed materials re-select from the latest facts for the new itemVersion', async () => {
+    const corrected = await queryComparables({ category: 'paintings', materials: ['bronze'] });
+
+    // The bronze lot is now the credible match; the oil-on-canvas lots fall to weak similarity,
+    // and the zero-price and unsold lots stay excluded for their own reasons.
+    expect(corrected.included.map(s => s.lot.id)).toEqual(['w5-lot-weak-bronze']);
+    const excludedById = new Map(corrected.excluded.map(s => [s.lot.id, s.exclusionReason]));
+    expect(excludedById.get('w5-lot-strong-newer')).toMatch(/similarity too weak/i);
+    expect(excludedById.get('w5-lot-zero-price')).toBe('No realized price recorded — lot cannot contribute to valuation evidence');
+
+    const valuation = await requestValuation('v2', corrected);
+    expect(valuation).toMatchObject({
+      status: 'refusal',
+      reason: 'insufficient_comparable_sales',
+      itemVersion: 'v2',
+      includedComparableIds: ['w5-lot-weak-bronze'],
+    });
+
+    // Re-running the original facts reproduces the original selection: nothing was cached.
+    const original = await queryComparables({ category: 'paintings', materials: ['oil', 'canvas'] });
+    expect(original.included.map(s => s.lot.id)).toEqual(['w5-lot-strong-newer', 'w5-lot-strong-older']);
+  });
+});
