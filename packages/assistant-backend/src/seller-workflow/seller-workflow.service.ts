@@ -1,12 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { SellerIntakeAiMock } from '../seller-intake/seller-intake-ai.mock';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider } from '../seller-intake/seller-intake-ai.provider';
 import { SellerLeadsService } from '../seller-leads/seller-leads.service';
 import type { SellerFunctionResponse, SellerWorkflowRequest, SellerWorkflowResult, SellerWorkflowResultCallback } from './seller-workflow.types';
 
 @Injectable()
 export class SellerWorkflowService {
   constructor(
-    private readonly sellerIntakeAi: SellerIntakeAiMock,
+    @Inject(SELLER_INTAKE_AI_PROVIDER) private readonly sellerIntakeAi: SellerIntakeAiProvider,
     private readonly sellerLeads: SellerLeadsService,
   ) {}
 

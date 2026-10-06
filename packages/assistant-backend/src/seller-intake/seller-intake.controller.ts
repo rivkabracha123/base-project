@@ -1,20 +1,20 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, Param, Patch, Post } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { SellerIntakeAiMock } from './seller-intake-ai.mock';
+import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider, type SellerIntakeAiResult } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 
 // Receives seller messages and returns their extracted draft information.
 @Controller('seller-intake')
 export class SellerIntakeController {
   constructor(
-    private readonly sellerIntakeAiMock: SellerIntakeAiMock,
+    @Inject(SELLER_INTAKE_AI_PROVIDER) private readonly sellerIntakeAi: SellerIntakeAiProvider,
     private readonly drafts: SellerIntakeDraftsService,
   ) {}
 
   @Post('draft')
   // מנתח ושומר טיוטת intake המבודדת לפי מזהי הפרופיל והשיחה.
   // Analyzes and persists an intake draft scoped to the profile and session identifiers.
-  async createDraft(@Body() body: Record<string, unknown>): Promise<ReturnType<SellerIntakeAiMock['analyze']>> {
+  async createDraft(@Body() body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
     const { input, sessionId, profileId } = body;
     if (typeof input !== 'string' || input.trim().length === 0) {
       throw new BadRequestException('input must be a non-empty string');
@@ -27,7 +27,7 @@ export class SellerIntakeController {
     }
 
     const scopedSessionId = `${profileId}:${sessionId}`;
-    const { sessionId: _sessionId, ...analysis } = this.sellerIntakeAiMock.analyze(input, scopedSessionId);
+    const { sessionId: _sessionId, structuredAnswer, ai, ...analysis } = await this.sellerIntakeAi.analyze(input, scopedSessionId);
     const stableId = createHash('sha256').update(scopedSessionId).digest('hex').slice(0, 24);
     const persistedDraft = {
       ...analysis,
@@ -36,7 +36,7 @@ export class SellerIntakeController {
       item: { ...analysis.item, id: `seller-item-${stableId}` },
     };
     await this.drafts.saveIntakeTurn(profileId, sessionId, persistedDraft);
-    return persistedDraft;
+    return { ...persistedDraft, structuredAnswer, ai };
   }
 
   @Get('draft/:profileId/:sessionId')
