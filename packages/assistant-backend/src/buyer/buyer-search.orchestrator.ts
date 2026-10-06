@@ -14,7 +14,7 @@ import {
   type GroupedResults,
 } from './explained-results';
 
-// Client for POST /api/lots/search (LotsService.search).
+// P2 lots-search client; today wired directly to LotsService.search() (no HTTP, so no ValidationPipe).
 export interface LotsSearchClient {
   search(request: SearchRequest): Promise<PaginatedSearchResult<AuctionLot>>;
 }

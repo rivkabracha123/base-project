@@ -5,7 +5,10 @@ function hasBudget(criteria: BuyerCriteria): boolean {
   return criteria.price?.min != null || criteria.price?.max != null;
 }
 
-// Only P2-supported facets: periods/media/geography have no P2 filter and stay out.
+/** Buyer criteria P2 has no filter for; they are not sent and the buyer is told so. */
+export const UNFILTERED_CRITERIA = ['periods', 'geography', 'media'] as const;
+
+// Only P2-supported facets: UNFILTERED_CRITERIA stay out.
 function buildFilters(criteria: BuyerCriteria): SearchFilters | undefined {
   const filters: SearchFilters = {};
   if (criteria.categories.length > 0) filters.categories = criteria.categories;
