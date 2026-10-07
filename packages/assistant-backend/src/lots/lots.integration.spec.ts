@@ -36,7 +36,9 @@ describe('Lots API (integration)', () => {
     addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn().mockResolvedValue([[{ payload: lot }], 1]),
+    setParameters: jest.fn().mockReturnThis(),
+    getRawAndEntities: jest.fn().mockResolvedValue({ entities: [{ payload: lot }], raw: [] }),
+    getCount: jest.fn().mockResolvedValue(1),
   };
   const repository = {
     createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
@@ -80,7 +82,7 @@ describe('Lots API (integration)', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      data: [lot],
+      data: [{ lot, matchReasons: [] }],
       total: 1,
       page: 1,
       limit: 10,
