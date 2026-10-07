@@ -74,6 +74,19 @@ describe('BuyerChat', () => {
     expect(card.closest('li[data-speaker]')).toHaveAttribute('data-speaker', 'result-group');
   });
 
+  // Verifies the title of a result group is shown above its cards.
+  it('shows the result group title above its cards', async () => {
+    renderChat(
+      mockConversation.en.map((message) =>
+        message.speaker === 'result-group' ? { ...message, title: 'Upcoming lots' } : message,
+      ),
+    );
+    const title = await screen.findByRole('heading', { name: 'Upcoming lots' });
+    const card = screen.getByRole('heading', { name: 'A mock lot' });
+    expect(title.closest('li[data-speaker]')).toHaveAttribute('data-speaker', 'result-group');
+    expect(title.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   // בודק שהודעת no-results (הפלט השני של B3, unmatched demand) מוצגת לקונה עם טקסט ידידותי ומתויגת בקטגוריה שלה.
   it('shows a no-results message from B3 tagged as no-results', async () => {
     renderChat([
@@ -194,12 +207,28 @@ describe('BuyerChat', () => {
   // והמסך עובר לעברית — השיחה נטענת מחדש בעברית, הכיוון מתהפך ל-RTL, הטקסטים מתורגמים,
   // וסדר המקלדת (שדה הכתיבה לפני "שליחה") לא משתנה.
   it('switches the open chat from English LTR to Hebrew RTL when the buyer presses the language button', async () => {
-    // השרת המדומה מחזיר את השיחה בשפה שהתבקשה ב-?language=.
+    // השרת המדומה: בקשת שמירת השפה (PATCH) מחזירה פרופיל תקין עם השפה החדשה,
+    // וכל בקשה אחרת מחזירה את השיחה בשפה שהתבקשה ב-?language=.
     vi.stubGlobal(
       'fetch',
-      vi.fn((url: string) => {
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === 'PATCH') {
+          const { language } = JSON.parse(String(init.body)) as { language: 'he' | 'en' };
+          const consent = { granted: false };
+          const now = '2026-01-01T10:00:00.000Z';
+          const profile = {
+            id: 'profile-1',
+            sessionId: 'session-1',
+            language,
+            serviceConsent: consent,
+            marketingConsent: consent,
+            createdAt: now,
+            updatedAt: now,
+          };
+          return new Response(JSON.stringify(profile), { status: 200 });
+        }
         const language = new URL(url).searchParams.get('language') === 'he' ? 'he' : 'en';
-        return Promise.resolve(new Response(JSON.stringify(mockConversation[language]), { status: 200 }));
+        return new Response(JSON.stringify(mockConversation[language]), { status: 200 });
       }),
     );
     const queryClient = createQueryClient();

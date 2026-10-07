@@ -11,8 +11,10 @@ import '../i18n';
 afterEach(() => vi.unstubAllGlobals());
 
 // Helper: renders <App/> at a given starting URL, with fetch returning the given response body for any request.
+// A new Response is built for every request: a response body can be read only once, and the app now makes more
+// than one request on start (the saved profile and the conversation).
 function renderAppAt(path: string, body: unknown) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify(body), { status: 200 })));
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({ queries: { retry: false } });
 

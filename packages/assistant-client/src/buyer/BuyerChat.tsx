@@ -33,7 +33,7 @@ export function BuyerChat() {
       fetch: (signal) => getConversation(language, signal),
     },
     userMessage: (text) => ({ speaker: 'buyer', skipped: false, text }),
-    connect: connectLevels,
+    connect: (text, onUpdate) => connectLevels(text, onUpdate, language),
     errorText: t('chat.sendError'),
   });
 
@@ -42,6 +42,7 @@ export function BuyerChat() {
     if (message.speaker === 'result-group') {
       return (
         <li data-speaker={message.speaker} className="flex flex-col gap-4">
+          {message.title && <h2 className="text-lg font-semibold text-neutral-900">{message.title}</h2>}
           {/* שורת כרטיסים אחת שנגללת אופקית; לכל כרטיס רוחב קבוע (w-72) כדי שלא יימעך. */}
           <ul className="flex gap-4 overflow-x-auto pb-2">
             {message.lots.map((lot) => (

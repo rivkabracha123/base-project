@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auctionLots';
+import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auction-lots';
 import { ResultCard } from './ResultCard';
 
 describe('ResultCard', () => {
@@ -9,7 +9,13 @@ describe('ResultCard', () => {
     render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
 
     expect(screen.getByText('Realized price')).toBeInTheDocument();
-    expect(screen.getByText('$1,200')).toBeInTheDocument();
+    expect(screen.getByText('USD $1,200')).toBeInTheDocument();
+  });
+
+  it('keeps the original currency code visible with sold prices', () => {
+    render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
+
+    expect(screen.getAllByText(/USD/)).not.toHaveLength(0);
   });
 
   it('does not present an unsold estimate as a realized price', () => {
@@ -17,6 +23,15 @@ describe('ResultCard', () => {
 
     expect(screen.getByText('Estimate')).toBeInTheDocument();
     expect(screen.queryByText('Realized price')).not.toBeInTheDocument();
+  });
+
+  it('shows the source status for both sold and unsold lots', () => {
+    const { rerender } = render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
+
+    expect(screen.getByText('Status: Sold')).toBeInTheDocument();
+
+    rerender(<ResultCard lot={unsoldLotFixture} lang="en" onSelect={vi.fn()} />);
+    expect(screen.getByText('Status: Unsold')).toBeInTheDocument();
   });
 
   it('renders without an estimate and selects the lot', () => {

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { emptyBuyerCriteria } from './buyer-criteria';
 import { BuyerSearchService } from './buyer-search.service';
 
 describe('BuyerSearchService', () => {
@@ -9,12 +10,15 @@ describe('BuyerSearchService', () => {
     ) as Array<{ title: { en: string }; category: string }>;
     if (!lot) throw new Error('Expected a committed auction fixture');
 
+    const criteria = emptyBuyerCriteria('en');
+    criteria.categories = [lot.category];
+    criteria.creators = ['Yitzhak Abrabanel'];
+
     const service = new BuyerSearchService();
-    expect(
-      service.createSearchRequest(
-        { category: lot.category, creator: 'Yitzhak Abrabanel', missing: [] },
-        'en',
-      ),
-    ).toEqual({ query: 'Yitzhak Abrabanel', language: 'en' });
+    expect(service.createSearchRequest(criteria, 'en')).toEqual({
+      query: 'Yitzhak Abrabanel',
+      language: 'en',
+      filters: { categories: [lot.category] },
+    });
   });
 });

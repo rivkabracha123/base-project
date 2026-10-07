@@ -50,12 +50,22 @@ export function ChatScreen<T extends { id: string }>({
   }, [messages.length]);
 
   // מתאים את גובה שדה ההקלדה לתוכן: מאפס ל-auto כדי שגם יוכל לקטון, ואז קובע לפי scrollHeight.
+  // scrollHeight לא כולל את עובי המסגרת, ובלעדיה הגובה קטן ב-2px ומופיעים חצי הגלילה מיד;
+  // לכן מוסיפים את המסגרת (offsetHeight - clientHeight). כשהתוכן עובר את max-h-40 הגלילה מופיעה כרגיל.
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
     input.style.height = 'auto';
-    input.style.height = `${input.scrollHeight}px`;
+    const borderHeight = input.offsetHeight - input.clientHeight;
+    input.style.height = `${input.scrollHeight + borderHeight}px`;
   }, [draft]);
+
+  // מחזיר מיקוד לשדה ברגע שהוא חוזר להיות פעיל: בזמן עבודה השדה disabled והדפדפן מוריד ממנו את
+  // המיקוד, ולכן ה-focus() שאחרי השליחה לא מספיק.
+  const isLocked = isLoading || isBusy;
+  useEffect(() => {
+    if (!isLocked) inputRef.current?.focus();
+  }, [isLocked]);
 
   // שולח את תוכן השדה דרך onSend ומנקה את השדה.
   function sendDraft() {

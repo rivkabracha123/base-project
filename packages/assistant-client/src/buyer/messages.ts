@@ -28,6 +28,8 @@ export const buyerMessageSchema = z.discriminatedUnion('speaker', [
   z.object({
     speaker: z.literal('result-group'),
     ...baseMessageFields,
+    // כותרת הקבוצה, כפי שהשרת קובע אותה (למשל "מכירות קרובות"); אופציונלית כדי ששיחות בלי כותרת ימשיכו להיקרא.
+    title: z.string().min(1).optional(),
     lots: z.array(auctionLotSchema),
   }),
 ]);

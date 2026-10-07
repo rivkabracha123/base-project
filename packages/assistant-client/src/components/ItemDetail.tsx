@@ -1,17 +1,22 @@
 import { useState } from 'react';
-import type { AuctionLot, Money } from '@monabid/shared';
+import type { Money } from '@monabid/shared';
+import { PriceHistory } from './PriceHistory';
+import { getComparableSaleHistory, type ItemHistoryLot } from './price-history';
 
 interface ItemDetailProps {
-  lot: AuctionLot;
+  lot: ItemHistoryLot;
   lang: 'he' | 'en';
   onBack: () => void;
+  historyLots?: ItemHistoryLot[];
+  onOpenChat?: () => void;
 }
 
-export function ItemDetail({ lot, lang, onBack }: ItemDetailProps) {
+export function ItemDetail({ lot, lang, onBack, historyLots = [], onOpenChat }: ItemDetailProps) {
   const isRtl = lang === 'he';
   const [showHelpForm, setShowHelpForm] = useState(false);
   const title = lot.title[lang] ?? lot.title.en;
   const description = lot.description[lang] ?? lot.description.en;
+  const historicalSales = getComparableSaleHistory(lot, historyLots);
   const formatCurrency = (money: Money) => new Intl.NumberFormat(lang === 'he' ? 'he-IL' : 'en-US', {
     style: 'currency',
     currency: money.currency,
@@ -65,6 +70,20 @@ export function ItemDetail({ lot, lang, onBack }: ItemDetailProps) {
           </a>
         </div>
       </section>
+
+      <PriceHistory sales={historicalSales} lang={lang} />
+
+      {onOpenChat ? (
+        <section className="mb-8 border-t border-gray-100 pt-6 text-center">
+          <button
+            type="button"
+            onClick={onOpenChat}
+            className="w-full rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 md:w-auto"
+          >
+            {isRtl ? 'שאלי את העוזרת על הפריט' : 'Ask the assistant about this lot'}
+          </button>
+        </section>
+      ) : null}
 
       <section className="border-t border-slate-200 pt-6 text-center">
         {!showHelpForm ? (
