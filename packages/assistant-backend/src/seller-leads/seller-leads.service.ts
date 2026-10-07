@@ -25,7 +25,9 @@ import { Repository } from 'typeorm';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { ProfilesService } from '../profiles/profiles.service';
 import { toSellerLeadValuationSnapshot } from '../valuation-calculation/dashboard-valuation';
+import { isSafeIdentifier } from '../valuation-calculation/privacy-projection';
 import { ItemValuationService } from '../valuation-calculation/item-valuation.service';
+import type { CompleteSellerEnquiryDto } from './complete-seller-enquiry.dto';
 import type { CreateSellerLeadDto } from './create-seller-lead.dto';
 import { loadPreparedHouses } from './house-rank-fixture';
 import { rankActiveHouses } from './house-rank';
@@ -170,12 +172,14 @@ export class SellerLeadsService {
   ): Promise<{ valuation: SellerLeadValuation | null; comparables: SellerLeadComparableRef[] }> {
     if (!this.itemValuation) return { valuation: null, comparables: [] };
     try {
+      const rawVersion = itemVersionFromS1Draft(payload);
       const report = await this.itemValuation.calculateFromItem({
         itemId,
-        itemVersion: itemVersionFromS1Draft(payload),
+        itemVersion: isSafeIdentifier(rawVersion) ? rawVersion : 'confirmed',
         item: sellerItemFromS1Draft(payload),
       });
-      const parsed = sellerLeadValuationSchema.safeParse(toSellerLeadValuationSnapshot(report).dashboard);
+      const snapshot = toSellerLeadValuationSnapshot(report).dashboard;
+      const parsed = sellerLeadValuationSchema.safeParse(snapshot);
       if (!parsed.success) return { valuation: null, comparables: [] };
       return {
         valuation: parsed.data,
@@ -187,6 +191,30 @@ export class SellerLeadsService {
     } catch {
       return { valuation: null, comparables: [] };
     }
+  }
+
+  /**
+   * Display already ranked via s1-handoff. Persist ranks once, stores choice, then submits.
+   * Week 4 stepwise APIs stay for house-choice and contract tests.
+   */
+  async completeEnquiry(payload: CompleteSellerEnquiryDto, sessionId?: string): Promise<SellerLeadEntity> {
+    const enquiry = await this.applyP3Profile(
+      {
+        profileId: payload.profileId ?? 'profile-synthetic-seller-1',
+        contact: payload.contact,
+        serviceConsent: true,
+      },
+      sessionId,
+    );
+    const lead = await this.draft(enquiry);
+    const ranking = this.rankHouses({
+      category: payload.item.category,
+      geography: payload.geography,
+      preferredLanguage: payload.preferredLanguage,
+    });
+    await this.attachRanking(lead.id, ranking);
+    await this.saveSellerChoice(lead.id, payload.houseId);
+    return this.submitFinal(lead.id, payload);
   }
 
   /** S5 Week 3: write the ranking onto the lead without touching sellerChoice. */

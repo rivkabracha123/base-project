@@ -65,6 +65,11 @@ const submittedLead = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+function sendSellerMessage(text = 'I have a painting, 60 x 80 cm, signed.') {
+  fireEvent.change(screen.getByLabelText('Your message'), { target: { value: text } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+}
+
 describe('seller enquiry route', () => {
   it('shows catalog draft before contact and submits an internal lead', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -82,14 +87,8 @@ describe('seller enquiry route', () => {
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         );
       }
-      if (method === 'POST' && /\/seller-leads\/[^/]+\/final/.test(url)) {
+      if (method === 'POST' && url.includes('/seller-leads/enquiry')) {
         return new Response(JSON.stringify(submittedLead), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      if (method === 'POST' && /\/seller-leads\/[^/]+\/choice/.test(url)) {
-        return new Response(JSON.stringify(submittedLead.sellerChoice), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -121,9 +120,14 @@ describe('seller enquiry route', () => {
       </QueryClientProvider>,
     );
 
+    sendSellerMessage();
     expect((await screen.findAllByText('Abstract landscape study')).length).toBeGreaterThan(0);
     expect(screen.getByText('evidence-001')).toBeInTheDocument();
     expect(screen.getByText(/Indicative range/)).toBeInTheDocument();
+    expect(screen.getByText('How many similar products to my product were sold?')).toBeInTheDocument();
+    expect(screen.getByText(/similar sold lots were found in the local auction lots database/)).toBeInTheDocument();
+    expect(screen.getByText('Which product is most similar to the one I want to sell?')).toBeInTheDocument();
+    expect(screen.getByText(/The closest included comparable is/)).toBeInTheDocument();
     expect(screen.getAllByText('Kestenbaum & Company').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/does not contact an auction house automatically/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/commission/i)).not.toBeInTheDocument();
@@ -141,7 +145,7 @@ describe('seller enquiry route', () => {
     });
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/seller-leads/lead-1/final'),
+        expect.stringContaining('/seller-leads/enquiry'),
         expect.objectContaining({ method: 'POST' }),
       );
     });
@@ -216,6 +220,7 @@ describe('seller enquiry route', () => {
       </QueryClientProvider>,
     );
 
+    sendSellerMessage();
     expect((await screen.findAllByText('S1 Confirmed Painting')).length).toBeGreaterThan(0);
     expect(screen.getByText('evidence-s1')).toBeInTheDocument();
     expect(screen.queryByText('file:///secret.jpg')).not.toBeInTheDocument();
@@ -262,6 +267,7 @@ describe('seller enquiry route', () => {
       </QueryClientProvider>,
     );
 
+    sendSellerMessage();
     expect(await screen.findByDisplayValue('Avishag From Profile')).toBeInTheDocument();
     expect(screen.getByDisplayValue('avishag.p3@example.test')).toBeInTheDocument();
   });

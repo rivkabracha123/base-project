@@ -84,7 +84,7 @@ const dashboardSourceSchema = z.object({
 const dashboardValuationComparableSchema = z.object({
   id: z.string().min(1),
   source: dashboardSourceSchema,
-  saleDate: z.string().date().optional(),
+  saleDate: z.string().optional(),
 });
 
 const dashboardExcludedComparableSchema = z.object({

@@ -75,6 +75,7 @@ export const sellerItemDraftSchema = z.object({
     dimensions: sellerDimensionsSchema,
     condition: z.string().optional(),
     markings: z.string().optional(),
+    signatures: z.string().optional(),
     provenance: z.string().optional(),
     eraGuess: z.string().optional(),
     source: z.string().min(1),
@@ -91,6 +92,7 @@ export const sellerItemDraftSchema = z.object({
     dimensions: sellerDimensionsSchema.optional(),
     condition: z.string().optional(),
     markings: z.string().optional(),
+    signatures: z.string().optional(),
     provenance: z.string().optional(),
   }),
   uncertainFacts: z.array(z.object({
@@ -107,6 +109,8 @@ export const sellerItemDraftSchema = z.object({
     summary: z.string().min(1),
     changes: z.array(z.string()),
   })),
+  missingFields: z.array(z.string()).optional(),
+  recalculationRequired: z.boolean().optional(),
   sellerConfirmation: z.object({
     required: z.boolean(),
     status: z.enum(['partial', 'complete', 'pending']),

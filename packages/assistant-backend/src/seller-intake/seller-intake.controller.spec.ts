@@ -4,6 +4,8 @@ import { Test } from '@nestjs/testing';
 import { SellerIntakeController } from './seller-intake.controller';
 import { SellerIntakeService } from './seller-intake.service';
 import { SellerIntakeAiMock } from './seller-intake-ai.mock';
+import { SELLER_INTAKE_AI_PROVIDER } from './seller-intake-ai.provider';
+import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 
 // Tests for the Seller Intake Controller.
 // Verifies that the API accepts seller messages and returns a draft item,
@@ -65,7 +67,12 @@ describe('SellerIntakeController', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [SellerIntakeController],
-      providers: [SellerIntakeService, SellerIntakeAiMock],
+      providers: [
+        SellerIntakeService,
+        SellerIntakeAiMock,
+        { provide: SELLER_INTAKE_AI_PROVIDER, useExisting: SellerIntakeAiMock },
+        { provide: SellerIntakeDraftsService, useValue: { saveIntakeTurn: jest.fn() } },
+      ],
     })
       .compile();
 
