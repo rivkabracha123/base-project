@@ -5,9 +5,16 @@ import {
   type AuctionLot,
   type UserProfile,
   userProfileSchema,
+  houseRankingSchema,
+  sellerChoiceSchema,
+  type HouseRanking,
+  type RankingItem,
+  type SellerChoice,
 } from '@monabid/shared';
 import lotFixtures from '../../../../fixtures/auction-data/lots.json';
-import type { StaffLeadDetail, StaffLead } from '../staff-operations/staff-operations.types';
+import type { StaffLeadDetail, StaffLead, StaffLeadPipeline, UpdateStaffLeadPipelineInput } from '../staff-operations/staff-operations.types';
+import { parseConversation, type BuyerMessage } from '../buyer/messages';
+import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draft-enquiry.json';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const anonymousSessionStorageKey = 'anonymousSessionId';
@@ -93,15 +100,38 @@ export async function updateCurrentProfile(
   return userProfileSchema.parse(await response.json());
 }
 
+// Week 5: delete the current anonymous session's profile.
+export async function deleteCurrentProfile(): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/profiles/me`, {
+    method: 'DELETE',
+    headers: profileHeaders(),
+  });
+
+  if (!response.ok) throw new Error(`Profile deletion failed with status ${response.status}`);
+}
+
 // Keep dashboard data limited to the fields required for manual review.
 const staffLeadListSchema = z.array(z.object({
   id: z.string().min(1),
   type: z.enum(['buyer', 'seller']),
   clientName: z.string().min(1),
   status: z.string().min(1),
+  category: z.string().min(1).optional(),
   requestDetails: z.string().min(1),
   createdAt: z.string().datetime(),
 }));
+
+const staffPipelineStatusSchema = z.enum(['new', 'reviewing', 'contacted', 'qualified', 'item_found', 'negotiating', 'won', 'lost', 'closed']);
+const staffLeadPipelineSchema = z.object({
+  status: staffPipelineStatusSchema,
+  nextAction: z.string().min(1).nullable(),
+  statusHistory: z.array(z.object({
+    at: z.string().datetime(),
+    from: staffPipelineStatusSchema.nullable(),
+    to: staffPipelineStatusSchema,
+  })),
+  activityNotes: z.array(z.object({ at: z.string().datetime(), text: z.string().min(1) })),
+});
 
 const buyerLeadDetailSchema = z.object({
   id: z.string().min(1),
@@ -264,6 +294,12 @@ const staffLeadDetailSchema = z.union([buyerLeadDetailSchema, sellerLeadDetailSc
 
 // Fetches a sample lot either from fixtures or the backend API.
 // Keeps the UI deterministic in fixture mode and contract-safe in real mode.
+/** S5 ranking input until S1 publishes confirmed items. */
+export const sellerRankingItem: RankingItem = {
+  category: 'rare_books',
+  geography: 'United States',
+  preferredLanguage: 'en',
+};
 export async function getSampleLot(language: string, signal?: AbortSignal): Promise<AuctionLot> {
   if (import.meta.env.VITE_FIXTURE_MODE === 'true') {
     const [sampleLot] = auctionLotFixtureSchema.parse(lotFixtures);
@@ -282,6 +318,27 @@ export async function getStaffOperationLeads(signal?: AbortSignal): Promise<Staf
   return staffLeadListSchema.parse(await response.json());
 }
 
+export async function getStaffLeadPipeline(leadId: string, signal?: AbortSignal): Promise<StaffLeadPipeline> {
+  const response = await fetch(`${apiBaseUrl}/staff-operations/leads/${encodeURIComponent(leadId)}/pipeline`, { signal });
+  if (!response.ok) throw new StaffOperationLeadRequestError(response.status);
+  return staffLeadPipelineSchema.parse(await response.json());
+}
+
+export async function updateStaffLeadPipeline(
+  leadId: string,
+  update: UpdateStaffLeadPipelineInput,
+  signal?: AbortSignal,
+): Promise<StaffLeadPipeline> {
+  const response = await fetch(`${apiBaseUrl}/staff-operations/leads/${encodeURIComponent(leadId)}/pipeline`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+    signal,
+  });
+  if (!response.ok) throw new StaffOperationLeadRequestError(response.status);
+  return staffLeadPipelineSchema.parse(await response.json());
+}
+
 export async function getStaffOperationLeadDetail(
   leadId: string,
   leadType: StaffLead['type'] = 'buyer',
@@ -295,4 +352,67 @@ export async function getStaffOperationLeadDetail(
   return leadType === 'seller'
     ? sellerLeadDetailSchema.parse(await response.json())
     : buyerLeadDetailSchema.parse(await response.json());
+}
+
+export async function getLotById(id: string, language: string, signal?: AbortSignal): Promise<AuctionLot> {
+  if (import.meta.env.VITE_FIXTURE_MODE === 'true') {
+    const lot = auctionLotFixtureSchema.parse(lotFixtures).find((fixture) => fixture.id === id);
+    if (!lot) throw new Error('API request failed with status 404');
+    return lot;
+  }
+
+  const response = await fetch(`${apiBaseUrl}/lots/${encodeURIComponent(id)}?language=${encodeURIComponent(language)}`, { signal });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  return auctionLotSchema.parse(await response.json());
+}
+
+export async function getConversation(language: string, signal?: AbortSignal): Promise<BuyerMessage[]> {
+  const response = await fetch(`${apiBaseUrl}/chat/conversation?language=${encodeURIComponent(language)}`, { signal });
+  if (!response.ok) throw new Error(`Conversation API request failed with status ${response.status}`);
+  return parseConversation(await response.json());
+}
+
+/** S5 Week 2: create an internal draft lead. Uses the prepared P3-shaped contact fixture. */
+export async function createSellerLead(signal?: AbortSignal): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(draftEnquiryFixture.request),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  const body = (await response.json()) as { id?: string };
+  if (!body.id) throw new Error('Draft enquiry did not return an id');
+  return body.id;
+}
+
+/** S5 Week 3: rank houses for that lead and store the ranking on it. */
+export async function rankHousesForLead(leadId: string, signal?: AbortSignal): Promise<HouseRanking> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/house-rankings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sellerRankingItem),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  return houseRankingSchema.parse(await response.json());
+}
+
+/**
+ * S5 Week 4: save the seller’s house pick.
+ * Parses the response with sellerChoiceSchema so a bad API shape cannot reach the UI.
+ */
+export async function saveSellerHouseChoice(
+  leadId: string,
+  houseId: string,
+  signal?: AbortSignal,
+): Promise<SellerChoice> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/choice`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ houseId }),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  return sellerChoiceSchema.parse(await response.json());
 }

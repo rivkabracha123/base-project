@@ -1,7 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import type { AuctionLot } from '@monabid/shared';
+import { type AuctionLot, validateAuctionLotFixture } from '@monabid/shared';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { LotsModule } from './lots.module';
 
@@ -115,5 +115,60 @@ describe('Lots API (integration)', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(lot);
+  });
+
+  it('serves only the validated canonical records to the search consumer', async () => {
+    // Raw import batch: two valid lots plus one broken record that must never reach the consumer.
+    const rawImportBatch = [
+      { ...lot, id: 'lot-valid-1' },
+      { ...lot, id: 'lot-valid-2' },
+      { id: 'lot-broken-1' }, // missing every required field but id
+    ];
+
+    // Producer step (P1): validate the raw batch before anything is served.
+    const { records: validatedRecords } = validateAuctionLotFixture(rawImportBatch);
+    expect(validatedRecords).toHaveLength(2); // sanity check: the broken record was filtered here
+
+    // Seed the mocked DB with only what validation accepted.
+    queryBuilder.getManyAndCount.mockResolvedValueOnce([
+      validatedRecords.map((payload) => ({ payload })),
+      validatedRecords.length,
+    ]);
+
+    // Consumer step (P2): a real search request through the actual controller/service.
+    const response = await postSearch({ filters: { categories: ['rare_books'] } });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.map((entry: AuctionLot) => entry.id)).toEqual(['lot-valid-1', 'lot-valid-2']);
+    expect(body.data.every((entry: AuctionLot) => entry.title?.en && entry.category)).toBe(true);
+  });
+
+  it('serves a record with every optional field missing, fully intact', async () => {
+    const minimalRecord = {
+      id: 'lot-minimal-1',
+      source: { provider: 'demo', recordId: 'minimal-1', url: 'https://example.com/minimal-1', retrievedAt: '2025-01-01T00:00:00.000Z' },
+      auctionHouse: { id: 'house-1', name: 'Demo House' },
+      auctionTitle: 'Demo Auction',
+      lotNumber: '1',
+      title: { en: 'Minimal lot' },
+      description: { en: 'No optional fields at all.' },
+      category: 'rare_books',
+      saleDate: '2025-01-01',
+      status: 'upcoming',
+    };
+    const { records: validatedRecords } = validateAuctionLotFixture([minimalRecord]);
+    expect(validatedRecords).toHaveLength(1); // sanity check: minimal record is accepted, not rejected
+
+    queryBuilder.getManyAndCount.mockResolvedValueOnce([
+      validatedRecords.map((payload) => ({ payload })),
+      validatedRecords.length,
+    ]);
+
+    const response = await postSearch({ filters: { categories: ['rare_books'] } });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([minimalRecord]);
   });
 });

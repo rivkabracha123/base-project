@@ -1,12 +1,19 @@
 // Define and validate the buyer handoff contract
-export type BuyerHandoffContract = {
+export type BuyerExtraction = {
+  role: 'buyer';
   language: 'he' | 'en';
   intent: string;
-  category: string;
-  missingFacts: string[];
+  category?: string;
+  creators?: string[];
+  periods?: string[];
+  price?: { min?: number; max?: number; currency?: string };
+  keywords?: string[];
+  geography?: string[];
   hasContactDetails: boolean;
   hasImages: boolean;
 };
+
+export type BuyerHandoffContract = BuyerExtraction;
 
 export function isBuyerHandoffContract(value: unknown): value is BuyerHandoffContract {
   if (!value || typeof value !== 'object') {
@@ -16,14 +23,28 @@ export function isBuyerHandoffContract(value: unknown): value is BuyerHandoffCon
   const handoff = value as Record<string, unknown>;
 
   return (
+    handoff.role === 'buyer' &&
     (handoff.language === 'he' || handoff.language === 'en') &&
     typeof handoff.intent === 'string' &&
     handoff.intent.trim().length > 0 &&
-    typeof handoff.category === 'string' &&
-    handoff.category.trim().length > 0 &&
-    Array.isArray(handoff.missingFacts) &&
-    handoff.missingFacts.every((fact) => typeof fact === 'string') &&
+    (handoff.category === undefined || (typeof handoff.category === 'string' && handoff.category.trim().length > 0)) &&
+    (handoff.creators === undefined || (Array.isArray(handoff.creators) && handoff.creators.every((creator) => typeof creator === 'string'))) &&
+    (handoff.periods === undefined || (Array.isArray(handoff.periods) && handoff.periods.every((period) => typeof period === 'string'))) &&
+    (handoff.price === undefined || isValidPrice(handoff.price)) &&
+    (handoff.keywords === undefined || (Array.isArray(handoff.keywords) && handoff.keywords.every((keyword) => typeof keyword === 'string'))) &&
+    (handoff.geography === undefined || (Array.isArray(handoff.geography) && handoff.geography.every((place) => typeof place === 'string'))) &&
     typeof handoff.hasContactDetails === 'boolean' &&
     typeof handoff.hasImages === 'boolean'
+  );
+}
+
+function isValidPrice(value: unknown): value is BuyerExtraction['price'] {
+  if (!value || typeof value !== 'object') return false;
+
+  const price = value as Record<string, unknown>;
+  return (
+    (price.min === undefined || typeof price.min === 'number') &&
+    (price.max === undefined || typeof price.max === 'number') &&
+    (price.currency === undefined || typeof price.currency === 'string')
   );
 }
