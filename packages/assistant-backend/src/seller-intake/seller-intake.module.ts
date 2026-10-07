@@ -9,7 +9,6 @@ import { SellerIntakeController } from './seller-intake.controller';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 import { SellerIntakeService } from './seller-intake.service';
 
-// Registers the seller-intake API and its extraction service with NestJS.
 @Module({
   imports: [TypeOrmModule.forFeature([SellerIntakeDraftEntity]), AiModule],
   controllers: [SellerIntakeController],

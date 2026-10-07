@@ -49,6 +49,15 @@ export function AppHeader() {
           >
             {t('navigation.enquiry')}
           </Link>
+         
+          {import.meta.env.DEV && (
+            <Link
+              to="/seller/gallery"
+              className="text-sm font-medium text-slate-700 hover:text-slate-950"
+            >
+              {t('navigation.gallery')}
+            </Link>
+          )}
         </nav>
         <Button
           // Save the user's choice before changing the visible interface.

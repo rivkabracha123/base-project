@@ -32,5 +32,5 @@ export type SellerIntakeAiResult = SellerIntakeResult & {
 };
 
 export interface SellerIntakeAiProvider {
-  analyze(input: string, sessionId?: string): Promise<SellerIntakeAiResult>;
+  analyze(input: string, sessionId?: string): Promise<SellerIntakeAiResult> | SellerIntakeAiResult;
 }

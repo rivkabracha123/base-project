@@ -164,6 +164,13 @@ describe('SellerIntakeService', () => {
     expect(result.materials).not.toContain('metal');
   });
 
+  it('classifies a Hebrew printed book as rare_books for S3 matching', () => {
+    const result = service.parseSellerInput(
+      'I have a rare Hebrew book, a printed sefer from the family archive.',
+    );
+    expect(result.category).toBe('rare_books');
+  });
+
   it('creates an initial bilingual draft from Hebrew seller input', () => {
     const result = service.createInitialDraft(
       'יש לי ציור בגודל 60 על 80 ס"מ, חתום בפינה הימנית התחתונה.'
@@ -421,10 +428,22 @@ it('updates seller corrections and fact confirmation status', () => {
       'I have a painting, 60 x 80 cm, signed.',
     );
 
+    expect(draft.item.title).toBe('Painting 60x80 cm');
+    expect(draft.item.catalogDraft.en).toContain('paintings');
+    expect(draft.item.catalogDraft.en).toContain('60x80');
     expect(draft.confirmedFacts).toEqual({});
     expect(draft.item.provenance).toBeUndefined();
     expect(draft.item.condition).toBeUndefined();
     expect(draft.sellerConfirmation.status).toBe('pending');
+  });
+
+  it('changes the draft title and catalog when the seller message changes', () => {
+    const painting = service.createDraftFromSellerInput(fixture, 'I have a painting, 40 x 50 cm, signed.');
+    const other = service.createDraftFromSellerInput(fixture, 'Bronze figurine from a family archive.');
+
+    expect(painting.item.title).toBe('Painting 40x50 cm');
+    expect(other.item.title).toContain('Bronze figurine');
+    expect(painting.item.catalogDraft.en).not.toBe(other.item.catalogDraft.en);
   });
 
   it('confirms only requested available facts and keeps unconfirmed catalog fields explicit', () => {

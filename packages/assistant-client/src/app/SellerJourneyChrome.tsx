@@ -1,11 +1,57 @@
-import type { RankedHouse } from '@monabid/shared';
+import type { HouseRanking, RankedHouse } from '@monabid/shared';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const categoryLabels: Record<string, { en: string; he: string }> = {
+export const categoryLabels: Record<string, { en: string; he: string }> = {
   rare_books: { en: 'Rare books', he: 'ספרים וכתבי יד נדירים' },
   judaica: { en: 'Judaica', he: 'יודיאיקה' },
+  paintings: { en: 'Paintings', he: 'ציורים' },
 };
+
+export function selectableHouses(ranking: HouseRanking): RankedHouse[] {
+  return [ranking.recommendation, ...ranking.alternatives].filter(
+    (row): row is RankedHouse => Boolean(row?.house.active),
+  );
+}
+
+export function HouseRankingPicker({
+  ranking,
+  houseId,
+  onSelect,
+}: {
+  ranking: HouseRanking;
+  houseId?: string;
+  onSelect: (houseId: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {ranking.recommendation ? (
+          <HouseJourneyCard
+            row={ranking.recommendation}
+            selectedId={houseId}
+            recommended
+            onSelect={onSelect}
+          />
+        ) : (
+          <p className="text-stone-600">{t('houses.none')}</p>
+        )}
+        {ranking.alternatives.map((row) => (
+          <HouseJourneyCard
+            key={row.house.id}
+            row={row}
+            selectedId={houseId}
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+      {ranking.alternatives.length === 0 ? (
+        <p className="text-sm text-stone-500">{t('houses.noAlternatives')}</p>
+      ) : null}
+    </>
+  );
+}
 
 export function JourneyBubble({ children }: { children: ReactNode }) {
   return (

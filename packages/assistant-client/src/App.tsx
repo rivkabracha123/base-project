@@ -9,6 +9,7 @@ import { ResultsPage } from './components/ResultPage';
 import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
 import { SellerEnquiryPage } from './app/SellerEnquiryPage';
 import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
+import { EvidenceGallery } from './app/evidenceGallery'
 
 export function App() {
   return (
@@ -25,6 +26,12 @@ export function App() {
         <Route path="/chat" element={<Navigate to="/chat/buyer" replace />} />
         {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
         <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
+        {import.meta.env.DEV && (
+        <Route
+            path="/seller/gallery"
+            element={<EvidenceGallery profileId="demo-profile-gallery" />}
+        />
+        )}
         {/* S5 Week 5: catalog draft review and final internal lead */}
         <Route path="/seller/enquiry" element={<SellerEnquiryPage />} />
         <Route path="*" element={<Navigate to="/results" replace />} />

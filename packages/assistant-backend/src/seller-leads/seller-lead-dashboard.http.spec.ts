@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { sellerLeadDashboardDetailFixture, sellerLeadDashboardDetailSchema } from '@monabid/shared';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
+import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { UserProfileEntity } from '../database/user-profile.entity';
 import { SellerLeadsModule } from './seller-leads.module';
 
@@ -31,6 +32,8 @@ describe('SellerLeadsController dashboard detail (P5 contract)', () => {
         create: jest.fn((row: Partial<UserProfileEntity>) => Object.assign(new UserProfileEntity(), row)),
         save: jest.fn(async (row: UserProfileEntity) => row),
       })
+      .overrideProvider(getRepositoryToken(AuctionLotEntity))
+      .useValue({ find: jest.fn(async () => []) })
       .compile();
 
     app = moduleRef.createNestApplication();

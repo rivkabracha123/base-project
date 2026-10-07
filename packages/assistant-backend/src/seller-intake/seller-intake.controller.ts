@@ -12,22 +12,32 @@ export class SellerIntakeController {
   ) {}
 
   @Post('draft')
-  // מנתח ושומר טיוטת intake המבודדת לפי מזהי הפרופיל והשיחה.
-  // Analyzes and persists an intake draft scoped to the profile and session identifiers.
+  // מנתח טיוטת intake; שומר אותה רק כש-profileId ו-sessionId נשלחים יחד.
+  // Analyzes an intake draft; persists it only when both profileId and sessionId are sent.
   async createDraft(@Body() body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
     const { input, sessionId, profileId } = body;
     if (typeof input !== 'string' || input.trim().length === 0) {
       throw new BadRequestException('input must be a non-empty string');
     }
-    if (typeof profileId !== 'string' || !profileId.trim()) {
-      throw new BadRequestException('profileId is required');
+
+    const hasProfileId = typeof profileId === 'string' && profileId.trim().length > 0;
+    const hasSessionId = typeof sessionId === 'string' && sessionId.trim().length > 0;
+    // Sending only one of the two identifiers is a client mistake, so reject it instead of silently skipping the save.
+    if (hasProfileId !== hasSessionId) {
+      throw new BadRequestException('profileId and sessionId must be sent together');
     }
-    if (typeof sessionId !== 'string' || !sessionId.trim()) {
-      throw new BadRequestException('sessionId is required');
+    const hasScope = hasProfileId && hasSessionId;
+
+    if (!hasScope) {
+      const { sessionId: _sessionId, ...analysis } = await this.sellerIntakeAi.analyze(input);
+      return analysis;
     }
 
     const scopedSessionId = `${profileId}:${sessionId}`;
-    const { sessionId: _sessionId, structuredAnswer, ai, ...analysis } = await this.sellerIntakeAi.analyze(input, scopedSessionId);
+    const { sessionId: _sessionId, structuredAnswer, ai, ...analysis } = await this.sellerIntakeAi.analyze(
+      input,
+      scopedSessionId,
+    );
     const stableId = createHash('sha256').update(scopedSessionId).digest('hex').slice(0, 24);
     const persistedDraft = {
       ...analysis,
@@ -35,7 +45,7 @@ export class SellerIntakeController {
       seller: { ...analysis.seller, anonymousProfileId: profileId },
       item: { ...analysis.item, id: `seller-item-${stableId}` },
     };
-    await this.drafts.saveIntakeTurn(profileId, sessionId, persistedDraft);
+    await this.drafts.saveIntakeTurn(String(profileId), String(sessionId), persistedDraft);
     return { ...persistedDraft, structuredAnswer, ai };
   }
 
