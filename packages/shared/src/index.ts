@@ -23,3 +23,4 @@ export * from './profile-contact-snapshot';
 export * from './p3-current-profile';
 export * from './s1-seller-handoff';
 export * from './seller-enquiry-events';
+export * from './valuation-history';
