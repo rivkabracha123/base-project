@@ -6,9 +6,9 @@ import { AuctionLotEntity } from '../database/auction-lot.entity';
 import type { LotSearchDto } from './lot-search.dto';
 import { LotsService } from './lots.service';
 
-// B3 <-> P2 Week 4 CONNECT: shared named-fixture proof for both verification reports; see the fixture's own `description`.
+// Shared named-fixture proof of the buyer-search <-> lots-search contract; see the fixture's own `description`.
 const contract = JSON.parse(
-  readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-p2-connect.json'), 'utf8'),
+  readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
   namedLotId: string;
   expectedResponse: PaginatedResult<AuctionLot>;
