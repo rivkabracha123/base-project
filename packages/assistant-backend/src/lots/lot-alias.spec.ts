@@ -58,6 +58,10 @@ describe('curated alias variants', () => {
       expect(resolveCreatorAlias(value)).toBe('yitzhak_abrabanel');
     },
   );
+
+  it.each(['לאה מזרחי', 'Leah Mizrahi'])('resolves the creator "%s" to leah_mizrahi', (value: string) => {
+    expect(resolveCreatorAlias(value)).toBe('leah_mizrahi');
+  });
 });
 
 describe('resolveCategoryAlias', () => {
