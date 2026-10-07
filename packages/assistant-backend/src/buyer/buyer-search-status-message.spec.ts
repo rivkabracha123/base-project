@@ -1,8 +1,8 @@
 import { emptyBuyerCriteria } from './buyer-criteria';
 import { toBuyerSearchStatusMessage } from './buyer-search-status-message';
 
-// B3 -> B1: the chat only ever gets a plain found/not-found status, never lots or the search request.
-// id/sessionId are B1's to attach when the message joins the conversation, not B3's to return.
+// Buyer search -> buyer chat: the chat only ever gets a plain found/not-found status, never lots or the search request.
+// id/sessionId are attached by the chat when the message joins the conversation, not returned by the search.
 describe('toBuyerSearchStatusMessage', () => {
   it('reports results-found in English when the search returned results', () => {
     expect(toBuyerSearchStatusMessage({ kind: 'results' }, { language: 'en' })).toEqual({

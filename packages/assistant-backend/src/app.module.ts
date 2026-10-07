@@ -18,6 +18,8 @@ import { SellerLeadEntity } from './database/seller-lead.entity';
 import { BuyerModule } from './buyer/buyer.module';
 import { CreateUserProfiles1730000000000 } from './database/1730000000000-create-user-profiles';
 import { CreateStaffOperations1725000000000 } from './database/1725000000000-create-staff-operations';
+import { BuyerUnmatchedDemandEntity } from './database/buyer-unmatched-demand.entity';
+import { CreateBuyerUnmatchedDemand1740000000000 } from './database/1740000000000-create-buyer-unmatched-demand';
 import { AiModule } from './ai/ai.module';
 import { HealthModule } from './health/health.module';
 import { LotsModule } from './lots/lots.module';
@@ -44,6 +46,7 @@ import { StaffOperationsModule } from './staff-operations/staff-operations.modul
           BuyerConversationEntity,
           UserProfileEntity,
           StaffOperationEntity,
+          BuyerUnmatchedDemandEntity,
         ],
         migrations: [
           CreateAuctionLots1710000000000,
@@ -51,6 +54,7 @@ import { StaffOperationsModule } from './staff-operations/staff-operations.modul
           CreateBuyerTables1710000000002,
           CreateUserProfiles1730000000000,
           CreateStaffOperations1725000000000,
+          CreateBuyerUnmatchedDemand1740000000000,
         ],
         synchronize: false,
       }),

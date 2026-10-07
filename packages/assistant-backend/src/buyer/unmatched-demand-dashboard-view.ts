@@ -1,7 +1,7 @@
 import type { BuyerSearchRequest } from './buyer-search-request';
 import type { DemandSummary } from './explained-results';
 
-/** Dashboard-safe unmatched buyer demand view for P5. */
+/** Dashboard-safe unmatched buyer demand view for the staff dashboard. */
 export interface BuyerUnmatchedDemandDashboardView {
   id: string;
   type: 'buyer';

@@ -41,14 +41,14 @@ describe('criteriaToSearchRequest', () => {
     });
   });
 
-  it('sends structured filters for every P1-populated facet, including creators, leaving unsupported facets out', () => {
+  it('sends structured filters for every populated auction-data facet, including creators, leaving unsupported facets out', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.categories = ['rare_books'];
     criteria.creators = ['Yitzhak Abrabanel'];
     criteria.auctionHouseIds = ['house-1'];
     criteria.dateRange = { from: '2026-01-01', to: '2026-12-31' };
     criteria.price = { min: 500, max: 1200, currency: 'USD' };
-    // periods/media/geography have no P2 filter facet at all and must stay out of `filters`.
+    // periods/media/geography have no lots-search filter facet at all and must stay out of `filters`.
     criteria.periods = ['15th century'];
     criteria.media = ['painting'];
     criteria.geography = ['Israel'];
@@ -62,7 +62,7 @@ describe('criteriaToSearchRequest', () => {
     });
   });
 
-  it('omits filters entirely when no criteria map to a P2-supported facet', () => {
+  it('omits filters entirely when no criteria map to a lots-search-supported facet', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.keywords = ['rare'];
     criteria.periods = ['15th century'];

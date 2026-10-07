@@ -8,7 +8,7 @@ import type { PaginatedSearchResult, SearchRequest } from './search-request';
 
 // Shared named-fixture proof for criteria → lots search; see the fixture's own `description`.
 const contract = JSON.parse(
-  readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-p2-connect.json'), 'utf8'),
+  readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
   namedLotId: string;
   expectedResponse: PaginatedSearchResult<AuctionLot>;
@@ -21,7 +21,7 @@ const contract = JSON.parse(
 };
 
 const lead = {
-  leadId: 'buyer-lead-p2-connect',
+  leadId: 'buyer-lead-named-lot',
   status: 'new',
   createdAt: '2026-09-01T10:00:00.000Z',
   searchedAt: '2026-09-01T10:01:00.000Z',

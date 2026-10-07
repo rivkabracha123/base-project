@@ -1,6 +1,6 @@
 {
-  "id": "buyer-search-explained-results-w4",
-  "description": "B3 Week 4 CONNECT scenario. Trace one named criteria fixture from B2 (Eliana Avnad) through B3 (Avital Zak) into the B4 (Batya Simon) results handoff and the P5 (Rivka Bracha Benjo) unmatched-demand handoff. B3 groups exactly the lots P2 (Mali Chasai) returned into current (upcoming) and historical (past sales), attaches deterministic match reasons derived from the criteria, derives the hard constraints that must survive refinement, and on no results returns an honest demand summary without relaxing the budget or inventing inventory. Contains no profile, session, contact, or conversation data. p2ResultLots are embedded full AuctionLot objects so the B3 contract fixture does not depend on the size of P1's dataset.",
+  "id": "buyer-search-explained-results",
+  "description": "Explained buyer search results. Traces one named criteria fixture through the buyer search orchestration into the results hand-off and the unmatched-demand hand-off. The orchestrator groups exactly the lots the lots search returned into current (upcoming) and historical (past sales), attaches deterministic match reasons derived from the criteria, derives the hard constraints that must survive refinement, and on no results returns an honest demand summary without relaxing the budget or inventing inventory. Contains no profile, session, contact, or conversation data. resultLots are embedded full AuctionLot objects so this fixture does not depend on the size of the auction dataset.",
   "scenario": {
     "language": "en",
     "criteria": {
@@ -15,7 +15,7 @@
       "language": "en",
       "hardConstraints": []
     },
-    "p2ResultLots": [
+    "resultLots": [
       {
         "id": "lot-kestenbaum-2026-spring-12",
         "source": {
@@ -72,7 +72,7 @@
         "realizedPrice": { "amount": 1200, "currency": "USD" }
       }
     ],
-    "p2UnmatchedLots": []
+    "unmatchedLots": []
   },
   "expected": {
     "hardConstraints": [

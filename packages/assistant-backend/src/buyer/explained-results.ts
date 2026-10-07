@@ -1,29 +1,32 @@
 import type { AuctionLot } from '@monabid/shared';
+import type { RelaxableField } from './approved-relaxation';
 import type { BuyerCriteria, Constraint } from './buyer-criteria';
 
-/** Why one returned lot matched: a typed field plus a short detail for B4 to render. */
+/** Why one returned lot matched: a typed field plus a short detail for the result cards to render. */
 export interface MatchReason {
   field: 'categories' | 'price' | 'creators' | 'keywords' | 'periods' | 'geography' | 'auctionHouseIds';
   detail: string;
 }
 
-/** A P2 result lot paired with the deterministic reasons it matched. */
+/** A lots-search result lot paired with the deterministic reasons it matched. */
 export interface ExplainedLot {
   lot: AuctionLot;
   matchReasons: MatchReason[];
 }
 
-/** Results grouped for B4 as upcoming ("current") vs past sales ("historical"). */
+/** Results grouped for the result cards as upcoming ("current") vs past sales ("historical"). */
 export interface GroupedResults {
   current: ExplainedLot[];
   historical: ExplainedLot[];
 }
 
-/** Honest no-result account for P5: active criteria, enforced hard constraints, no relaxation or invention. */
+/** Honest no-result account for the staff dashboard: criteria sent, the buyer's hard constraints, and any buyer-approved relaxation. */
 export interface DemandSummary {
   appliedCriteria: MatchReason['field'][];
   hardConstraints: Constraint[];
-  recovery: 'no_relaxation_no_invention';
+  recovery: 'no_relaxation_no_invention' | 'approved_relaxation_no_invention';
+  // Present only when the buyer approved dropping these filters for the search that still found nothing.
+  relaxedFields?: RelaxableField[];
 }
 
 const BUDGET_REASON = 'Buyer budget is a hard limit and is not relaxed without approval';
@@ -146,7 +149,7 @@ export function explainMatch(criteria: BuyerCriteria, lot: AuctionLot): MatchRea
   return reasons;
 }
 
-// Groups exactly the P2 lots into current (upcoming) and historical, attaching match reasons.
+// Groups exactly the returned lots into current (upcoming) and historical, attaching match reasons.
 export function groupExplainedLots(criteria: BuyerCriteria, lots: AuctionLot[]): GroupedResults {
   const explained: ExplainedLot[] = lots.map((lot) => ({
     lot,
@@ -159,18 +162,25 @@ export function groupExplainedLots(criteria: BuyerCriteria, lots: AuctionLot[]):
   };
 }
 
-/** Builds the honest no-result summary handed to P5; lists only criteria actually sent to P2. */
-export function buildDemandSummary(criteria: BuyerCriteria): DemandSummary {
+/** Builds the honest no-result summary handed to the staff dashboard; lists only criteria actually sent to the lots search, after approved relaxation. */
+export function buildDemandSummary(
+  criteria: BuyerCriteria,
+  relaxedFields: readonly RelaxableField[] = [],
+): DemandSummary {
+  const relaxed = new Set(relaxedFields);
   const applied: MatchReason['field'][] = [];
-  if (hasBudget(criteria)) applied.push('price');
-  if (criteria.categories.length > 0) applied.push('categories');
-  if (criteria.creators.length > 0) applied.push('creators');
-  if (criteria.auctionHouseIds.length > 0) applied.push('auctionHouseIds');
+  if (hasBudget(criteria) && !relaxed.has('price')) applied.push('price');
+  if (criteria.categories.length > 0 && !relaxed.has('categories')) applied.push('categories');
+  if (criteria.creators.length > 0 && !relaxed.has('creators')) applied.push('creators');
+  if (criteria.auctionHouseIds.length > 0 && !relaxed.has('auctionHouseIds')) applied.push('auctionHouseIds');
   if (criteria.keywords.length > 0) applied.push('keywords');
 
+  // Hard constraints are the buyer's own and stay intact even when one search ran without them.
   return {
     appliedCriteria: applied,
     hardConstraints: deriveHardConstraints(criteria),
-    recovery: 'no_relaxation_no_invention',
+    ...(relaxedFields.length > 0
+      ? { recovery: 'approved_relaxation_no_invention' as const, relaxedFields: [...relaxedFields] }
+      : { recovery: 'no_relaxation_no_invention' as const }),
   };
 }

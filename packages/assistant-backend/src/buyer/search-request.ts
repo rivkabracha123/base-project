@@ -1,4 +1,4 @@
-/** Structured narrowing mirroring P2's LotFiltersDto; P2 resolves creator names to canonical tokens. */
+/** Structured narrowing mirroring LotFiltersDto; the lots search resolves creator names to canonical tokens. */
 export interface SearchFilters {
   categories?: string[];
   creators?: string[];
@@ -7,14 +7,14 @@ export interface SearchFilters {
   price?: { min?: number; max?: number; currency?: string };
 }
 
-/** Request sent from B3 to P2's POST /api/lots/search, mirroring P2's LotSearchDto. */
+/** Request sent to POST /api/lots/search, mirroring LotSearchDto. */
 export interface SearchRequest {
   query: string;
   language: 'en' | 'he';
   filters?: SearchFilters;
 }
 
-/** Mirrors P2's PaginatedResult<AuctionLot> pending its publication in @monabid/shared. */
+/** Mirrors the lots search's PaginatedResult<AuctionLot> pending its publication in @monabid/shared. */
 export interface PaginatedSearchResult<T> {
   data: T[];
   total: number;

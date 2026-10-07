@@ -24,8 +24,8 @@ const contract = JSON.parse(
   scenario: {
     language: 'en' | 'he';
     criteria: BuyerCriteria;
-    p2ResultLots: unknown[];
-    p2UnmatchedLots: unknown[];
+    resultLots: unknown[];
+    unmatchedLots: unknown[];
   };
   expected: {
     hardConstraints: unknown[];
@@ -46,7 +46,7 @@ const buyerCriteria = (): BuyerCriteria => ({
   ...scenario.criteria,
 });
 
-const searchResultLots = scenario.p2ResultLots.map((lot) => auctionLotSchema.parse(lot));
+const searchResultLots = scenario.resultLots.map((lot) => auctionLotSchema.parse(lot));
 const lead = {
   leadId: 'buyer-lead-explained-results-demo',
   status: 'new',
@@ -111,7 +111,7 @@ describe('Search explained results contract (criteria → grouped results / no-m
   });
 
   it('recovers from no results with an honest demand summary and no budget relaxation', async () => {
-    const lotsSearch = { search: jest.fn().mockResolvedValue(page(scenario.p2UnmatchedLots as AuctionLot[])) };
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(scenario.unmatchedLots as AuctionLot[])) };
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({

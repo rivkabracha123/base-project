@@ -107,7 +107,7 @@ describe('explainMatch', () => {
 });
 
 describe('groupExplainedLots', () => {
-  it('splits exactly the P2 lots into current (upcoming) and historical', () => {
+  it('splits exactly the returned lots into current (upcoming) and historical', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.categories = ['rare_books'];
 
@@ -133,7 +133,7 @@ describe('groupExplainedLots', () => {
 });
 
 describe('buildDemandSummary', () => {
-  it('leaves criteria P2 cannot filter out of appliedCriteria', () => {
+  it('leaves criteria the lots search cannot filter out of appliedCriteria', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.categories = ['rare_books'];
     criteria.periods = ['19th century'];

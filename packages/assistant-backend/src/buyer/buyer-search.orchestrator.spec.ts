@@ -18,6 +18,9 @@ const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
   totalPages: data.length > 0 ? 1 : 0,
 });
 
+// Smallest criteria the lots search can search by: one category filter (empty criteria never reach it).
+const searchableCriteria = () => ({ ...emptyBuyerCriteria('en'), categories: ['rare_books'] });
+
 const baseLead = {
   leadId: 'lead-1',
   status: 'new',
@@ -125,6 +128,10 @@ describe('BuyerSearchOrchestrator', () => {
           },
         },
       },
+      relaxationOptions: [
+        { field: 'creators', requiresApproval: true },
+        { field: 'price', requiresApproval: true },
+      ],
     });
     expect(JSON.stringify(outcome)).not.toContain('profileId');
     expect(JSON.stringify(outcome)).not.toContain('conversation');
@@ -179,7 +186,7 @@ describe('BuyerSearchOrchestrator', () => {
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
-      criteria: emptyBuyerCriteria('en'),
+      criteria: searchableCriteria(),
       language: 'en',
       ...baseLead,
       selectedLotId: 'lot-1',
@@ -242,40 +249,40 @@ describe('BuyerSearchOrchestrator', () => {
   });
 
   it('reports in-process progress to an optional callback, in order, with no lot data', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
     const progress: unknown[] = [];
 
     await orchestrator.search(
-      { criteria: emptyBuyerCriteria('en'), language: 'en', ...baseLead },
+      { criteria: searchableCriteria(), language: 'en', ...baseLead },
       (update) => progress.push(update),
     );
 
     expect(progress).toEqual([{ stage: 'searching' }, { stage: 'results-found', count: 1 }]);
   });
 
-  it('reports a no-results progress stage when P2 returns nothing', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+  it('reports a no-results progress stage when the lots search returns nothing', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
     const progress: unknown[] = [];
 
     await orchestrator.search(
-      { criteria: emptyBuyerCriteria('en'), language: 'en', ...baseLead },
+      { criteria: searchableCriteria(), language: 'en', ...baseLead },
       (update) => progress.push(update),
     );
 
     expect(progress).toEqual([{ stage: 'searching' }, { stage: 'no-results' }]);
   });
 
-  it('reports an error stage when P2 fails, and still rethrows the original error', async () => {
-    const failure = new Error('P2 unavailable');
-    const p2 = { search: jest.fn().mockRejectedValue(failure) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+  it('reports an error stage when the lots search fails, and still rethrows the original error', async () => {
+    const failure = new Error('lots search unavailable');
+    const lotsSearch = { search: jest.fn().mockRejectedValue(failure) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
     const progress: unknown[] = [];
 
     await expect(
       orchestrator.search(
-        { criteria: emptyBuyerCriteria('en'), language: 'en', ...baseLead },
+        { criteria: searchableCriteria(), language: 'en', ...baseLead },
         (update) => progress.push(update),
       ),
     ).rejects.toBe(failure);
@@ -284,11 +291,11 @@ describe('BuyerSearchOrchestrator', () => {
   });
 
   it('keeps searching when the progress callback itself throws', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search(
-      { criteria: emptyBuyerCriteria('en'), language: 'en', ...baseLead },
+      { criteria: searchableCriteria(), language: 'en', ...baseLead },
       () => {
         throw new Error('listener broke');
       },
@@ -298,11 +305,11 @@ describe('BuyerSearchOrchestrator', () => {
   });
 
   it('works with no callback at all, unchanged from before', async () => {
-    const p2 = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
-      criteria: emptyBuyerCriteria('en'),
+      criteria: searchableCriteria(),
       language: 'en',
       ...baseLead,
     });
