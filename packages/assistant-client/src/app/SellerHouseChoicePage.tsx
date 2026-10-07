@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState, PageShell } from '@monabid/ui';
-import type { HouseRanking, RankedHouse } from '@monabid/shared';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   createSellerLead,
@@ -12,17 +11,7 @@ import {
   rankingItemFromS1Draft,
   saveSellerHouseChoice,
 } from './api';
-import { HouseJourneyCard, JourneyBubble } from './SellerJourneyChrome';
-
-/**
- * S5 Week 4 screen: recommended house + alternatives, then save a seller pick.
- * Inactive / excluded houses never appear — the seller can only choose an active ranked house.
- */
-function selectableHouses(ranking: HouseRanking): RankedHouse[] {
-  return [ranking.recommendation, ...ranking.alternatives].filter(
-    (row): row is RankedHouse => Boolean(row?.house.active),
-  );
-}
+import { HouseRankingPicker, JourneyBubble, selectableHouses } from './SellerJourneyChrome';
 
 export function SellerHouseChoicePage() {
   const { t } = useTranslation();
@@ -30,13 +19,15 @@ export function SellerHouseChoicePage() {
   const [selectedHouseId, setSelectedHouseId] = useState<string>();
 
   // Show ranking without storing a lead (P3 consent is only required when saving).
+  const s1DraftQuery = useQuery({
+    queryKey: ['s1-seller-draft'],
+    queryFn: ({ signal }) => getS1SellerDraft(signal),
+  });
+  const rankingItem = useMemo(() => rankingItemFromS1Draft(s1DraftQuery.data), [s1DraftQuery.data]);
   const rankingQuery = useQuery({
-    queryKey: ['seller-house-ranking'],
-    queryFn: async ({ signal }) => {
-      const draft = await getS1SellerDraft(signal);
-      const ranking = await rankHouses(signal, rankingItemFromS1Draft(draft));
-      return { ranking };
-    },
+    queryKey: ['seller-house-ranking', rankingItem],
+    enabled: s1DraftQuery.isFetched,
+    queryFn: ({ signal }) => rankHouses(signal, rankingItem),
   });
 
   // S5 Week 4: POST /choice. Internal only — does not email or contact a house.
@@ -44,15 +35,13 @@ export function SellerHouseChoicePage() {
     mutationFn: async (houseId: string) => {
       const granted = await grantP3ServiceConsent();
       if (!granted) throw new Error('P3 service consent is required');
-      const draft = await getS1SellerDraft();
-      const item = rankingItemFromS1Draft(draft);
       const leadId = await createSellerLead();
-      await rankHousesForLead(leadId, undefined, item);
+      await rankHousesForLead(leadId, undefined, rankingItem);
       return saveSellerHouseChoice(leadId, houseId);
     },
   });
 
-  const ranking = rankingQuery.data?.ranking;
+  const ranking = rankingQuery.data;
   const options = ranking ? selectableHouses(ranking) : [];
   const houseId = selectedHouseId ?? ranking?.recommendation?.house.id;
 
@@ -65,7 +54,7 @@ export function SellerHouseChoicePage() {
           <p className="mb-4 mt-3 text-stone-600">{t('houses.intro')}</p>
           <p className="mb-8 text-sm text-stone-500">{t('houses.internalOnly')}</p>
 
-          {rankingQuery.isPending ? <LoadingState label={t('houses.loading')} /> : null}
+          {s1DraftQuery.isPending || rankingQuery.isFetching ? <LoadingState label={t('houses.loading')} /> : null}
           {rankingQuery.isError ? (
             <ErrorState
               title={t('houses.error')}
@@ -83,29 +72,7 @@ export function SellerHouseChoicePage() {
               }}
             >
               <JourneyBubble>{t('enquiry.promptHouses')}</JourneyBubble>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {ranking.recommendation ? (
-                  <HouseJourneyCard
-                    row={ranking.recommendation}
-                    selectedId={houseId}
-                    recommended
-                    onSelect={setSelectedHouseId}
-                  />
-                ) : (
-                  <p className="text-stone-600">{t('houses.none')}</p>
-                )}
-                {ranking.alternatives.map((row) => (
-                  <HouseJourneyCard
-                    key={row.house.id}
-                    row={row}
-                    selectedId={houseId}
-                    onSelect={setSelectedHouseId}
-                  />
-                ))}
-              </div>
-              {ranking.alternatives.length === 0 ? (
-                <p className="text-sm text-stone-500">{t('houses.noAlternatives')}</p>
-              ) : null}
+              <HouseRankingPicker ranking={ranking} houseId={houseId} onSelect={setSelectedHouseId} />
 
               <p className="text-sm text-stone-500">{t('houses.choiceHint')}</p>
               <button

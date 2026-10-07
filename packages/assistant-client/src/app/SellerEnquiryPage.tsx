@@ -1,30 +1,22 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState, PageShell } from '@monabid/ui';
-import type { HouseRanking, RankedHouse } from '@monabid/shared';
 import { sellerContactFromP3Profile } from '@monabid/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  createSellerLead,
+  completeSellerEnquiry,
   finalHandoffFromS1,
+  getAuctionLot,
   getCurrentP3Profile,
   getS1SellerDraft,
   grantP3ServiceConsent,
   rankHouses,
-  rankHousesForLead,
   rankingItemFromS1Draft,
   receiveS1SellerHandoff,
-  saveSellerHouseChoice,
   sellerFinalLeadFixture,
-  submitFinalSellerLead,
 } from './api';
-import { HouseJourneyCard, JourneyBubble } from './SellerJourneyChrome';
-
-function selectableHouses(ranking: HouseRanking): RankedHouse[] {
-  return [ranking.recommendation, ...ranking.alternatives].filter(
-    (row): row is RankedHouse => Boolean(row?.house.active),
-  );
-}
+import { HouseRankingPicker, JourneyBubble, selectableHouses } from './SellerJourneyChrome';
+import { SellerValuationBoard, SimilarSaleCard } from './SellerValuationBoard';
 
 function hasContact(name: string, email: string, phone: string): boolean {
   return Boolean(name.trim() && (email.trim() || phone.trim()));
@@ -36,29 +28,35 @@ function hasContact(name: string, email: string, phone: string): boolean {
  * Layout follows the seller-journey video (chat, house cards, catalog, enquiry card).
  */
 export function SellerEnquiryPage() {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const language = i18n.language.startsWith('he') ? 'he' : 'en';
   const [selectedHouseId, setSelectedHouseId] = useState<string>();
   const [preferredName, setPreferredName] = useState(sellerFinalLeadFixture.request.contact.preferredName);
   const [email, setEmail] = useState(sellerFinalLeadFixture.request.contact.email ?? '');
   const [phone, setPhone] = useState('');
+  const [sellerMessage, setSellerMessage] = useState('');
+  const [intakeInput, setIntakeInput] = useState('');
+  const [intakeNonce, setIntakeNonce] = useState(0);
+  const started = Boolean(intakeInput);
 
   const profileQuery = useQuery({
     queryKey: ['p3-current-profile'],
     queryFn: ({ signal }) => getCurrentP3Profile(signal),
   });
   const s1DraftQuery = useQuery({
-    queryKey: ['s1-seller-draft'],
-    queryFn: ({ signal }) => getS1SellerDraft(signal),
+    queryKey: ['s1-seller-draft', intakeInput, intakeNonce],
+    enabled: started,
+    queryFn: ({ signal, queryKey }) => getS1SellerDraft(signal, String(queryKey[1])),
   });
   const rankingItem = useMemo(() => rankingItemFromS1Draft(s1DraftQuery.data), [s1DraftQuery.data]);
   const journeyQuery = useQuery({
-    queryKey: ['s1-seller-handoff', s1DraftQuery.data],
-    enabled: s1DraftQuery.isFetched && Boolean(s1DraftQuery.data),
+    queryKey: ['s1-seller-handoff', intakeInput, intakeNonce, s1DraftQuery.data],
+    enabled: started && s1DraftQuery.isFetched && Boolean(s1DraftQuery.data),
     queryFn: ({ signal }) => receiveS1SellerHandoff(s1DraftQuery.data!, signal),
   });
   const rankingQuery = useQuery({
     queryKey: ['seller-enquiry-ranking', rankingItem],
-    enabled: s1DraftQuery.isFetched && !s1DraftQuery.data,
+    enabled: started && s1DraftQuery.isFetched && !s1DraftQuery.data,
     queryFn: ({ signal }) => rankHouses(signal, rankingItem),
   });
   const p3Contact = useMemo(
@@ -83,6 +81,25 @@ export function SellerEnquiryPage() {
   const catalogDraft = handoff.catalogDraft;
   const item = handoff.item;
   const missingCatalog = !catalogDraft.he.trim() || !catalogDraft.en.trim();
+  const valuation = journeyQuery.data?.valuation ?? handoff.valuation;
+  const similarSales = valuation.comparables.length
+    ? valuation.comparables
+    : (journeyQuery.data?.comparables ?? []).map((row) => ({ id: row.id }));
+  const showJourney =
+    started && !s1DraftQuery.isFetching && !journeyQuery.isFetching && !rankingQuery.isFetching;
+  const similarLotIds = similarSales.map((row) => row.id);
+  const similarLotsQuery = useQuery({
+    queryKey: ['similar-sale-lots', similarLotIds],
+    enabled: similarLotIds.length > 0,
+    queryFn: async ({ signal }) => {
+      const lots = await Promise.all(similarLotIds.map((id) => getAuctionLot(id, signal)));
+      return lots.filter((lot): lot is NonNullable<typeof lot> => Boolean(lot));
+    },
+  });
+  const closestSaleId = similarSales[0]?.id;
+  const closestLot =
+    similarLotsQuery.data?.find((lot) => lot.id === closestSaleId) ?? similarLotsQuery.data?.[0];
+  const closestTitle = closestLot ? (closestLot.title[language] ?? closestLot.title.en) : closestSaleId;
   const houseId = selectedHouseId ?? ranking?.recommendation?.house.id;
   const selectedHouse = options.find((row) => row.house.id === houseId);
   const canSubmit = !missingCatalog && Boolean(houseId) && hasContact(preferredName, email, phone);
@@ -95,48 +112,73 @@ export function SellerEnquiryPage() {
       }
       const granted = await grantP3ServiceConsent();
       if (!granted) throw new Error('P3 service consent is required');
-      const leadId = await createSellerLead(
-        undefined,
-        {
+      const fromP3 = sellerContactFromP3Profile(granted);
+      return completeSellerEnquiry({
+        houseId,
+        handoff,
+        contact: {
           preferredName: preferredName.trim(),
           ...(email.trim() ? { email: email.trim() } : {}),
           ...(phone.trim() ? { phone: phone.trim() } : {}),
         },
-        granted
-          ? { profileId: sellerContactFromP3Profile(granted).profileId, serviceConsent: true }
-          : p3Contact
-            ? { profileId: p3Contact.profileId, serviceConsent: true }
-            : undefined,
-      );
-      await rankHousesForLead(leadId, undefined, rankingItem);
-      await saveSellerHouseChoice(leadId, houseId);
-      return submitFinalSellerLead(leadId, handoff);
+        profileId: fromP3.profileId,
+        preferredLanguage: rankingItem.preferredLanguage,
+        geography: rankingItem.geography,
+      });
     },
   });
 
   const valuationLabel = useMemo(() => {
-    const valuation = handoff.valuation;
     if (valuation.status === 'refusal') return t('enquiry.valuationRefusal');
     const range = valuation.valuationRange;
     return range ? t('enquiry.valuationRange', { min: range.min, max: range.max }) : t('enquiry.valuationSupported');
-  }, [handoff.valuation, t]);
+  }, [valuation, t]);
 
   const estimateShort = useMemo(() => {
-    const valuation = handoff.valuation;
     if (valuation.status !== 'supported' || !valuation.valuationRange) return null;
     return `$${valuation.valuationRange.min.toLocaleString()}–$${valuation.valuationRange.max.toLocaleString()}`;
-  }, [handoff.valuation]);
+  }, [valuation]);
 
   return (
     <div className="min-h-screen bg-[#f6f1e8]">
       <PageShell>
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-5xl">
           <p className="text-sm font-semibold uppercase tracking-wide text-amber-800/80">{t('enquiry.eyebrow')}</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-stone-950">{t('enquiry.title')}</h1>
           <p className="mb-4 mt-3 text-stone-600">{t('enquiry.intro')}</p>
           <p className="mb-8 text-sm text-stone-500">{t('enquiry.internalOnly')}</p>
 
-          {s1DraftQuery.isPending || journeyQuery.isFetching || rankingQuery.isFetching ? (
+          <div className="mb-6 space-y-3">
+            <JourneyBubble>{t('enquiry.promptItem')}</JourneyBubble>
+          </div>
+
+          <section className="mb-8 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+            <label className="block text-sm font-medium text-stone-800" htmlFor="seller-intake-message">
+              {t('enquiry.chatLabel')}
+            </label>
+            <p className="mt-1 text-xs text-stone-500">{t('enquiry.chatHint')}</p>
+            <textarea
+              id="seller-intake-message"
+              className="mt-3 min-h-[6rem] w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+              value={sellerMessage}
+              onChange={(event) => setSellerMessage(event.target.value)}
+              placeholder={t('enquiry.chatPlaceholder')}
+            />
+            <button
+              type="button"
+              className="mt-3 rounded-full bg-[#2b2438] px-4 py-2 text-sm font-medium text-white hover:bg-[#3a314d] focus:outline-none focus:ring-2 focus:ring-amber-700 disabled:opacity-50"
+              disabled={!sellerMessage.trim() || s1DraftQuery.isFetching}
+              onClick={() => {
+                setSelectedHouseId(undefined);
+                setIntakeInput(sellerMessage.trim());
+                setIntakeNonce((count) => count + 1);
+              }}
+            >
+              {t('enquiry.chatSend')}
+            </button>
+          </section>
+
+          {started && (s1DraftQuery.isFetching || journeyQuery.isFetching || rankingQuery.isFetching) ? (
             <LoadingState label={t('enquiry.loading')} />
           ) : null}
           {journeyQuery.isError || rankingQuery.isError ? (
@@ -150,7 +192,7 @@ export function SellerEnquiryPage() {
             />
           ) : null}
 
-          {ranking ? (
+          {showJourney ? (
             <form
               className="space-y-6"
               onSubmit={(event) => {
@@ -158,30 +200,9 @@ export function SellerEnquiryPage() {
                 if (canSubmit) submitMutation.mutate();
               }}
             >
-              <JourneyBubble>{t('enquiry.promptHouses')}</JourneyBubble>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {ranking.recommendation ? (
-                  <HouseJourneyCard
-                    row={ranking.recommendation}
-                    selectedId={houseId}
-                    recommended
-                    onSelect={setSelectedHouseId}
-                  />
-                ) : (
-                  <p className="text-stone-600">{t('houses.none')}</p>
-                )}
-                {ranking.alternatives.map((row) => (
-                  <HouseJourneyCard
-                    key={row.house.id}
-                    row={row}
-                    selectedId={houseId}
-                    onSelect={setSelectedHouseId}
-                  />
-                ))}
-              </div>
-              {ranking.alternatives.length === 0 ? (
-                <p className="text-sm text-stone-500">{t('houses.noAlternatives')}</p>
-              ) : null}
+              <p className="max-w-[90%] rounded-2xl bg-white px-4 py-2 text-sm text-stone-800 shadow-sm">
+                {intakeInput}
+              </p>
 
               <JourneyBubble>{t('enquiry.promptCatalog')}</JourneyBubble>
               <section className="rounded-2xl border border-stone-200 bg-white px-6 py-6 shadow-sm">
@@ -193,9 +214,8 @@ export function SellerEnquiryPage() {
                 ) : (
                   <>
                     <h2 className="mt-3 text-center text-lg font-semibold leading-snug text-stone-950">{item.title}</h2>
-                    {catalogDraft.en !== item.title ? (
-                      <p className="mt-4 text-center text-sm text-stone-600">{catalogDraft.en}</p>
-                    ) : null}
+                    <p className="mt-2 text-center text-xs uppercase tracking-wide text-stone-500">{item.category}</p>
+                    <p className="mt-4 text-center text-sm text-stone-600">{catalogDraft.en}</p>
                     <p className="mt-3 text-center text-sm leading-relaxed text-stone-700" lang="he" dir="rtl">
                       {catalogDraft.he}
                     </p>
@@ -203,15 +223,75 @@ export function SellerEnquiryPage() {
                 )}
               </section>
 
-              <section className="rounded-2xl border border-stone-200 bg-white px-6 py-5 shadow-sm">
-                <h2 className="text-sm font-semibold text-stone-950">{t('enquiry.evidence')}</h2>
+              <JourneyBubble>{t('enquiry.promptSimilarSales')}</JourneyBubble>
+              <p className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800">
+                {t('enquiry.similarSalesCountAnswer', {
+                  count: similarLotsQuery.data?.length || valuation.comparableCount,
+                })}
+              </p>
+              <section>
+                <h2 className="mb-3 text-sm font-semibold text-stone-950">{t('enquiry.evidence')}</h2>
+                <SellerValuationBoard
+                  valuation={valuation}
+                  lots={similarLotsQuery.data ?? []}
+                  locale={language === 'he' ? 'he-IL' : 'en-US'}
+                />
+                {similarSales.length > 0 && (!similarLotsQuery.data || similarLotsQuery.data.length === 0) ? (
+                  <ul className="mt-2 list-disc ps-5 text-sm text-stone-600">
+                    {similarSales.map((row) => (
+                      <li key={row.id}>
+                        {row.id}
+                        {'saleDate' in row && row.saleDate ? ` · ${row.saleDate}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <p className="mt-2 text-xs text-stone-500">
+                  {t('enquiry.reportId')}: <span className="break-all font-mono">{valuation.reportId}</span>
+                </p>
+                {valuation.excludedComparables.length > 0 ? (
+                  <p className="mt-2 text-xs text-stone-500">
+                    {t('enquiry.excludedSales', { count: valuation.excludedComparables.length })}
+                  </p>
+                ) : null}
+                <h3 className="mt-4 text-sm font-semibold text-stone-800">{t('enquiry.sellerEvidence')}</h3>
                 <ul className="mt-2 list-disc ps-5 text-sm text-stone-600">
                   {handoff.evidence.map((row) => (
                     <li key={row.id}>{row.id}</li>
                   ))}
                 </ul>
-                <p className="mt-3 text-sm text-stone-600">{valuationLabel}</p>
               </section>
+
+              <JourneyBubble>{t('enquiry.promptClosestComparable')}</JourneyBubble>
+              {closestLot ? (
+                <div className="max-w-sm">
+                  <p className="mb-3 text-sm text-stone-800">
+                    {t('enquiry.closestComparableAnswer', { title: closestTitle })}
+                  </p>
+                  <SimilarSaleCard
+                    lot={closestLot}
+                    locale={language === 'he' ? 'he-IL' : 'en-US'}
+                  />
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800">
+                  {closestTitle
+                    ? t('enquiry.closestComparableAnswer', { title: closestTitle })
+                    : t('enquiry.closestComparableNone')}
+                </p>
+              )}
+
+              {ranking ? (
+                <>
+              <JourneyBubble>{t('enquiry.promptHouses')}</JourneyBubble>
+              <HouseRankingPicker ranking={ranking} houseId={houseId} onSelect={setSelectedHouseId} />
+              {selectedHouse ? (
+                <p className="rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800">
+                  {t('enquiry.houseChosen', { house: selectedHouse.house.name })}
+                </p>
+              ) : null}
+                </>
+              ) : null}
 
               <JourneyBubble>{t('enquiry.promptSend')}</JourneyBubble>
               <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">

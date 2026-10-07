@@ -26,8 +26,12 @@ function createHarness() {
   const repository = {
     create: jest.fn((lead: Record<string, unknown>) => lead),
     save: jest.fn(async (lead: Record<string, unknown>) => {
+      const row = { id: (lead.id as string | undefined) ?? 'lead-1', ...lead } as SellerLeadEntity;
       saved.push(lead);
-      return { id: 'lead-1', ...lead };
+      const index = stored.findIndex((entry) => entry.id === row.id);
+      if (index >= 0) stored[index] = { ...stored[index], ...row };
+      else stored.push(row);
+      return row;
     }),
     find: jest.fn(async () => [...stored]),
     findOneBy: jest.fn(async (where: { id: string }) => stored.find((lead) => lead.id === where.id) ?? null),
@@ -390,5 +394,21 @@ describe('SellerLeadsService', () => {
     });
     expect(received.comparables).toEqual([{ id: 'lot-1', source: 'Source unavailable' }]);
     expect(JSON.stringify(received)).not.toMatch(/file:|Maya/i);
+  });
+
+  it('completes an internal enquiry with one persist path without contacting a house', async () => {
+    const { service, stored, logged } = createHarness();
+
+    const submitted = await service.completeEnquiry({
+      ...handoff,
+      houseId: 'house-kedem',
+      contact: enquiry.contact,
+    });
+
+    expect(submitted.status).toBe('submitted');
+    expect(submitted.sellerChoice?.houseId).toBe('house-kedem');
+    expect(submitted.recommendation?.recommendation?.house.id).toBe('house-judaica-specialist');
+    expect(stored[0]?.status).toBe('submitted');
+    expect(JSON.stringify(logged)).not.toContain(enquiry.contact.email);
   });
 });

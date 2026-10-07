@@ -81,11 +81,14 @@ export { sellerContactFromP3Profile, rankingItemFromS1Draft, leadHandoffFromS1Dr
 export const sellerRankingItem: RankingItem = defaultRankingItem;
 
 /** S1: POST /api/seller-intake/draft. Returns null when intake is unavailable. */
-export async function getS1SellerDraft(signal?: AbortSignal): Promise<ConfirmedItemDraft | null> {
+export async function getS1SellerDraft(
+  signal?: AbortSignal,
+  input: string = s1DemoIntakeInput,
+): Promise<ConfirmedItemDraft | null> {
   const response = await fetch(`${apiBaseUrl}/seller-intake/draft`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input: s1DemoIntakeInput }),
+    body: JSON.stringify({ input }),
     signal,
   });
   if (!response.ok) return null;
@@ -103,6 +106,13 @@ export async function getSampleLot(language: string, signal?: AbortSignal): Prom
   const response = await fetch(`${apiBaseUrl}/lots/sample?language=${encodeURIComponent(language)}`, { signal });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
   return auctionLotSchema.parse(await response.json());
+}
+
+export async function getAuctionLot(id: string, signal?: AbortSignal): Promise<AuctionLot | null> {
+  const response = await fetch(`${apiBaseUrl}/lots/${encodeURIComponent(id)}`, { signal });
+  if (!response.ok) return null;
+  const parsed = auctionLotSchema.safeParse(await response.json());
+  return parsed.success ? parsed.data : null;
 }
 
 export { sellerFinalLeadFixture };
@@ -352,4 +362,41 @@ export async function saveProfileEvidenceOrder(
 /** Resolve an API-provided path against the backend URL. */
 export function evidenceUrl(path: string): string {
   return new URL(path, apiBaseUrl).toString();
+}
+
+/** One persist call: rank once, save choice, submit. Used by the enquiry screen. */
+export async function completeSellerEnquiry(
+  input: {
+    houseId: string;
+    handoff: SubmitSellerLead;
+    contact: { preferredName: string; email?: string; phone?: string };
+    profileId?: string;
+    preferredLanguage?: string;
+    geography?: string;
+  },
+  signal?: AbortSignal,
+): Promise<SellerLeadSummary> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/enquiry`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-anonymous-session-id': anonymousSessionId(),
+    },
+    body: JSON.stringify({
+      houseId: input.houseId,
+      ...input.handoff,
+      contact: input.contact,
+      ...(input.profileId ? { profileId: input.profileId } : {}),
+      ...(input.preferredLanguage ? { preferredLanguage: input.preferredLanguage } : {}),
+      ...(input.geography ? { geography: input.geography } : {}),
+    }),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  const summary = sellerLeadSummarySchema.parse(await response.json());
+  emitSellerEnquiryEvent({
+    kind: 'internal_enquiry',
+    houseName: summary.sellerChoice?.houseName ?? summary.recommendation?.recommendation?.house.name ?? 'Monabid',
+  });
+  return summary;
 }
