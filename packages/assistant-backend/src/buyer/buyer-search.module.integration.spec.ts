@@ -7,6 +7,7 @@ import type { AuctionLot } from '@monabid/shared';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { AiHistoryEntity } from '../database/ai-history.entity';
 import { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
+import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { UserProfileEntity } from '../database/user-profile.entity';
 import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerModule } from './buyer.module';
@@ -57,7 +58,7 @@ function demandRepository() {
   };
 }
 
-// Compiles BuyerModule with the database repositories faked; profiles and AI history are unused here.
+// Compiles BuyerModule with the database repositories faked; profiles, AI history and seller leads are unused here.
 async function compileBuyerModule(lots: AuctionLot[]) {
   const demand = demandRepository();
   const moduleRef = await Test.createTestingModule({
@@ -71,6 +72,8 @@ async function compileBuyerModule(lots: AuctionLot[]) {
     .overrideProvider(getRepositoryToken(UserProfileEntity))
     .useValue({})
     .overrideProvider(getRepositoryToken(AiHistoryEntity))
+    .useValue({})
+    .overrideProvider(getRepositoryToken(SellerLeadEntity))
     .useValue({})
     .compile();
   return {

@@ -4,11 +4,13 @@ import { BuyerChatOrchestratorService } from './buyer-chat-orchestrator.service'
 import type { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
+import { BuyerHouseRecommendationService } from './buyer-house-recommendation.service';
 import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
 import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
 import { BuyerSessionSearchService } from './buyer-session-search.service';
 import { FixtureLotsSearchClient } from './fixture-lots-search.client';
 import { findBuyerFixtureLot, resolveBuyerFixtureLots } from './fixture-lots.pool';
+import type { SellerLeadsService } from '../seller-leads/seller-leads.service';
 
 describe('BuyerChatOrchestratorService', () => {
   function createOrchestrator() {
@@ -28,6 +30,7 @@ describe('BuyerChatOrchestratorService', () => {
       new BuyerSessionSearchService(new FixtureLotsSearchClient()),
       criteria,
       lotsResolver,
+      new BuyerHouseRecommendationService({ rankHouses: jest.fn() } as unknown as SellerLeadsService, criteria),
     );
     return { orchestrator: new BuyerChatOrchestratorService(bridge, criteria, executor), criteria };
   }

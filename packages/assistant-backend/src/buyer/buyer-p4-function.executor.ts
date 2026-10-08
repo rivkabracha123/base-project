@@ -9,6 +9,7 @@ import type { P4AiGenerateResponse, P4BuyerAiContext } from '../ai/p4-ai.types';
 import type { BuyerChatUpdate } from './buyer-chat-update';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
+import { BuyerHouseRecommendationService, RANK_HOUSES_FUNCTION } from './buyer-house-recommendation.service';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { BuyerSessionSearchService } from './buyer-session-search.service';
 
@@ -30,6 +31,7 @@ export class BuyerP4FunctionExecutor {
     private readonly sessionSearch: BuyerSessionSearchService,
     private readonly criteriaService: BuyerCriteriaService,
     private readonly lotsResolver: BuyerLotsResolverService,
+    private readonly houseRecommendation: BuyerHouseRecommendationService,
   ) {}
 
   /** Run the function Shilat named, push chat updates. Returns true if a handler ran. */
@@ -47,6 +49,10 @@ export class BuyerP4FunctionExecutor {
 
     if (action.kind === 'getLotById' || routeName === SHILAT_FUNCTION_GET_LOT_BY_ID) {
       return await this.runGetLotById(ai, ctx, updates);
+    }
+
+    if (routeName === RANK_HOUSES_FUNCTION && ai.intentRoute.readyForFunction) {
+      return this.runRankHouses(ai, ctx, updates);
     }
 
     if (action.kind === 'searchLots' || routeName === B2_SEARCH_LOTS_FUNCTION) {
@@ -140,6 +146,50 @@ export class BuyerP4FunctionExecutor {
 
     const title = ctx.language === 'he' ? 'פרטי הפריט' : 'Item details';
     updates.push({ speaker: 'result-group', title, lots: [lot] });
+    return true;
+  }
+
+  // Calls the seller-side house ranking for the buyer's field and pushes the ranked houses.
+  private runRankHouses(
+    ai: P4AiGenerateResponse,
+    ctx: P4FunctionExecutionContext,
+    updates: BuyerChatUpdate[],
+  ): boolean {
+    const ranking = this.houseRecommendation.recommend(
+      ctx.sessionId,
+      ai.intentRoute.arguments ?? ai.functionParameters,
+    );
+    if (!ranking) {
+      updates.push({
+        speaker: 'error',
+        code: 'house_ranking_missing_category',
+        text:
+          ctx.language === 'he'
+            ? 'באיזה תחום לחפש בית מכירות מתמחה?'
+            : 'Which field should we find a specialized auction house for?',
+      });
+      return true;
+    }
+
+    if (!ranking.recommendation) {
+      updates.push({
+        speaker: 'no-results',
+        text:
+          ctx.language === 'he'
+            ? 'לא נמצא בית מכירות פעיל שמתמחה בתחום הזה.'
+            : 'No active auction house was found for this field.',
+      });
+      return true;
+    }
+
+    updates.push({
+      speaker: 'house-recommendations',
+      title:
+        ctx.language === 'he'
+          ? 'בתי מכירות שמתמחים בתחום הזה'
+          : 'Auction houses that specialize in this field',
+      ranking,
+    });
     return true;
   }
 

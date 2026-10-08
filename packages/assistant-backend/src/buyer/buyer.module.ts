@@ -4,6 +4,8 @@ import { AiModule } from '../ai/ai.module';
 import { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
 import { LotsModule } from '../lots/lots.module';
 import { LotsService } from '../lots/lots.service';
+import { SellerLeadsModule } from '../seller-leads/seller-leads.module';
+import { BuyerHouseRecommendationService } from './buyer-house-recommendation.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 import { BuyerSearchService } from './buyer-search.service';
@@ -18,7 +20,7 @@ import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { LotsServiceSearchClient } from './lots-service-search.client';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BuyerUnmatchedDemandEntity]), AiModule, LotsModule],
+  imports: [TypeOrmModule.forFeature([BuyerUnmatchedDemandEntity]), AiModule, LotsModule, SellerLeadsModule],
   controllers: [BuyerController],
   providers: [
     BuyerCriteriaService,
@@ -37,6 +39,7 @@ import { LotsServiceSearchClient } from './lots-service-search.client';
     BuyerChatOrchestratorService,
     LotsServiceSearchClient,
     BuyerLotsResolverService,
+    BuyerHouseRecommendationService,
   ],
   exports: [
     BuyerCriteriaService,
