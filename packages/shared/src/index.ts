@@ -3,7 +3,6 @@
 
 // Auction lot types: read-only catalog data from auction houses
 export * from './auction-lot';
-export * from './buyer-search-outcome';
 export * from './pagination';
 export * from './import-report';
 export * from './user-profile';
