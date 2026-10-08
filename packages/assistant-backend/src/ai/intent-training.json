@@ -1,0 +1,300 @@
+{
+  "version": "1.1",
+  "language": "he",
+  "purpose": "Examples for routing buyer messages to functions after the conversation has enough context.",
+  "examples": [
+    {
+      "id": "buyer-manuscript-search-001",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "אני מחפש כתבי יד נדירים של רבי נחמן מברסלב."
+        },
+        {
+          "role": "assistant",
+          "text": "תחום אספנות מרתק. אתה מחפש כתבי יד מקוריים בלבד, או גם מהדורות דפוס ראשונות של תורתו?"
+        }
+      ],
+      "expected": {
+        "intent": "search_auction_lots",
+        "functionName": null,
+        "readyForFunction": false,
+        "missingFields": ["editionPreference"],
+        "arguments": {}
+      }
+    },
+    {
+      "id": "buyer-manuscript-preference-002",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "אני מחפש כתבי יד נדירים של רבי נחמן מברסלב."
+        },
+        {
+          "role": "assistant",
+          "text": "אתה מחפש כתבי יד מקוריים בלבד, או גם מהדורות דפוס ראשונות?"
+        },
+        {
+          "role": "user",
+          "text": "גם מהדורות דפוס ראשונות, אבל עדיפות לכתבי יד מקוריים."
+        }
+      ],
+      "expected": {
+        "intent": "search_auction_lots",
+        "functionName": null,
+        "readyForFunction": false,
+        "missingFields": ["searchEndpoint"],
+        "arguments": {
+          "subject": "Rabbi Nachman of Breslov",
+          "itemTypes": ["original_manuscript", "first_edition"],
+          "preference": "original_manuscript"
+        },
+        "notes": "The current function catalog has no buyer lot-search function yet."
+      }
+    },
+    {
+      "id": "buyer-item-details-003",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "מצאתי פריט שנראה מתאים. איך אפשר להעריך אותו?"
+        },
+        {
+          "role": "assistant",
+          "text": "כדי להעריך את הפריט בצורה מדויקת אני צריך עוד כמה פרטים: אפשר לצלם גם את דף השער ואת החתימה או התאריך? מה מצב השימור, האם יש קרעים, כתמים או חוסרים, והאם יש לך מידע על השנה או הזהות של הכותב?"
+        },
+        {
+          "role": "user",
+          "text": "צירפתי תמונה נוספת של השער. מצב השימור טוב יחסית, ויש כתם קטן."
+        }
+      ],
+      "expected": {
+        "intent": "get_lot_details",
+        "functionName": "getLotById",
+        "readyForFunction": true,
+        "missingFields": [],
+        "arguments": {
+          "id": "$selectedLot.id",
+          "language": "he"
+        },
+        "rules": [
+          "Use the selected lot id from conversation state.",
+          "Do not infer facts that are not present in the lot data."
+        ]
+      }
+    },
+    {
+      "id": "buyer-sale-history-004",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "יש סיכוי שהוא שווה יותר אם אמצא תיעוד על הכתב?"
+        },
+        {
+          "role": "assistant",
+          "text": "אפשר לבדוק עסקאות קודמות של אותו פריט ולבחון את התיעוד בנפרד."
+        },
+        {
+          "role": "user",
+          "text": "תציג לי את היסטוריית המכירות שלו."
+        }
+      ],
+      "expected": {
+        "intent": "same_item_sale_history",
+        "functionName": "getComparableSaleHistory",
+        "readyForFunction": true,
+        "missingFields": [],
+        "arguments": {
+          "selectedLot": "$selectedLot",
+          "lots": "$lots"
+        },
+        "rules": [
+          "Use only sold lots with the same itemKey.",
+          "Use the selected lot preferred currency.",
+          "Do not claim that the history proves a higher value."
+        ]
+      }
+    },
+    {
+      "id": "buyer-similar-items-005",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "תציג לי פריטים דומים."
+        }
+      ],
+      "expected": {
+        "intent": "search_similar_lots",
+        "functionName": null,
+        "readyForFunction": false,
+        "missingFields": ["similarLotsFunction"],
+        "arguments": {
+          "selectedLot": "$selectedLot"
+        },
+        "notes": "A searchSimilarLots function must be added before this intent can be executed."
+      }
+    },
+    {
+      "id": "buyer-catalog-description-006",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "תכתוב עבורי תיאור מקצועי לקטלוג."
+        }
+      ],
+      "expected": {
+        "intent": "create_catalog_description",
+        "functionName": null,
+        "readyForFunction": false,
+        "missingFields": ["catalogDescriptionFunction"],
+        "arguments": {
+          "selectedLot": "$selectedLot"
+        },
+        "notes": "The current function catalog has no buyer catalog-description function."
+      }
+    },
+    {
+      "id": "buyer-auction-house-contact-007",
+      "conversation": [
+        {
+          "role": "user",
+          "text": "שלח פנייה לבית המכירות."
+        }
+      ],
+      "expected": {
+        "intent": "contact_auction_house",
+        "functionName": null,
+        "readyForFunction": false,
+        "missingFields": ["auctionHouseContactFunction", "explicitContactConsent"],
+        "arguments": {
+          "selectedLot": "$selectedLot"
+        },
+        "rules": [
+          "Never contact an auction house without explicit user consent.",
+          "Do not invent contact details."
+        ],
+        "notes": "A contact function is not currently defined in the function catalog."
+      }
+    },
+    {
+        "id": "buyer-budget-filter-008",
+        "conversation": [
+          {
+            "role": "user",
+            "text": "כתבי יד מקוריים בעיקר, עד 15,000$."
+          }
+        ],
+        "expected": {
+          "intent": "search_auction_lots",
+          "functionName": null,
+          "readyForFunction": false,
+          "missingFields": ["searchEndpoint"],
+          "arguments": {
+            "itemTypes": ["original_manuscript"],
+            "maxBudget": 15000,
+            "currency": "USD",
+            "language": "he"
+          },
+          "notes": "The budget and preference are ready, but the catalog has no buyer search function yet."
+        }
+      },
+    {
+        "id": "buyer-similar-manuscripts-009",
+        "conversation": [
+          {
+            "role": "user",
+            "text": "תציג לי פריטים דומים."
+          }
+        ],
+        "expected": {
+          "intent": "search_similar_lots",
+          "functionName": null,
+          "readyForFunction": false,
+          "missingFields": ["similarLotsFunction"],
+          "arguments": {
+            "selectedLot": "$selectedLot",
+            "category": "manuscripts",
+            "language": "he"
+          },
+          "notes": "The UI can show similar lots only after a similar-lots function is added."
+        }
+      },
+    {
+        "id": "buyer-price-history-010",
+        "conversation": [
+          {
+            "role": "user",
+            "text": "איך היו המחירים של כתבי יד כאלה בשנים האחרונות?"
+          }
+        ],
+        "expected": {
+          "intent": "same_item_sale_history",
+          "functionName": "getComparableSaleHistory",
+          "readyForFunction": true,
+          "missingFields": [],
+          "arguments": {
+            "selectedLot": "$selectedLot",
+            "lots": "$lots"
+          },
+          "rules": [
+            "Use sold records only.",
+            "Prefer the same itemKey; do not present unrelated lots as the same item.",
+            "Show sale dates and realized prices in the selected currency.",
+            "Explain when the available history is limited."
+          ]
+        }
+      },
+    {
+        "id": "buyer-house-comparison-011",
+        "conversation": [
+          {
+            "role": "user",
+            "text": "איזה בית מכירות הכי מתמחה בתחום הזה?"
+          }
+        ],
+        "expected": {
+          "intent": "recommend_auction_house",
+          "functionName": null,
+          "readyForFunction": false,
+          "missingFields": ["buyerHouseRankingFunction"],
+          "arguments": {
+            "category": "manuscripts",
+            "selectedLot": "$selectedLot",
+            "availableHouses": "$availableHouses",
+            "language": "he"
+          },
+          "rules": [
+            "Use only provided auction-house data.",
+            "Do not claim that one house is best without evidence.",
+            "Do not contact a house automatically."
+          ],
+          "notes": "The seller ranking functions must not be reused for a buyer recommendation without an agreed buyer contract."
+        }
+      },
+    {
+        "id": "buyer-global-sale-alert-012",
+        "conversation": [
+          {
+            "role": "user",
+            "text": "תודיע לי אם כתב יד כזה יעלה למכירה בכל מקום בעולם."
+          }
+        ],
+        "expected": {
+          "intent": "create_global_sale_alert",
+          "functionName": null,
+          "readyForFunction": false,
+          "missingFields": ["saleAlertFunction", "alertCriteria", "notificationConsent"],
+          "arguments": {
+            "selectedLot": "$selectedLot",
+            "scope": "global"
+          },
+          "rules": [
+            "Ask what item features should define a match.",
+            "Require explicit consent before creating an alert.",
+            "Do not promise complete global coverage without connected sources."
+          ],
+          "notes": "A global sale-alert function is not currently defined in the function catalog."
+        }
+      }
+  ]
+}

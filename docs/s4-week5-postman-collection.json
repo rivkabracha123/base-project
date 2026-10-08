@@ -1,0 +1,624 @@
+{
+  "info": {
+    "name": "S4 Week 5 - scenario comparison",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "firstResponse",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 compares two supported revisions (range_change +50 / +150)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('status = compared', () => pm.expect(body[\"status\"]).to.eql(\"compared\"));",
+              "pm.test('change.kind = range_change', () => pm.expect(body[\"change\"][\"kind\"]).to.eql(\"range_change\"));",
+              "pm.test('change.minDifference = 50', () => pm.expect(body[\"change\"][\"minDifference\"]).to.eql(50));",
+              "pm.test('change.maxDifference = 150', () => pm.expect(body[\"change\"][\"maxDifference\"]).to.eql(150));",
+              "pm.test('change.comparableCountDifference = 0', () => pm.expect(body[\"change\"][\"comparableCountDifference\"]).to.eql(0));",
+              "pm.test('previous.reportId = r1', () => pm.expect(body[\"previous\"][\"reportId\"]).to.eql(\"r1\"));",
+              "pm.test('current.reportId = r2', () => pm.expect(body[\"current\"][\"reportId\"]).to.eql(\"r2\"));",
+              "pm.collectionVariables.set('firstResponse', pm.response.text());"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r1\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 950,\n        \"max\": 1250,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "02 supported to refusal (no numeric difference)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('status = compared', () => pm.expect(body[\"status\"]).to.eql(\"compared\"));",
+              "pm.test('change.kind = supported_to_refusal', () => pm.expect(body[\"change\"][\"kind\"]).to.eql(\"supported_to_refusal\"));",
+              "pm.test('current.refusalReason = insufficient_comparable_sales', () => pm.expect(body[\"current\"][\"refusalReason\"]).to.eql(\"insufficient_comparable_sales\"));",
+              "pm.test('response does not contain Difference', () => pm.expect(pm.response.text()).to.not.include(\"Difference\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r1\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"refusal\",\n      \"reportId\": \"r2\",\n      \"reason\": \"insufficient_comparable_sales\",\n      \"comparableCount\": 1,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": []\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "03 refusal to supported (no numeric difference)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('change.kind = refusal_to_supported', () => pm.expect(body[\"change\"][\"kind\"]).to.eql(\"refusal_to_supported\"));",
+              "pm.test('response does not contain Difference', () => pm.expect(pm.response.text()).to.not.include(\"Difference\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"refusal\",\n      \"reportId\": \"r1\",\n      \"reason\": \"insufficient_comparable_sales\",\n      \"comparableCount\": 1,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": []\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 950,\n        \"max\": 1250,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "04 refusal to refusal (no numeric difference)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('change.kind = both_refusal', () => pm.expect(body[\"change\"][\"kind\"]).to.eql(\"both_refusal\"));",
+              "pm.test('response does not contain Difference', () => pm.expect(pm.response.text()).to.not.include(\"Difference\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"refusal\",\n      \"reportId\": \"r1\",\n      \"reason\": \"insufficient_comparable_sales\",\n      \"comparableCount\": 1,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": []\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"refusal\",\n      \"reportId\": \"r2\",\n      \"reason\": \"insufficient_comparable_sales\",\n      \"comparableCount\": 1,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": []\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "05 different items are incompatible",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('status = incompatible', () => pm.expect(body[\"status\"]).to.eql(\"incompatible\"));",
+              "pm.test('reason = different_item', () => pm.expect(body[\"reason\"]).to.eql(\"different_item\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r1\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-2\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 invalid previous revision -> invalid_input (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('status = invalid_input', () => pm.expect(body[\"status\"]).to.eql(\"invalid_input\"));",
+              "pm.test('invalid = previous', () => pm.expect(body[\"invalid\"]).to.eql(\"previous\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"nonsense\": true\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 950,\n        \"max\": 1250,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "07 invalid current revision -> invalid_input (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('status = invalid_input', () => pm.expect(body[\"status\"]).to.eql(\"invalid_input\"));",
+              "pm.test('invalid = current', () => pm.expect(body[\"invalid\"]).to.eql(\"current\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r1\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"current\": {\n    \"nonsense\": true\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "08 previous missing -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 950,\n        \"max\": 1250,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "09 current is not an object -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r1\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"current\": \"text\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "10 unknown extra field -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r1\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 950,\n        \"max\": 1250,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"extra\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "11 empty body -> 400",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "12 privacy: sensitive text in the previous revision is not echoed",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('status = compared', () => pm.expect(body[\"status\"]).to.eql(\"compared\"));",
+              "pm.test('previous.reportId = identifier_withheld_for_privacy', () => pm.expect(body[\"previous\"][\"reportId\"]).to.eql(\"identifier_withheld_for_privacy\"));",
+              "pm.test('previous.itemVersion = identifier_withheld_for_privacy', () => pm.expect(body[\"previous\"][\"itemVersion\"]).to.eql(\"identifier_withheld_for_privacy\"));",
+              "pm.test('previous.refusalReason = exclusion_reason_withheld_for_privacy', () => pm.expect(body[\"previous\"][\"refusalReason\"]).to.eql(\"exclusion_reason_withheld_for_privacy\"));",
+              "pm.test('response does not contain privacy-test@example', () => pm.expect(pm.response.text()).to.not.include(\"privacy-test@example\"));",
+              "pm.test('response does not contain 050-123-4567', () => pm.expect(pm.response.text()).to.not.include(\"050-123-4567\"));",
+              "pm.test('response does not contain 839241', () => pm.expect(pm.response.text()).to.not.include(\"839241\"));",
+              "pm.test('response does not contain TEST_PASSWORD_SECRET_123', () => pm.expect(pm.response.text()).to.not.include(\"TEST_PASSWORD_SECRET_123\"));",
+              "pm.test('response does not contain TEST_ACCESS_TOKEN_123', () => pm.expect(pm.response.text()).to.not.include(\"TEST_ACCESS_TOKEN_123\"));",
+              "pm.test('response does not contain TEST_SIGNED_URL_SECRET', () => pm.expect(pm.response.text()).to.not.include(\"TEST_SIGNED_URL_SECRET\"));",
+              "pm.test('response does not contain TEST_PRIVATE_CONVERSATION_MARKER_123', () => pm.expect(pm.response.text()).to.not.include(\"TEST_PRIVATE_CONVERSATION_MARKER_123\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"TEST-OTP-839241\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"refusal\",\n      \"reportId\": \"privacy-test@example.invalid\",\n      \"reason\": \"TEST_PASSWORD_SECRET_123 and Bearer TEST_ACCESS_TOKEN_123\",\n      \"comparableCount\": 1,\n      \"limitations\": [\n        \"050-123-4567 https://example.invalid/file?token=TEST_SIGNED_URL_SECRET TEST_PRIVATE_CONVERSATION_MARKER_123\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": []\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 950,\n        \"max\": 1250,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "13 same request twice gives the same answer (run 01 first)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json ? (()=>{try{return pm.response.json();}catch(e){return null;}})() : null;",
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('identical to the answer of request 01', () => pm.expect(pm.response.text()).to.eql(pm.collectionVariables.get('firstResponse')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/valuation-calculation/comparison",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "valuation-calculation",
+            "comparison"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"previous\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v1\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r1\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 900,\n        \"max\": 1100,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  },\n  \"current\": {\n    \"itemId\": \"item-1\",\n    \"itemVersion\": \"v2\",\n    \"calculationVersion\": \"weighted-usd-population-sd-v1\",\n    \"dashboard\": {\n      \"status\": \"supported\",\n      \"reportId\": \"r2\",\n      \"comparableCount\": 3,\n      \"limitations\": [\n        \"Synthetic.\"\n      ],\n      \"comparables\": [\n        {\n          \"id\": \"a\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"b\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        },\n        {\n          \"id\": \"c\",\n          \"source\": {\n            \"label\": \"Source unavailable\",\n            \"url\": null\n          },\n          \"saleDate\": \"2024-03-10\",\n          \"originalPrice\": 1000,\n          \"originalCurrency\": \"USD\",\n          \"normalizedPrice\": 1000,\n          \"weight\": 1\n        }\n      ],\n      \"excludedComparables\": [],\n      \"valuationRange\": {\n        \"min\": 950,\n        \"max\": 1250,\n        \"currency\": \"USD\"\n      },\n      \"confidence\": {\n        \"level\": \"low\",\n        \"explanation\": \"Synthetic.\"\n      }\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -64,22 +64,58 @@ export function emptyBuyerCriteria(language: BuyerLanguage = 'en'): BuyerCriteri
   };
 }
 
-export type BuyerCriteriaTurnRequest = {
+export type ClarificationTurnInput = {
   criteria: BuyerCriteria;
   conversation: BuyerCriteriaConversation;
   action: 'answer' | 'skip';
   message?: string;
 };
 
-export type P4FixtureResponse = {
+/** Validated structured fields from the AI extract (preferred over free-text content). */
+export type StructuredAiExtract = {
+  role: 'buyer';
+  language: BuyerLanguage;
+  intent: string;
+  category?: string;
+  creators?: string[];
+  periods?: string[];
+  price?: BuyerPriceRange;
+  keywords?: string[];
+  geography?: string[];
+  hasContactDetails: boolean;
+  hasImages: boolean;
+};
+
+/** AI extract payload (fixture or live) received at POST /buyer/extract. */
+export type AiExtractResponse = {
   provider: 'fixture' | 'real';
   mode: 'fixture' | 'real';
+  isRelevant?: boolean;
+  error?: string | null;
   content: string;
   summary: string;
   recommendation: string;
   nextAction: string;
   confidence: 'low' | 'medium';
+  structuredAnswer?: StructuredAiExtract;
 };
+
+export function isStructuredAiExtract(value: unknown): value is StructuredAiExtract {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    candidate.role === 'buyer' &&
+    (candidate.language === 'he' || candidate.language === 'en') &&
+    typeof candidate.intent === 'string' &&
+    candidate.intent.trim().length > 0 &&
+    typeof candidate.hasContactDetails === 'boolean' &&
+    typeof candidate.hasImages === 'boolean'
+  );
+}
 
 const appendUnique = (values: string[], ...additions: Array<string | null | undefined>): string[] =>
   [...new Set([...values, ...additions.filter((value): value is string => Boolean(value?.trim()))])];
@@ -89,6 +125,19 @@ const toNumber = (value: string): number | undefined => {
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+function extractCorrectionPrice(text: string): BuyerPriceRange | undefined {
+  const match = text.match(/\$\s*([\d,]+)/);
+  const digits = match?.[1];
+  if (!digits) {
+    return undefined;
+  }
+  const value = Number(digits.replace(/,/g, ''));
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+  return { min: value, max: value, currency: 'USD' };
+}
 
 const extractPrice = (text: string): BuyerPriceRange | undefined => {
   const matches = [...text.matchAll(/\$?\d[\d,]*(?:k)?/gi)]
@@ -177,6 +226,11 @@ const READY_TO_CONTINUE: Record<BuyerLanguage, string> = {
   en: 'I have the main search facts. Should I continue?',
 };
 
+const GUIDED_FALLBACK_QUESTION: Record<BuyerLanguage, string> = {
+  he: 'לא הצלחתי לקרוא את הבקשה אוטומטית. תארו במילים שלכם מה מחפשים — סוג פריט, תקציב, או תקופה.',
+  en: 'I could not read that automatically. Describe what you want in your own words — item type, budget, or period.',
+};
+
 function hasPrice(criteria: BuyerCriteria): boolean {
   return criteria.price?.min != null || criteria.price?.max != null;
 }
@@ -211,6 +265,53 @@ export function nextFocusedQuestion(missing: SearchFact[], language: BuyerLangua
   return field ? FOCUSED_QUESTIONS[field][language] : READY_TO_CONTINUE[language];
 }
 
+export function deriveHardConstraints(criteria: BuyerCriteria): Constraint[] {
+  const constraints: Constraint[] = [];
+
+  if (hasPrice(criteria)) {
+    constraints.push({
+      field: 'price',
+      operator: 'range',
+      value: criteria.price,
+      reason: 'Buyer confirmed budget range',
+    });
+  }
+  if (criteria.categories.length > 0) {
+    constraints.push({
+      field: 'categories',
+      operator: 'contains',
+      value: [...criteria.categories],
+      reason: 'Buyer confirmed category',
+    });
+  }
+  if (criteria.creators.length > 0) {
+    constraints.push({
+      field: 'creators',
+      operator: 'contains',
+      value: [...criteria.creators],
+      reason: 'Buyer confirmed creator',
+    });
+  }
+  if (criteria.periods.length > 0) {
+    constraints.push({
+      field: 'periods',
+      operator: 'contains',
+      value: [...criteria.periods],
+      reason: 'Buyer confirmed period',
+    });
+  }
+  if (criteria.geography.length > 0) {
+    constraints.push({
+      field: 'geography',
+      operator: 'contains',
+      value: [...criteria.geography],
+      reason: 'Buyer confirmed geography',
+    });
+  }
+
+  return constraints;
+}
+
 function withConversation(
   criteria: BuyerCriteria,
   conversation: Partial<BuyerCriteriaConversation> = {},
@@ -223,9 +324,14 @@ function withConversation(
     nextQuestion: '',
   };
   const missing = buildMissingFields(criteria, baseConversation);
+  const normalizedCriteria: BuyerCriteria = {
+    ...criteria,
+    language,
+    hardConstraints: deriveHardConstraints({ ...criteria, language }),
+  };
 
   return {
-    criteria: { ...criteria, language },
+    criteria: normalizedCriteria,
     conversation: {
       ...baseConversation,
       missing,
@@ -234,7 +340,36 @@ function withConversation(
   };
 }
 
-export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): BuyerCriteriaResponse {
+function normalizeStructuredCategory(category: string | undefined): string | null {
+  if (!category?.trim()) return null;
+  const trimmed = category.trim();
+  if (trimmed.includes('ציור')) return 'painting';
+  if (trimmed.includes('פסל')) return 'sculpture';
+  return trimmed;
+}
+
+function criteriaFromStructuredAiExtract(structured: StructuredAiExtract): BuyerCriteria {
+  const category = normalizeStructuredCategory(structured.category);
+  return {
+    ...emptyBuyerCriteria(structured.language),
+    categories: category ? [category] : [],
+    creators: structured.creators ?? [],
+    periods: structured.periods ?? [],
+    keywords: structured.keywords ?? [],
+    geography: structured.geography ?? [],
+    price: structured.price,
+    language: structured.language,
+    hardConstraints: [],
+  };
+}
+
+function parseFromStructuredAiExtract(response: AiExtractResponse, structured: StructuredAiExtract): BuyerCriteriaResponse {
+  return withConversation(criteriaFromStructuredAiExtract(structured), {
+    notes: [response.summary, structured.intent].filter((note) => note.trim().length > 0),
+  });
+}
+
+function parseFromAiTextContent(response: AiExtractResponse): BuyerCriteriaResponse {
   const text = `${response.content} ${response.summary} ${response.recommendation} ${response.nextAction}`;
   const category = parseCategory(text);
   const keywords = extractKeywords(text);
@@ -249,6 +384,115 @@ export function extractBuyerCriteriaFromFixture(response: P4FixtureResponse): Bu
   }, {
     notes: [response.summary],
   });
+}
+
+/** Guided fallback when AI extract is missing or invalid — keeps the chat usable without blocking. */
+export function createGuidedFallbackCriteriaResponse(language: BuyerLanguage): BuyerCriteriaResponse {
+  const base = withConversation(emptyBuyerCriteria(language), {
+    notes: ['guided_fallback'],
+  });
+  return {
+    ...base,
+    conversation: {
+      ...base.conversation,
+      nextQuestion: GUIDED_FALLBACK_QUESTION[language],
+    },
+  };
+}
+
+export function isCriteriaRemovalMessage(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return (
+    /\b(remove|clear|without|drop)\b/i.test(trimmed) ||
+    /(בלי|הסר|נקה|ללא)/i.test(trimmed)
+  );
+}
+
+/** Remove one constraint the buyer explicitly asked to drop, without clearing unrelated fields. */
+export function applyCriteriaRemoval(
+  criteria: BuyerCriteria,
+  conversation: BuyerCriteriaConversation,
+  message: string,
+): BuyerCriteriaResponse {
+  const trimmed = message.trim().toLowerCase();
+  const criteriaUpdate: Partial<BuyerCriteria> = {};
+
+  if (trimmed.includes('budget') || trimmed.includes('תקציב')) {
+    criteriaUpdate.price = undefined;
+  }
+  if (trimmed.includes('creator') || trimmed.includes('artist') || trimmed.includes('יוצר') || trimmed.includes('אמן')) {
+    criteriaUpdate.creators = [];
+  }
+  if (trimmed.includes('location') || trimmed.includes('מיקום') || trimmed.includes('מקום')) {
+    criteriaUpdate.geography = [];
+  }
+  if (trimmed.includes('period') || trimmed.includes('תקופה')) {
+    criteriaUpdate.periods = [];
+  }
+  if (trimmed.includes('category') || trimmed.includes('קטגור')) {
+    criteriaUpdate.categories = [];
+  }
+
+  return mergeResponse(criteria, conversation, criteriaUpdate, {
+    notes: [`Removal: ${message.trim()}`],
+  });
+}
+
+export function isCriteriaCorrectionMessage(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return (
+    /\b(actually|instead|change|correct|update|rather)\b/i.test(trimmed) ||
+    /(למעשה|במקום|שנה|תקן|לא \d|עד \d|סביב \d)/i.test(trimmed)
+  );
+}
+
+/** Apply an explicit correction without clearing unrelated constraints. */
+export function applyCriteriaCorrection(
+  criteria: BuyerCriteria,
+  conversation: BuyerCriteriaConversation,
+  message: string,
+): BuyerCriteriaResponse {
+  const trimmed = message.trim();
+  const criteriaUpdate: Partial<BuyerCriteria> = {};
+  if (/\bbudget\b|תקציב|\$/i.test(trimmed)) {
+    const price = extractCorrectionPrice(trimmed) ?? extractPrice(trimmed);
+    if (price) {
+      criteriaUpdate.price = price;
+    }
+  }
+  const category = parseCategory(trimmed);
+  if (category) {
+    criteriaUpdate.categories = appendUnique(criteria.categories, category);
+  }
+  const period = parsePeriod(trimmed);
+  if (period) {
+    criteriaUpdate.periods = appendUnique(criteria.periods, period);
+  }
+  if (/\bmonet\b/i.test(trimmed)) {
+    criteriaUpdate.creators = appendUnique(criteria.creators, 'Monet');
+  }
+  return mergeResponse(criteria, conversation, criteriaUpdate, {
+    notes: [`Correction: ${trimmed}`],
+  });
+}
+
+/** Parse AI extract response into criteria plus the next clarification question. */
+export function parseCriteriaFromAiResponse(response: AiExtractResponse): BuyerCriteriaResponse {
+  if (response.isRelevant === false) {
+    throw new Error(response.error ?? 'The request is not related to buying or selling.');
+  }
+
+  if (isStructuredAiExtract(response.structuredAnswer)) {
+    return parseFromStructuredAiExtract(response, response.structuredAnswer);
+  }
+
+  return parseFromAiTextContent(response);
 }
 
 export function mergeBuyerCriteria(
@@ -266,7 +510,12 @@ export function mergeBuyerCriteria(
     geography: update.geography ?? existing.geography,
     auctionHouseIds: update.auctionHouseIds ?? existing.auctionHouseIds,
     dateRange: update.dateRange ? { ...existing.dateRange, ...update.dateRange } : existing.dateRange,
-    price: update.price ? { ...existing.price, ...update.price } : existing.price,
+    price:
+      'price' in update
+        ? update.price
+          ? { ...existing.price, ...update.price }
+          : undefined
+        : existing.price,
     hardConstraints: update.hardConstraints ?? existing.hardConstraints,
   };
 }
@@ -345,9 +594,17 @@ export function skipCurrentQuestion(
   return withConversation(criteria, { ...conversation, skipped });
 }
 
-export function processCriteriaTurn(request: BuyerCriteriaTurnRequest): BuyerCriteriaResponse {
-  if (request.action === 'skip') {
-    return skipCurrentQuestion(request.criteria, request.conversation);
+/** Apply one buyer answer or skip to the in-memory criteria conversation state. */
+export function applyClarificationTurn(state: ClarificationTurnInput): BuyerCriteriaResponse {
+  if (state.action === 'skip') {
+    return skipCurrentQuestion(state.criteria, state.conversation);
   }
-  return applyBuyerAnswer(request.criteria, request.conversation, request.message ?? '');
+  const message = state.message ?? '';
+  if (isCriteriaRemovalMessage(message)) {
+    return applyCriteriaRemoval(state.criteria, state.conversation, message);
+  }
+  if (isCriteriaCorrectionMessage(message)) {
+    return applyCriteriaCorrection(state.criteria, state.conversation, message);
+  }
+  return applyBuyerAnswer(state.criteria, state.conversation, message);
 }

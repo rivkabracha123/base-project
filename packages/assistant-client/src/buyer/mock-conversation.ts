@@ -31,15 +31,15 @@ const mockLot: AuctionLot = {
 // שיחת מוק דו-לשונית: אותו מבנה כמו conversations בקובץ ה-fixture, בגרסה מוקטנת לטסטים.
 export const mockConversation: { he: BuyerMessage[]; en: BuyerMessage[] } = {
   he: [
-    { kind: 'buyer', id: 'he-1', at: '2026-01-01T10:00:00.000Z', text: 'אני מחפשת פריט לדוגמה' },
-    { kind: 'assistant', id: 'he-2', at: '2026-01-01T10:00:05.000Z', text: 'מחפש עבורך…' },
-    { kind: 'result-group', id: 'he-3', at: '2026-01-01T10:00:10.000Z', title: 'פריטים דומים', lots: [mockLot] },
-    { kind: 'error', id: 'he-4', at: '2026-01-01T10:00:15.000Z', code: 'results_failed', text: 'טעינת התוצאות נכשלה. נסו שוב.' },
+    { speaker: 'buyer', id: 'he-1', sessionId: 'mock-session-he', skipped: false, text: 'אני מחפשת פריט לדוגמה' },
+    { speaker: 'system', id: 'he-2', sessionId: 'mock-session-he', text: 'מחפש עבורך…' },
+    { speaker: 'result-group', id: 'he-3', sessionId: 'mock-session-he', lots: [mockLot] },
+    { speaker: 'error', id: 'he-4', sessionId: 'mock-session-he', code: 'results_failed', text: 'טעינת התוצאות נכשלה. נסו שוב.' },
   ],
   en: [
-    { kind: 'buyer', id: 'en-1', at: '2026-01-01T10:00:00.000Z', text: 'I am looking for a mock lot' },
-    { kind: 'assistant', id: 'en-2', at: '2026-01-01T10:00:05.000Z', text: 'Searching for you…' },
-    { kind: 'result-group', id: 'en-3', at: '2026-01-01T10:00:10.000Z', title: 'Nearby lots', lots: [mockLot] },
-    { kind: 'error', id: 'en-4', at: '2026-01-01T10:00:15.000Z', code: 'results_failed', text: 'Loading results failed. Please try again.' },
+    { speaker: 'buyer', id: 'en-1', sessionId: 'mock-session-en', skipped: false, text: 'I am looking for a mock lot' },
+    { speaker: 'system', id: 'en-2', sessionId: 'mock-session-en', text: 'Searching for you…' },
+    { speaker: 'result-group', id: 'en-3', sessionId: 'mock-session-en', lots: [mockLot] },
+    { speaker: 'error', id: 'en-4', sessionId: 'mock-session-en', code: 'results_failed', text: 'Loading results failed. Please try again.' },
   ],
 };

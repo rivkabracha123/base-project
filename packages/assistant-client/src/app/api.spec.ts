@@ -43,22 +43,23 @@ describe('getConversation', () => {
 
     await expect(getConversation('he')).resolves.toEqual(sample);
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'http://localhost:3001/api/chat/conversation?language=he',
+      'http://localhost:3001/api/buyer-chat/conversation?language=he',
       expect.objectContaining({ signal: undefined }),
     );
   });
 
   it('drops invalid messages returned by the API before exposing them', async () => {
     const validMessage = {
-      kind: 'buyer',
+      speaker: 'buyer',
       id: 'incoming-1',
-      at: '2026-01-01T10:00:00.000Z',
+      sessionId: 'session-1',
+      skipped: false,
       text: 'שלום',
     };
     const responseBody = [
-      { kind: 'banana', id: 'bad-1', at: '2026-01-01T10:00:01.000Z', text: 'x' },
+      { speaker: 'banana', id: 'bad-1', sessionId: 'session-1', text: 'x' },
       validMessage,
-      { kind: 'assistant', id: 'bad-2', at: '2026-01-01T10:00:02.000Z' },
+      { speaker: 'system', id: 'bad-2', sessionId: 'session-1' },
     ];
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(responseBody), { status: 200 })));
