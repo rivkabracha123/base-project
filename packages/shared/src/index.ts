@@ -5,6 +5,7 @@
 export * from './auction-lot';
 export * from './pagination';
 export * from './match-reason';
+export * from './buyer-criteria';
 export * from './buyer-search-results';
 export * from './import-report';
 export * from './user-profile';

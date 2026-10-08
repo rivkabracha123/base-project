@@ -1,17 +1,8 @@
-import type { ExplainedLot, GroupedResults, MatchReasonField, RelaxableField } from '@monabid/shared';
+import type { DemandSummary, ExplainedLot, GroupedResults, MatchReasonField, RelaxableField } from '@monabid/shared';
 import type { BuyerCriteria, Constraint } from './buyer-criteria';
 import { CONVERTED_CRITERIA, searchableValues } from './criteria-to-search-request';
 
-export type { ExplainedLot, GroupedResults };
-
-/** Honest no-result account for the staff dashboard: criteria sent, the buyer's hard constraints, and any buyer-approved relaxation. */
-export interface DemandSummary {
-  appliedCriteria: MatchReasonField[];
-  hardConstraints: Constraint[];
-  recovery: 'no_relaxation_no_invention' | 'approved_relaxation_no_invention';
-  // Present only when the buyer approved dropping these filters for the search that still found nothing.
-  relaxedFields?: RelaxableField[];
-}
+export type { DemandSummary, ExplainedLot, GroupedResults };
 
 const BUDGET_REASON = 'Buyer budget is a hard limit and is not relaxed without approval';
 const REQUIREMENT_REASON = 'Buyer requirement kept through refinement';

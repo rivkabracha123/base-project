@@ -3,26 +3,23 @@ import {
   relaxCriteriaForSearch,
   relaxationOptions,
   type ApprovedRelaxation,
-  type RelaxableField,
-  type RelaxationOption,
 } from './approved-relaxation';
 import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchService } from './buyer-search.service';
+import type { BuyerSearchOutcome } from '@monabid/shared';
 import type { LotSearchResult } from '../lots/lot-match';
 import type { SearchRequest } from './search-request';
-import {
-  createUnmatchedDemandDashboardView,
-  type BuyerUnmatchedDemandDashboardView,
-} from './unmatched-demand-dashboard-view';
+import { createUnmatchedDemandDashboardView } from './unmatched-demand-dashboard-view';
 import type { BuyerSearchRequest } from './buyer-search-request';
 import {
   buildDemandSummary,
   deriveHardConstraints,
   groupExplainedLots,
   type ExplainedLot,
-  type GroupedResults,
 } from './explained-results';
 import { unmatchedDemandStore, type UnmatchedDemandRecorder } from './unmatched-demand.store';
+
+export type { BuyerSearchOutcome };
 
 // Lots-search client; today wired directly to LotsService.search() (no HTTP, so no ValidationPipe).
 export interface LotsSearchClient {
@@ -49,29 +46,6 @@ export type BuyerSearchProgress =
   | { stage: 'no-results' }
   | { stage: 'insufficient-criteria' }
   | { stage: 'error' };
-
-export type BuyerSearchOutcome =
-  | {
-      kind: 'results';
-      searchRequest: BuyerSearchRequest;
-      results: GroupedResults;
-      // Filters dropped for this search with the buyer's approval, for the result cards to show as refinements.
-      approvedRefinements: RelaxableField[];
-      selectedLotId?: string;
-    }
-  | {
-      kind: 'unmatched';
-      view: BuyerUnmatchedDemandDashboardView;
-      // Filters the buyer may choose to drop next; none is applied without approval.
-      relaxationOptions: RelaxationOption[];
-      selectedLotId?: string;
-    }
-  | {
-      // Nothing searchable yet (no text and no filters): the lots search is not called and no demand is recorded.
-      kind: 'insufficient-criteria';
-      searchRequest: BuyerSearchRequest;
-      selectedLotId?: string;
-    };
 
 // Runs lots search, then returns grouped explained results, an honest recorded no-result, or a missing-criteria state.
 export class BuyerSearchOrchestrator {

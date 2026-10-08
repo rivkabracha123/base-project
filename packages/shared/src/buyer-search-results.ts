@@ -1,5 +1,6 @@
 import type { AuctionLot } from './auction-lot';
-import type { MatchReason } from './match-reason';
+import type { BuyerCriteria, Constraint } from './buyer-criteria';
+import type { MatchReason, MatchReasonField } from './match-reason';
 
 /** Structured narrowing the buyer search sends to the lots search, mirroring its LotFiltersDto. */
 export interface SearchFilters {
@@ -39,3 +40,57 @@ export interface RelaxationOption {
   field: RelaxableField;
   requiresApproval: true;
 }
+
+/** Full buyer intent retained for dashboard and later search stages. */
+export interface BuyerSearchRequest {
+  criteria: BuyerCriteria;
+  language: 'en' | 'he';
+  hardConstraints: Constraint[];
+}
+
+/** Honest no-result account for the staff dashboard: criteria sent, the buyer's hard constraints, and any buyer-approved relaxation. */
+export interface DemandSummary {
+  appliedCriteria: MatchReasonField[];
+  hardConstraints: Constraint[];
+  recovery: 'no_relaxation_no_invention' | 'approved_relaxation_no_invention';
+  // Present only when the buyer approved dropping these filters for the search that still found nothing.
+  relaxedFields?: RelaxableField[];
+}
+
+/** Dashboard-safe unmatched buyer demand view for the staff dashboard. */
+export interface BuyerUnmatchedDemandDashboardView {
+  id: string;
+  type: 'buyer';
+  status: string;
+  createdAt: string;
+  unmatchedDemand: {
+    searchRequest: BuyerSearchRequest;
+    reason: 'no_results';
+    searchedAt: string;
+    demandSummary: DemandSummary;
+  };
+}
+
+/** What one buyer search hands the result cards: grouped explained results, a recorded no-result, or a missing-criteria state. */
+export type BuyerSearchOutcome =
+  | {
+      kind: 'results';
+      searchRequest: BuyerSearchRequest;
+      results: GroupedResults;
+      // Filters dropped for this search with the buyer's approval, for the result cards to show as refinements.
+      approvedRefinements: RelaxableField[];
+      selectedLotId?: string;
+    }
+  | {
+      kind: 'unmatched';
+      view: BuyerUnmatchedDemandDashboardView;
+      // Filters the buyer may choose to drop next; none is applied without approval.
+      relaxationOptions: RelaxationOption[];
+      selectedLotId?: string;
+    }
+  | {
+      // Nothing searchable yet (no text and no filters): the lots search is not called and no demand is recorded.
+      kind: 'insufficient-criteria';
+      searchRequest: BuyerSearchRequest;
+      selectedLotId?: string;
+    };
