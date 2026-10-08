@@ -15,6 +15,8 @@ import { SellerLeadEntity } from './seller-lead.entity';
 import { BuyerRequestEntity } from './buyer-request.entity';
 import { BuyerCriteriaEntity } from './buyer-criteria.entity';
 import { BuyerConversationEntity } from './buyer-conversation.entity';
+import { BuyerUnmatchedDemandEntity } from './buyer-unmatched-demand.entity';
+import { CreateBuyerUnmatchedDemand1740000000000 } from './1740000000000-create-buyer-unmatched-demand';
 import { CreateMonabidBasicSchema1710000000001 } from './1710000000001-create-monabid-basic-schema';
 import { CreateSellerLeads1788220800000 } from './1788220800000-create-seller-leads';
 import { AddSellerLeadRecommendation1788220800001 } from './1788220800001-add-seller-lead-recommendation';
@@ -35,6 +37,7 @@ const AppDataSource = new DataSource({
     BuyerRequestEntity,
     BuyerCriteriaEntity,
     BuyerConversationEntity,
+    BuyerUnmatchedDemandEntity,
   ],
   migrations: [
     CreateAuctionLots1710000000000,
@@ -43,6 +46,7 @@ const AppDataSource = new DataSource({
     CreateBuyerTables1710000000002,
     CreateStaffOperations1725000000000,
     CreateUserProfiles1730000000000,
+    CreateBuyerUnmatchedDemand1740000000000,
     CreateSellerLeads1788220800000,
     AddSellerLeadRecommendation1788220800001,
     AddSellerLeadChoice1788220800002,

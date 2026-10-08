@@ -3,7 +3,6 @@ import { emptyBuyerCriteria } from './buyer-criteria';
 import {
   buildDemandSummary,
   deriveHardConstraints,
-  explainMatch,
   groupExplainedLots,
 } from './explained-results';
 
@@ -58,81 +57,41 @@ describe('deriveHardConstraints', () => {
   });
 });
 
-describe('explainMatch', () => {
-  it('emits only reasons it can verify from the criteria and the lot', () => {
-    const criteria = emptyBuyerCriteria('en');
-    criteria.categories = ['rare_books'];
-    criteria.creators = ['Yitzhak Abrabanel'];
-    criteria.keywords = ['manuscript'];
-    criteria.price = { min: 500, max: 5000, currency: 'USD' };
-
-    const lot = makeLot({
-      id: 'lot-1',
-      auctionTitle: 'Rare Hebrew Printed Books, Manuscripts & Judaica',
-      title: { en: 'Atereth Zekeinim by Yitzhak Abrabanel' },
-      realizedPrice: { amount: 1200, currency: 'USD' },
-    });
-
-    expect(explainMatch(criteria, lot)).toEqual([
-      { field: 'categories', detail: 'rare_books' },
-      { field: 'price', detail: 'within the stated budget' },
-      { field: 'creators', detail: 'Yitzhak Abrabanel' },
-      { field: 'keywords', detail: 'manuscript' },
-    ]);
-  });
-
-  it('does not claim a budget match when the lot price is outside the range', () => {
-    const criteria = emptyBuyerCriteria('en');
-    criteria.price = { min: 100, max: 900, currency: 'USD' };
-    const lot = makeLot({ id: 'lot-2', realizedPrice: { amount: 1200, currency: 'USD' } });
-
-    expect(explainMatch(criteria, lot)).toEqual([]);
-  });
-
-  it('does not claim a budget match when the lot has no price at all', () => {
-    const criteria = emptyBuyerCriteria('en');
-    criteria.price = { min: 100, max: 900, currency: 'USD' };
-    const lot = makeLot({ id: 'lot-3', estimate: undefined, realizedPrice: undefined });
-
-    expect(explainMatch(criteria, lot)).toEqual([]);
-  });
-
-  it('matches a period against the sale year when it is not in the text', () => {
-    const criteria = emptyBuyerCriteria('en');
-    criteria.periods = ['2025'];
-    const lot = makeLot({ id: 'lot-4', saleDate: '2025-01-23' });
-
-    expect(explainMatch(criteria, lot)).toEqual([{ field: 'periods', detail: '2025' }]);
-  });
-});
-
 describe('groupExplainedLots', () => {
-  it('splits exactly the P2 lots into current (upcoming) and historical', () => {
-    const criteria = emptyBuyerCriteria('en');
-    criteria.categories = ['rare_books'];
+  it('splits exactly the returned matches into current (upcoming) and historical, reasons unchanged', () => {
+    const upcoming = { lot: makeLot({ id: 'lot-upcoming', status: 'upcoming' }), matchReasons: [{ field: 'categories' as const, detail: 'rare_books' }] };
+    const sold = { lot: makeLot({ id: 'lot-sold', status: 'sold' }), matchReasons: [] };
+    const withdrawn = { lot: makeLot({ id: 'lot-withdrawn', status: 'withdrawn' }), matchReasons: [] };
 
-    const upcoming = makeLot({ id: 'lot-upcoming', status: 'upcoming' });
-    const sold = makeLot({ id: 'lot-sold', status: 'sold' });
-    const withdrawn = makeLot({ id: 'lot-withdrawn', status: 'withdrawn' });
-
-    const grouped = groupExplainedLots(criteria, [upcoming, sold, withdrawn]);
+    const grouped = groupExplainedLots([upcoming, sold, withdrawn]);
 
     expect(grouped.current.map((entry) => entry.lot.id)).toEqual(['lot-upcoming']);
     expect(grouped.historical.map((entry) => entry.lot.id)).toEqual(['lot-sold', 'lot-withdrawn']);
     expect(grouped.current[0]?.matchReasons).toEqual([{ field: 'categories', detail: 'rare_books' }]);
   });
 
-  it('keeps the original lot object references', () => {
-    const criteria = emptyBuyerCriteria('en');
-    const sold = makeLot({ id: 'lot-sold' });
+  it('keeps the lots search order and the original entry references', () => {
+    const older = { lot: makeLot({ id: 'lot-older', saleDate: '2024-01-01' }), matchReasons: [] };
+    const newer = { lot: makeLot({ id: 'lot-newer', saleDate: '2025-06-01' }), matchReasons: [] };
 
-    const grouped = groupExplainedLots(criteria, [sold]);
+    const grouped = groupExplainedLots([older, newer]);
 
-    expect(grouped.historical[0]?.lot).toBe(sold);
+    expect(grouped.historical).toEqual([older, newer]);
+    expect(grouped.historical[0]).toBe(older);
   });
 });
 
 describe('buildDemandSummary', () => {
+  it('lists periods, places and media only when a value was sent to the lots search', () => {
+    const criteria = emptyBuyerCriteria('en');
+    criteria.categories = ['rare_books'];
+    criteria.periods = ['19th century'];
+    criteria.geography = ['ישראל'];
+    criteria.media = ['painting'];
+
+    expect(buildDemandSummary(criteria).appliedCriteria).toEqual(['categories', 'periods', 'media']);
+  });
+
   it('lists the active criteria, keeps the hard constraints, and records safe recovery', () => {
     const criteria = emptyBuyerCriteria('he');
     criteria.categories = ['rare_books'];
@@ -141,7 +100,7 @@ describe('buildDemandSummary', () => {
     criteria.price = { min: 500, max: 5000, currency: 'USD' };
 
     expect(buildDemandSummary(criteria)).toEqual({
-      appliedCriteria: ['price', 'categories', 'creators', 'keywords'],
+      appliedCriteria: ['price', 'categories', 'creators', 'query'],
       hardConstraints: [
         {
           field: 'price',
