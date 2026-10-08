@@ -87,7 +87,7 @@ describe('AppHeader', () => {
     confirm();
 
     await waitFor(() => expect(document.documentElement).toHaveAttribute('dir', 'rtl'));
-    expect(screen.getByRole('button', { name: 'English' })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'English' })).toBeEnabled());
   });
 
   // בודק שהודעת השגיאה נעלמת כשניסיון חוזר מצליח, והמסך עובר לעברית.
