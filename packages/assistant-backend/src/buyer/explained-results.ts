@@ -143,14 +143,12 @@ export function groupExplainedLots(criteria: BuyerCriteria, lots: AuctionLot[]):
   };
 }
 
-/** Builds the honest no-result summary handed to P5. */
+/** Builds the honest no-result summary handed to P5; lists only criteria actually sent to P2. */
 export function buildDemandSummary(criteria: BuyerCriteria): DemandSummary {
   const applied: MatchReason['field'][] = [];
   if (hasBudget(criteria)) applied.push('price');
   if (criteria.categories.length > 0) applied.push('categories');
   if (criteria.creators.length > 0) applied.push('creators');
-  if (criteria.periods.length > 0) applied.push('periods');
-  if (criteria.geography.length > 0) applied.push('geography');
   if (criteria.auctionHouseIds.length > 0) applied.push('auctionHouseIds');
   if (criteria.keywords.length > 0) applied.push('keywords');
 

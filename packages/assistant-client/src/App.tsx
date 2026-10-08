@@ -22,7 +22,7 @@ export function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/lots/:id" element={<LotPage />} />
         <Route path="/chat" element={<BuyerChat />} />
-  {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
+        {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
         <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
         {/* S5 Week 5: catalog draft review and final internal lead */}
         <Route path="/seller/enquiry" element={<SellerEnquiryPage />} />
