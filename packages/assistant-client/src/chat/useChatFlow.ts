@@ -35,6 +35,8 @@ interface UseChatFlowOptions<TMessage extends BaseChatMessage> {
   connect: (message: string, onUpdate: OnChatUpdate<TMessage>) => Promise<void>;
   // הטקסט שמוצג למשתמש כשמשהו משתבש.
   errorText: string;
+  // מזהה השיחה האמיתי כשהוא כבר ידוע (השרת מחזיר אותו אחרי ההודעה הראשונה); null או חסר = עדיין לא ידוע.
+  getSessionId?: () => string | null;
 }
 
 export function useChatFlow<TMessage extends BaseChatMessage>({
@@ -43,6 +45,7 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
   userMessage,
   connect,
   errorText,
+  getSessionId,
 }: UseChatFlowOptions<TMessage>) {
   // השיחה הקיימת, כפי שנטענה מהשרת.
   const query = useQuery({
@@ -55,6 +58,11 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
   // true כל עוד החיבור עובד (חושב או מחפש); בזמן הזה אי אפשר לשלוח.
   const [isBusy, setIsBusy] = useState(false);
 
+  // מזהה השיחה שמוטבע על כל הודעה: האמיתי כשהוא ידוע, ואחרת המזהה המקומי (לפני התשובה הראשונה של השרת).
+  function currentSessionId(): string {
+    return getSessionId?.() ?? LOCAL_SESSION_ID;
+  }
+
   // מוסיף הודעה לסוף השיחה ונותן לה id ייחודי. כאן ההודעה נכנסת לרשימה ו-React מציירת אותה.
   function addToScreen(message: TMessage) {
     setLiveMessages((prev) => [...prev, { ...message, id: `local-${prev.length + 1}` }]);
@@ -66,7 +74,7 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
     addToScreen({
       speaker: 'error',
       id: 'pending',
-      sessionId: LOCAL_SESSION_ID,
+      sessionId: currentSessionId(),
       code,
       text: errorText,
     } as unknown as TMessage);
@@ -75,7 +83,7 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
   // ה-callback היחיד להצגה: כל גורם בשרשרת קורא לו כדי להציג הודעה.
   // הודעה תקינה מוצגת; הודעה פגומה לא מוצגת כמו שהיא — מוצגת במקומה שגיאה, והפרטים נרשמים ל-console למפתחות.
   const onUpdate: OnChatUpdate<TMessage> = (update) => {
-    const parsed = schema.safeParse({ ...update, id: 'pending', sessionId: LOCAL_SESSION_ID });
+    const parsed = schema.safeParse({ ...update, id: 'pending', sessionId: currentSessionId() });
     if (parsed.success) {
       addToScreen(parsed.data);
       return;
@@ -109,5 +117,8 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
     refetch: () => query.refetch(),
     isBusy,
     handleSend,
+    // להצגת הודעה או שגיאה שלא נוצרו מכתיבת טקסט (למשל צירוף תמונה של המוכר).
+    addMessage: onUpdate,
+    showError,
   };
 }

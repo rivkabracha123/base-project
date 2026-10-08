@@ -42,6 +42,45 @@ describe('seller parseConversation', () => {
     expect(parseConversation(input)).toEqual([]);
   });
 
+  // Reference to an uploaded photo, in the same shape the evidence API returns (EvidenceReference).
+  const photo = {
+    fileId: 'f1',
+    profileId: 'p1',
+    itemId: 'i1',
+    originalName: 'vase.jpg',
+    mimeType: 'image/jpeg',
+    size: 1024,
+    previewUri: '/evidence/p1/f1/preview',
+    downloadUri: '/evidence/p1/f1/download',
+  };
+
+  // Positive: a seller message that carries only a photo (no text) is kept as-is.
+  it('keeps a seller message that has only an image', () => {
+    const input = [{ speaker: 'seller', id: 'm9', sessionId: 's1', image: photo }];
+    expect(parseConversation(input)).toEqual(input);
+  });
+
+  // Positive: a seller message may carry both a photo and a text caption.
+  it('keeps a seller message that has an image and text', () => {
+    const input = [{ speaker: 'seller', id: 'm10', sessionId: 's1', text: 'הנה האגרטל', image: photo }];
+    expect(parseConversation(input)).toEqual(input);
+  });
+
+  // Negative: an image whose file type is not an allowed photo type is dropped.
+  it('drops a seller message whose image has an unsupported file type', () => {
+    const input = [
+      { speaker: 'seller', id: 'm11', sessionId: 's1', image: { ...photo, mimeType: 'application/pdf' } },
+    ];
+    expect(parseConversation(input)).toEqual([]);
+  });
+
+  // Negative: an image reference missing its file id cannot be displayed, so the message is dropped.
+  it('drops a seller message whose image is missing its file id', () => {
+    const { fileId: _fileId, ...imageWithoutFileId } = photo;
+    const input = [{ speaker: 'seller', id: 'm12', sessionId: 's1', image: imageWithoutFileId }];
+    expect(parseConversation(input)).toEqual([]);
+  });
+
   // Negative: a non-array input returns an empty list instead of crashing.
   it('returns an empty list when the input is not an array', () => {
     expect(parseConversation('not an array')).toEqual([]);

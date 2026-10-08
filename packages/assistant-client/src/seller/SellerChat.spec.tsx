@@ -176,6 +176,89 @@ describe('SellerChat', () => {
     expect(update.closest('li')).toHaveAttribute('data-speaker', 'system');
   });
 
+  // Reference to an uploaded photo, in the shape the evidence API returns after an upload.
+  const uploadedPhoto = {
+    fileId: 'f1',
+    profileId: 'p1',
+    itemId: 'chat-1',
+    originalName: 'vase.jpg',
+    mimeType: 'image/jpeg',
+    size: 1024,
+    previewUri: '/evidence/p1/f1',
+    downloadUri: '/evidence/p1/f1/download',
+  };
+
+  // Helper: renders the chat with a fake backend — conversation, profile and the photo upload endpoint.
+  // Returns the fetch mock so a test can check which requests were (not) made.
+  function renderChatWithUpload() {
+    const profile = {
+      id: 'p1',
+      sessionId: 's1',
+      language: 'en',
+      serviceConsent: { granted: false },
+      marketingConsent: { granted: false },
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes('/seller-chat/conversation')) return new Response(JSON.stringify(mockConversation.en), { status: 200 });
+      if (url.endsWith('/profiles/me')) return new Response(JSON.stringify(profile), { status: 200 });
+      if (url.includes('/evidence/') && init?.method === 'POST') return new Response(JSON.stringify([uploadedPhoto]), { status: 200 });
+      return new Response('not found', { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const queryClient = createQueryClient();
+    queryClient.setDefaultOptions({ queries: { retry: false } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SellerChat />
+      </QueryClientProvider>,
+    );
+    return fetchMock;
+  }
+
+  // בודק שכשהמוכר בוחר תמונה מהמחשב היא מוצגת בשיחה כהודעה של המוכר.
+  it('shows the chosen photo in the conversation as a seller message', async () => {
+    renderChatWithUpload();
+    await screen.findByText('I have an antique watch I want to sell');
+
+    const file = new File(['pixels'], 'vase.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [file] } });
+
+    const image = await screen.findByRole('img', { name: 'vase.jpg' });
+    expect(image.closest('li')).toHaveAttribute('data-speaker', 'seller');
+  });
+
+  // בודק שקובץ שאינו תמונה נדחה כבר בדפדפן: לא נשלחת בקשת העלאה ושום תמונה לא מוצגת.
+  it('does not upload or show a file that is not a supported photo', async () => {
+    const fetchMock = renderChatWithUpload();
+    await screen.findByText('I have an antique watch I want to sell');
+
+    const file = new File(['text'], 'notes.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [file] } });
+
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/evidence/'))).toBe(false);
+  });
+
+  // בודק שכשההעלאה נכשלת המוכר רואה הודעת שגיאה בשיחה, ושום תמונה לא מוצגת.
+  it('shows an error message in the conversation when the photo upload fails', async () => {
+    const fetchMock = renderChatWithUpload();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/seller-chat/conversation')) return new Response(JSON.stringify(mockConversation.en), { status: 200 });
+      return new Response('server error', { status: 500 });
+    });
+    await screen.findByText('I have an antique watch I want to sell');
+
+    const file = new File(['pixels'], 'vase.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [file] } });
+
+    const error = await screen.findByText('Something went wrong. Please try again.');
+    expect(error.closest('li')).toHaveAttribute('data-speaker', 'error');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
   // בודק שכל עוד החיבור עובד המוכר לא יכול לכתוב או לשלוח, ושהשדה נפתח כשהוא מסיים.
   it('locks the composer while the work is running and unlocks it when it finishes', async () => {
     let finish!: () => void;

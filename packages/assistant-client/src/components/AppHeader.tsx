@@ -68,6 +68,12 @@ export function AppHeader() {
           {t('language')}
         </Button>
       </div>
+      {/* השמירה בשרת נכשלה: השפה נשארת כמו שהיא, והכפתור פתוח לניסיון חוזר. */}
+      {languageMutation.isError && (
+        <p role="alert" className="mx-auto max-w-5xl px-4 pb-3 text-sm text-red-700 sm:px-6">
+          {t('languageError')}
+        </p>
+      )}
     </header>
   );
 }

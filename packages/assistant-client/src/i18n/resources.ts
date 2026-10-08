@@ -139,8 +139,11 @@ export const resources = {
         send: 'Send', inputLabel: 'Message', loading: 'Loading conversation…',
         error: "Couldn't load the conversation.", retry: 'Try again',
         sendError: 'Something went wrong. Please try again.',
+        attachPhoto: 'Attach a photo',
+        invalidPhoto: 'Choose a JPEG, PNG or WebP photo up to 10 MiB.',
       },
       language: 'עברית',
+      languageError: 'Could not change the language. Please try again.',
     },
   },
   he: {
@@ -283,8 +286,11 @@ export const resources = {
         send: 'שליחה', inputLabel: 'הודעה', loading: 'טוען שיחה…',
         error: 'לא הצלחנו לטעון את השיחה.', retry: 'נסו שוב',
         sendError: 'משהו השתבש. נסו שוב.',
+        attachPhoto: 'צירוף תמונה',
+        invalidPhoto: 'יש לבחור תמונה מסוג JPEG, PNG או WebP, עד 10 MiB.',
       },
       language: 'English',
+      languageError: 'לא ניתן להחליף שפה. נסו שוב.',
     },
   },
 } as const;

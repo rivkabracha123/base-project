@@ -23,7 +23,11 @@ afterEach(() => {
 });
 
 // Helper: מרנדר את ה-hook עם שיחה קיימת אחת מהשרת, והחיבור שהבדיקה מספקת.
-function setup(connect: (message: string, onUpdate: OnChatUpdate<TestMessage>) => Promise<void>) {
+// getSessionId (אופציונלי): מחזיר את מזהה השיחה האמיתי כשהוא כבר ידוע.
+function setup(
+  connect: (message: string, onUpdate: OnChatUpdate<TestMessage>) => Promise<void>,
+  getSessionId?: () => string | null,
+) {
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({ queries: { retry: false } });
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -38,6 +42,7 @@ function setup(connect: (message: string, onUpdate: OnChatUpdate<TestMessage>) =
         userMessage: (text) => ({ speaker: 'user', text }),
         connect,
         errorText: ERROR_TEXT,
+        getSessionId,
       }),
     { wrapper },
   );
@@ -136,6 +141,58 @@ describe('useChatFlow', () => {
       ERROR_TEXT,
       'Valid after invalid',
     ]);
+  });
+
+  // בודק שהודעה שמגיעה מהחיבור נושאת את מזהה השיחה האמיתי ברגע שהוא ידוע, ולא מזהה מקומי קבוע.
+  it('stamps messages from the connection with the real chat id once it is known', async () => {
+    let chatId: string | null = null;
+    const { result } = setup(
+      async (_message, onUpdate) => {
+        // השרת החזיר מזהה שיחה, ורק אחר כך מגיעים העדכונים.
+        chatId = 'chat-123';
+        onUpdate({ speaker: 'system', text: 'Which period?' });
+      },
+      () => chatId,
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => result.current.handleSend('Looking for a watch'));
+
+    const reply = result.current.messages.find((message) => message.text === 'Which period?');
+    expect(reply?.sessionId).toBe('chat-123');
+  });
+
+  // בודק שגם הודעת שגיאה נושאת את מזהה השיחה האמיתי כשהוא ידוע.
+  it('stamps an error message with the real chat id once it is known', async () => {
+    let chatId: string | null = null;
+    const { result } = setup(
+      async () => {
+        chatId = 'chat-123';
+        throw new Error('search failed');
+      },
+      () => chatId,
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => result.current.handleSend('Looking for a watch'));
+
+    expect(result.current.messages.at(-1)?.sessionId).toBe('chat-123');
+  });
+
+  // בודק שכשעדיין אין מזהה שיחה (לפני התשובה הראשונה של השרת) ההודעה עדיין מוצגת, עם מזהה מקומי.
+  it('still shows messages with a local id while no chat id is known yet', async () => {
+    const { result } = setup(
+      async (_message, onUpdate) => {
+        onUpdate({ speaker: 'system', text: 'Checking results...' });
+      },
+      () => null,
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => result.current.handleSend('Looking for a watch'));
+
+    const reply = result.current.messages.find((message) => message.text === 'Checking results...');
+    expect(reply?.sessionId).toBe('local-session');
   });
 
   // בודק שניסיון שליחה בזמן שהעבודה רצה לא מוסיף הודעה ולא מפעיל את החיבור שוב.

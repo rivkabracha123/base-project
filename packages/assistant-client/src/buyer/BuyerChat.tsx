@@ -4,6 +4,7 @@ import { getConversation } from '../app/api';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
+import { getBuyerChatFlowSnapshot } from './buyer-chat-flow';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
 
@@ -35,6 +36,8 @@ export function BuyerChat() {
     userMessage: (text) => ({ speaker: 'buyer', skipped: false, text }),
     connect: (text, onUpdate) => connectLevels(text, onUpdate, language),
     errorText: t('chat.sendError'),
+    // מזהה השיחה האמיתי שהשרת של B2 החזיר (null לפני ההודעה הראשונה).
+    getSessionId: () => getBuyerChatFlowSnapshot().sessionId,
   });
 
   // Renders a single conversation message in the form that fits its kind.

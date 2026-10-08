@@ -17,6 +17,8 @@ interface ChatScreenProps<T extends { id: string }> {
   retryLabel: string;
   inputLabel: string;
   sendLabel: string;
+  // תוכן נוסף בשורת הכתיבה, לפני שדה ההקלדה (למשל לחצן צירוף תמונה). אופציונלי.
+  composerExtra?: ReactNode;
 }
 
 // Generic chat screen shell shared by every conversation role (buyer, seller, ...): the message
@@ -36,6 +38,7 @@ export function ChatScreen<T extends { id: string }>({
   retryLabel,
   inputLabel,
   sendLabel,
+  composerExtra,
 }: ChatScreenProps<T>) {
   // הטקסט שנמצא כרגע בשדה הכתיבה.
   const [draft, setDraft] = useState('');
@@ -127,6 +130,7 @@ export function ChatScreen<T extends { id: string }>({
 
         {/* שדה כתיבת הודעה וכפתור שליחה. mt-auto דוחף אותו לתחתית ה-flex גם כששיחה קצרה. */}
         <form onSubmit={handleSubmit} dir={dir} className="sticky bottom-0 mt-auto flex gap-2 bg-[#f7efe2] py-3">
+          {composerExtra}
           <textarea
             ref={inputRef}
             aria-label={inputLabel}
