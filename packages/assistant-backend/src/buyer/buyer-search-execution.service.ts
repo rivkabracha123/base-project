@@ -4,15 +4,15 @@ import {
   type BuyerSearchInput,
   type BuyerSearchOutcome,
   type BuyerSearchProgress,
-  type LotsSearchClient,
 } from './buyer-search.orchestrator';
+import { LotsServiceSearchClient } from './lots-service-search.client';
 
 /** B3 entry point for B4 — same as `BuyerSearchOrchestrator.search`, named for the contract. */
 @Injectable()
 export class BuyerSearchExecutionService {
   private readonly orchestrator: BuyerSearchOrchestrator;
 
-  constructor(lotsSearch: LotsSearchClient) {
+  constructor(lotsSearch: LotsServiceSearchClient) {
     this.orchestrator = new BuyerSearchOrchestrator(lotsSearch);
   }
 
