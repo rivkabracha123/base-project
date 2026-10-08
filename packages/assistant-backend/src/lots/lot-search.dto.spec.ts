@@ -54,6 +54,30 @@ describe('LotSearchDto', () => {
       });
     });
 
+    it('accepts the geography facet as a string array', async () => {
+      const result = await validateBody({ filters: { geography: ['italy'] } });
+      expect(result.filters).toEqual({ geography: ['italy'] });
+    });
+
+    it('accepts the media facet as a string array', async () => {
+      const result = await validateBody({ filters: { media: ['oil_on_canvas'] } });
+      expect(result.filters).toEqual({ media: ['oil_on_canvas'] });
+    });
+
+    it('accepts the periods facet as a string array', async () => {
+      const result = await validateBody({ filters: { periods: ['15th century'] } });
+      expect(result.filters).toEqual({ periods: ['15th century'] });
+    });
+
+    it('accepts the statuses facet with valid sale statuses', async () => {
+      const result = await validateBody({ filters: { statuses: ['sold', 'upcoming'] } });
+      expect(result.filters).toEqual({ statuses: ['sold', 'upcoming'] });
+    });
+
+    it.each([['Sold'], ['נמכר'], ['archived']])('rejects the unknown sale status %s', async (status: string) => {
+      await expect(validateBody({ filters: { statuses: [status] } })).rejects.toThrow();
+    });
+
     it('accepts an empty filters object', async () => {
       await expect(validateBody({ filters: {} })).resolves.toMatchObject({ filters: {} });
     });
@@ -158,7 +182,7 @@ describe('LotSearchDto', () => {
   describe('filters — unsupported facets are rejected, not ignored', () => {
     // A filter the search does not implement must fail loudly, never be accepted
     // and silently dropped.
-    it.each(['periods', 'media', 'geography'])(
+    it.each(['currency'])(
       'rejects the unsupported facet %s',
       async (facet: string) => {
         await expect(validateBody({ filters: { [facet]: ['x'] } })).rejects.toThrow();

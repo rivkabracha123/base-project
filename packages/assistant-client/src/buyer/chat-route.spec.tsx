@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { createQueryClient } from '../app/query-client';
 import { mockConversation } from './mock-conversation';
-import '../i18n';
+import i18n from '../i18n';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -15,10 +15,15 @@ describe('/chat route', () => {
   it('renders the buyer chat screen at /chat', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(() =>
-        Promise.resolve(new Response(JSON.stringify(mockConversation.en), { status: 200 })),
-      ),
+      vi.fn((input: string | URL | Request) => {
+        const url = input.toString();
+        const body = url.includes('/chat/conversation')
+          ? mockConversation.en
+          : { language: 'en' };
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+      }),
     );
+    await i18n.changeLanguage('en');
     const queryClient = createQueryClient();
     queryClient.setDefaultOptions({ queries: { retry: false } });
 
