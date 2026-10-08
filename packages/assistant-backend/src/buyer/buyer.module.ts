@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AiModule } from '../ai/ai.module';
 import { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
 import { LotsModule } from '../lots/lots.module';
 import { LotsService } from '../lots/lots.service';
@@ -8,9 +9,16 @@ import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 import { BuyerSearchService } from './buyer-search.service';
 import { BuyerController } from './buyer.controller';
 import { UnmatchedDemandDbStore } from './unmatched-demand.db-store';
+import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
+import { BuyerSessionSearchService } from './buyer-session-search.service';
+import { BuyerChatOrchestratorService } from './buyer-chat-orchestrator.service';
+import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
+import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
+import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
+import { LotsServiceSearchClient } from './lots-service-search.client';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BuyerUnmatchedDemandEntity]), LotsModule],
+  imports: [TypeOrmModule.forFeature([BuyerUnmatchedDemandEntity]), AiModule, LotsModule],
   controllers: [BuyerController],
   providers: [
     BuyerCriteriaService,
@@ -22,7 +30,21 @@ import { UnmatchedDemandDbStore } from './unmatched-demand.db-store';
       useFactory: (lotsService: LotsService, demandStore: UnmatchedDemandDbStore) =>
         new BuyerSearchOrchestrator(lotsService, new BuyerSearchService(), demandStore),
     },
+    BuyerSessionSearchService,
+    BuyerP4BridgeService,
+    BuyerComparableSaleHistoryService,
+    BuyerP4FunctionExecutor,
+    BuyerChatOrchestratorService,
+    LotsServiceSearchClient,
+    BuyerLotsResolverService,
   ],
-  exports: [BuyerCriteriaService, UnmatchedDemandDbStore, BuyerSearchOrchestrator],
+  exports: [
+    BuyerCriteriaService,
+    UnmatchedDemandDbStore,
+    BuyerSearchOrchestrator,
+    BuyerSessionSearchService,
+    BuyerP4BridgeService,
+    BuyerChatOrchestratorService,
+  ],
 })
 export class BuyerModule {}

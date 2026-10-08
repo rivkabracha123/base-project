@@ -2,11 +2,14 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProfileLanguageLoader } from './app/ProfileLanguageLoader';
 import { LotPage } from './app/LotPage';
 import { SampleLotPage } from './app/SampleLotPage';
-import { BuyerChat } from './buyer/BuyerChat';
+import { ChatPage } from './chat/ChatPage';
+import { AssistantPage } from './app/AssistantPage';
 import { AppHeader } from './components/AppHeader';
 import { ResultsPage } from './components/ResultPage';
 import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
+import { SellerEnquiryPage } from './app/SellerEnquiryPage';
 import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
+import { EvidenceGallery } from './app/evidenceGallery';
 
 export function App() {
   return (
@@ -14,14 +17,24 @@ export function App() {
       <ProfileLanguageLoader />
       <AppHeader />
       <Routes>
+        <Route path="/assistant" element={<AssistantPage />} />
         <Route path="/sample" element={<SampleLotPage />} />
         <Route path="/staff-operations" element={<StaffOperationsDashboard />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/lots/:id" element={<LotPage />} />
-        <Route path="/chat" element={<BuyerChat />} />
-        <Route path="*" element={<Navigate to="/results" replace />} />
-  {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
+        <Route path="/chat/:role" element={<ChatPage />} />
+        <Route path="/chat" element={<Navigate to="/chat/buyer" replace />} />
+        {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
         <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
+        {import.meta.env.DEV && (
+        <Route
+            path="/seller/gallery"
+            element={<EvidenceGallery profileId="demo-profile-gallery" />}
+        />
+        )}
+        {/* S5 Week 5: catalog draft review and final internal lead */}
+        <Route path="/seller/enquiry" element={<SellerEnquiryPage />} />
+        <Route path="*" element={<Navigate to="/results" replace />} />
       </Routes>
     </>
   );

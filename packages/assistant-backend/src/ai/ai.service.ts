@@ -4,6 +4,8 @@ import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService } from './fixture-provider.service';
 import { ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
+import { routeBuyerIntent, type IntentRoute } from './intent-router';
+import { ProfilesService } from '../profiles/profiles.service';
 import type { AiRole, StructuredAnswer } from './ai.dto';
 
 //request
@@ -14,6 +16,7 @@ export type AiGenerateRequest = {
   baseUrl?: string;
   modelName?: string;
   apiKey?: string;
+  sessionId?: string;
 };
 
 //response
@@ -29,6 +32,7 @@ export type AiGenerateResponse = {
   nextAction: string;
   confidence: 'low' | 'medium';
   structuredAnswer: StructuredAnswer;
+  intentRoute?: IntentRoute;
 };
 
 //constructor
@@ -38,9 +42,14 @@ export class AiService {
     private readonly fixtureProvider: FixtureProviderService,
     private readonly realProvider: RealProviderService,
     private readonly config: ConfigService,
+    private readonly profilesService: ProfilesService,
   ) {}
 
   async generate(input: AiGenerateRequest): Promise<AiGenerateResponse> {
+    if (input.sessionId && (input.role ?? 'buyer') === 'buyer') {
+      await this.profilesService.captureContactIfPresent(input.sessionId, input.prompt);
+    }
+
     const gateway = new ProviderGatewayService({
       fixtureProvider: this.fixtureProvider,
       realProvider: this.realProvider,
@@ -61,10 +70,18 @@ export class AiService {
 
     const result = await gateway.generate({ ...input, role: input.role ?? 'buyer' }, configuredProviders);
 
-    if (!isGenerateAiResponseDto(result)) {
+    if (!isGenerateAiResponseDto(result, input.role ?? 'buyer')) {
       throw new Error('AI service received an invalid response shape from the provider gateway.');
     }
 
-    return result;
+    const role = input.role ?? 'buyer';
+    const intentRoute = role === 'buyer'
+      ? routeBuyerIntent(input.prompt, { language: input.language })
+      : undefined;
+
+    return {
+      ...result,
+      ...(intentRoute && intentRoute.intent !== 'unknown' ? { intentRoute } : {}),
+    };
   }
 }

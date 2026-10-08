@@ -1,3 +1,5 @@
+import { isCompletionState, type CompletionState } from './completion-state';
+
 // Define and validate the buyer handoff contract
 export type BuyerExtraction = {
   role: 'buyer';
@@ -11,6 +13,7 @@ export type BuyerExtraction = {
   geography?: string[];
   hasContactDetails: boolean;
   hasImages: boolean;
+  completionState?: CompletionState;
 };
 
 export type BuyerHandoffContract = BuyerExtraction;
@@ -34,7 +37,8 @@ export function isBuyerHandoffContract(value: unknown): value is BuyerHandoffCon
     (handoff.keywords === undefined || (Array.isArray(handoff.keywords) && handoff.keywords.every((keyword) => typeof keyword === 'string'))) &&
     (handoff.geography === undefined || (Array.isArray(handoff.geography) && handoff.geography.every((place) => typeof place === 'string'))) &&
     typeof handoff.hasContactDetails === 'boolean' &&
-    typeof handoff.hasImages === 'boolean'
+    typeof handoff.hasImages === 'boolean' &&
+    (handoff.completionState === undefined || isCompletionState(handoff.completionState))
   );
 }
 

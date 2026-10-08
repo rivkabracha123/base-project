@@ -38,8 +38,11 @@ function computeScore(matched: string[], item: SellerItem, categoryMatch: boolea
 // Only a completed sale with a recorded realized price is credible evidence for valuation (S4).
 // Category match is a hard gate; the graduated score reflects how much of the seller's confirmed
 // evidence the lot corroborates (see computeScore).
+// Week 5 — a realized price of 0 is not a usable realized price: moneySchema allows 0, but S4
+// requires a positive soldPrice (ComparableSaleDto @IsPositive). It takes the existing
+// "No realized price recorded" exclusion, which S4's privacy projection already allowlists.
 export function scoreComparable(lot: AuctionLot, item: SellerItem): ScoredComparable {
-  const credible = lot.status === 'sold' && lot.realizedPrice != null;
+  const credible = lot.status === 'sold' && lot.realizedPrice != null && lot.realizedPrice.amount > 0;
   const categoryMatch = lot.category === item.category;
   const matched = matchedMaterials(lot, item.materials);
   const score = computeScore(matched, item, categoryMatch);

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { FixtureProviderService } from './fixture-provider.service';
 import { ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
@@ -234,7 +235,48 @@ describe('ProviderGatewayService', () => {
 
     expect(realProvider.generate).toHaveBeenCalledTimes(2);
     expect(result).toEqual(expect.objectContaining({ provider: 'fixture', fallbackMode: 'guided' }));
-    expect(result.nextAction).toContain('בקש');
+    expect(result.nextAction).toContain('מה התקציב');
+    expect(result.nextAction).toContain('שנה או תקופה');
+  });
+//test - return the real response in the second time
+  it('returns the real response when the second attempt succeeds', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const good = await new FixtureProviderService().generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' });
+    const realResponse = { ...good, provider: 'real', mode: 'real' };
+    const realProvider = {
+      generate: jest.fn().mockRejectedValueOnce(new Error('timeout')).mockResolvedValueOnce(realResponse),
+    } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate(
+      { prompt: 'טבעת כחולה', role: 'buyer', language: 'he' },
+      [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'token' }],
+    );
+
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(result.provider).toBe('real');
+    expect(result.fallbackMode).toBeUndefined();
+  });
+
+  it('logs only a coarse failure reason, without prompt, contact data, or credentials', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const fixtureProvider = new FixtureProviderService();
+    const realProvider = {
+      generate: jest
+        .fn()
+        .mockRejectedValue(new Error('Real provider request failed: 429 user dana@example.com secret-token')),
+    } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    await service.generate(
+      { prompt: 'התקשרו אלי 050-1234567', role: 'buyer', language: 'he' },
+      [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'secret-token' }],
+    );
+
+    const logged = warn.mock.calls.map((call) => String(call[0])).join('\n');
+    expect(logged).toContain('http_429');
+    expect(logged).not.toMatch(/dana@example\.com|secret-token|050-1234567|example\.com\/v1/);
+    warn.mockRestore();
   });
 
   // test 7 - use fixture without real provider
@@ -274,6 +316,7 @@ describe('ProviderGatewayService', () => {
       generate: jest.fn().mockResolvedValue({
         provider: 'fixture',
         mode: 'fixture',
+        fallbackMode: 'guided',
         content: 'fallback because real config is incomplete',
         summary: 'אין קונפיג של real',
         recommendation: 'הצג תוצאה בטוחה',
@@ -294,6 +337,7 @@ describe('ProviderGatewayService', () => {
 
     expect(result.provider).toBe('fixture');
     expect(result.content).toBe('fallback because real config is incomplete');
+    expect(result.fallbackMode).toBe('guided');
     expect(realProvider.generate).not.toHaveBeenCalled();
   });
 

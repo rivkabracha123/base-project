@@ -102,6 +102,19 @@ const toNumber = (value: string): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+function extractCorrectionPrice(text: string): BuyerPriceRange | undefined {
+  const match = text.match(/\$\s*([\d,]+)/);
+  const digits = match?.[1];
+  if (!digits) {
+    return undefined;
+  }
+  const value = Number(digits.replace(/,/g, ''));
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+  return { min: value, max: value, currency: 'USD' };
+}
+
 const extractPrice = (text: string): BuyerPriceRange | undefined => {
   const matches = [...text.matchAll(/\$?\d[\d,]*(?:k)?/gi)]
     .map((match) => match[0])
@@ -187,6 +200,11 @@ const FOCUSED_QUESTIONS: Record<SearchFact, Record<BuyerLanguage, string>> = {
 const READY_TO_CONTINUE: Record<BuyerLanguage, string> = {
   he: 'יש את העובדות העיקריות לחיפוש. אפשר להמשיך?',
   en: 'I have the main search facts. Should I continue?',
+};
+
+const GUIDED_FALLBACK_QUESTION: Record<BuyerLanguage, string> = {
+  he: 'לא הצלחתי לקרוא את הבקשה אוטומטית. תארו במילים שלכם מה מחפשים — סוג פריט, תקציב, או תקופה.',
+  en: 'I could not read that automatically. Describe what you want in your own words — item type, budget, or period.',
 };
 
 function hasPrice(criteria: BuyerCriteria): boolean {
@@ -298,10 +316,19 @@ function withConversation(
   };
 }
 
+function normalizeStructuredCategory(category: string | undefined): string | null {
+  if (!category?.trim()) return null;
+  const trimmed = category.trim();
+  if (trimmed.includes('ציור')) return 'painting';
+  if (trimmed.includes('פסל')) return 'sculpture';
+  return trimmed;
+}
+
 function criteriaFromStructuredAiExtract(structured: StructuredAiExtract): BuyerCriteria {
+  const category = normalizeStructuredCategory(structured.category);
   return {
     ...emptyBuyerCriteria(structured.language),
-    categories: structured.category?.trim() ? [structured.category.trim()] : [],
+    categories: category ? [category] : [],
     creators: structured.creators ?? [],
     periods: structured.periods ?? [],
     keywords: structured.keywords ?? [],
@@ -335,6 +362,102 @@ function parseFromAiTextContent(response: AiExtractResponse): BuyerCriteriaRespo
   });
 }
 
+/** Guided fallback when AI extract is missing or invalid — keeps the chat usable without blocking. */
+export function createGuidedFallbackCriteriaResponse(language: BuyerLanguage): BuyerCriteriaResponse {
+  const base = withConversation(emptyBuyerCriteria(language), {
+    notes: ['guided_fallback'],
+  });
+  return {
+    ...base,
+    conversation: {
+      ...base.conversation,
+      nextQuestion: GUIDED_FALLBACK_QUESTION[language],
+    },
+  };
+}
+
+export function isCriteriaRemovalMessage(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return (
+    /\b(remove|clear|without|drop)\b/i.test(trimmed) ||
+    /(בלי|הסר|נקה|ללא)/i.test(trimmed)
+  );
+}
+
+/** Remove one constraint the buyer explicitly asked to drop, without clearing unrelated fields. */
+export function applyCriteriaRemoval(
+  criteria: BuyerCriteria,
+  conversation: BuyerCriteriaConversation,
+  message: string,
+): BuyerCriteriaResponse {
+  const trimmed = message.trim().toLowerCase();
+  const criteriaUpdate: Partial<BuyerCriteria> = {};
+
+  if (trimmed.includes('budget') || trimmed.includes('תקציב')) {
+    criteriaUpdate.price = undefined;
+  }
+  if (trimmed.includes('creator') || trimmed.includes('artist') || trimmed.includes('יוצר') || trimmed.includes('אמן')) {
+    criteriaUpdate.creators = [];
+  }
+  if (trimmed.includes('location') || trimmed.includes('מיקום') || trimmed.includes('מקום')) {
+    criteriaUpdate.geography = [];
+  }
+  if (trimmed.includes('period') || trimmed.includes('תקופה')) {
+    criteriaUpdate.periods = [];
+  }
+  if (trimmed.includes('category') || trimmed.includes('קטגור')) {
+    criteriaUpdate.categories = [];
+  }
+
+  return mergeResponse(criteria, conversation, criteriaUpdate, {
+    notes: [`Removal: ${message.trim()}`],
+  });
+}
+
+export function isCriteriaCorrectionMessage(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return false;
+  }
+  return (
+    /\b(actually|instead|change|correct|update|rather)\b/i.test(trimmed) ||
+    /(למעשה|במקום|שנה|תקן|לא \d|עד \d|סביב \d)/i.test(trimmed)
+  );
+}
+
+/** Apply an explicit correction without clearing unrelated constraints. */
+export function applyCriteriaCorrection(
+  criteria: BuyerCriteria,
+  conversation: BuyerCriteriaConversation,
+  message: string,
+): BuyerCriteriaResponse {
+  const trimmed = message.trim();
+  const criteriaUpdate: Partial<BuyerCriteria> = {};
+  if (/\bbudget\b|תקציב|\$/i.test(trimmed)) {
+    const price = extractCorrectionPrice(trimmed) ?? extractPrice(trimmed);
+    if (price) {
+      criteriaUpdate.price = price;
+    }
+  }
+  const category = parseCategory(trimmed);
+  if (category) {
+    criteriaUpdate.categories = appendUnique(criteria.categories, category);
+  }
+  const period = parsePeriod(trimmed);
+  if (period) {
+    criteriaUpdate.periods = appendUnique(criteria.periods, period);
+  }
+  if (/\bmonet\b/i.test(trimmed)) {
+    criteriaUpdate.creators = appendUnique(criteria.creators, 'Monet');
+  }
+  return mergeResponse(criteria, conversation, criteriaUpdate, {
+    notes: [`Correction: ${trimmed}`],
+  });
+}
+
 /** Parse AI extract response into criteria plus the next clarification question. */
 export function parseCriteriaFromAiResponse(response: AiExtractResponse): BuyerCriteriaResponse {
   if (response.isRelevant === false) {
@@ -363,7 +486,12 @@ export function mergeBuyerCriteria(
     geography: update.geography ?? existing.geography,
     auctionHouseIds: update.auctionHouseIds ?? existing.auctionHouseIds,
     dateRange: update.dateRange ? { ...existing.dateRange, ...update.dateRange } : existing.dateRange,
-    price: update.price ? { ...existing.price, ...update.price } : existing.price,
+    price:
+      'price' in update
+        ? update.price
+          ? { ...existing.price, ...update.price }
+          : undefined
+        : existing.price,
     hardConstraints: update.hardConstraints ?? existing.hardConstraints,
   };
 }
@@ -447,5 +575,12 @@ export function applyClarificationTurn(state: ClarificationTurnInput): BuyerCrit
   if (state.action === 'skip') {
     return skipCurrentQuestion(state.criteria, state.conversation);
   }
-  return applyBuyerAnswer(state.criteria, state.conversation, state.message ?? '');
+  const message = state.message ?? '';
+  if (isCriteriaRemovalMessage(message)) {
+    return applyCriteriaRemoval(state.criteria, state.conversation, message);
+  }
+  if (isCriteriaCorrectionMessage(message)) {
+    return applyCriteriaCorrection(state.criteria, state.conversation, message);
+  }
+  return applyBuyerAnswer(state.criteria, state.conversation, message);
 }

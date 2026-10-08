@@ -4,8 +4,6 @@ import { sampleAiExtractResponses, refinementExample } from './buyer-criteria.fi
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 
-const buyerAt = '2026-09-15T09:00:00.000Z';
-
 describe('Pass refined criteria to search (session → orchestrator)', () => {
   const service = new BuyerCriteriaService();
 
@@ -21,7 +19,6 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
       speaker: 'buyer',
       skipped: false,
       text: 'Monet',
-      date: buyerAt,
     });
     const criteria = service.getCriteriaForSession(first.sessionId);
     const session = service.getSessionResponse(first.sessionId);
@@ -48,7 +45,6 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
       speaker: 'buyer',
       skipped: false,
       text: refinementExample.buyerAnswer,
-      date: buyerAt,
     });
     const criteria = service.getCriteriaForSession(first.sessionId);
     const extracted = parseCriteriaFromAiResponse(refinementExample.initialAiResponse);

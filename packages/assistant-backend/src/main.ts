@@ -11,7 +11,12 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   app.use(createHttpLogger(config.get<string>('LOG_LEVEL', 'info')));
-  app.enableCors({ origin: config.getOrThrow<string>('CORS_ORIGIN'), credentials: true });
+  const configuredOrigin = config.getOrThrow<string>('CORS_ORIGIN');
+  const corsOrigins =
+    config.get<string>('NODE_ENV') === 'development'
+      ? Array.from(new Set([configuredOrigin, 'http://127.0.0.1:5173', 'http://localhost:5173']))
+      : configuredOrigin;
+  app.enableCors({ origin: corsOrigins, credentials: true });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());

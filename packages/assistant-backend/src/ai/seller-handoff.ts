@@ -1,3 +1,5 @@
+import { isCompletionState, type CompletionState } from './completion-state';
+
 // Define and validate the seller handoff contract
 export type SellerHandoffContract = {
   role: 'seller';
@@ -22,6 +24,7 @@ export type SellerHandoffContract = {
   };
   hasContactDetails: boolean;
   hasImages: boolean;
+  completionState?: CompletionState;
 };
 
 export function isSellerHandoffContract(value: unknown): value is SellerHandoffContract {
@@ -34,8 +37,8 @@ export function isSellerHandoffContract(value: unknown): value is SellerHandoffC
   if (!sellerConfirmation || typeof sellerConfirmation !== 'object') return false;
 
   const confirmation = sellerConfirmation as Record<string, unknown>;
-  const itemFields = ['title', 'dimensions', 'condition', 'markings', 'signature', 'provenance'] as const;
   const itemRecord = item as Record<string, unknown>;
+  const itemFields = ['title', 'dimensions', 'condition', 'markings', 'signature', 'provenance'] as const;
 
   return (
     handoff.role === 'seller' &&
@@ -50,6 +53,7 @@ export function isSellerHandoffContract(value: unknown): value is SellerHandoffC
     typeof confirmation.required === 'boolean' &&
     (confirmation.status === 'pending' || confirmation.status === 'confirmed' || confirmation.status === 'rejected') &&
     typeof handoff.hasContactDetails === 'boolean' &&
-    typeof handoff.hasImages === 'boolean'
+    typeof handoff.hasImages === 'boolean' &&
+    (handoff.completionState === undefined || isCompletionState(handoff.completionState))
   );
 }
