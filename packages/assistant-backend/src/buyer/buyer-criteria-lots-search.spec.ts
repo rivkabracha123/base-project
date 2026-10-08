@@ -1,17 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { AuctionLot } from '@monabid/shared';
 import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 import { criteriaToSearchRequest } from './criteria-to-search-request';
-import type { PaginatedSearchResult, SearchRequest } from './search-request';
+import type { LotSearchResult } from '../lots/lot-match';
+import type { SearchRequest } from './search-request';
 
 // Shared named-fixture proof for criteria → lots search; see the fixture's own `description`.
 const contract = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
   namedLotId: string;
-  expectedResponse: PaginatedSearchResult<AuctionLot>;
+  expectedExplainedResponse: LotSearchResult;
   scenarios: Array<{
     name: string;
     criteria: BuyerCriteria;
@@ -36,7 +36,7 @@ for (const scenario of contract.scenarios) {
     });
 
     it('consumes the paginated lots response and hands the named lot to results', async () => {
-      const lotsSearch = { search: jest.fn().mockResolvedValue(contract.expectedResponse) };
+      const lotsSearch = { search: jest.fn().mockResolvedValue(contract.expectedExplainedResponse) };
       const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
       const outcome = await orchestrator.search({
@@ -52,6 +52,10 @@ for (const scenario of contract.scenarios) {
         (entry) => entry.lot.id,
       );
       expect(groupedLotIds).toEqual([contract.namedLotId]);
+      // Match reasons are the lots search's own, passed through unchanged.
+      expect([...outcome.results.current, ...outcome.results.historical]).toEqual(
+        contract.expectedExplainedResponse.data,
+      );
     });
   });
 }

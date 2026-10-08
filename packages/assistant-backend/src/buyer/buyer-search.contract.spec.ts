@@ -3,13 +3,13 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-import type { PaginatedSearchResult } from './search-request';
+import type { LotSearchResult } from '../lots/lot-match';
 
 const repoRoot = resolve(__dirname, '../../../..');
 
-// Wraps fixture lots as the single-page PaginatedResult the real lots search() returns.
-const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
-  data,
+// Wraps fixture lots as the single-page result the real lots search() returns, with no match reasons.
+const page = (data: AuctionLot[]): LotSearchResult => ({
+  data: data.map((lot) => ({ lot, matchReasons: [] })),
   total: data.length,
   page: 1,
   limit: data.length || 10,

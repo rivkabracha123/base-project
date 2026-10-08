@@ -1,4 +1,3 @@
-import type { AuctionLot } from '@monabid/shared';
 import type { Repository } from 'typeorm';
 import type { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
 import { emptyBuyerCriteria } from './buyer-criteria';
@@ -67,7 +66,7 @@ describe('UnmatchedDemandDbStore', () => {
     const { repository } = fakeRepository();
     const store = new UnmatchedDemandDbStore(repository);
     const lotsSearch: LotsSearchClient = {
-      search: async () => ({ data: [] as AuctionLot[], total: 0, page: 1, limit: 10, totalPages: 0 }),
+      search: async () => ({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 }),
     };
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, store);
 

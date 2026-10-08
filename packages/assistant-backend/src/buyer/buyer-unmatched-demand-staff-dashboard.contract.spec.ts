@@ -41,9 +41,16 @@ function emptyLotsRepository(): Repository<AuctionLotEntity> {
   const queryBuilder: Record<string, jest.Mock> = {
     andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    setParameters: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue([]),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn(async () => [[], 0]),
+    getRawAndEntities: jest.fn(async () => ({ entities: [], raw: [] })),
+    getCount: jest.fn(async () => 0),
   };
   return { createQueryBuilder: jest.fn().mockReturnValue(queryBuilder) } as unknown as Repository<AuctionLotEntity>;
 }

@@ -74,6 +74,26 @@ export class LotFiltersDto {
   auctionHouseIds?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  geography?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  media?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(['sold', 'unsold', 'upcoming', 'withdrawn', 'unknown'], { each: true })
+  statuses?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  periods?: string[];
+
+  @IsOptional()
   @IsObject()
   @ValidateNested()
   @Type(() => DateRangeDto)

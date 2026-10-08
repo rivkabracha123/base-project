@@ -1,4 +1,4 @@
-import { auctionLotFixtureSchema, type AuctionLot } from './auction-lot';
+import { auctionLotSchema, type AuctionLot } from './auction-lot';
 
 export type ImportReport = {
   total: number;
@@ -13,35 +13,41 @@ export type FixtureValidation = {
   report: ImportReport;
 };
 
+function hasStringId(item: unknown): item is { id: string } {
+  return typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string';
+}
+
 export function validateAuctionLotFixture(input: unknown): FixtureValidation {
   const items = Array.isArray(input) ? input : [];
-  const ids = items
-    .filter((item): item is { id: string } => typeof item === 'object' && item !== null && typeof (item as { id?: unknown }).id === 'string')
-    .map((item) => item.id);
+  const ids = items.filter(hasStringId).map((item) => item.id);
   const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
-  const parsed = auctionLotFixtureSchema.safeParse(input);
 
-  if (!parsed.success || duplicateIds.length > 0) {
-    return {
-      records: [],
-      report: {
-        total: items.length,
-        accepted: 0,
-        rejected: Math.max(items.length, 1),
-        duplicateIds,
-        validationErrors: parsed.success ? [] : ['Fixture records failed canonical validation'],
-      },
-    };
+  const records: AuctionLot[] = [];
+  const validationErrors: string[] = [];
+
+  for (const item of items) {
+    const parsed = auctionLotSchema.safeParse(item);
+
+    if (!parsed.success) {
+      validationErrors.push('Fixture record failed canonical validation');
+      continue;
+    }
+
+    if (duplicateIds.includes(parsed.data.id)) {
+      continue; // duplicate id — reject every copy, we can't guess which is correct
+    }
+
+    records.push(parsed.data);
   }
 
   return {
-    records: parsed.data,
+    records,
     report: {
-      total: parsed.data.length,
-      accepted: parsed.data.length,
-      rejected: 0,
-      duplicateIds: [],
-      validationErrors: [],
+      total: items.length,
+      accepted: records.length,
+      rejected: items.length - records.length,
+      duplicateIds,
+      validationErrors,
     },
   };
 }

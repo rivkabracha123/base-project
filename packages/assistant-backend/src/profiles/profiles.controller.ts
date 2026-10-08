@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Headers, Patch } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, Patch } from '@nestjs/common';
 import type { UserProfile } from '@monabid/shared';
 import { ProfilesService, type UpdateCurrentProfileInput } from './profiles.service';
 
@@ -38,6 +38,17 @@ export class ProfilesController {
     return this.profilesService.updateCurrentProfile(
       this.requireSessionId(sessionId),
       update,
+    );
+  }
+
+  // Week 5: delete the current session's profile. 204 even if none existed - idempotent for the caller.
+  @Delete('me')
+  @HttpCode(204)
+  deleteCurrentProfile(
+    @Headers('x-anonymous-session-id') sessionId: string,
+  ): Promise<void> {
+    return this.profilesService.deleteBySessionId(
+      this.requireSessionId(sessionId),
     );
   }
 

@@ -1,25 +1,16 @@
 import type { BuyerCriteria } from './buyer-criteria';
-import type { SearchFilters } from './search-request';
+import type { ApprovedRelaxation, RelaxableField, RelaxationOption } from '@monabid/shared';
+import { searchableValues } from './criteria-to-search-request';
 
-/** A lots-search filter the buyer may explicitly agree to drop for one search. */
-export type RelaxableField = keyof SearchFilters;
-
-/** The buyer's explicit consent to drop one filter; without it nothing is relaxed. */
-export interface ApprovedRelaxation {
-  field: RelaxableField;
-  approvedAt: string;
-}
-
-/** A filter the orchestrator may offer to drop after a no-result; never applied until the buyer approves it. */
-export interface RelaxationOption {
-  field: RelaxableField;
-  requiresApproval: true;
-}
+export type { ApprovedRelaxation, RelaxableField, RelaxationOption };
 
 const BUDGET_FIELD: RelaxableField = 'price';
 
 // Fixed order so options and applied relaxations stay deterministic; budget is offered last.
 const RELAXABLE_FIELDS: readonly RelaxableField[] = [
+  'periods',
+  'geography',
+  'media',
   'dateRange',
   'auctionHouseIds',
   'creators',
@@ -34,6 +25,10 @@ function isActive(criteria: BuyerCriteria, field: RelaxableField): boolean {
       return criteria.price?.min != null || criteria.price?.max != null;
     case 'dateRange':
       return Boolean(criteria.dateRange?.from || criteria.dateRange?.to);
+    case 'periods':
+    case 'geography':
+    case 'media':
+      return searchableValues(criteria, field).length > 0;
     default:
       return criteria[field].length > 0;
   }

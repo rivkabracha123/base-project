@@ -16,7 +16,7 @@ const contract = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
   namedLotId: string;
-  expectedResponse: { data: AuctionLot[] };
+  expectedExplainedResponse: { data: Array<{ lot: AuctionLot }> };
   scenarios: Array<{ name: string; criteria: BuyerCriteria; language: 'en' | 'he' }>;
 };
 
@@ -29,13 +29,20 @@ const lead = {
 
 for (const scenario of contract.scenarios) {
   it(`sends "${scenario.name}" criteria to the real LotsService and gets the named lot back (${contract.namedLotId})`, async () => {
-    const entities = contract.expectedResponse.data.map((payload) => ({ payload }));
+    const entities = contract.expectedExplainedResponse.data.map((entry) => ({ payload: entry.lot }));
     const queryBuilder = {
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      setParameters: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
-      getManyAndCount: jest.fn().mockResolvedValue([entities, entities.length]),
+      getRawAndEntities: jest.fn().mockResolvedValue({ entities, raw: [] }),
+      getCount: jest.fn().mockResolvedValue(entities.length),
     };
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),

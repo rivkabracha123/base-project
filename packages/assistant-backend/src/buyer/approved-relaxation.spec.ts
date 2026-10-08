@@ -26,6 +26,22 @@ describe('approved relaxation', () => {
     expect(relaxationOptions({ ...emptyBuyerCriteria('en'), keywords: ['manuscript'] })).toEqual([]);
   });
 
+  it('offers periods, places and media only when a value of theirs was sent', () => {
+    const criteria = {
+      ...emptyBuyerCriteria('he'),
+      periods: ['1890'],
+      geography: ['ישראל'],
+      media: ['painting'],
+    };
+
+    expect(relaxationOptions(criteria)).toEqual([
+      { field: 'periods', requiresApproval: true },
+      { field: 'media', requiresApproval: true },
+    ]);
+    expect(relaxCriteriaForSearch(criteria, ['periods']).periods).toEqual([]);
+    expect(criteria.periods).toEqual(['1890']);
+  });
+
   it('relaxes nothing, budget included, without an explicit approval', () => {
     expect(appliedRelaxations(fullCriteria())).toEqual([]);
     expect(appliedRelaxations(fullCriteria(), [])).toEqual([]);

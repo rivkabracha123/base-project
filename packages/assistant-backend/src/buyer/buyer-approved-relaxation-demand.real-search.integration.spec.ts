@@ -17,33 +17,42 @@ const contract = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
   namedLotId: string;
-  expectedResponse: { data: AuctionLot[] };
+  expectedExplainedResponse: { data: Array<{ lot: AuctionLot }> };
   scenarios: Array<{ name: string; criteria: BuyerCriteria; language: 'en' | 'he' }>;
 };
 
-const namedLot = contract.expectedResponse.data[0]!;
+const namedLot = contract.expectedExplainedResponse.data[0]!.lot;
 const namedPrice = namedLot.realizedPrice!.amount;
 const approvedAt = '2026-10-06T10:00:00.000Z';
 
 // Fake DB layer for the real LotsService: returns the named lot unless the price clause excludes it.
 function fakeLotsRepository() {
   let priceParams: { priceMin?: number; priceMax?: number } = {};
+  let count = 0;
   const queryBuilder: Record<string, jest.Mock> = {
     andWhere: jest.fn((clause: string, params?: Record<string, unknown>): unknown => {
       if (clause.includes('realizedPrice')) priceParams = params ?? {};
       return queryBuilder;
     }),
     orderBy: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    setParameters: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue([]),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn(async () => {
+    getRawAndEntities: jest.fn(async () => {
       const inBudget =
         (priceParams.priceMin == null || namedPrice >= priceParams.priceMin) &&
         (priceParams.priceMax == null || namedPrice <= priceParams.priceMax);
       priceParams = {};
       const entities = inBudget ? [{ payload: namedLot }] : [];
-      return [entities, entities.length];
+      count = entities.length;
+      return { entities, raw: [] };
     }),
+    getCount: jest.fn(async () => count),
   };
   const repository = {
     createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),

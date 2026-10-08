@@ -128,4 +128,10 @@ export class ProfilesService {
     const savedProfile = await this.profiles.save(profile);
     return savedProfile.toUserProfile();
   }
+
+  // Week 5: delete by sessionId, not by internal id, so a session can only ever delete its own profile.
+  async deleteBySessionId(sessionId: string): Promise<void> {
+    // delete() never throws when nothing matches, keeping the operation idempotent.
+    await this.profiles.delete({ sessionId });
+  }
 }
