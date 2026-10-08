@@ -14,11 +14,11 @@ import { UnmatchedDemandDbStore } from './unmatched-demand.db-store';
 const contract = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
-  expectedResponse: { data: AuctionLot[] };
+  expectedExplainedResponse: { data: Array<{ lot: AuctionLot }> };
   scenarios: Array<{ name: string; criteria: BuyerCriteria }>;
 };
 
-const namedLot = contract.expectedResponse.data[0]!;
+const namedLot = contract.expectedExplainedResponse.data[0]!.lot;
 const scenario = contract.scenarios.find((entry) => entry.name === 'canonical-english-category')!;
 
 // Fake auction_lots repository returning the given lots for any query.
@@ -26,9 +26,16 @@ function lotsRepository(lots: AuctionLot[]) {
   const queryBuilder: Record<string, jest.Mock> = {
     andWhere: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
+    setParameters: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    getRawMany: jest.fn().mockResolvedValue([]),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn(async () => [lots.map((payload) => ({ payload })), lots.length]),
+    getRawAndEntities: jest.fn(async () => ({ entities: lots.map((payload) => ({ payload })), raw: [] })),
+    getCount: jest.fn(async () => lots.length),
   };
   return { createQueryBuilder: jest.fn().mockReturnValue(queryBuilder) };
 }

@@ -3,15 +3,15 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { deriveHardConstraints, emptyBuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-import type { PaginatedSearchResult } from './search-request';
+import type { LotSearchResult } from '../lots/lot-match';
 
 const fixture = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
 
-// Wraps fixture lots as the single-page PaginatedResult the lots search API returns.
-const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
-  data,
+// Wraps fixture lots as the single-page result the lots search API returns, with no match reasons.
+const page = (data: AuctionLot[]): LotSearchResult => ({
+  data: data.map((lot) => ({ lot, matchReasons: [] })),
   total: data.length,
   page: 1,
   limit: data.length || 10,

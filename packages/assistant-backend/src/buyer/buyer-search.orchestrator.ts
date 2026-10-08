@@ -1,4 +1,3 @@
-import type { AuctionLot } from '@monabid/shared';
 import {
   appliedRelaxations,
   relaxCriteriaForSearch,
@@ -9,7 +8,8 @@ import {
 } from './approved-relaxation';
 import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchService } from './buyer-search.service';
-import type { PaginatedSearchResult, SearchRequest } from './search-request';
+import type { LotSearchResult } from '../lots/lot-match';
+import type { SearchRequest } from './search-request';
 import {
   createUnmatchedDemandDashboardView,
   type BuyerUnmatchedDemandDashboardView,
@@ -19,13 +19,14 @@ import {
   buildDemandSummary,
   deriveHardConstraints,
   groupExplainedLots,
+  type ExplainedLot,
   type GroupedResults,
 } from './explained-results';
 import { unmatchedDemandStore, type UnmatchedDemandRecorder } from './unmatched-demand.store';
 
 // Lots-search client; today wired directly to LotsService.search() (no HTTP, so no ValidationPipe).
 export interface LotsSearchClient {
-  search(request: SearchRequest): Promise<PaginatedSearchResult<AuctionLot>>;
+  search(request: SearchRequest): Promise<LotSearchResult>;
 }
 
 export interface BuyerSearchInput {
@@ -120,7 +121,7 @@ export class BuyerSearchOrchestrator {
 
     notify({ stage: 'searching' });
 
-    let items: AuctionLot[];
+    let items: ExplainedLot[];
     try {
       ({ data: items } = await this.lotsSearch.search(searchRequest));
     } catch (error) {
@@ -133,8 +134,8 @@ export class BuyerSearchOrchestrator {
       return {
         kind: 'results',
         searchRequest: fullRequest,
-        // Reasons are checked against the buyer's full criteria, so a relaxed filter is never claimed as matched.
-        results: groupExplainedLots(input.criteria, items),
+        // Reasons come from the lots search as sent, so a relaxed filter is never claimed as matched.
+        results: groupExplainedLots(items),
         approvedRefinements: relaxed,
         selectedLotId: input.selectedLotId,
       };
