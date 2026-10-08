@@ -10,9 +10,9 @@ describe('criteriaToSearchRequest', () => {
     criteria.keywords = ['rare', 'Hebrew', 'books'];
 
     expect(criteriaToSearchRequest(criteria, 'en')).toEqual({
-      query: 'Yitzhak Abrabanel rare Hebrew books',
+      query: 'rare Hebrew books',
       language: 'en',
-      filters: { categories: ['rare_books'] },
+      filters: { categories: ['rare_books'], creators: ['Yitzhak Abrabanel'] },
     });
   });
 
@@ -41,10 +41,9 @@ describe('criteriaToSearchRequest', () => {
     });
   });
 
-  it('sends structured filters for every P1-populated facet, leaving creators and unsupported facets text-only', () => {
+  it('sends structured filters for every P1-populated facet, including creators, leaving unsupported facets out', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.categories = ['rare_books'];
-    // creators has a P2 filter facet but no committed lot populates the creator column yet.
     criteria.creators = ['Yitzhak Abrabanel'];
     criteria.auctionHouseIds = ['house-1'];
     criteria.dateRange = { from: '2026-01-01', to: '2026-12-31' };
@@ -56,6 +55,7 @@ describe('criteriaToSearchRequest', () => {
 
     expect(criteriaToSearchRequest(criteria, 'en').filters).toEqual({
       categories: ['rare_books'],
+      creators: ['Yitzhak Abrabanel'],
       auctionHouseIds: ['house-1'],
       dateRange: { from: '2026-01-01', to: '2026-12-31' },
       price: { min: 500, max: 1200, currency: 'USD' },

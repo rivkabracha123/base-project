@@ -133,6 +133,16 @@ describe('groupExplainedLots', () => {
 });
 
 describe('buildDemandSummary', () => {
+  it('leaves criteria P2 cannot filter out of appliedCriteria', () => {
+    const criteria = emptyBuyerCriteria('en');
+    criteria.categories = ['rare_books'];
+    criteria.periods = ['19th century'];
+    criteria.geography = ['Israel'];
+    criteria.media = ['painting'];
+
+    expect(buildDemandSummary(criteria).appliedCriteria).toEqual(['categories']);
+  });
+
   it('lists the active criteria, keeps the hard constraints, and records safe recovery', () => {
     const criteria = emptyBuyerCriteria('he');
     criteria.categories = ['rare_books'];
