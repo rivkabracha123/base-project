@@ -4,6 +4,7 @@ import pinoHttp from 'pino-http';
 export const HTTP_LOG_REDACT_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.headers["x-anonymous-session-id"]',
   'req.body',
   'res.headers["set-cookie"]',
 ];

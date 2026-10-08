@@ -1,13 +1,20 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client';
+import { AppHeader } from '../components/AppHeader';
 import { BuyerChat } from './BuyerChat';
+import { connectLevels } from './connect-levels';
 import { mockConversation } from './mock-conversation';
 import i18n from '../i18n';
 
-//רץ אחרי כל בדיקה מבטל mocks ומחזיר לשפה אנגלית 
+// חיבור רמות מזויף: הבדיקות שולטות במה שהוא שולח ל-callback ובמתי הוא מסיים.
+vi.mock('./connect-levels', () => ({ connectLevels: vi.fn() }));
+
+//רץ אחרי כל בדיקה מבטל mocks ומחזיר לשפה אנגלית
 afterEach(async () => {
+  vi.mocked(connectLevels).mockReset();
   vi.unstubAllGlobals();
   await i18n.changeLanguage('en');
 });
@@ -44,27 +51,55 @@ describe('BuyerChat', () => {
     expect(await screen.findByText('I am looking for a mock lot')).toBeInTheDocument();
   });
 
-  // Verifies a buyer message and an assistant message are shown, each tagged with its kind.
-  it('shows a buyer message and an assistant message tagged by kind', async () => {
+  // Verifies a buyer message and a system message are shown, each tagged with its speaker.
+  it('shows a buyer message and a system message tagged by speaker', async () => {
     renderChat(mockConversation.en);
     const buyer = await screen.findByText('I am looking for a mock lot');
-    const assistant = await screen.findByText('Searching for you…');
-    expect(buyer.closest('li')).toHaveAttribute('data-kind', 'buyer');
-    expect(assistant.closest('li')).toHaveAttribute('data-kind', 'assistant');
+    const system = await screen.findByText('Searching for you…');
+    expect(buyer.closest('li')).toHaveAttribute('data-speaker', 'buyer');
+    expect(system.closest('li')).toHaveAttribute('data-speaker', 'system');
   });
 
   // Verifies an error message from the conversation is shown and tagged as an error so it stands out.
   it('shows the error message from the conversation tagged as an error', async () => {
     renderChat(mockConversation.en);
     const error = await screen.findByText('Loading results failed. Please try again.');
-    expect(error.closest('li')).toHaveAttribute('data-kind', 'error');
+    expect(error.closest('li')).toHaveAttribute('data-speaker', 'error');
   });
 
-  // Verifies a result-group message shows a title and a card for each item.
+  // Verifies a result-group message shows a card for each item.
   it('shows a result group with a card for each item', async () => {
     renderChat(mockConversation.en);
-    expect(await screen.findByText('Nearby lots')).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'A mock lot' })).toBeInTheDocument();
+    const card = await screen.findByRole('heading', { name: 'A mock lot' });
+    expect(card.closest('li[data-speaker]')).toHaveAttribute('data-speaker', 'result-group');
+  });
+
+  // Verifies the title of a result group is shown above its cards.
+  it('shows the result group title above its cards', async () => {
+    renderChat(
+      mockConversation.en.map((message) =>
+        message.speaker === 'result-group' ? { ...message, title: 'Upcoming lots' } : message,
+      ),
+    );
+    const title = await screen.findByRole('heading', { name: 'Upcoming lots' });
+    const card = screen.getByRole('heading', { name: 'A mock lot' });
+    expect(title.closest('li[data-speaker]')).toHaveAttribute('data-speaker', 'result-group');
+    expect(title.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // בודק שהודעת no-results (הפלט השני של B3, unmatched demand) מוצגת לקונה עם טקסט ידידותי ומתויגת בקטגוריה שלה.
+  it('shows a no-results message from B3 tagged as no-results', async () => {
+    renderChat([
+      ...mockConversation.en,
+      {
+        speaker: 'no-results',
+        id: 'nr-1',
+        sessionId: 'mock-session-en',
+        text: 'No matching items were found. Your request has been saved for our team.',
+      },
+    ]);
+    const message = await screen.findByText('No matching items were found. Your request has been saved for our team.');
+    expect(message.closest('li')).toHaveAttribute('data-speaker', 'no-results');
   });
 
   // Verifies the conversation is laid out right-to-left when the language is Hebrew.
@@ -85,9 +120,10 @@ describe('BuyerChat', () => {
   // Verifies a long conversation is rendered in full — first and last shown, nothing truncated.
   it('renders a long conversation in full without truncating messages', async () => {
     const longConversation = Array.from({ length: 60 }, (_, index) => ({
-      kind: index % 2 === 0 ? 'buyer' : 'assistant',
+      speaker: index % 2 === 0 ? 'buyer' : 'system',
       id: `m-${index + 1}`,
-      at: '2026-01-01T10:00:00.000Z',
+      sessionId: 'mock-session-en',
+      ...(index % 2 === 0 ? { skipped: false } : {}),
       text: index % 2 === 0 ? `הודעת קונה ${index + 1}` : `הודעת עוזר ${index + 1}`,
     }));
     renderChat(longConversation);
@@ -167,6 +203,64 @@ describe('BuyerChat', () => {
     expect(sendButton.tabIndex).toBeLessThanOrEqual(0);
   });
 
+  // בודק החלפת שפה תוך כדי שימוש: הקונה לוחץ על כפתור השפה ב-header כשהצ'אט פתוח באנגלית,
+  // והמסך עובר לעברית — השיחה נטענת מחדש בעברית, הכיוון מתהפך ל-RTL, הטקסטים מתורגמים,
+  // וסדר המקלדת (שדה הכתיבה לפני "שליחה") לא משתנה.
+  it('switches the open chat from English LTR to Hebrew RTL when the buyer presses the language button', async () => {
+    // השרת המדומה: בקשת שמירת השפה (PATCH) מחזירה פרופיל תקין עם השפה החדשה,
+    // וכל בקשה אחרת מחזירה את השיחה בשפה שהתבקשה ב-?language=.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === 'PATCH') {
+          const { language } = JSON.parse(String(init.body)) as { language: 'he' | 'en' };
+          const consent = { granted: false };
+          const now = '2026-01-01T10:00:00.000Z';
+          const profile = {
+            id: 'profile-1',
+            sessionId: 'session-1',
+            language,
+            serviceConsent: consent,
+            marketingConsent: consent,
+            createdAt: now,
+            updatedAt: now,
+          };
+          return new Response(JSON.stringify(profile), { status: 200 });
+        }
+        const language = new URL(url).searchParams.get('language') === 'he' ? 'he' : 'en';
+        return new Response(JSON.stringify(mockConversation[language]), { status: 200 });
+      }),
+    );
+    const queryClient = createQueryClient();
+    queryClient.setDefaultOptions({ queries: { retry: false } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AppHeader />
+          <BuyerChat />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // לפני ההחלפה: אנגלית, LTR.
+    await screen.findByText('I am looking for a mock lot');
+    expect(screen.getByRole('log')).toHaveAttribute('dir', 'ltr');
+
+    fireEvent.click(screen.getByRole('button', { name: 'עברית' }));
+
+    // אחרי ההחלפה: השיחה בעברית מחליפה את האנגלית, וכל המסך RTL.
+    await screen.findByText('אני מחפשת פריט לדוגמה');
+    expect(screen.queryByText('I am looking for a mock lot')).not.toBeInTheDocument();
+    expect(document.documentElement).toHaveAttribute('dir', 'rtl');
+    expect(screen.getByRole('log')).toHaveAttribute('dir', 'rtl');
+    const input = screen.getByRole('textbox', { name: 'הודעה' });
+    expect(input.closest('form')).toHaveAttribute('dir', 'rtl');
+
+    // סדר המקלדת נשמר: שדה הכתיבה עדיין לפני כפתור "שליחה" ב-DOM.
+    const sendButton = screen.getByRole('button', { name: 'שליחה' });
+    expect(input.compareDocumentPosition(sendButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   // בודק שכשרענון השיחה נכשל אחרי שכבר יש שיחה על המסך, ההודעות הקיימות והודעת הקונה נשארות,
   // מופיעה תיבת "נסו שוב", ושדה הכתיבה לא נתקע.
   it('keeps the existing conversation and the composer usable when a refresh fails', async () => {
@@ -206,7 +300,7 @@ describe('BuyerChat', () => {
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
     const sent = await screen.findByText('Hello there');
-    expect(sent.closest('li')).toHaveAttribute('data-kind', 'buyer');
+    expect(sent.closest('li')).toHaveAttribute('data-speaker', 'buyer');
   });
 
   // בודק שלחיצה על Enter בשדה שולחת את ההודעה, בלי הכפתור.
@@ -219,7 +313,7 @@ describe('BuyerChat', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     const sent = await screen.findByText('Sent with Enter');
-    expect(sent.closest('li')).toHaveAttribute('data-kind', 'buyer');
+    expect(sent.closest('li')).toHaveAttribute('data-speaker', 'buyer');
   });
 
   // בודק ש-Shift+Enter לא שולח — ההודעה לא נכנסת לשיחה והטקסט נשאר בשדה.
@@ -246,5 +340,60 @@ describe('BuyerChat', () => {
     await screen.findByText('First', { selector: 'li' });
 
     expect(input).toHaveFocus();
+  });
+//callback (onUpdate)
+  // בודק שהודעה שנשלחת דרך ה-callback (onUpdate) מוצגת על המסך, מתויגת לפי מי שדיבר.
+  it('shows a message that is sent through the callback', async () => {
+    vi.mocked(connectLevels).mockImplementation(async (_message, onUpdate) => {
+      onUpdate({ speaker: 'system', text: 'Checking results...' });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I am looking for a mock lot');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Looking for a watch' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    const update = await screen.findByText('Checking results...');
+    expect(update.closest('li')).toHaveAttribute('data-speaker', 'system');
+  });
+
+  // בודק שכל עוד חיבור הרמות עובד (חושב או מחפש) הקונה לא יכול לכתוב או לשלוח, ושהשדה נפתח כשהוא מסיים.
+  it('locks the composer while the work is running and unlocks it when it finishes', async () => {
+    // ה-Promise נפתר רק כשהבדיקה קוראת ל-finish — מדמה עבודה שעדיין רצה.
+    let finish!: () => void;
+    vi.mocked(connectLevels).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderChat(mockConversation.en);
+    await screen.findByText('I am looking for a mock lot');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Looking for a watch' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeDisabled());
+    expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
+
+    await act(async () => finish());
+
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+    expect(screen.getByRole('button', { name: /send/i })).toBeEnabled();
+  });
+
+  // בודק שכשחיבור הרמות נכשל, הקונה רואה הודעת שגיאה ידידותית בשיחה, והשדה נפתח כדי שיוכל לנסות שוב.
+  it('shows an error message and unlocks the composer when the work fails', async () => {
+    vi.mocked(connectLevels).mockRejectedValue(new Error('search failed'));
+    renderChat(mockConversation.en);
+    await screen.findByText('I am looking for a mock lot');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Looking for a watch' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    const error = await screen.findByText('Something went wrong. Please try again.');
+    expect(error.closest('li')).toHaveAttribute('data-speaker', 'error');
+    expect(screen.getByRole('textbox')).toBeEnabled();
+    expect(screen.getByRole('button', { name: /send/i })).toBeEnabled();
   });
 });
