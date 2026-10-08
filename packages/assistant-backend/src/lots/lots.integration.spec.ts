@@ -130,18 +130,21 @@ describe('Lots API (integration)', () => {
     expect(validatedRecords).toHaveLength(2); // sanity check: the broken record was filtered here
 
     // Seed the mocked DB with only what validation accepted.
-    queryBuilder.getManyAndCount.mockResolvedValueOnce([
-      validatedRecords.map((payload) => ({ payload })),
-      validatedRecords.length,
-    ]);
+    queryBuilder.getRawAndEntities.mockResolvedValueOnce({
+      entities: validatedRecords.map((payload) => ({ payload })),
+      raw: [],
+    });
+    queryBuilder.getCount.mockResolvedValueOnce(validatedRecords.length);
 
     // Consumer step (P2): a real search request through the actual controller/service.
     const response = await postSearch({ filters: { categories: ['rare_books'] } });
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data.map((entry: AuctionLot) => entry.id)).toEqual(['lot-valid-1', 'lot-valid-2']);
-    expect(body.data.every((entry: AuctionLot) => entry.title?.en && entry.category)).toBe(true);
+    expect(body.data.map((entry: { lot: AuctionLot }) => entry.lot.id)).toEqual(['lot-valid-1', 'lot-valid-2']);
+    expect(
+      body.data.every((entry: { lot: AuctionLot }) => entry.lot.title?.en && entry.lot.category),
+    ).toBe(true);
   });
 
   it('serves a record with every optional field missing, fully intact', async () => {
@@ -160,15 +163,16 @@ describe('Lots API (integration)', () => {
     const { records: validatedRecords } = validateAuctionLotFixture([minimalRecord]);
     expect(validatedRecords).toHaveLength(1); // sanity check: minimal record is accepted, not rejected
 
-    queryBuilder.getManyAndCount.mockResolvedValueOnce([
-      validatedRecords.map((payload) => ({ payload })),
-      validatedRecords.length,
-    ]);
+    queryBuilder.getRawAndEntities.mockResolvedValueOnce({
+      entities: validatedRecords.map((payload) => ({ payload })),
+      raw: [],
+    });
+    queryBuilder.getCount.mockResolvedValueOnce(validatedRecords.length);
 
     const response = await postSearch({ filters: { categories: ['rare_books'] } });
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual([minimalRecord]);
+    expect(body.data).toEqual([{ lot: minimalRecord, matchReasons: [] }]);
   });
 });

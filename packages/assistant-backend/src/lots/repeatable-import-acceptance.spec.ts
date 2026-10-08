@@ -54,10 +54,14 @@ describe('Repeatable import acceptance path — reaches Mali and Heni after a co
   const queryBuilder = {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn(),
+    setParameters: jest.fn().mockReturnThis(),
+    getRawAndEntities: jest.fn(),
+    getCount: jest.fn(),
   };
   const repository = {
     createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
@@ -85,7 +89,8 @@ describe('Repeatable import acceptance path — reaches Mali and Heni after a co
   function syncMocksWithStore() {
     const entities = store.all().map(makeEntity);
     repository.find.mockResolvedValue(entities);
-    queryBuilder.getManyAndCount.mockResolvedValue([entities, entities.length]);
+    queryBuilder.getRawAndEntities.mockResolvedValue({ entities, raw: [] });
+    queryBuilder.getCount.mockResolvedValue(entities.length);
   }
 
   it("reflects a correction at both Mali's search and Heni's comparables, after two import runs", async () => {
@@ -98,7 +103,9 @@ describe('Repeatable import acceptance path — reaches Mali and Heni after a co
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ filters: { categories: ['paintings'] } }),
     }).then((r) => r.json());
-    expect(searchAfterFirst.data.map((l: AuctionLot) => l.realizedPrice?.amount)).toEqual([4200]);
+    expect(
+      searchAfterFirst.data.map((entry: { lot: AuctionLot }) => entry.lot.realizedPrice?.amount),
+    ).toEqual([4200]);
 
     const comparablesAfterFirst = await fetch(`${baseUrl}/api/comparables/query`, {
       method: 'POST',
@@ -118,7 +125,9 @@ describe('Repeatable import acceptance path — reaches Mali and Heni after a co
       body: JSON.stringify({ filters: { categories: ['paintings'] } }),
     }).then((r) => r.json());
     expect(searchAfterSecond.data).toHaveLength(1); // still one record, not two
-    expect(searchAfterSecond.data.map((l: AuctionLot) => l.realizedPrice?.amount)).toEqual([4500]);
+    expect(
+      searchAfterSecond.data.map((entry: { lot: AuctionLot }) => entry.lot.realizedPrice?.amount),
+    ).toEqual([4500]);
 
     const comparablesAfterSecond = await fetch(`${baseUrl}/api/comparables/query`, {
       method: 'POST',
