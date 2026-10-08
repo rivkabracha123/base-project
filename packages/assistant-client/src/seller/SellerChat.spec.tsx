@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client';
 import { SellerChat } from './SellerChat';
 import { connectSellerLevels } from './connect-seller-levels';
+import { connectSellerPhotos } from './connect-seller-photos';
 import { mockConversation } from './mock-conversation';
 import i18n from '../i18n';
 
@@ -12,8 +13,12 @@ import i18n from '../i18n';
 // חיבור רמות מזויף של המוכר: הבדיקות שולטות במה שהוא שולח ל-callback ובמתי הוא מסיים.
 vi.mock('./connect-seller-levels', () => ({ connectSellerLevels: vi.fn() }));
 
+// חיבור התמונות של S1 מזויף: ההעלאה בפועל באחריות S1, והבדיקות כאן בודקות רק מה שהצ'אט מוסר ומציג.
+vi.mock('./connect-seller-photos', () => ({ connectSellerPhotos: vi.fn() }));
+
 afterEach(async () => {
   vi.mocked(connectSellerLevels).mockReset();
+  vi.mocked(connectSellerPhotos).mockReset();
   vi.unstubAllGlobals();
   await i18n.changeLanguage('en');
 });
@@ -177,82 +182,67 @@ describe('SellerChat', () => {
   });
 
   // Reference to an uploaded photo, in the shape the evidence API returns after an upload.
-  const uploadedPhoto = {
-    fileId: 'f1',
+  const photoOf = (fileId: string, originalName: string) => ({
+    fileId,
     profileId: 'p1',
     itemId: 'chat-1',
-    originalName: 'vase.jpg',
-    mimeType: 'image/jpeg',
+    originalName,
+    mimeType: 'image/jpeg' as const,
     size: 1024,
-    previewUri: '/evidence/p1/f1',
-    downloadUri: '/evidence/p1/f1/download',
-  };
-
-  // Helper: renders the chat with a fake backend — conversation, profile and the photo upload endpoint.
-  // Returns the fetch mock so a test can check which requests were (not) made.
-  function renderChatWithUpload() {
-    const profile = {
-      id: 'p1',
-      sessionId: 's1',
-      language: 'en',
-      serviceConsent: { granted: false },
-      marketingConsent: { granted: false },
-      createdAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    };
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes('/seller-chat/conversation')) return new Response(JSON.stringify(mockConversation.en), { status: 200 });
-      if (url.endsWith('/profiles/me')) return new Response(JSON.stringify(profile), { status: 200 });
-      if (url.includes('/evidence/') && init?.method === 'POST') return new Response(JSON.stringify([uploadedPhoto]), { status: 200 });
-      return new Response('not found', { status: 404 });
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const queryClient = createQueryClient();
-    queryClient.setDefaultOptions({ queries: { retry: false } });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <SellerChat />
-      </QueryClientProvider>,
-    );
-    return fetchMock;
-  }
-
-  // בודק שכשהמוכר בוחר תמונה מהמחשב היא מוצגת בשיחה כהודעה של המוכר.
-  it('shows the chosen photo in the conversation as a seller message', async () => {
-    renderChatWithUpload();
-    await screen.findByText('I have an antique watch I want to sell');
-
-    const file = new File(['pixels'], 'vase.jpg', { type: 'image/jpeg' });
-    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [file] } });
-
-    const image = await screen.findByRole('img', { name: 'vase.jpg' });
-    expect(image.closest('li')).toHaveAttribute('data-speaker', 'seller');
+    previewUri: `/evidence/p1/${fileId}`,
+    downloadUri: `/evidence/p1/${fileId}/download`,
   });
 
-  // בודק שקובץ שאינו תמונה נדחה כבר בדפדפן: לא נשלחת בקשת העלאה ושום תמונה לא מוצגת.
-  it('does not upload or show a file that is not a supported photo', async () => {
-    const fetchMock = renderChatWithUpload();
+  const jpeg = (name: string) => new File(['pixels'], name, { type: 'image/jpeg' });
+
+  // בודק שהמוכר יכול לבחור כמה תמונות יחד, ושכולן נמסרות ל-S1 בקריאה אחת (העלאה אחת = פריט אחד).
+  it('hands all the chosen photos to S1 in a single call', async () => {
+    renderChat(mockConversation.en);
     await screen.findByText('I have an antique watch I want to sell');
 
-    const file = new File(['text'], 'notes.pdf', { type: 'application/pdf' });
-    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [file] } });
+    const files = [jpeg('front.jpg'), jpeg('back.jpg')];
+    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files } });
+
+    await waitFor(() => expect(connectSellerPhotos).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(connectSellerPhotos).mock.calls[0]![0]).toEqual(files);
+  });
+
+  // בודק שמה ש-S1 מחזירה דרך ה-callback מוצג בשיחה: הודעה אחת של המוכר עם כל התמונות של ההעלאה.
+  it('shows all the photos S1 returns as one seller message', async () => {
+    vi.mocked(connectSellerPhotos).mockImplementation(async (_files, onUpdate) => {
+      onUpdate({ speaker: 'seller', images: [photoOf('f1', 'front.jpg'), photoOf('f2', 'back.jpg')] });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [jpeg('front.jpg'), jpeg('back.jpg')] } });
+
+    const front = await screen.findByRole('img', { name: 'front.jpg' });
+    const back = await screen.findByRole('img', { name: 'back.jpg' });
+    expect(front.closest('li')).toHaveAttribute('data-speaker', 'seller');
+    expect(back.closest('li')).toBe(front.closest('li'));
+  });
+
+  // בודק שקובץ שאינו תמונה נדחה כבר בדפדפן: שום דבר לא נמסר ל-S1 ושום תמונה לא מוצגת.
+  it('does not hand anything to S1 when one of the files is not a supported photo', async () => {
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    const notes = new File(['text'], 'notes.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [jpeg('front.jpg'), notes] } });
 
     await screen.findByRole('alert');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/evidence/'))).toBe(false);
+    expect(connectSellerPhotos).not.toHaveBeenCalled();
   });
 
-  // בודק שכשההעלאה נכשלת המוכר רואה הודעת שגיאה בשיחה, ושום תמונה לא מוצגת.
-  it('shows an error message in the conversation when the photo upload fails', async () => {
-    const fetchMock = renderChatWithUpload();
-    fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes('/seller-chat/conversation')) return new Response(JSON.stringify(mockConversation.en), { status: 200 });
-      return new Response('server error', { status: 500 });
-    });
+  // בודק שכשההעלאה אצל S1 נכשלת המוכר רואה הודעת שגיאה בשיחה, ושום תמונה לא מוצגת.
+  it('shows an error message in the conversation when S1 fails to upload the photos', async () => {
+    vi.mocked(connectSellerPhotos).mockRejectedValue(new Error('upload failed'));
+    renderChat(mockConversation.en);
     await screen.findByText('I have an antique watch I want to sell');
 
-    const file = new File(['pixels'], 'vase.jpg', { type: 'image/jpeg' });
-    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [jpeg('vase.jpg')] } });
 
     const error = await screen.findByText('Something went wrong. Please try again.');
     expect(error.closest('li')).toHaveAttribute('data-speaker', 'error');

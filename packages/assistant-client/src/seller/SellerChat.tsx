@@ -1,10 +1,11 @@
 import { useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { evidenceUrl, getCurrentProfile, getSellerConversation, uploadItemEvidence } from '../app/api';
+import { evidenceUrl, getSellerConversation } from '../app/api';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
 import { connectSellerLevels } from './connect-seller-levels';
+import { connectSellerPhotos } from './connect-seller-photos';
 import { sellerMessageSchema, type SellerMessage } from './messages';
 
 // Photo limits checked in the browser before uploading (the server enforces them again).
@@ -35,16 +36,18 @@ export function SellerChat() {
     errorText: t('chat.sendError'),
   });
 
-  // Handles a photo chosen from the computer: checks it, uploads it for the seller's profile, and shows it in the
-  // conversation as a seller message. A failed upload is shown as an error message instead.
+  // Handles one or several photos chosen from the computer: checks each one, hands them all together to S1
+  // (one upload = one item), and shows what S1 returns in the conversation as a seller message.
+  // The number of photos and the rest of the upload rules are enforced by the upload service.
+  // A failed upload is shown as an error message instead.
   async function handlePhotoChosen(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
-    const file = input.files?.[0];
-    // מאפס את השדה כדי שאפשר יהיה לבחור שוב את אותו קובץ.
+    const files = Array.from(input.files ?? []);
+    // מאפס את השדה כדי שאפשר יהיה לבחור שוב את אותם קבצים.
     input.value = '';
-    if (!file) return;
+    if (files.length === 0) return;
 
-    if (!allowedPhotoTypes.includes(file.type) || file.size > maxPhotoSize) {
+    if (files.some((file) => !allowedPhotoTypes.includes(file.type) || file.size > maxPhotoSize)) {
       setPhotoError(t('chat.invalidPhoto'));
       return;
     }
@@ -52,10 +55,7 @@ export function SellerChat() {
     setPhotoError('');
     setIsUploading(true);
     try {
-      const profile = await getCurrentProfile();
-      const [photo] = await uploadItemEvidence(profile.id, `chat-${crypto.randomUUID()}`, [file]);
-      if (!photo) throw new Error('Upload returned no photo');
-      addMessage({ speaker: 'seller', image: photo });
+      await connectSellerPhotos(files, addMessage);
     } catch {
       showError('photo-upload-failed');
     } finally {
@@ -67,13 +67,15 @@ export function SellerChat() {
   function renderMessage(message: SellerMessage) {
     return (
       <MessageBubble speaker={message.speaker} isOwn={message.speaker === 'seller'}>
-        {message.speaker === 'seller' && message.image && (
-          <img
-            src={evidenceUrl(message.image.previewUri)}
-            alt={message.image.originalName}
-            className="max-h-60 rounded-lg"
-          />
-        )}
+        {message.speaker === 'seller' &&
+          message.images?.map((image) => (
+            <img
+              key={image.fileId}
+              src={evidenceUrl(image.previewUri)}
+              alt={image.originalName}
+              className="max-h-60 rounded-lg"
+            />
+          ))}
         {message.text}
       </MessageBubble>
     );
@@ -105,6 +107,7 @@ export function SellerChat() {
         <span className="sr-only">{t('chat.attachPhoto')}</span>
         <input
           type="file"
+          multiple
           accept={allowedPhotoTypes.join(',')}
           className="sr-only"
           disabled={isLoading || isBusy || isUploading}

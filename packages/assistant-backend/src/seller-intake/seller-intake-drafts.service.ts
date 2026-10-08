@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { SellerItemDraft } from '@monabid/shared';
+import type { SellerEvidenceReference, SellerItemDraft } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { SellerIntakeDraftEntity } from '../database/seller-intake-draft.entity';
 import { SellerIntakeService } from './seller-intake.service';
@@ -53,6 +53,21 @@ export class SellerIntakeDraftsService {
     const record = await this.drafts.findOneBy({ profileId, sessionId });
     if (!record) throw new NotFoundException('Seller intake draft was not found');
     return record;
+  }
+
+  // מצרף הפניות לתמונות ש-S2 שמרה לטיוטה של אותו פרופיל ושיחה, בלי לאשר שום עובדה.
+  // מחזיר null כשעדיין אין טיוטה: התמונות כבר שמורות אצל S2 ואין למה לצרף.
+  // Attaches the photo references S2 stored to the draft of the same profile and session, without confirming any fact.
+  // Returns null when there is no draft yet: the photos are already stored by S2, so there is nothing to attach to.
+  async attachEvidence(
+    profileId: string,
+    sessionId: string,
+    references: SellerEvidenceReference[],
+  ): Promise<SellerIntakeDraftEntity | null> {
+    const current = await this.drafts.findOneBy({ profileId, sessionId });
+    if (!current) return null;
+    const draft = this.sellerIntake.attachEvidenceReferences(current.draft, references);
+    return this.saveDraft(profileId, sessionId, draft);
   }
 
   // מאמת תיקון של שדה, מעדכן את הטיוטה ושומר את הגרסה החדשה.

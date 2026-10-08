@@ -1,5 +1,6 @@
 import i18n, { getBrowserLanguage } from '../i18n';
 import type { SellerUpdate } from '../chat/chat-types';
+import { getSellerMessageIds } from './seller-ids';
 
 interface SellerIntakeResponse {
   missingFields?: string[];
@@ -8,8 +9,6 @@ interface SellerIntakeResponse {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
-const PROFILE_STORAGE_KEY = 'monabid.seller.profileId';
-const SESSION_STORAGE_KEY = 'monabid.seller.sessionId';
 
 // מציגה הודעת מערכת למוכר דרך callback של מסך הצ'אט וממתינה לעדכון המסך.
 // Displays a system message through the chat screen callback and waits for the UI update.
@@ -18,30 +17,6 @@ export async function sendSellerMessage(
   onUpdate: (update: SellerUpdate) => void | Promise<void>,
 ): Promise<void> {
   await onUpdate({ speaker: 'system', text });
-}
-
-// מחזירה מזהה קיים מהאחסון או יוצרת ושומרת מזהה חדש.
-// Returns an existing stored identifier or creates and stores a new one.
-function getOrCreateId(storage: Storage, key: string): string {
-  const existingId = storage.getItem(key);
-  if (existingId) return existingId;
-
-  const id = crypto.randomUUID();
-  storage.setItem(key, id);
-  return id;
-}
-
-// מנהלת מזהי פרופיל ושיחה פנימיים הנדרשים ל־API, בלי להוסיף אותם לעדכוני הממשק.
-// Manages internal profile and session IDs required by the API without adding them to UI updates.
-function getSellerMessageIds(): { profileId: string; sessionId: string } {
-  if (typeof localStorage === 'undefined' || typeof sessionStorage === 'undefined') {
-    throw new Error('Seller chat requires browser storage');
-  }
-
-  return {
-    profileId: getOrCreateId(localStorage, PROFILE_STORAGE_KEY),
-    sessionId: getOrCreateId(sessionStorage, SESSION_STORAGE_KEY),
-  };
 }
 
 // בוחרת את השאלה הבאה או סיכום המערכת בשפה הפעילה של האפליקציה.
@@ -67,7 +42,7 @@ export async function connectSellerLevels(
     const input = message.trim();
     if (!input) throw new Error('יש להזין הודעה לפני השליחה.');
 
-    const { profileId, sessionId } = getSellerMessageIds();
+    const { profileId, sessionId } = await getSellerMessageIds();
     const response = await fetch(`${API_BASE_URL}/seller-intake/draft`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

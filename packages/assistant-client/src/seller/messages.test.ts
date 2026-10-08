@@ -10,9 +10,22 @@ describe('connectSellerLevels', () => {
   });
 
   it('sends seller text with internally managed ids and awaits the display callback', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      nextQuestion: { field: 'dimensions', he: 'מהן המידות?', en: 'What are the dimensions?' },
-    }), { status: 200 }));
+    // הפרופיל מגיע מ-P3 (השרת), ולכן יש בקשה נוספת לפרופיל לפני בקשת הטיוטה.
+    const p3Profile = {
+      id: 'p3-profile-1',
+      sessionId: 'p3-session',
+      language: 'en',
+      serviceConsent: { granted: false },
+      marketingConsent: { granted: false },
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
+      if (url.endsWith('/profiles/me')) return new Response(JSON.stringify(p3Profile), { status: 200 });
+      return new Response(JSON.stringify({
+        nextQuestion: { field: 'dimensions', he: 'מהן המידות?', en: 'What are the dimensions?' },
+      }), { status: 200 });
+    });
     vi.stubGlobal('fetch', fetchMock);
     let finishCallback: (() => void) | undefined;
     const callback = vi.fn((_update: SellerUpdate) => new Promise<void>((resolve) => {
@@ -25,9 +38,11 @@ describe('connectSellerLevels', () => {
 
     expect(finished).toBe(false);
     expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'What are the dimensions?' });
-    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const draftCall = fetchMock.mock.calls.find(([url]) => url.endsWith('/seller-intake/draft'));
+    const request = draftCall?.[1] as RequestInit;
     expect(JSON.parse(String(request.body))).toMatchObject({ input: 'I have a painting' });
-    expect(JSON.parse(String(request.body)).profileId).toBeTruthy();
+    // הפרופיל שנשלח ל-S1 הוא של P3, ולא מזהה שהצ'אט יצר בעצמו.
+    expect(JSON.parse(String(request.body)).profileId).toBe('p3-profile-1');
     expect(JSON.parse(String(request.body)).sessionId).toBeTruthy();
 
     finishCallback?.();

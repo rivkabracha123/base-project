@@ -8,6 +8,7 @@ import { AiService } from '../ai/ai.service';
 import { SellerIntakeAiAdapter } from './seller-intake-ai.adapter';
 import { SELLER_INTAKE_AI_PROVIDER } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
+import { UploadsService } from '../uploads/uploads.service';
 
 // Tests for the Seller Intake Controller.
 // Verifies that the API accepts seller messages and returns a draft item,
@@ -91,6 +92,8 @@ describe('SellerIntakeController', () => {
         { provide: SELLER_INTAKE_AI_PROVIDER, useExisting: SellerIntakeAiAdapter },
         { provide: AiService, useValue: { generate: jest.fn(async () => { throw new Error('down'); }) } },
         { provide: SellerIntakeDraftsService, useValue: drafts },
+        // הבדיקות כאן לא מעלות תמונות; העלאת תמונות נבדקת ב-seller-intake-photos.http.spec.ts.
+        { provide: UploadsService, useValue: {} },
       ],
     })
       .compile();
