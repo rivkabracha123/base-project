@@ -7,7 +7,7 @@ import {
   unmatchedSearchOutcomeFixture,
 } from '../app/buyer-search-outcome.fixture';
 import i18n from '../i18n';
-import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auctionLots';
+import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auction-lots';
 import { ResultsPage } from './ResultPage';
 
 function CurrentPath() {

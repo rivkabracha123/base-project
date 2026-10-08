@@ -1,18 +1,27 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { BuyerCriteriaResponse, BuyerCriteriaTurnRequest, P4FixtureResponse } from './buyer-criteria';
+import {
+  BuyerChatSystemMessage,
+  BuyerChatTurnInput,
+} from './buyer-chat-messages';
+import { BuyerCriteria, AiExtractResponse } from './buyer-criteria';
 
 @Controller('buyer')
 export class BuyerController {
   constructor(private readonly buyerCriteriaService: BuyerCriteriaService) {}
 
   @Post('extract')
-  extractFromFixture(@Body() response: P4FixtureResponse): BuyerCriteriaResponse {
-    return this.buyerCriteriaService.extractFromFixture(response);
+  startCriteriaSession(@Body() aiResponse: AiExtractResponse): BuyerChatSystemMessage {
+    return this.buyerCriteriaService.startCriteriaSessionFromAiResponse(aiResponse);
   }
 
   @Post('criteria/turn')
-  processCriteriaTurn(@Body() request: BuyerCriteriaTurnRequest): BuyerCriteriaResponse {
-    return this.buyerCriteriaService.processTurn(request);
+  continueCriteriaSession(@Body() request: BuyerChatTurnInput): BuyerChatSystemMessage {
+    return this.buyerCriteriaService.continueCriteriaSessionFromChat(request);
+  }
+
+  @Get('sessions/:sessionId/criteria')
+  getCriteriaForSession(@Param('sessionId') sessionId: string): BuyerCriteria {
+    return this.buyerCriteriaService.getCriteriaForSession(sessionId);
   }
 }

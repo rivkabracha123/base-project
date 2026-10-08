@@ -1,52 +1,72 @@
 import { BuyerController } from './buyer.controller';
-import { extractBuyerCriteriaFromFixture } from './buyer-criteria';
-import { week3P4Fixtures, week3TurnFixtures } from './buyer-criteria.test-helpers';
+import { parseCriteriaFromAiResponse } from './buyer-criteria';
+import { buildChatSystemMessage } from './buyer-chat-messages';
+import { sampleAiExtractResponses } from './buyer-criteria.fixtures';
 
 describe('BuyerController', () => {
-  const criteriaAfterExtract = extractBuyerCriteriaFromFixture(week3P4Fixtures.paintingEn());
-  const turnAnswerRequest = week3TurnFixtures.answerMonet();
-  const turnSkipRequest = week3TurnFixtures.skipLocation();
-
-  it('extractFromFixture delegates to the service', () => {
-    const service = { extractFromFixture: jest.fn().mockReturnValue(criteriaAfterExtract) };
-    const controller = new BuyerController(service as never);
-
-    const result = controller.extractFromFixture(week3P4Fixtures.paintingEn());
-
-    expect(result).toBe(criteriaAfterExtract);
-    expect(service.extractFromFixture).toHaveBeenCalledWith(week3P4Fixtures.paintingEn());
+  const extracted = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+  const date = '2026-09-15T09:00:00.000Z';
+  const systemMessageAfterExtract = buildChatSystemMessage('session-1', {
+    id: 'system-msg-1',
+    speaker: 'system',
+    text: extracted.conversation.nextQuestion,
+    date,
+  });
+  const systemMessageAfterTurn = buildChatSystemMessage('session-1', {
+    id: 'system-msg-2',
+    speaker: 'system',
+    text: 'Is there a place or origin that matters?',
+    date,
   });
 
-  it('processCriteriaTurn delegates answer turns to the service', () => {
-    const criteriaAfterTurn = {
-      ...criteriaAfterExtract,
-      criteria: { ...criteriaAfterExtract.criteria, creators: ['Monet'] },
-      conversation: { ...criteriaAfterExtract.conversation, missing: ['location'] },
-    };
-    const service = { processTurn: jest.fn().mockReturnValue(criteriaAfterTurn) };
+  it('startCriteriaSession delegates to the service', () => {
+    const service = { startCriteriaSessionFromAiResponse: jest.fn().mockReturnValue(systemMessageAfterExtract) };
     const controller = new BuyerController(service as never);
 
-    const result = controller.processCriteriaTurn(turnAnswerRequest);
+    const result = controller.startCriteriaSession(sampleAiExtractResponses.paintingEn());
 
-    expect(result).toBe(criteriaAfterTurn);
-    expect(service.processTurn).toHaveBeenCalledWith(turnAnswerRequest);
+    expect(result).toBe(systemMessageAfterExtract);
+    expect(service.startCriteriaSessionFromAiResponse).toHaveBeenCalledWith(sampleAiExtractResponses.paintingEn());
   });
 
-  it('processCriteriaTurn delegates skip turns to the service', () => {
-    const criteriaAfterSkip = {
-      ...turnSkipRequest,
-      conversation: {
-        ...turnSkipRequest.conversation,
-        skipped: ['location'],
-        missing: [],
-      },
+  it('continueCriteriaSession delegates buyer messages to the service', () => {
+    const turnRequest = {
+      id: 'buyer-msg-1',
+      sessionId: 'session-1',
+      speaker: 'buyer' as const,
+      skipped: false as const,
+      text: 'Monet',
+      date,
     };
-    const service = { processTurn: jest.fn().mockReturnValue(criteriaAfterSkip) };
+    const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterTurn) };
     const controller = new BuyerController(service as never);
 
-    const result = controller.processCriteriaTurn(turnSkipRequest);
+    const result = controller.continueCriteriaSession(turnRequest);
 
-    expect(result).toBe(criteriaAfterSkip);
-    expect(service.processTurn).toHaveBeenCalledWith(turnSkipRequest);
+    expect(result).toBe(systemMessageAfterTurn);
+    expect(service.continueCriteriaSessionFromChat).toHaveBeenCalledWith(turnRequest);
+  });
+
+  it('continueCriteriaSession delegates buyer skip to the service', () => {
+    const turnRequest = {
+      id: 'buyer-msg-skip',
+      sessionId: 'session-1',
+      speaker: 'buyer' as const,
+      skipped: true as const,
+      date: '2026-09-15T09:01:00.000Z',
+    };
+    const systemMessageAfterSkip = buildChatSystemMessage('session-1', {
+      id: 'system-msg-3',
+      speaker: 'system',
+      text: extracted.conversation.nextQuestion,
+      date: '2026-09-15T09:01:00.000Z',
+    });
+    const service = { continueCriteriaSessionFromChat: jest.fn().mockReturnValue(systemMessageAfterSkip) };
+    const controller = new BuyerController(service as never);
+
+    const result = controller.continueCriteriaSession(turnRequest);
+
+    expect(result).toBe(systemMessageAfterSkip);
+    expect(service.continueCriteriaSessionFromChat).toHaveBeenCalledWith(turnRequest);
   });
 });

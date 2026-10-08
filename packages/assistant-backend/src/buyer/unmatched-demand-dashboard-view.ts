@@ -1,6 +1,7 @@
 import type { BuyerSearchRequest } from './buyer-search-request';
+import type { DemandSummary } from './explained-results';
 
-/** Dashboard-safe unmatched buyer demand view for P5. */
+/** Dashboard-safe unmatched buyer demand view for the staff dashboard. */
 export interface BuyerUnmatchedDemandDashboardView {
   id: string;
   type: 'buyer';
@@ -10,6 +11,7 @@ export interface BuyerUnmatchedDemandDashboardView {
     searchRequest: BuyerSearchRequest;
     reason: 'no_results';
     searchedAt: string;
+    demandSummary: DemandSummary;
   };
 }
 
@@ -19,6 +21,7 @@ export interface UnmatchedDemandDashboardInput {
   createdAt: string;
   searchedAt: string;
   searchRequest: BuyerSearchRequest;
+  demandSummary: DemandSummary;
 }
 
 /** Wraps a no-result search as a dashboard view without private data. */
@@ -32,6 +35,7 @@ export function createUnmatchedDemandDashboardView(input: UnmatchedDemandDashboa
       searchRequest: input.searchRequest,
       reason: 'no_results',
       searchedAt: input.searchedAt,
+      demandSummary: input.demandSummary,
     },
   };
 }

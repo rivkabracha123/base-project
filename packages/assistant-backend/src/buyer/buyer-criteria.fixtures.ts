@@ -1,7 +1,7 @@
-import type { BuyerCriteriaTurnRequest, P4FixtureResponse } from './buyer-criteria';
+import type { ClarificationTurnInput, StructuredAiExtract, AiExtractResponse } from './buyer-criteria';
 
-export const week3P4Fixtures = {
-  paintingEn: (): P4FixtureResponse => ({
+export const sampleAiExtractResponses = {
+  paintingEn: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'The buyer wants a blue painting from the 19th century with a budget around $10k.',
@@ -10,7 +10,7 @@ export const week3P4Fixtures = {
     nextAction: 'ask creator',
     confidence: 'medium',
   }),
-  paintingHe: (): P4FixtureResponse => ({
+  paintingHe: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'אני מחפשת ציור כחול מהמאה ה-19 עד 10000 שקל',
@@ -19,7 +19,7 @@ export const week3P4Fixtures = {
     nextAction: 'שאל על אמן',
     confidence: 'medium',
   }),
-  vagueEn: (): P4FixtureResponse => ({
+  vagueEn: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'Looking for something interesting for my collection.',
@@ -28,7 +28,7 @@ export const week3P4Fixtures = {
     nextAction: 'clarify',
     confidence: 'medium',
   }),
-  manuscriptEn: (): P4FixtureResponse => ({
+  manuscriptEn: (): AiExtractResponse => ({
     provider: 'fixture',
     mode: 'fixture',
     content: 'Looking for rare Hebrew manuscript under $15k.',
@@ -39,8 +39,42 @@ export const week3P4Fixtures = {
   }),
 };
 
-export const week3TurnFixtures = {
-  answerMonet: (): BuyerCriteriaTurnRequest => ({
+export const structuredAiExtractSamples = {
+  blueRingHe: (): AiExtractResponse => ({
+    provider: 'fixture',
+    mode: 'fixture',
+    isRelevant: true,
+    error: null,
+    content: 'תוצאה קבועה (fixture): טבעת כחולה.',
+    summary: 'המשתמש מחפש פריט קשור לצבע כחול',
+    recommendation: 'הצג פריטים דומים עם צבע כחול או בקש פרטים נוספים',
+    nextAction: 'בקש מידע נוסף על תקציב והזדמנות לרכישה',
+    confidence: 'medium',
+    structuredAnswer: {
+      role: 'buyer',
+      language: 'he',
+      intent: 'מצא טבעת כחולה המתאימה לתקופה ולתקציב המבוקש.',
+      category: 'טבעות',
+      keywords: ['blue'],
+      hasContactDetails: false,
+      hasImages: false,
+    } satisfies StructuredAiExtract,
+  }),
+  irrelevantHe: (): AiExtractResponse => ({
+    provider: 'fixture',
+    mode: 'fixture',
+    isRelevant: false,
+    error: 'השאלה אינה קשורה לקנייה או למכירה',
+    content: '',
+    summary: '',
+    recommendation: '',
+    nextAction: '',
+    confidence: 'low',
+  }),
+};
+
+export const sampleClarificationTurns = {
+  answerMonet: (): ClarificationTurnInput => ({
     action: 'answer',
     message: 'Monet',
     criteria: {
@@ -62,7 +96,7 @@ export const week3TurnFixtures = {
       notes: ['painting search'],
     },
   }),
-  skipLocation: (): BuyerCriteriaTurnRequest => ({
+  skipLocation: (): ClarificationTurnInput => ({
     action: 'skip',
     criteria: {
       categories: ['painting'],
@@ -84,3 +118,9 @@ export const week3TurnFixtures = {
     },
   }),
 };
+
+/** Example used in refinement integration tests: initial AI response + one buyer answer. */
+export const refinementExample = {
+  initialAiResponse: sampleAiExtractResponses.paintingEn(),
+  buyerAnswer: 'Monet',
+} as const;
