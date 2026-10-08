@@ -6,9 +6,10 @@ import { AuctionLotEntity } from './database/auction-lot.entity';
 import { UserProfileEntity } from './database/user-profile.entity';
 import { StaffOperationEntity } from './database/staff-operation.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
+import { BuyerChatModule } from './buyer-chat/buyer-chat.module';
+import { SellerChatModule } from './seller-chat/seller-chat.module';
 import { CreateStaffOperations1725000000000 } from './database/1725000000000-create-staff-operations';
 import { CreateUserProfiles1730000000000 } from './database/1730000000000-create-user-profiles';
-import { ChatModule } from './chat/chat.module';
 import { CreateTeamTables1710000000001 } from './database/1710000000001-create-team-tables';
 import { CreateBuyerTables1710000000002 } from './database/1710000000002-create-buyer-tables';
 import { AiProviderConfigEntity } from './database/ai-provider-config.entity';
@@ -98,9 +99,10 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     AiModule,
     ProfilesModule,
     BuyerModule,
-    ChatModule,
     HealthModule,
     LotsModule,
+    BuyerChatModule,
+    SellerChatModule,
     StorageModule,
     StaffOperationsModule,
     ComparablesModule,

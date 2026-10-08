@@ -3,6 +3,7 @@ import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService, type FixtureProviderRequest, type FixtureProviderResponse } from './fixture-provider.service';
 import { RealProviderService, type RealProviderRequest, type RealProviderResponse } from './real-provider.service';
 import type { AiRole } from './ai.dto';
+import { isExplicitlyOffTopic, offTopicCopy } from './off-topic';
 
 export type ProviderConfig = {
   kind: 'fixture' | 'real';
@@ -54,6 +55,15 @@ export class ProviderGatewayService {
     input: ProviderGatewayRequest,
     configuredProviders: ProviderConfig[] = [],
   ): Promise<ProviderGatewayResponse> {
+    if (isExplicitlyOffTopic(input.prompt)) {
+      const turns = input.history ?? [];
+      const previous = await this.dependencies.fixtureProvider.generate({
+        role: input.role, language: input.language,
+        prompt: turns.at(-1)?.prompt ?? '', history: turns.slice(0, -1),
+      });
+      const copy = offTopicCopy(input.language ?? 'he');
+      return { ...previous, ...copy, content: copy.summary, isRelevant: false, error: null };
+    }
     const enabledReal = configuredProviders.find((provider) => provider.kind === 'real' && provider.enabled !== false);
     const realBaseUrl = enabledReal?.baseUrl ?? input.baseUrl;
     const realModelName = enabledReal?.modelName ?? input.modelName;
@@ -63,6 +73,7 @@ export class ProviderGatewayService {
     if (enabledReal && !hasValidRealConfig) {
       return this.dependencies.fixtureProvider.generate({
         prompt: input.prompt,
+        history: input.history,
         role: input.role,
         language: input.language,
         fallbackMode: 'guided',
@@ -97,11 +108,16 @@ export class ProviderGatewayService {
           }
         }
 
+        if (!result!.isRelevant) {
+          const copy = offTopicCopy(input.language ?? 'he');
+          return { ...result!, ...copy, content: copy.summary, error: null };
+        }
         return result!;
       } catch (error) {
         this.logger.warn(`Falling back to guided input: ${classifyProviderFailure(error)}`);
         const fallback = this.dependencies.fixtureProvider.generate({
           prompt: input.prompt,
+          history: input.history,
           role: input.role,
           language: input.language,
           fallbackMode: 'guided',
@@ -113,6 +129,7 @@ export class ProviderGatewayService {
 
     return this.dependencies.fixtureProvider.generate({
       prompt: input.prompt,
+      history: input.history,
       role: input.role,
       language: input.language,
     });

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { connectSellerLevels, sendSellerMessage } from './messages';
+import { connectSellerLevels, sendSellerMessage } from './connect-seller-levels';
 import type { SellerUpdate } from '../chat/chat-types';
 
 describe('connectSellerLevels', () => {

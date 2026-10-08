@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 // Provides the demo conversation messages for a language from the fixture file.
 @Injectable()
-export class ChatService {
+export class BuyerChatService {
   // Parsed fixture, kept in memory after the first read so later requests skip the disk.
   private conversations?: Record<string, unknown[]>;
 

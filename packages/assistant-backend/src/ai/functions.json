@@ -289,6 +289,33 @@
         "The function may return 0, 1, or more results",
         "The PriceHistory UI, not this function, decides that fewer than 2 results is insufficient history"
       ]
+    },
+    {
+      "name": "rankSellerHouses",
+      "simpleDescription": "Ranks the provided auction houses for a buyer.",
+      "role": "buyer",
+      "description": "Ranks auction houses without storing the ranking on a lead.",
+      "method": "POST",
+      "endpoint": "/api/seller-leads/house-rankings",
+      "whenToUse": [
+        "The buyer asks which auction house specializes in this category"
+      ],
+      "inputs": {
+        "category": "string",
+        "geography": "string | optional",
+        "houses": "array | optional; defaults to prepared auction houses",
+        "preferredLanguage": "string | optional"
+      },
+      "returns": {
+        "recommendation": "object",
+        "alternatives": "array",
+        "rejected": "array"
+      },
+      "rules": [
+        "Do not invent recommendations",
+        "Use only provided house data",
+        "Map intentRoute.arguments.language to preferredLanguage when calling the ranking endpoint"
+      ]
     }
   ]
 }

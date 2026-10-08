@@ -3,6 +3,14 @@ import { FixtureProviderService } from './fixture-provider.service';
 
 //test fixture provider service
 describe('FixtureProviderService', () => {
+  it('advances seller questions using facts from earlier turns', async () => {
+    const result = await new FixtureProviderService().generate({
+      role: 'seller', language: 'en', prompt: 'It is in good condition',
+      history: [{ prompt: 'I want to sell a painting 60 x 80 cm', answer: 'What is the condition of the item?' }],
+    });
+    expect(result.nextAction).toBe('What is known about the item provenance?');
+    expect(result.structuredAnswer.item).toEqual(expect.objectContaining({ dimensions: 'provided', condition: 'provided' }));
+  });
   it('asks a Hebrew pink-ring buyer for budget and optional period', async () => {
     const result = await new FixtureProviderService().generate({ prompt: 'אני מחפש טבעת וורודה', role: 'buyer', language: 'he' });
     expect(result.summary).toContain('טבעת ורודה');

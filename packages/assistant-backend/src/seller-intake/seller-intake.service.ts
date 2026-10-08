@@ -122,21 +122,37 @@ export class SellerIntakeService {
   // Build an API draft without treating fixture facts as seller-confirmed.
   createDraftFromSellerInput(fixture: SellerItemDraft, input: string): SellerItemDraft {
     const reviewState = this.buildReviewState(input);
+    const extractedDimensions =
+      reviewState.dimensions.widthCm && reviewState.dimensions.heightCm
+        ? {
+            values: [
+              { label: 'width', value: reviewState.dimensions.widthCm, unit: 'cm' },
+              { label: 'height', value: reviewState.dimensions.heightCm, unit: 'cm' },
+            ],
+            widthCm: reviewState.dimensions.widthCm,
+            heightCm: reviewState.dimensions.heightCm,
+            unit: 'cm',
+          }
+        : undefined;
+    const extractedCatalogFacts: SellerItemDraft['confirmedFacts'] = {
+      ...(reviewState.category !== 'unknown' ? { category: reviewState.category } : {}),
+      ...(reviewState.materials.length ? { materials: reviewState.materials } : {}),
+      ...(extractedDimensions ? { dimensions: extractedDimensions } : {}),
+      ...(reviewState.condition === 'Not yet confirmed' ? {} : { condition: reviewState.condition }),
+      ...(reviewState.markings === 'Not yet confirmed' ? {} : { markings: reviewState.markings }),
+      ...(reviewState.signatures === 'Not yet confirmed' ? {} : { signatures: reviewState.signatures }),
+      ...(reviewState.provenance ? { provenance: reviewState.provenance } : {}),
+    };
     const item = {
       ...fixture.item,
+      title: this.draftTitleFromInput(input, reviewState.category, extractedDimensions),
       category: reviewState.category,
       materials: reviewState.materials,
       dimensions: {
         ...fixture.item.dimensions,
         widthCm: reviewState.dimensions.widthCm || undefined,
         heightCm: reviewState.dimensions.heightCm || undefined,
-        values:
-          reviewState.dimensions.widthCm && reviewState.dimensions.heightCm
-            ? [
-                { label: 'width', value: reviewState.dimensions.widthCm, unit: 'cm' },
-                { label: 'height', value: reviewState.dimensions.heightCm, unit: 'cm' },
-              ]
-            : [],
+        values: extractedDimensions?.values ?? [],
       },
       condition: reviewState.condition === 'Not yet confirmed' ? undefined : reviewState.condition,
       markings: reviewState.markings === 'Not yet confirmed' ? undefined : reviewState.markings,
@@ -148,7 +164,8 @@ export class SellerIntakeService {
       ...fixture,
       item: {
         ...item,
-        catalogDraft: this.buildCatalogDraft({}),
+        description: { he: input.trim(), en: input.trim() },
+        catalogDraft: this.buildCatalogDraft(extractedCatalogFacts),
       },
       missingFields: reviewState.missingFields,
       confirmedFacts: {},
@@ -243,7 +260,16 @@ export class SellerIntakeService {
       ...(text.includes('בד') ? ['canvas'] : []),
     ];
 
-    const category = text.includes('painting') || text.includes('ציור') ? 'paintings' : 'unknown';
+    const category = text.includes('painting') || text.includes('ציור')
+      ? 'paintings'
+      : text.includes('rare book')
+        || text.includes('hebrew book')
+        || text.includes('manuscript')
+        || /\bbook\b/.test(text)
+        || input.includes('ספר')
+        || input.includes('כתב יד')
+        ? 'rare_books'
+        : 'unknown';
     const materials = [] as string[];
     if (text.includes('oil') || text.includes('שמן')) materials.push('oil');
     if (text.includes('canvas') || text.includes('בד')) materials.push('canvas');
@@ -539,6 +565,19 @@ export class SellerIntakeService {
       && facts.markings !== undefined
       && facts.signatures !== undefined
       && facts.provenance !== undefined;
+  }
+
+  draftTitleFromInput(
+    input: string,
+    category: string,
+    dimensions?: { widthCm: number; heightCm: number },
+  ): string {
+    const size = dimensions ? `${dimensions.widthCm}x${dimensions.heightCm} cm` : null;
+    if (category === 'paintings' && size) return `Painting ${size}`;
+    if (category === 'paintings') return 'Painting from seller intake';
+    if (category === 'rare_books') return 'Rare Hebrew book from seller intake';
+    const trimmed = input.trim().replace(/\s+/g, ' ');
+    return trimmed.slice(0, 80) || 'Seller intake draft';
   }
 
   // בונה תיאור קטלוג מעובדות מאושרות בלבד ומציין במפורש פרטים שטרם אושרו.

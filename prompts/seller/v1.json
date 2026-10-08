@@ -17,7 +17,11 @@
     "language": "he",
     "intent": "Prepare this item for auction review.",
     "category": "paintings",
+    "item": { "title": "Painting" },
     "missingFacts": ["dimensions", "condition", "provenance"],
+    "confirmedFacts": [],
+    "uncertainFacts": [],
+    "sellerConfirmation": { "required": true, "status": "pending" },
     "completionState": {
       "fields": {
         "category": {"required": true, "status": "provided", "value": "paintings"},

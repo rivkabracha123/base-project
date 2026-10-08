@@ -1,4 +1,11 @@
-import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import 'reflect-metadata';
+import { Type } from 'class-transformer';
+import { IsArray, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+
+class AiGenerateLotRefDto {
+  @IsString()
+  id!: string;
+}
 import { isBuyerHandoffContract, type BuyerHandoffContract } from './buyer-handoff';
 import { isSellerHandoffContract, type SellerHandoffContract } from './seller-handoff';
 import type { IntentRoute } from './intent-router';
@@ -20,6 +27,21 @@ export class GenerateAiRequestDto {
   @IsEnum(['he', 'en'])
   language?: 'he' | 'en';
 
+  /** Forwarded from B2 buyer bridge; session is also taken from x-anonymous-session-id when present. */
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AiGenerateLotRefDto)
+  selectedLot?: AiGenerateLotRefDto | null;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AiGenerateLotRefDto)
+  lots?: AiGenerateLotRefDto[];
 }
 
 //shape buyer answer that the AI get
@@ -119,7 +141,8 @@ function isIntentRoute(value: unknown): value is IntentRoute {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const route = value as Record<string, unknown>;
   const intents = ['get_lot_details', 'same_item_sale_history', 'search_similar_lots', 'search_auction_lots', 'unknown'];
-  const functions = ['getLotById', 'getComparableSaleHistory'];
+  intents.push('buyer_house_ranking');
+  const functions = ['getLotById', 'getComparableSaleHistory', 'rankSellerHouses'];
   return intents.includes(String(route.intent)) &&
     (route.functionName === null || (typeof route.functionName === 'string' && functions.includes(route.functionName))) &&
     typeof route.readyForFunction === 'boolean' &&

@@ -1,6 +1,17 @@
 import { routeBuyerIntent } from './intent-router';
 
 describe('routeBuyerIntent', () => {
+  it('routes Hebrew buyer house specialization with category and geography', () => {
+    expect(routeBuyerIntent('איזה בית מכירות הכי מתמחה בתחום הזה?', { category: 'judaica', geography: 'Israel', language: 'he' })).toEqual({
+      intent: 'buyer_house_ranking', functionName: 'rankSellerHouses', readyForFunction: true,
+      missingFields: [], arguments: { category: 'judaica', geography: 'Israel', language: 'he' },
+    });
+  });
+  it('requires a category rather than inventing one for house rankings', () => {
+    expect(routeBuyerIntent('Which auction house specializes in this category?', { language: 'en' })).toMatchObject({
+      functionName: 'rankSellerHouses', readyForFunction: false, missingFields: ['category'], arguments: { language: 'en' },
+    });
+  });
   it('routes sale-history requests when the selected lot data is complete', () => {
     const selectedLot = { id: 'lot-1', itemKey: 'manuscript-1' };
     const lots = [{ id: 'lot-2', itemKey: 'manuscript-1', status: 'sold' }];

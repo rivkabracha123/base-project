@@ -6,6 +6,7 @@ import type {
   SellerLeadSummary,
 } from '@monabid/shared';
 import { ChooseSellerHouseDto } from './choose-seller-house.dto';
+import { CompleteSellerEnquiryDto } from './complete-seller-enquiry.dto';
 import { CreateSellerLeadDto } from './create-seller-lead.dto';
 import { RankHousesDto } from './rank-houses.dto';
 import { toSellerLeadDashboardDetail } from './seller-lead-dashboard';
@@ -45,12 +46,26 @@ export class SellerLeadsController {
 
   /**
    * S1 callback when the confirmed catalog draft is ready.
-   * POST the draft; the 200 JSON is what Tamar should render (houses + catalog).
+   * POST the draft; the 200 JSON is ranking + catalog + live S4 valuation for the seller UI.
    */
   @Post('s1-handoff')
   @HttpCode(200)
   receiveS1Handoff(@Body() payload: unknown): ReturnType<SellerLeadsService['receiveS1Handoff']> {
     return this.sellerLeads.receiveS1Handoff(payload);
+  }
+
+  /**
+   * One persist path for the enquiry screen: rank once, save choice, submit internally.
+   * Stepwise POST :id/house-rankings + choice + final remain for week-4 house-choice.
+   */
+  @Post('enquiry')
+  @HttpCode(200)
+  async completeEnquiry(
+    @Body() body: CompleteSellerEnquiryDto,
+    @Headers('x-anonymous-session-id') sessionId?: string,
+  ): Promise<SellerLeadSummary> {
+    const lead = await this.sellerLeads.completeEnquiry(body, sessionId);
+    return toSellerLeadSummary(lead);
   }
 
   /** S5 Week 3: rank P1 houses for this lead and persist the ranking for P5. */

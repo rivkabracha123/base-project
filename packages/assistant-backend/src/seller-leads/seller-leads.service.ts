@@ -9,18 +9,25 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
-  sellerLeadValuationSchema,
+  itemVersionFromS1Draft,
   receiveConfirmedItemHandoff,
   sellerContactFromP3Profile,
+  sellerItemFromS1Draft,
+  sellerLeadValuationSchema,
   type HouseRanking,
   type PreparedAuctionHouse,
   type RankingItem,
+  type SellerLeadComparableRef,
   type SellerLeadHistoryEvent,
   type SellerLeadValuation,
 } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { ProfilesService } from '../profiles/profiles.service';
+import { toSellerLeadValuationSnapshot } from '../valuation-calculation/dashboard-valuation';
+import { isSafeIdentifier } from '../valuation-calculation/privacy-projection';
+import { ItemValuationService } from '../valuation-calculation/item-valuation.service';
+import type { CompleteSellerEnquiryDto } from './complete-seller-enquiry.dto';
 import type { CreateSellerLeadDto } from './create-seller-lead.dto';
 import { loadPreparedHouses } from './house-rank-fixture';
 import { rankActiveHouses } from './house-rank';
@@ -65,6 +72,8 @@ export class SellerLeadsService {
     private readonly logger: LoggerService = new Logger(SellerLeadsService.name),
     @Optional()
     private readonly profiles?: ProfilesService,
+    @Optional()
+    private readonly itemValuation?: ItemValuationService,
   ) {}
 
   /** Copy P3 current-profile fields onto a draft enquiry when the anonymous session is present. */
@@ -125,26 +134,87 @@ export class SellerLeadsService {
   }
 
   /**
-   * S1 callback: confirmed SellerItemDraft / buildHandoffPayload in, ranking + copied catalog out.
+   * S1 callback: confirmed SellerItemDraft / buildHandoffPayload in,
+   * ranking + copied catalog + live S3/S4 valuation out.
    * Does not create a lead (contact/consent stay on P3) and never contacts a house.
    */
-  receiveS1Handoff(payload: unknown): {
+  async receiveS1Handoff(payload: unknown): Promise<{
     ranking: HouseRanking;
     catalogDraft: { he: string; en: string };
     item: { id: string; category: string; title: string; evidenceIds: string[] };
     evidence: Array<{ id: string; type: string }>;
-  } {
+    valuation: SellerLeadValuation | null;
+    comparables: SellerLeadComparableRef[];
+  }> {
+    let copied: ReturnType<typeof receiveConfirmedItemHandoff>;
     try {
-      const copied = receiveConfirmedItemHandoff(payload);
-      return {
-        ranking: this.rankHouses(copied.rankingItem),
-        catalogDraft: copied.catalogDraft,
-        item: copied.item,
-        evidence: copied.evidence,
-      };
+      copied = receiveConfirmedItemHandoff(payload);
     } catch {
       throw new BadRequestException('S1 handoff must include item id, category, title, and catalogDraft');
     }
+
+    const ranking = this.rankHouses(copied.rankingItem);
+    const live = await this.liveS4Valuation(payload, copied.item.id);
+    return {
+      ranking,
+      catalogDraft: copied.catalogDraft,
+      item: copied.item,
+      evidence: copied.evidence,
+      valuation: live.valuation,
+      comparables: live.comparables,
+    };
+  }
+
+  /** Copy S4's dashboard snapshot. Never recalculate and never invent a refusal. */
+  private async liveS4Valuation(
+    payload: unknown,
+    itemId: string,
+  ): Promise<{ valuation: SellerLeadValuation | null; comparables: SellerLeadComparableRef[] }> {
+    if (!this.itemValuation) return { valuation: null, comparables: [] };
+    try {
+      const rawVersion = itemVersionFromS1Draft(payload);
+      const report = await this.itemValuation.calculateFromItem({
+        itemId,
+        itemVersion: isSafeIdentifier(rawVersion) ? rawVersion : 'confirmed',
+        item: sellerItemFromS1Draft(payload),
+      });
+      const snapshot = toSellerLeadValuationSnapshot(report).dashboard;
+      const parsed = sellerLeadValuationSchema.safeParse(snapshot);
+      if (!parsed.success) return { valuation: null, comparables: [] };
+      return {
+        valuation: parsed.data,
+        comparables: parsed.data.comparables.map((row) => ({
+          id: row.id,
+          source: row.source.label,
+        })),
+      };
+    } catch {
+      return { valuation: null, comparables: [] };
+    }
+  }
+
+  /**
+   * Display already ranked via s1-handoff. Persist ranks once, stores choice, then submits.
+   * Week 4 stepwise APIs stay for house-choice and contract tests.
+   */
+  async completeEnquiry(payload: CompleteSellerEnquiryDto, sessionId?: string): Promise<SellerLeadEntity> {
+    const enquiry = await this.applyP3Profile(
+      {
+        profileId: payload.profileId ?? 'profile-synthetic-seller-1',
+        contact: payload.contact,
+        serviceConsent: true,
+      },
+      sessionId,
+    );
+    const lead = await this.draft(enquiry);
+    const ranking = this.rankHouses({
+      category: payload.item.category,
+      geography: payload.geography,
+      preferredLanguage: payload.preferredLanguage,
+    });
+    await this.attachRanking(lead.id, ranking);
+    await this.saveSellerChoice(lead.id, payload.houseId);
+    return this.submitFinal(lead.id, payload);
   }
 
   /** S5 Week 3: write the ranking onto the lead without touching sellerChoice. */

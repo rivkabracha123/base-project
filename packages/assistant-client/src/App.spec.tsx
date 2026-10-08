@@ -10,11 +10,11 @@ import fixtures from '../../../fixtures/auction-data/lots.json';
 import './i18n';
 
 vi.mock('./app/api', () => ({
+  getCurrentProfile: vi.fn(),
+  updateProfileLanguage: vi.fn(),
   getSampleLot: vi.fn(),
   getLotById: vi.fn(),
   getConversation: vi.fn(),
-  getCurrentProfile: vi.fn(),
-  updateProfileLanguage: vi.fn(),
 }));
 
 const [lot] = auctionLotFixtureSchema.parse(fixtures);

@@ -1,93 +1,44 @@
-import i18n from '../i18n';
-import { getBrowserLanguage } from '../i18n';
-import type { SellerUpdate } from '../chat/chat-types';
+import { z } from 'zod';
+import { baseMessageFields, errorMessageSchema, systemMessageSchema } from '@monabid/shared';
+import { parseConversationWith } from '../chat/parse-conversation';
 
-interface SellerIntakeResponse {
-  missingFields?: string[];
-  nextQuestion?: { field: string; he: string; en: string } | null;
-  conversation?: { assistantSummary?: { he?: string; en?: string } };
-}
+// A photo the seller attached, by reference — the same shape the evidence API returns (EvidenceReference in app/api.ts).
+// The message stores the reference, not the picture; the picture URL is built from previewUri when displayed.
+const sellerImageSchema = z.object({
+  fileId: z.string().min(1),
+  profileId: z.string().min(1),
+  itemId: z.string().min(1),
+  originalName: z.string().min(1),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  size: z.number().nonnegative(),
+  previewUri: z.string().min(1),
+  downloadUri: z.string().min(1),
+});
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
-const PROFILE_STORAGE_KEY = 'monabid.seller.profileId';
-const SESSION_STORAGE_KEY = 'monabid.seller.sessionId';
+// Schema: defines which message kinds the seller chat can display, matched on the speaker field.
+// 'system' and 'error' are the shared shapes from @monabid/shared; 'seller' is seller-only.
+// Seller-specific message kinds (fact review, photo requests, etc.) are added here as the
+// seller conversation flow is built — this is a minimal starting contract, not the full flow.
+export const sellerMessageSchema = z.discriminatedUnion('speaker', [
+  z.object({
+    speaker: z.literal('seller'),
+    ...baseMessageFields,
+    text: z.string().min(1).optional(),
+    image: sellerImageSchema.optional(),
+  }),
+  systemMessageSchema,
+  errorMessageSchema,
+]).refine(
+  // A seller message must carry text, a photo, or both; system and error messages always have text.
+  (message) => message.speaker !== 'seller' || message.text !== undefined || message.image !== undefined,
+  { message: 'A seller message needs text or an image' },
+);
 
-// מציגה הודעת מערכת למוכר דרך callback של מסך הצ'אט וממתינה לעדכון המסך.
-// Displays a system message through the chat screen callback and waits for the UI update.
-export async function sendSellerMessage(
-  text: string,
-  onUpdate: (update: SellerUpdate) => void | Promise<void>,
-): Promise<void> {
-  await onUpdate({ speaker: 'system', text });
-}
+// SellerMessage type — inferred automatically from the schema, for use by TypeScript while writing code.
+export type SellerMessage = z.infer<typeof sellerMessageSchema>;
 
-// מחזירה מזהה קיים מהאחסון או יוצרת ושומרת מזהה חדש.
-// Returns an existing stored identifier or creates and stores a new one.
-function getOrCreateId(storage: Storage, key: string): string {
-  const existingId = storage.getItem(key);
-  if (existingId) return existingId;
 
-  const id = crypto.randomUUID();
-  storage.setItem(key, id);
-  return id;
-}
-
-// מנהלת מזהי פרופיל ושיחה פנימיים הנדרשים ל־API, בלי להוסיף אותם לעדכוני הממשק.
-// Manages internal profile and session IDs required by the API without adding them to UI updates.
-function getSellerMessageIds(): { profileId: string; sessionId: string } {
-  if (typeof localStorage === 'undefined' || typeof sessionStorage === 'undefined') {
-    throw new Error('Seller chat requires browser storage');
-  }
-
-  return {
-    profileId: getOrCreateId(localStorage, PROFILE_STORAGE_KEY),
-    sessionId: getOrCreateId(sessionStorage, SESSION_STORAGE_KEY),
-  };
-}
-
-// בוחרת את השאלה הבאה או סיכום המערכת בשפה הפעילה של האפליקציה.
-// Selects the next question or system summary in the application's active language.
-function getSystemText(response: SellerIntakeResponse): string {
-  const language = getBrowserLanguage(i18n.language);
-  const nextQuestion = response.nextQuestion;
-  if (nextQuestion) return nextQuestion[language];
-
-  const summary = response.conversation?.assistantSummary?.[language];
-  if (summary) return summary;
-
-  return language === 'he' ? 'קיבלתי את פרטי הפריט.' : 'I received the item details.';
-}
-
-// שולחת הודעת מוכר ל־seller-intake ומחזירה את תשובת המערכת דרך callback של תמר.
-// Sends a seller message to seller-intake and returns the system response through Tamar's callback.
-export async function connectSellerLevels(
-  message: string,
-  onUpdate: (update: SellerUpdate) => void | Promise<void>,
-): Promise<void> {
-  try {
-    const input = message.trim();
-    if (!input) throw new Error('יש להזין הודעה לפני השליחה.');
-
-    const { profileId, sessionId } = getSellerMessageIds();
-    const response = await fetch(`${API_BASE_URL}/seller-intake/draft`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input, profileId, sessionId }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Seller intake request failed (${response.status})`);
-    }
-
-    const body = await response.json() as SellerIntakeResponse;
-    await sendSellerMessage(getSystemText(body), onUpdate);
-  } catch (error) {
-    const update: SellerUpdate = {
-      speaker: 'error',
-      code: error instanceof TypeError ? 'SELLER_CONNECTION_FAILED' : 'SELLER_INTAKE_FAILED',
-      text: error instanceof Error ? error.message : 'Seller intake failed',
-    };
-    await onUpdate(update);
-    throw error;
-  }
+// parseConversation — checks each entry against the seller schema and returns only the valid messages; a non-array input yields an empty list.
+export function parseConversation(input: unknown): SellerMessage[] {
+  return parseConversationWith(sellerMessageSchema, input);
 }

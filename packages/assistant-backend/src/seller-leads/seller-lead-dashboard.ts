@@ -44,18 +44,27 @@ function toDashboardValuation(valuation: SellerLeadEntity['valuation']): Dashboa
     source: safeDashboardSource(row.source),
     ...(row.saleDate ? { saleDate: row.saleDate } : {}),
   }));
-  const shared = {
+  const base = {
     reportId: valuation.reportId,
     comparableCount: valuation.comparableCount,
-    confidence: valuation.confidence,
     limitations: valuation.limitations,
     comparables,
     excludedComparables: valuation.excludedComparables,
   };
   if (valuation.status === 'supported') {
-    return { status: 'supported', ...shared, valuationRange: valuation.valuationRange };
+    return {
+      status: 'supported',
+      ...base,
+      confidence: valuation.confidence,
+      valuationRange: valuation.valuationRange,
+    };
   }
-  return { status: 'refusal', ...shared, reason: valuation.reason };
+  return {
+    status: 'refusal',
+    ...base,
+    reason: valuation.reason,
+    ...(valuation.confidence ? { confidence: valuation.confidence } : {}),
+  };
 }
 
 /**

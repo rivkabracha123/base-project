@@ -1,5 +1,8 @@
 import {
   applyBuyerAnswer,
+  applyCriteriaCorrection,
+  applyCriteriaRemoval,
+  createGuidedFallbackCriteriaResponse,
   emptyBuyerCriteria,
   parseCriteriaFromAiResponse,
   mergeBuyerCriteria,
@@ -166,6 +169,27 @@ describe('Week 3 focused questions', () => {
     expect(afterAnswer.criteria.categories).toEqual([]);
     expect(afterAnswer.criteria.keywords).toEqual(['rare Hebrew books']);
     expect(afterAnswer.conversation.missing[0]).toBe('creator');
+  });
+
+  it('uses guided fallback criteria when AI extract is irrelevant', () => {
+    const fallback = createGuidedFallbackCriteriaResponse('en');
+    expect(fallback.conversation.notes).toContain('guided_fallback');
+    expect(fallback.conversation.nextQuestion).toMatch(/Describe what you want/i);
+  });
+
+  it('removes budget when the buyer asks to drop it', () => {
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const removed = applyCriteriaRemoval(initial.criteria, initial.conversation, 'remove budget');
+    expect(removed.criteria.price).toBeUndefined();
+    expect(removed.criteria.categories).toEqual(initial.criteria.categories);
+  });
+
+  it('applies a budget correction without erasing category', () => {
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const corrected = applyCriteriaCorrection(initial.criteria, initial.conversation, 'change budget to $8000');
+    expect(corrected.criteria.price?.max).toBe(8000);
+    expect(corrected.criteria.price?.min).toBe(8000);
+    expect(corrected.criteria.categories).toEqual(initial.criteria.categories);
   });
 
   it('applies answer and skip using shared turn fixtures', () => {

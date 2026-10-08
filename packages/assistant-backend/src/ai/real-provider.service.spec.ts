@@ -37,12 +37,19 @@ describe('RealProviderService', () => {
       modelName: 'gpt-4o-mini',
       apiKey: 'test-key',
       fetchImpl: fetchMock as typeof fetch,
+      history: [{ prompt: 'I want a ring buyer@example.com', answer: 'What is your budget?' }],
     });
 //make sure that the result equals the expected output
     expect(result.provider).toBe('real');
     expect(result.mode).toBe('real');
     expect(result.content).toBe(JSON.stringify(modelResponse));
     expect(result.structuredAnswer).toEqual(modelResponse.structuredAnswer);
+    const sentMessages = JSON.parse(fetchMock.mock.calls[0][1].body).messages;
+    expect(sentMessages.slice(1, 3)).toEqual([
+      { role: 'user', content: 'I want a ring [contact removed]' },
+      { role: 'assistant', content: 'What is your budget?' },
+    ]);
+    expect(sentMessages[3].role).toBe('user');
     expect(fetchMock).toHaveBeenCalledWith(
       'https://example.com/v1/chat/completions',
       expect.objectContaining({

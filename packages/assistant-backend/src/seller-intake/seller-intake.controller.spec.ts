@@ -235,4 +235,44 @@ describe('SellerIntakeController', () => {
     expect(confirmationResponse.status).toBe(201);
     expect(drafts.confirmFacts).toHaveBeenCalledWith('profile-test', 'session-flow', ['dimensions', 'condition']);
   });
+
+  // Without profileId and sessionId the message is analyzed but nothing is persisted.
+  it('returns a draft without persisting it when no profileId and sessionId are sent', async () => {
+    const response = await fetch(`${baseUrl}/seller-intake/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'I have an oil painting, 60 x 80 cm, signed.' }),
+    });
+
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    expect(body.status).toBe('draft');
+    expect(body.missingFields).toEqual(['condition', 'marks', 'provenance']);
+    expect(body).not.toHaveProperty('sessionId');
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+  });
+
+  // Sending only one of the two identifiers is a client mistake and must not be silently ignored.
+  it('rejects a request that sends only profileId with 400', async () => {
+    const response = await fetch(`${baseUrl}/seller-intake/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'I have a painting.', profileId: 'profile-test' }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+  });
+
+  it('rejects a request that sends only sessionId with 400', async () => {
+    const response = await fetch(`${baseUrl}/seller-intake/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'I have a painting.', sessionId: 'session-test' }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+  });
 });

@@ -17,6 +17,9 @@ export type AiGenerateRequest = {
   modelName?: string;
   apiKey?: string;
   sessionId?: string;
+  history?: Array<{ prompt: string; answer: string }>;
+  selectedLot?: Record<string, unknown> | null;
+  lots?: unknown[];
 };
 
 //response
@@ -76,11 +79,20 @@ export class AiService {
 
     const role = input.role ?? 'buyer';
     const intentRoute = role === 'buyer'
-      ? routeBuyerIntent(input.prompt, { language: input.language })
+      ? routeBuyerIntent(input.prompt, {
+          language: input.language,
+          selectedLot: input.selectedLot ?? undefined,
+          lots: input.lots,
+          ...(result.structuredAnswer.role === 'buyer' ? {
+            category: result.structuredAnswer.category,
+            geography: result.structuredAnswer.geography?.join(', '),
+          } : {}),
+        })
       : undefined;
 
     return {
       ...result,
+      ...(intentRoute?.intent === 'buyer_house_ranking' ? { isRelevant: true } : {}),
       ...(intentRoute && intentRoute.intent !== 'unknown' ? { intentRoute } : {}),
     };
   }

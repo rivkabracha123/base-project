@@ -10,7 +10,6 @@ type BuyerCriteriaSessionRecord = {
 
 const sessions = new Map<string, BuyerCriteriaSessionRecord>();
 
-/** Listener — append one chat line for DB/history; caller supplies id. */
 export function appendBuyerCriteriaHistory(
   sessionId: string,
   entry: BuyerChatHistoryInput,
@@ -75,6 +74,20 @@ export function saveSessionAfterClarification(
   }) as BuyerChatHistoryEntry & { speaker: 'system' };
 }
 
+export function getBuyerCriteriaSessionSnapshot(sessionId: string): BuyerCriteriaSessionRecord {
+  const existing = sessions.get(sessionId);
+  if (!existing) {
+    throw new Error(`Unknown buyer criteria session: ${sessionId}`);
+  }
+  return {
+    criteria: existing.criteria,
+    conversation: existing.conversation,
+    history: [...existing.history],
+  };
+}
+
 export function resetBuyerCriteriaSessions(): void {
   sessions.clear();
 }
+
+export type { BuyerCriteriaSessionRecord };

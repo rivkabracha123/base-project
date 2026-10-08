@@ -8,9 +8,10 @@ interface ItemDetailProps {
   lang: 'he' | 'en';
   onBack: () => void;
   historyLots?: ItemHistoryLot[];
+  onOpenChat?: () => void;
 }
 
-export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailProps) {
+export function ItemDetail({ lot, lang, onBack, historyLots = [], onOpenChat }: ItemDetailProps) {
   const isRtl = lang === 'he';
   const [showHelpForm, setShowHelpForm] = useState(false);
   const title = lot.title[lang] ?? lot.title.en;
@@ -71,6 +72,18 @@ export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailPr
       </section>
 
       <PriceHistory sales={historicalSales} lang={lang} />
+
+      {onOpenChat ? (
+        <section className="mb-8 border-t border-gray-100 pt-6 text-center">
+          <button
+            type="button"
+            onClick={onOpenChat}
+            className="w-full rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 md:w-auto"
+          >
+            {isRtl ? 'שאלי את העוזרת על הפריט' : 'Ask the assistant about this lot'}
+          </button>
+        </section>
+      ) : null}
 
       <section className="border-t border-slate-200 pt-6 text-center">
         {!showHelpForm ? (

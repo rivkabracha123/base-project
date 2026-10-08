@@ -111,6 +111,7 @@ export const sellerItemDraftSchema = z.object({
     summary: z.string().min(1),
     changes: z.array(z.string()),
   })),
+
   sellerConfirmation: z.object({
     required: z.boolean(),
     status: z.enum(['partial', 'complete', 'pending']),
