@@ -4,7 +4,8 @@ import type { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
-import { BuyerSessionSearchService } from './buyer-session-search.service';
+import { BuyerSearchExecutionService } from './buyer-search-execution.service';
+import { DefaultBuyerResultsPresentationService } from './default-buyer-results-presentation.service';
 import { FixtureLotsSearchClient } from './fixture-lots-search.client';
 import { findBuyerFixtureLot, resolveBuyerFixtureLots } from './fixture-lots.pool';
 
@@ -15,9 +16,12 @@ describe('BuyerP4FunctionExecutor', () => {
       resolveLotPool: jest.fn(async (refs?: { id: string }[]) => resolveBuyerFixtureLots(refs)),
     } as unknown as BuyerLotsResolverService;
     const saleHistory = new BuyerComparableSaleHistoryService(lotsResolver);
+    const presentation = new DefaultBuyerResultsPresentationService(
+      new BuyerSearchExecutionService(new FixtureLotsSearchClient()),
+    );
     const executor = new BuyerP4FunctionExecutor(
       saleHistory,
-      new BuyerSessionSearchService(new FixtureLotsSearchClient()),
+      presentation,
       new BuyerCriteriaService(),
       lotsResolver,
     );
