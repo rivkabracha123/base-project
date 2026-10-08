@@ -24,10 +24,11 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
     const session = service.getSessionResponse(first.sessionId);
 
     expect(criteriaToSearchRequest(criteria, criteria.language)).toEqual({
-      query: 'Monet blue',
+      query: 'blue',
       language: 'en',
       filters: {
         categories: ['painting'],
+        creators: ['Monet'],
         price: { min: 10000, max: 10000, currency: 'USD' },
       },
     });

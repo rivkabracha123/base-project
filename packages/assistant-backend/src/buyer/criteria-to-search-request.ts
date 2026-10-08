@@ -5,10 +5,14 @@ function hasBudget(criteria: BuyerCriteria): boolean {
   return criteria.price?.min != null || criteria.price?.max != null;
 }
 
-// Only P2 facets backed by populated data: creators/periods/media/geography stay query-only for now.
+/** Buyer criteria P2 has no filter for; they are not sent and the buyer is told so. */
+export const UNFILTERED_CRITERIA = ['periods', 'geography', 'media'] as const;
+
+// Only P2-supported facets: UNFILTERED_CRITERIA stay out.
 function buildFilters(criteria: BuyerCriteria): SearchFilters | undefined {
   const filters: SearchFilters = {};
   if (criteria.categories.length > 0) filters.categories = criteria.categories;
+  if (criteria.creators.length > 0) filters.creators = criteria.creators;
   if (criteria.auctionHouseIds.length > 0) filters.auctionHouseIds = criteria.auctionHouseIds;
   if (criteria.dateRange?.from || criteria.dateRange?.to) filters.dateRange = criteria.dateRange;
   if (hasBudget(criteria)) filters.price = criteria.price;
@@ -21,7 +25,7 @@ export function criteriaToSearchRequest(
   criteria: BuyerCriteria,
   language: SearchRequest['language'],
 ): SearchRequest {
-  const query = [...criteria.creators, ...criteria.keywords]
+  const query = criteria.keywords
     .filter((part): part is string => Boolean(part?.trim()))
     .join(' ');
   const filters = buildFilters(criteria);

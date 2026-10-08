@@ -1,4 +1,4 @@
-/** Structured narrowing mirroring P2's LotFiltersDto; `creators` is omitted from output since no committed lot populates it yet (P2 ANDs filters, so it would zero out matches). */
+/** Structured narrowing mirroring P2's LotFiltersDto; P2 resolves creator names to canonical tokens. */
 export interface SearchFilters {
   categories?: string[];
   creators?: string[];
