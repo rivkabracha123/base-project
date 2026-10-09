@@ -37,7 +37,10 @@ const profile = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllEnvs();
+});
 
 describe('B4 fixture journey', () => {
   it('opens a selected result, preserves safe source evidence, and returns to results', async () => {
@@ -70,5 +73,31 @@ describe('B4 fixture journey', () => {
 
     expect(await screen.findByRole('heading', { name: 'Auction matches' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'View item details' })).not.toHaveLength(0);
+  });
+
+  it('shows the local history only through the complete local demo journey', async () => {
+    vi.stubEnv('VITE_LOCAL_HISTORY_DEMO', 'true');
+    await i18n.changeLanguage('en');
+    const queryClient = createQueryClient();
+    queryClient.setDefaultOptions({ queries: { retry: false } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/results']}>
+          <App />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Past sales' })).toBeInTheDocument();
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'View item details' }))[0]!);
+
+    expect(await screen.findByRole('heading', { name: 'Price History' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Sale source' })).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Results' }));
+
+    expect(await screen.findByRole('heading', { name: 'Auction matches' })).toBeInTheDocument();
   });
 });

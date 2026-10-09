@@ -10,8 +10,13 @@ const chartWidth = 560;
 const chartHeight = 220;
 const chartPadding = 42;
 
+/**
+ * מציג תרשים ורשימה של מכירות עבר שכבר סוננו עבור פריט אחד.
+ * אם אין לפחות שתי מכירות באותו מטבע, מציג הודעה ישרה במקום תרשים מטעה.
+ */
 export function PriceHistory({ sales, lang }: PriceHistoryProps) {
   const isRtl = lang === 'he';
+  // הגנה נוספת: גם אם הועברו בטעות מטבעות שונים, התרשים משתמש רק במטבע הראשון.
   const validSales = sales.filter((sale) => sale.realizedPrice.currency === sales[0]?.realizedPrice.currency);
 
   if (validSales.length < 2) {
@@ -29,6 +34,7 @@ export function PriceHistory({ sales, lang }: PriceHistoryProps) {
     );
   }
 
+  // הופך סכום כספי לטקסט קריא, בלי לבצע המרת מטבע.
   const formatCurrency = (money: Money) => {
     const amount = new Intl.NumberFormat(isRtl ? 'he-IL' : 'en-US', {
       style: 'currency',
@@ -39,11 +45,13 @@ export function PriceHistory({ sales, lang }: PriceHistoryProps) {
     return `${money.currency} ${amount}`;
   };
 
+  // מצמצם תאריך לחודש ושנה, כי זהו הציר האופקי של התרשים.
   const formatDate = (saleDate: string) => new Intl.DateTimeFormat(
     isRtl ? 'he-IL' : 'en-US',
     { month: 'short', year: 'numeric' },
   ).format(new Date(`${saleDate}T00:00:00`));
 
+  // מחשב את מיקום כל נקודה לפי סכום המחיר והסדר הכרונולוגי של המכירות.
   const values = validSales.map((sale) => sale.realizedPrice.amount);
   const min = Math.min(...values);
   const max = Math.max(...values);

@@ -10,12 +10,19 @@ interface ItemDetailProps {
   historyLots?: ItemHistoryLot[];
 }
 
+/**
+ * תבנית דף הפריט: מקבלת לוט אחד ומציגה את פרטיו, המקור שלו, והיסטוריית מחיר אם התקבלה.
+ * היא אינה מחפשת נתונים בעצמה; LotPage הוא שמספק לה את הלוט ואת רשימת ההיסטוריה.
+ */
 export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailProps) {
   const isRtl = lang === 'he';
+  // קובע אם להציג את טופס בקשת העזרה; שליחה אמיתית תחובר בעתיד ל-P3.
   const [showHelpForm, setShowHelpForm] = useState(false);
   const title = lot.title[lang] ?? lot.title.en;
   const description = lot.description[lang] ?? lot.description.en;
+  // מסנן מן הרשימה שקיבלנו רק מכירות עבר שמתאימות לתרשים של הפריט הנוכחי.
   const historicalSales = getComparableSaleHistory(lot, historyLots);
+  // מציג סכום תוך שמירה על המטבע המקורי שלו.
   const formatCurrency = (money: Money) => new Intl.NumberFormat(lang === 'he' ? 'he-IL' : 'en-US', {
     style: 'currency',
     currency: money.currency,
