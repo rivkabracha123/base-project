@@ -3,6 +3,11 @@ import { randomUUID } from "node:crypto";
 import { LocalFileStorage } from "../storage/local-file-storage.service";
 import { ALLOWED_MIME_TYPES, EVIDENCE_METADATA_FILE, MAX_FILE_SIZE_BYTES, MAX_FILES_PER_UPLOAD, AllowedMimeType, EvidenceReference, UploadedFile, EvidenceUploadCallback } from "./evidence.types";
 
+function decodeOriginalName(originalName: string): string {
+  const decoded = Buffer.from(originalName, 'latin1').toString('utf8');
+  return decoded.includes('\uFFFD') ? originalName : decoded;
+}
+
 @Injectable()
 export class UploadsService {
   constructor(private readonly storage: LocalFileStorage) {}
@@ -77,14 +82,18 @@ export class UploadsService {
       try {
         for (const file of files) {
           const fileId = randomUUID();
+          const originalName = decodeOriginalName(file.originalname);
 
+          if (originalName.includes('..') || /[/\\]/.test(originalName)) {
+            throw new BadRequestException('Unsafe filename');
+          }
           await this.storage.write(profileId, fileId, file.buffer);
 
           evidence.push({
             fileId,
             profileId,
             itemId,
-            originalName: file.originalname,
+            originalName: decodeOriginalName(file.originalname),
             mimeType: file.mimetype as AllowedMimeType,
             size: file.size,
             previewUri: `/api/evidence/${encodeURIComponent(

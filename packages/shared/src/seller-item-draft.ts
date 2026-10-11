@@ -34,6 +34,7 @@ export const sellerDimensionMeasurementSchema = z.object({
   value: z.number().nonnegative(),
   unit: z.string().min(1),
 });
+export type SellerDimensionMeasurement = z.infer<typeof sellerDimensionMeasurementSchema>;
 
 export const sellerDimensionsSchema = z.object({
   values: z.array(sellerDimensionMeasurementSchema).default([]),
@@ -111,6 +112,7 @@ export const sellerItemDraftSchema = z.object({
     summary: z.string().min(1),
     changes: z.array(z.string()),
   })),
+
   sellerConfirmation: z.object({
     required: z.boolean(),
     status: z.enum(['partial', 'complete', 'pending']),

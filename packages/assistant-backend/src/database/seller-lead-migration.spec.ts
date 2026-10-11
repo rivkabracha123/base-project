@@ -66,7 +66,7 @@ describe('seller lead schema', () => {
 
     await migration.up(queryRunner);
     const [createTable] = queries;
-    expect(createTable).toContain('CREATE TABLE "seller_leads"');
+    expect(createTable).toContain('CREATE TABLE IF NOT EXISTS "seller_leads"');
     expect(createTable).toContain('"profile_id"');
     expect(createTable).toContain('"contact" jsonb');
     expect(createTable).toContain('"created_at"');

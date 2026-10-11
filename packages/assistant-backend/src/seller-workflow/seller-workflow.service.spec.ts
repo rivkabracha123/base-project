@@ -1,19 +1,39 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SellerWorkflowService } from './seller-workflow.service';
 
 describe('SellerWorkflowService', () => {
   const profileId = 'profile-1';
+  const ownedLead = {
+    id: 'lead-1',
+    profileId,
+    contact: { preferredName: 'Private Seller', email: 'private@example.test' },
+    recommendation: { recommendation: { house: { name: 'Example House' } } },
+    sellerChoice: { houseName: 'Chosen House' },
+    catalogDraft: { he: 'פריט', en: 'Item' },
+    item: { id: 'item-1', category: 'paintings', title: 'Item' },
+    evidence: [{ id: 'evidence-1', type: 'seller_statement' }],
+    valuation: { status: 'supported' },
+    status: 'draft',
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
   const leads = {
     draft: jest.fn(async (input) => ({ id: 'lead-1', ...input })),
     rankHouses: jest.fn(() => ({ recommendation: null, alternatives: [], excluded: [] })),
     attachRanking: jest.fn(async () => undefined),
     saveSellerChoice: jest.fn(async (_leadId, houseId) => ({ houseId })),
-    list: jest.fn(async () => [{ id: 'lead-1', profileId }, { id: 'lead-other', profileId: 'other' }]),
+    submitFinal: jest.fn(async (leadId, payload) => ({ id: leadId, ...payload })),
+    list: jest.fn(async () => [ownedLead, { id: 'lead-other', profileId: 'other' }]),
+  };
+  const evidence = [{ fileId: 'file-1', profileId, itemId: 'item-1', mimeType: 'image/jpeg', previewUri: '/preview', downloadUri: '/download' }];
+  const uploads = {
+    listEvidence: jest.fn(async () => evidence),
+    reorderEvidence: jest.fn(async (_profileId: string, fileIds: string[]) => fileIds.map((fileId: string) => evidence.find((entry) => entry.fileId === fileId))),
+    deleteEvidence: jest.fn(async () => undefined),
   };
   const sellerIntakeAi = {
     analyze: jest.fn((input: string) => ({ input, status: 'draft' })),
   };
-  const service = new SellerWorkflowService(sellerIntakeAi as never, leads as never);
+  const service = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never);
   const callback = jest.fn();
 
   beforeEach(() => {
@@ -87,5 +107,114 @@ describe('SellerWorkflowService', () => {
       } as never,
     }, callback)).rejects.toBeInstanceOf(BadRequestException);
     expect(leads.draft).not.toHaveBeenCalled();
+  });
+
+  it('dispatches createSellerLeadDraft and rankSellerHouses', async () => {
+    const draft = await service.execute({
+      profileId,
+      structuredAnswer: {
+        functionToRun: 'createSellerLeadDraft',
+        object: { profileId, contact: { preferredName: 'Seller', phone: '555' }, serviceConsent: true },
+      },
+    });
+    const ranking = await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'rankSellerHouses', object: { category: 'paintings', geography: 'Israel' } },
+    });
+
+    expect(draft.functionToRun).toBe('createSellerLeadDraft');
+    expect(leads.draft).toHaveBeenCalledWith({
+      profileId,
+      contact: { preferredName: 'Seller', phone: '555' },
+      serviceConsent: true,
+    });
+    expect(ranking.functionToRun).toBe('rankSellerHouses');
+    expect(leads.rankHouses).toHaveBeenCalledWith({ category: 'paintings', geography: 'Israel' });
+  });
+
+  it('ranks and stores, chooses, and submits only an owned seller lead', async () => {
+    await service.execute({
+      profileId,
+      structuredAnswer: {
+        functionToRun: 'rankAndStoreSellerHouses',
+        object: { leadId: 'lead-1', category: 'paintings' },
+      },
+    });
+    await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'chooseSellerHouse', object: { leadId: 'lead-1', houseId: 'house-1' } },
+    });
+    await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'submitFinalSellerLead', object: { leadId: 'lead-1', payload: {
+        catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
+        item: { id: 'item-001', category: 'paintings', title: 'Abstract landscape study', evidenceIds: ['evidence-001'] },
+        evidence: [{ id: 'evidence-001', type: 'seller_statement' }],
+        valuation: {
+          status: 'supported', reportId: 'valuation-001', comparableCount: 1,
+          confidence: { level: 'low', explanation: 'Pending expert review.' },
+          limitations: ['Historical data only.'], comparables: [{ id: 'comp-001', source: { label: 'fixture', url: null } }],
+          excludedComparables: [], valuationRange: { min: 800, max: 1200, currency: 'USD' },
+        },
+      } } },
+    });
+
+    expect(leads.attachRanking).toHaveBeenCalledWith('lead-1', expect.any(Object));
+    expect(leads.saveSellerChoice).toHaveBeenCalledWith('lead-1', 'house-1');
+    expect(leads.submitFinal).toHaveBeenCalledWith('lead-1', expect.objectContaining({ item: { id: 'item-001', category: 'paintings', title: 'Abstract landscape study', evidenceIds: ['evidence-001'] } }));
+    await expect(service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'chooseSellerHouse', object: { leadId: 'lead-other', houseId: 'house-1' } },
+    })).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('lists and returns only safe details for the current profile', async () => {
+    const list = await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'listSellerLeads', object: {} },
+    });
+    const detail = await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerLead', object: { leadId: 'lead-1' } },
+    });
+
+    expect(list.result).toEqual([expect.objectContaining({ leadId: 'lead-1' })]);
+    expect(JSON.stringify(detail.result)).not.toContain('private@example.test');
+    expect(detail.result).toEqual(expect.objectContaining({ leadId: 'lead-1', item: ownedLead.item }));
+    await expect(service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerLead', object: { leadId: 'lead-other' } },
+    })).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('dispatches evidence list, upload handoff, file lookup, reorder, and delete', async () => {
+    const list = await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'listEvidence', object: { itemId: 'item-1' } },
+    });
+    const upload = await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'uploadEvidence', object: { itemId: 'item-1' } },
+    });
+    const file = await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getEvidenceFile', object: { fileId: 'file-1' } },
+    });
+    await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'reorderEvidence', object: { fileIds: ['file-1'] } },
+    });
+    const deleted = await service.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'deleteEvidence', object: { fileId: 'file-1' } },
+    });
+
+    expect(list.result).toEqual(evidence);
+    expect(uploads.listEvidence).toHaveBeenCalledWith(profileId, 'item-1');
+    expect(upload.result).toMatchObject({ status: 'client_action_required', method: 'POST', fieldName: 'files' });
+    expect(file.result).toEqual({ fileId: 'file-1', previewUri: '/preview', downloadUri: '/download', mimeType: 'image/jpeg' });
+    expect(uploads.reorderEvidence).toHaveBeenCalledWith(profileId, ['file-1']);
+    expect(uploads.deleteEvidence).toHaveBeenCalledWith(profileId, 'file-1');
+    expect(deleted.result).toEqual({ success: true });
   });
 });

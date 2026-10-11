@@ -45,7 +45,12 @@ describe('ProviderGatewayService', () => {
           category: 'paintings',
           item: {
             title: 'ציור נוף',
-            dimensions: '60x80 ס"מ',
+            dimensions: {
+              values: [
+                { label: 'width', value: 60, unit: 'cm' },
+                { label: 'height', value: 80, unit: 'cm' },
+              ],
+            },
             condition: 'מצב טוב',
             provenance: 'משפחה',
           },
@@ -188,7 +193,7 @@ describe('ProviderGatewayService', () => {
 
   // test 5 - fallback after provider error
 
-  it('falls back to the fixture provider when the real provider fails', async () => {
+  it('fails closed instead of returning fixture output when the real provider fails', async () => {
     const fixtureProvider = {
       generate: jest.fn().mockResolvedValue({
         provider: 'fixture',
@@ -206,37 +211,27 @@ describe('ProviderGatewayService', () => {
 
     const service = new ProviderGatewayService({ fixtureProvider, realProvider });
 
-    const result = await service.generate(
+    await expect(service.generate(
       { prompt: 'טבעת כחולה', language: 'he' },
       [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'gpt-4o-mini', apiKey: 'token' }],
-    );
+    )).rejects.toThrow('Real AI provider is unavailable.');
 
-    expect(result.provider).toBe('fixture');
-    expect(result.content).toBe('fixture fallback');
-    expect(fixtureProvider.generate).toHaveBeenCalledWith({
-      prompt: 'טבעת כחולה',
-      role: undefined,
-      language: 'he',
-      fallbackMode: 'guided',
-    });
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
   });
 //test 6 - for unavailable real provider
-  it('retries once and returns an explicit guided fallback when the provider stays unavailable', async () => {
+  it('retries once and fails closed when the real provider stays unavailable', async () => {
     const fixtureProvider = new FixtureProviderService();
     const realProvider = {
       generate: jest.fn().mockRejectedValue(new Error('rate limited')),
     } as unknown as RealProviderService;
     const service = new ProviderGatewayService({ fixtureProvider, realProvider });
 
-    const result = await service.generate(
+    await expect(service.generate(
       { prompt: 'טבעת כחולה', role: 'buyer', language: 'he' },
       [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'token' }],
-    );
+    )).rejects.toThrow('Real AI provider is unavailable.');
 
     expect(realProvider.generate).toHaveBeenCalledTimes(2);
-    expect(result).toEqual(expect.objectContaining({ provider: 'fixture', fallbackMode: 'guided' }));
-    expect(result.nextAction).toContain('מה התקציב');
-    expect(result.nextAction).toContain('שנה או תקופה');
   });
 //test - return the real response in the second time
   it('returns the real response when the second attempt succeeds', async () => {
@@ -268,10 +263,10 @@ describe('ProviderGatewayService', () => {
     } as unknown as RealProviderService;
     const service = new ProviderGatewayService({ fixtureProvider, realProvider });
 
-    await service.generate(
+    await expect(service.generate(
       { prompt: 'התקשרו אלי 050-1234567', role: 'buyer', language: 'he' },
       [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'secret-token' }],
-    );
+    )).rejects.toThrow('Real AI provider is unavailable.');
 
     const logged = warn.mock.calls.map((call) => String(call[0])).join('\n');
     expect(logged).toContain('http_429');
@@ -309,9 +304,9 @@ describe('ProviderGatewayService', () => {
     expect(realProvider.generate).not.toHaveBeenCalled();
   });
 
-  // test 8 - fallback when real config is missing
+  // test 8 - fail closed when real config is missing
 
-  it('does not enable the real provider when its configuration is incomplete', async () => {
+  it('does not return fixture output when real configuration is incomplete', async () => {
     const fixtureProvider = {
       generate: jest.fn().mockResolvedValue({
         provider: 'fixture',
@@ -330,20 +325,18 @@ describe('ProviderGatewayService', () => {
 
     const service = new ProviderGatewayService({ fixtureProvider, realProvider });
 
-    const result = await service.generate(
+    await expect(service.generate(
       { prompt: 'טבעת כחולה', language: 'he' },
       [{ kind: 'real', enabled: true }],
-    );
+    )).rejects.toThrow('Real AI provider is enabled but not fully configured.');
 
-    expect(result.provider).toBe('fixture');
-    expect(result.content).toBe('fallback because real config is incomplete');
-    expect(result.fallbackMode).toBe('guided');
     expect(realProvider.generate).not.toHaveBeenCalled();
+    expect(fixtureProvider.generate).not.toHaveBeenCalled();
   });
 
-  // test 9 - fallback after invalid real response
+  // test 9 - fail closed after invalid real response
 
-  it('falls back to the fixture provider when the real provider returns an invalid response', async () => {
+  it('does not return fixture output when the real provider returns an invalid response', async () => {
     const fixtureProvider = {
       generate: jest.fn().mockResolvedValue({
         provider: 'fixture',
@@ -365,19 +358,13 @@ describe('ProviderGatewayService', () => {
 
     const service = new ProviderGatewayService({ fixtureProvider, realProvider });
 
-    const result = await service.generate(
+    await expect(service.generate(
       { prompt: 'טבעת כחולה', language: 'he' },
       [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'gpt-4o-mini', apiKey: 'token' }],
-    );
+    )).rejects.toThrow('Real AI provider is unavailable.');
 
-    expect(result.provider).toBe('fixture');
-    expect(result.content).toBe('safe fallback after invalid real output');
-    expect(fixtureProvider.generate).toHaveBeenCalledWith({
-      prompt: 'טבעת כחולה',
-      role: undefined,
-      language: 'he',
-      fallbackMode: 'guided',
-    });
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(fixtureProvider.generate).not.toHaveBeenCalled();
   });
 
   // test 10 - accept a valid real response
@@ -420,9 +407,9 @@ describe('ProviderGatewayService', () => {
     expect(result.confidence).toBe('medium');
   });
 
-  // test 11 - fallback after malformed payload
+  // test 11 - fail closed after malformed payload
 
-  it('falls back when the real provider returns a malformed payload shape', async () => {
+  it('does not return fixture output when the real provider returns a malformed payload shape', async () => {
     const fixtureProvider = {
       generate: jest.fn().mockResolvedValue({
         provider: 'fixture',
@@ -443,12 +430,12 @@ describe('ProviderGatewayService', () => {
 
     const service = new ProviderGatewayService({ fixtureProvider, realProvider });
 
-    const result = await service.generate(
+    await expect(service.generate(
       { prompt: 'טבעת כחולה', language: 'he' },
       [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'gpt-4o-mini', apiKey: 'token' }],
-    );
+    )).rejects.toThrow('Real AI provider is unavailable.');
 
-    expect(result.provider).toBe('fixture');
-    expect(result.content).toBe('safe fallback for malformed payload');
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(fixtureProvider.generate).not.toHaveBeenCalled();
   });
 });

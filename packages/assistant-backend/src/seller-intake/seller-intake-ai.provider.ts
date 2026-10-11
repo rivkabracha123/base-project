@@ -1,4 +1,5 @@
 import type { SellerItemDraft } from '@monabid/shared';
+import type { AiFunctionCall } from '../ai/ai.dto';
 import type { SellerHandoffContract } from '../ai/seller-handoff';
 import type { MissingSellerQuestion } from './seller-intake.service';
 
@@ -28,6 +29,7 @@ export type SellerIntakeAiEnrichment = {
 export type SellerIntakeAiResult = SellerIntakeResult & {
   // null only when the AI service itself failed; the intake result stays valid.
   structuredAnswer: SellerHandoffContract | null;
+  functionCall?: AiFunctionCall | null;
   ai: SellerIntakeAiEnrichment;
 };
 

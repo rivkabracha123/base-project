@@ -4,7 +4,9 @@ import {
   rankingItemFromS1Draft,
   confirmedItemDraftSchema,
   defaultRankingItem,
+  itemVersionFromS1Draft,
   receiveConfirmedItemHandoff,
+  sellerItemFromS1Draft,
 } from './s1-seller-handoff';
 
 const valuation = {
@@ -75,5 +77,21 @@ describe('confirmed item draft consumer for seller enquiry', () => {
     expect(received.catalogDraft.en).toBe('Abstract landscape study');
     expect(received.evidence).toEqual([{ id: 'evidence-001', type: 'seller_statement' }]);
     expect(JSON.stringify(received)).not.toMatch(/file:|previewUri|Maya/i);
+  });
+
+  it('builds the S3 seller item from confirmed category and materials', () => {
+    expect(
+      sellerItemFromS1Draft({
+        ...efratDraft,
+        item: { ...efratDraft.item, materials: ['oil', 'canvas'] },
+      }),
+    ).toEqual({ category: 'paintings', materials: ['oil', 'canvas'] });
+    expect(itemVersionFromS1Draft({ ...efratDraft, updatedAt: '2026-09-01T10:00:00.000Z' })).toBe(
+      '2026-09-01T10:00:00.000Z',
+    );
+    expect(itemVersionFromS1Draft({
+      ...efratDraft,
+      revisionHistory: [{ revisionId: 'revision-1' }, { revisionId: 'revision-2' }],
+    })).toBe('revision-2');
   });
 });

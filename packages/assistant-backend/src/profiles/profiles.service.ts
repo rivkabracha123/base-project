@@ -135,6 +135,7 @@ export class ProfilesService {
     const savedProfile = await this.profiles.save(profile);
     return savedProfile.toUserProfile();
   }
+
   async updateContact(
     sessionId: string,
     input: { email?: string; phone?: string; consentGranted: boolean },

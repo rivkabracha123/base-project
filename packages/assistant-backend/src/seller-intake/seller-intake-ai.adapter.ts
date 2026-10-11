@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { AiService } from '../ai/ai.service';
+import { HttpException, Injectable } from '@nestjs/common';
+import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import type { SellerHandoffContract } from '../ai/seller-handoff';
-import { isSellerHandoffContract } from '../ai/seller-handoff';
 import { SellerIntakeAiMock } from './seller-intake-ai.mock';
 import type { SellerIntakeAiProvider, SellerIntakeAiResult } from './seller-intake-ai.provider';
 
@@ -22,42 +21,58 @@ export function mapAiFactsToIntakeFields(facts: string[]): string[] {
   return [...new Set(mapped)];
 }
 
-// The draft comes from the S1 intake service; AiService only enriches it.
+// P4 extracts the seller facts; S1 only stores and presents the result.
 @Injectable()
 export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
   constructor(
     private readonly intake: SellerIntakeAiMock,
-    private readonly aiService: AiService,
+    private readonly p4: P4AiGenerateClient,
   ) {}
 
   async analyze(input: string, sessionId?: string): Promise<SellerIntakeAiResult> {
-    const intakeResult = this.intake.analyze(input, sessionId);
     const language = /[\u0590-\u05FF]/.test(input) ? 'he' : 'en';
-
+    let response: Awaited<ReturnType<P4AiGenerateClient['generateSellerExtract']>>;
     try {
-      const response = await this.aiService.generate({ prompt: input, role: 'seller', language, sessionId });
-      const structuredAnswer: SellerHandoffContract | null = isSellerHandoffContract(response.structuredAnswer)
-        ? response.structuredAnswer
-        : null;
-
-      return {
-        ...intakeResult,
-        structuredAnswer,
-        ai: {
-          provider: response.provider,
-          mode: response.mode,
-          ...(response.fallbackMode ? { fallbackMode: response.fallbackMode } : {}),
-          isRelevant: response.isRelevant,
-          error: structuredAnswer ? response.error : response.error ?? 'invalid_response',
-          aiMissingFields: structuredAnswer ? mapAiFactsToIntakeFields(structuredAnswer.missingFacts) : [],
-        },
-      };
-    } catch {
-      return {
-        ...intakeResult,
-        structuredAnswer: null,
-        ai: { provider: null, mode: null, isRelevant: true, error: 'unavailable', aiMissingFields: [] },
-      };
+      response = await this.p4.generateSellerExtract({
+        prompt: input,
+        language,
+        sessionId,
+      });
+    } catch (error) {
+      // Provider rate limits and temporary outages should not stop the seller
+      // from sharing basic item details. Keep the response explicitly marked as
+      // fixture/guided so downstream code never treats it as real AI extraction.
+      if (error instanceof HttpException && error.getStatus() === 503) {
+        const guided = this.intake.analyze(input, sessionId);
+        return {
+          ...guided,
+          ai: {
+            ...guided.ai,
+            fallbackMode: 'guided',
+            error: 'Real AI is temporarily unavailable; guided seller intake was used.',
+          },
+        };
+      }
+      throw error;
     }
+    const structuredAnswer: SellerHandoffContract = response.structuredAnswer;
+    const missingFields = mapAiFactsToIntakeFields(structuredAnswer.missingFacts);
+    const draft = this.intake.createDraftFromAiExtraction(input, structuredAnswer);
+
+    return {
+      ...draft,
+      provider: 'fixture-mock' as const,
+      missingFields,
+      nextQuestion: this.intake.nextQuestionForAiFields(missingFields),
+      structuredAnswer,
+      functionCall: null,
+      ai: {
+        provider: response.provider,
+        mode: response.mode,
+        isRelevant: response.isRelevant,
+        error: response.error,
+        aiMissingFields: missingFields,
+      },
+    };
   }
 }

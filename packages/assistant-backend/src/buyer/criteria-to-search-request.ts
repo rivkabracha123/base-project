@@ -5,7 +5,9 @@ function hasBudget(criteria: BuyerCriteria): boolean {
   return criteria.price?.min != null || criteria.price?.max != null;
 }
 
-// Only P2 facets backed by populated data: creators/periods/media/geography stay query-only for now.
+export const UNFILTERED_CRITERIA = ['periods', 'geography', 'media'] as const;
+
+// Only P2 facets backed by populated data: creators stay query-only for now.
 function buildFilters(criteria: BuyerCriteria): SearchFilters | undefined {
   const filters: SearchFilters = {};
   if (criteria.categories.length > 0) filters.categories = criteria.categories;

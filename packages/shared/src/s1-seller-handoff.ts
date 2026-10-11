@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { sellerItemSchema, type SellerItem } from './comparable';
 import {
   rankingItemSchema,
   submitSellerLeadSchema,
@@ -60,6 +61,35 @@ export const defaultRankingItem: RankingItem = rankingItemSchema.parse({
   preferredLanguage: 'en',
 });
 
+function stringList(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.filter((row): row is string => typeof row === 'string' && row.trim().length > 0);
+  return items.length ? items : undefined;
+}
+
+/** S3 query shape from an S1 confirmed draft. S5 does not score comparables. */
+export function sellerItemFromS1Draft(payload: unknown): SellerItem {
+  const draft = confirmedItemDraftSchema.parse(payload);
+  const facts = draft.confirmedFacts as { category?: string; materials?: unknown } | undefined;
+  const item = draft.item as { category: string; materials?: unknown };
+  const materials = stringList(facts?.materials) ?? stringList(item.materials);
+  return sellerItemSchema.parse({
+    category: facts?.category?.trim() || item.category,
+    ...(materials ? { materials } : {}),
+  });
+}
+
+/** Stable S4 itemVersion from S1 timestamps/revisions — S5 does not invent versions. */
+export function itemVersionFromS1Draft(payload: unknown): string {
+  const draft = confirmedItemDraftSchema.parse(payload) as {
+    updatedAt?: unknown;
+    revisionHistory?: Array<{ revisionId?: unknown }>;
+  };
+  if (typeof draft.updatedAt === 'string' && draft.updatedAt.trim()) return draft.updatedAt.trim();
+  const revisionId = draft.revisionHistory?.at(-1)?.revisionId;
+  if (typeof revisionId === 'string' && revisionId.trim()) return revisionId.trim();
+  return 'confirmed';
+}
 export function rankingItemFromS1Draft(
   draft: ConfirmedItemDraft | null | undefined,
   fallback: RankingItem = defaultRankingItem,

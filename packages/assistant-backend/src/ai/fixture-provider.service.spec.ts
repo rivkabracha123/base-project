@@ -3,6 +3,15 @@ import { FixtureProviderService } from './fixture-provider.service';
 
 //test fixture provider service
 describe('FixtureProviderService', () => {
+  it('does not extract dimensions in fixture mode', async () => {
+    const result = await new FixtureProviderService().generate({
+      role: 'seller', language: 'en', prompt: 'It is in good condition',
+      history: [{ prompt: 'I want to sell a painting 60 x 80 cm', answer: 'What is the condition of the item?' }],
+    });
+    expect(result.nextAction).toBe('What are the item dimensions?');
+    expect(result.structuredAnswer.item).not.toHaveProperty('dimensions');
+    expect(result.structuredAnswer.item).toEqual(expect.objectContaining({ condition: 'provided' }));
+  });
   it('asks a Hebrew pink-ring buyer for budget and optional period', async () => {
     const result = await new FixtureProviderService().generate({ prompt: 'אני מחפש טבעת וורודה', role: 'buyer', language: 'he' });
     expect(result.summary).toContain('טבעת ורודה');
@@ -207,8 +216,8 @@ describe('FixtureProviderService', () => {
       status: 'missing',
     }));
   });
-//test after required seller facts
-  it('allows functions after required seller facts are provided', async () => {
+// Fixture mode does not extract dimensions; only the configured AI provider may provide them.
+  it('keeps dimensions blocking in fixture mode', async () => {
     const result = await new FixtureProviderService().generate({
       prompt: 'I have a blue painting to sell, 20 x 30 cm, in good condition',
       role: 'seller',
@@ -216,8 +225,8 @@ describe('FixtureProviderService', () => {
     });
 
     expect(result.structuredAnswer.completionState).toEqual(expect.objectContaining({
-      blockingFields: [],
-      readyForFunctions: true,
+      blockingFields: ['dimensions'],
+      readyForFunctions: false,
     }));
   });
   //test missing iteam

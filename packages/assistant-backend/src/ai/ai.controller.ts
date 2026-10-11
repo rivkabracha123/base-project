@@ -22,12 +22,25 @@ export class AiController {
   ): Promise<GenerateAiResponseDto & { conversationId: string; exchangeId: string }> {
     const userId = await this.history.resolveUserId(sessionId);
     await this.history.validateConversation(userId, body.conversationId, body.role);
+    const conversation = body.conversationId
+      ? await this.history.conversation(sessionId, body.conversationId)
+      : undefined;
     const response = await this.aiService.generate({
       prompt: body.prompt,
       role: body.role,
       language: body.language,
+      selectedLot: body.selectedLot ? { ...body.selectedLot } : body.selectedLot,
+      lots: body.lots,
       sessionId,
+      ...(conversation ? { history: conversation.entries.filter(entry => entry.response.isRelevant).map(entry => ({
+        prompt: entry.prompt,
+        answer: entry.response.nextAction,
+      })) } : {}),
     });
+    if (!response.isRelevant && conversation) {
+      const previous = [...conversation.entries].reverse().find(entry => entry.response.isRelevant);
+      if (previous) response.structuredAnswer = previous.response.structuredAnswer;
+    }
     const entry = await this.history.record(userId, body, response);
     return { ...response, conversationId: entry.conversationId, exchangeId: entry.id };
   }

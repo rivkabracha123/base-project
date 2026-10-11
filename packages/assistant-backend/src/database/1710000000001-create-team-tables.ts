@@ -33,6 +33,9 @@ export class CreateTeamTables1710000000001 implements MigrationInterface {
       )
     `);
 
+    // The "seller_leads" table is no longer created here: it is created by CreateSellerLeads1788220800000
+    // (S5 seller enquiry), which owns its definition. Creating it in both migrations left the old columns
+    // (such as "status") in place, so AddSellerLeadFinal1788220800003 failed on a fresh database.
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {

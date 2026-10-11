@@ -344,4 +344,25 @@ describe("UploadsModule (HTTP)", () => {
     // Cross-profile reorder must fail with 404 because the profile has no evidence.
     expect(reorderResponse.status).toBe(404);
   });
+
+  it('preserves Hebrew filenames after upload', async () => {
+    const profileId = createMockProfileId();
+    const formData = new FormData();
+
+    formData.append(
+      'files',
+      new Blob(['synthetic-image'], { type: 'image/jpeg' }),
+      'תמונה-קדמית.jpg',
+    );
+
+    const response = await fetch(
+      `${baseUrl}/evidence/${profileId}/items/item-hebrew-name`,
+      { method: 'POST', body: formData },
+    );
+
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    expect(body[0].originalName).toBe('תמונה-קדמית.jpg');
+  });
 });

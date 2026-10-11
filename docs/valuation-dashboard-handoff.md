@@ -91,6 +91,26 @@ copied from the replies she received.
 - Open point: P5's note says confidence is currently always low and uncalibrated. S4 now computes
   low/medium/high by docs/s4-confidence-rules.pdf; P5 should update that note to match.
 
+## Week 5: recalculation and scenario comparison (S4)
+
+- **Report persistence:** S4 does not persist valuation reports. Each `calculateFromItem` call
+  (S1 supplies `itemId` and a new `itemVersion` after a correction) returns a new immutable report
+  with a new `reportId`; earlier reports are never changed. Shared browser-storage helpers exist,
+  but production integration with S1 is not established yet.
+- **Storage helpers (client side):** `@monabid/shared` exports `saveValuationSnapshot`,
+  `loadValuationHistory` and `findPreviousSnapshot` (they take the storage object, so S1 passes
+  `localStorage`). Storage is untrusted: entries are validated and invalid ones ignored. S1 must call
+  `saveValuationSnapshot` after each report and send the previous revision when it asks for a comparison.
+- **Comparison:** `POST /api/valuation-calculation/comparison` with body `{ previous, current }` (calls
+  `ScenarioComparisonService.compare`, always HTTP 200 with an explicit `status`; 400 only when a field is
+  missing or not an object). It takes two
+  `SellerLeadValuationSnapshot` values. It returns `compared` (with `range_change` differences only
+  when both are supported, else `supported_to_refusal` / `refusal_to_supported` / `both_refusal` with
+  no invented numbers), `incompatible` for different items, or `invalid_input` naming which side is invalid.
+  Report ids, versions and refusal reasons are projected for privacy.
+- **Open decisions:** S1 provenance of `itemVersion`; who calls the comparison; whether the
+  recalculation route (`calculateFromItem`) should be exposed over HTTP, which needs AppModule wiring.
+
 ## Validation
 
 Build shared first: `npm run build --workspace=@monabid/shared`.

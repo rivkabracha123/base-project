@@ -6,7 +6,7 @@ import { ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
 import { routeBuyerIntent, type IntentRoute } from './intent-router';
 import { ProfilesService } from '../profiles/profiles.service';
-import type { AiRole, StructuredAnswer } from './ai.dto';
+import type { AiFunctionCall, AiRole, StructuredAnswer } from './ai.dto';
 
 //request
 export type AiGenerateRequest = {
@@ -17,6 +17,9 @@ export type AiGenerateRequest = {
   modelName?: string;
   apiKey?: string;
   sessionId?: string;
+  history?: Array<{ prompt: string; answer: string }>;
+  selectedLot?: Record<string, unknown> | null;
+  lots?: unknown[];
 };
 
 //response
@@ -33,6 +36,7 @@ export type AiGenerateResponse = {
   confidence: 'low' | 'medium';
   structuredAnswer: StructuredAnswer;
   intentRoute?: IntentRoute;
+  functionCall?: AiFunctionCall | null;
 };
 
 //constructor
@@ -76,11 +80,20 @@ export class AiService {
 
     const role = input.role ?? 'buyer';
     const intentRoute = role === 'buyer'
-      ? routeBuyerIntent(input.prompt, { language: input.language })
+      ? routeBuyerIntent(input.prompt, {
+          language: input.language,
+          selectedLot: input.selectedLot ?? undefined,
+          lots: input.lots,
+          ...(result.structuredAnswer.role === 'buyer' ? {
+            category: result.structuredAnswer.category,
+            geography: result.structuredAnswer.geography?.join(', '),
+          } : {}),
+        })
       : undefined;
 
     return {
       ...result,
+      ...(intentRoute?.intent === 'buyer_house_ranking' ? { isRelevant: true } : {}),
       ...(intentRoute && intentRoute.intent !== 'unknown' ? { intentRoute } : {}),
     };
   }

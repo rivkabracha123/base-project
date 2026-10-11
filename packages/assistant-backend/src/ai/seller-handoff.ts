@@ -8,7 +8,9 @@ export type SellerHandoffContract = {
   category: string;
   item: {
     title?: string;
-    dimensions?: string;
+    dimensions?: {
+      values: Array<{ label: string; value: number; unit: string }>;
+    };
     condition?: string;
     markings?: string;
     signature?: string;
@@ -38,7 +40,22 @@ export function isSellerHandoffContract(value: unknown): value is SellerHandoffC
 
   const confirmation = sellerConfirmation as Record<string, unknown>;
   const itemRecord = item as Record<string, unknown>;
-  const itemFields = ['title', 'dimensions', 'condition', 'markings', 'signature', 'provenance'] as const;
+  const itemFields = ['title', 'condition', 'markings', 'signature', 'provenance'] as const;
+  const dimensions = itemRecord.dimensions;
+  const validDimensions = dimensions === undefined || (
+    Boolean(dimensions) &&
+    typeof dimensions === 'object' &&
+    !Array.isArray(dimensions) &&
+    Array.isArray((dimensions as Record<string, unknown>).values) &&
+    ((dimensions as { values: unknown[] }).values.length > 0) &&
+    ((dimensions as { values: unknown[] }).values.every((measurement) => {
+      if (!measurement || typeof measurement !== 'object' || Array.isArray(measurement)) return false;
+      const value = measurement as Record<string, unknown>;
+      return typeof value.label === 'string' && value.label.trim().length > 0
+        && typeof value.value === 'number' && Number.isFinite(value.value) && value.value >= 0
+        && typeof value.unit === 'string' && value.unit.trim().length > 0;
+    }))
+  );
 
   return (
     handoff.role === 'seller' &&
@@ -46,6 +63,7 @@ export function isSellerHandoffContract(value: unknown): value is SellerHandoffC
     typeof handoff.intent === 'string' && handoff.intent.trim().length > 0 &&
     typeof handoff.category === 'string' && handoff.category.trim().length > 0 &&
     itemFields.every((field) => itemRecord[field] === undefined || typeof itemRecord[field] === 'string') &&
+    validDimensions &&
     (itemRecord.notes === undefined || (Array.isArray(itemRecord.notes) && itemRecord.notes.every((note) => typeof note === 'string'))) &&
     Array.isArray(handoff.missingFacts) && handoff.missingFacts.every((fact) => typeof fact === 'string') &&
     Array.isArray(handoff.confirmedFacts) && handoff.confirmedFacts.every((fact) => typeof fact === 'string') &&

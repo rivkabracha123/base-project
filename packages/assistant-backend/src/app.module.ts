@@ -10,6 +10,8 @@ import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-
 import { CreateUserProfiles1730000000000 } from './database/1730000000000-create-user-profiles';
 import { CreateStaffOperations1725000000000 } from './database/1725000000000-create-staff-operations';
 import { ChatModule } from './chat/chat.module';
+import { BuyerChatModule } from './buyer-chat/buyer-chat.module';
+import { SellerChatModule } from './seller-chat/seller-chat.module';
 import { CreateTeamTables1710000000001 } from './database/1710000000001-create-team-tables';
 import { CreateBuyerTables1710000000002 } from './database/1710000000002-create-buyer-tables';
 import { AiProviderConfigEntity } from './database/ai-provider-config.entity';
@@ -101,7 +103,8 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     ChatModule,
     HealthModule,
     LotsModule,
-    ProfilesModule,
+    BuyerChatModule,
+    SellerChatModule,
     StorageModule,
     StaffOperationsModule,
     ComparablesModule,

@@ -17,7 +17,7 @@ describe('/chat route', () => {
       'fetch',
       vi.fn((input: string | URL | Request) => {
         const url = input.toString();
-        const body = url.includes('/chat/conversation')
+        const body = url.includes('/buyer-chat/conversation')
           ? mockConversation.en
           : { language: 'en' };
         return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));

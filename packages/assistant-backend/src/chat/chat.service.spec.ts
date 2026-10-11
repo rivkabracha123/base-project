@@ -7,7 +7,7 @@ describe('ChatService', () => {
     const service = new ChatService();
     const conversation = await service.findConversation('he');
     expect(conversation.length).toBeGreaterThan(0);
-    expect(conversation[0]).toMatchObject({ kind: 'buyer', text: expect.any(String) });
+    expect(conversation[0]).toMatchObject({ speaker: 'buyer', text: expect.any(String) });
     expect((conversation[0] as { text: string }).text.length).toBeGreaterThan(0);
   });
 

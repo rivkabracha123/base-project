@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockConversation } from '../buyer/mock-conversation';
-import { getConversation, getLotById } from './api';
+import { getAnonymousSessionId, getConversation, getLotById } from './api';
 
 const lot = {
   id: 'lot-1',
@@ -18,6 +18,30 @@ const lot = {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  localStorage.clear();
+});
+
+describe('getAnonymousSessionId', () => {
+  it('creates and saves an identifier for a new browser', () => {
+    const randomUUID = vi.fn(() => 'new-test-session-id');
+    vi.stubGlobal('crypto', { randomUUID });
+
+    const sessionId = getAnonymousSessionId();
+
+    expect(sessionId).toBe('new-test-session-id');
+    expect(localStorage.getItem('anonymousSessionId')).toBe('new-test-session-id');
+  });
+
+  it('reuses an identifier already saved in the browser', () => {
+    localStorage.setItem('anonymousSessionId', 'saved-test-session-id');
+    const randomUUID = vi.fn(() => 'replacement-session-id');
+    vi.stubGlobal('crypto', { randomUUID });
+
+    const sessionId = getAnonymousSessionId();
+
+    expect(sessionId).toBe('saved-test-session-id');
+    expect(randomUUID).not.toHaveBeenCalled();
+  });
 });
 
 describe('getLotById', () => {
@@ -43,22 +67,23 @@ describe('getConversation', () => {
 
     await expect(getConversation('he')).resolves.toEqual(sample);
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'http://localhost:3001/api/chat/conversation?language=he',
+      'http://localhost:3001/api/buyer-chat/conversation?language=he',
       expect.objectContaining({ signal: undefined }),
     );
   });
 
   it('drops invalid messages returned by the API before exposing them', async () => {
     const validMessage = {
-      kind: 'buyer',
+      speaker: 'buyer',
       id: 'incoming-1',
-      at: '2026-01-01T10:00:00.000Z',
+      sessionId: 'session-1',
+      skipped: false,
       text: 'שלום',
     };
     const responseBody = [
-      { kind: 'banana', id: 'bad-1', at: '2026-01-01T10:00:01.000Z', text: 'x' },
+      { speaker: 'banana', id: 'bad-1', sessionId: 'session-1', text: 'x' },
       validMessage,
-      { kind: 'assistant', id: 'bad-2', at: '2026-01-01T10:00:02.000Z' },
+      { speaker: 'system', id: 'bad-2', sessionId: 'session-1' },
     ];
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(responseBody), { status: 200 })));

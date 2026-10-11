@@ -1,23 +1,7 @@
-import type { AuctionLot } from '@monabid/shared';
+import type { AuctionLot, ExplainedLot, GroupedResults, MatchReason } from '@monabid/shared';
 import type { BuyerCriteria, Constraint } from './buyer-criteria';
 
-/** Why one returned lot matched: a typed field plus a short detail for B4 to render. */
-export interface MatchReason {
-  field: 'categories' | 'price' | 'creators' | 'keywords' | 'periods' | 'geography' | 'auctionHouseIds';
-  detail: string;
-}
-
-/** A P2 result lot paired with the deterministic reasons it matched. */
-export interface ExplainedLot {
-  lot: AuctionLot;
-  matchReasons: MatchReason[];
-}
-
-/** Results grouped for B4 as upcoming ("current") vs past sales ("historical"). */
-export interface GroupedResults {
-  current: ExplainedLot[];
-  historical: ExplainedLot[];
-}
+export type { ExplainedLot, GroupedResults, MatchReason };
 
 /** Honest no-result account for P5: active criteria, enforced hard constraints, no relaxation or invention. */
 export interface DemandSummary {
@@ -159,14 +143,12 @@ export function groupExplainedLots(criteria: BuyerCriteria, lots: AuctionLot[]):
   };
 }
 
-/** Builds the honest no-result summary handed to P5. */
+/** Builds the honest no-result summary handed to P5; lists only criteria actually sent to P2. */
 export function buildDemandSummary(criteria: BuyerCriteria): DemandSummary {
   const applied: MatchReason['field'][] = [];
   if (hasBudget(criteria)) applied.push('price');
   if (criteria.categories.length > 0) applied.push('categories');
   if (criteria.creators.length > 0) applied.push('creators');
-  if (criteria.periods.length > 0) applied.push('periods');
-  if (criteria.geography.length > 0) applied.push('geography');
   if (criteria.auctionHouseIds.length > 0) applied.push('auctionHouseIds');
   if (criteria.keywords.length > 0) applied.push('keywords');
 
