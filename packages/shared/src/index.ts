@@ -4,8 +4,11 @@
 // Auction lot types: read-only catalog data from auction houses
 export * from './auction-lot';
 export * from './chat-message';
-export * from './buyer-search-outcome';
+export type { ExplainedResultCard } from './buyer-search-outcome';
 export * from './pagination';
+export * from './match-reason';
+export * from './buyer-criteria';
+export * from './buyer-search-results';
 export * from './import-report';
 export * from './user-profile';
 export * from './profile-contact-snapshot';

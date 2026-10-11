@@ -14,8 +14,10 @@ export function AppHeader() {
       // Replace the cached profile so the loader keeps the saved language.
       queryClient.setQueryData(['current-profile'], profile);
 
-      // Change the visible language only after the backend saved the preference.
-      void i18n.changeLanguage(profile.language);
+      // Reconcile with the saved preference in case it differs from the local choice.
+      if (i18n.language !== profile.language) {
+        void i18n.changeLanguage(profile.language);
+      }
     },
   });
 
@@ -35,6 +37,12 @@ export function AppHeader() {
           </Link>
           <Link to="/assistant" className="text-sm font-medium text-indigo-700 hover:text-indigo-900">
             {t('navigation.assistant')}
+          </Link>
+          <Link
+            to="/staff-operations"
+            className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {t('navigation.dashboard')}
           </Link>
           {/* S5 Week 4: open the house recommendation / choice screen */}
           <Link
@@ -60,8 +68,11 @@ export function AppHeader() {
           )}
         </nav>
         <Button
-          // Save the user's choice before changing the visible interface.
-          onPress={() => languageMutation.mutate(nextLanguage)}
+          onPress={() => {
+            // A language control must respond immediately, even if saving the preference is unavailable.
+            void i18n.changeLanguage(nextLanguage);
+            languageMutation.mutate(nextLanguage);
+          }}
           isDisabled={languageMutation.isPending}
           className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >

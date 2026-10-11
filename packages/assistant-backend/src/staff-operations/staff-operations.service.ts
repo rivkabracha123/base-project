@@ -15,6 +15,23 @@ import {
   SELLER_LEAD_DASHBOARD_SOURCE,
   SellerLeadDashboardSource,
 } from './seller-lead-dashboard-source';
+import {
+  assertValidPipelineTransition,
+  normalizePipelineStatus,
+  StaffLeadPipeline,
+  StaffPipelineStatus,
+  UpdateStaffLeadPipelineInput,
+} from './staff-lead-pipeline';
+
+// Existing synthetic rows predate the category field. Keep their demonstration
+// metadata usable while new and updated rows supply it through payload instead.
+const legacySyntheticLeadCategories: Record<string, string> = {
+  'buyer-lead-001': 'rare_hebrew_manuscript',
+  'buyer-lead-002': 'rare_hebrew_manuscript',
+  'lead-1': 'judaica',
+  'lead-3': 'rare_books',
+  'lead-4': 'judaica',
+};
 
 @Injectable()
 export class StaffOperationsService {
@@ -32,14 +49,18 @@ export class StaffOperationsService {
     const leads = await this.staffOpRepository.find({ order: { createdAt: 'DESC' } });
 
     // Do not expose private domain data through the dashboard.
-    return leads.map(({ id, type, clientName, status, requestDetails, createdAt }) => ({
-      id,
-      type,
-      clientName,
-      status,
-      requestDetails,
-      createdAt,
-    }));
+    return leads.map(({ id, type, clientName, status, requestDetails, createdAt, payload }) => {
+      const category = this.findSafeCategory(payload) ?? legacySyntheticLeadCategories[id];
+      return {
+        id,
+        type,
+        clientName,
+        status,
+        ...(category ? { category } : {}),
+        requestDetails,
+        createdAt,
+      };
+    });
   }
 
   async getBuyerLeadDetail(leadId: string): Promise<StaffBuyerLeadDetail> {
@@ -126,5 +147,74 @@ export class StaffOperationsService {
   private limitSellerContactToServiceConsent(contact: DashboardSellerLeadContact): DashboardSellerLeadContact {
     if (contact.serviceConsentGranted) return contact;
     return { ...contact, email: null, phone: null };
+  }
+
+  async getPipeline(leadId: string): Promise<StaffLeadPipeline> {
+    const lead = await this.staffOpRepository.findOneBy({ id: leadId });
+    if (!lead) throw new NotFoundException('Staff lead not found');
+    return this.readPipeline(lead.status, lead.createdAt, lead.payload);
+  }
+
+  async updatePipeline(leadId: string, update: UpdateStaffLeadPipelineInput): Promise<StaffLeadPipeline> {
+    const lead = await this.staffOpRepository.findOneBy({ id: leadId });
+    if (!lead) throw new NotFoundException('Staff lead not found');
+    if (update.status === undefined && update.nextAction === undefined && update.note === undefined) {
+      throw new Error('A pipeline update is required');
+    }
+
+    const currentStatus = normalizePipelineStatus(lead.status);
+    const pipeline = this.readPipeline(lead.status, lead.createdAt, lead.payload);
+    const nextStatus = update.status ?? currentStatus;
+    if (update.status !== undefined) {
+      assertValidPipelineTransition(currentStatus, update.status);
+      pipeline.statusHistory.push({ at: new Date().toISOString(), from: currentStatus, to: update.status });
+    }
+
+    if (update.nextAction !== undefined) {
+      pipeline.nextAction = update.nextAction?.trim() || null;
+    }
+    if (update.note !== undefined) {
+      const text = update.note.trim();
+      if (!text) throw new Error('Activity note cannot be empty');
+      pipeline.activityNotes.push({ at: new Date().toISOString(), text });
+    }
+    pipeline.status = nextStatus;
+
+    await this.staffOpRepository.save({
+      ...lead,
+      status: nextStatus,
+      payload: { ...lead.payload, staffPipeline: pipeline },
+    });
+    return pipeline;
+  }
+
+  /** Category is safe list metadata; never expose the rest of the opaque payload. */
+  private findSafeCategory(payload: Record<string, unknown>): string | undefined {
+    const asRecord = (value: unknown): Record<string, unknown> | undefined => (
+      typeof value === 'object' && value !== null && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : undefined
+    );
+    const criteria = asRecord(payload.criteria) ?? asRecord(asRecord(payload.searchRequest)?.criteria);
+    const candidates = [payload.category, criteria?.category, asRecord(payload.item)?.category];
+    return candidates.find((category): category is string => typeof category === 'string' && category.length > 0);
+  }
+
+  private readPipeline(status: string, createdAt: Date, payload: Record<string, unknown>): StaffLeadPipeline {
+    const stored = payload.staffPipeline;
+    const pipeline = typeof stored === 'object' && stored !== null && !Array.isArray(stored)
+      ? stored as Partial<StaffLeadPipeline>
+      : {};
+    const currentStatus = normalizePipelineStatus(status);
+    const statusHistory = Array.isArray(pipeline.statusHistory) ? pipeline.statusHistory : [
+      { at: createdAt.toISOString(), from: null, to: currentStatus },
+    ];
+    const activityNotes = Array.isArray(pipeline.activityNotes) ? pipeline.activityNotes : [];
+    return {
+      status: currentStatus,
+      nextAction: typeof pipeline.nextAction === 'string' ? pipeline.nextAction : null,
+      statusHistory: statusHistory as StaffLeadPipeline['statusHistory'],
+      activityNotes: activityNotes as StaffLeadPipeline['activityNotes'],
+    };
   }
 }

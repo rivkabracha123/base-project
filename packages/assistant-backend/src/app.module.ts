@@ -17,6 +17,8 @@ import { CreateBuyerTables1710000000002 } from './database/1710000000002-create-
 import { AiProviderConfigEntity } from './database/ai-provider-config.entity';
 import { AnonymousProfileEntity } from './database/anonymous-profile.entity';
 import { BuyerConversationEntity } from './database/buyer-conversation.entity';
+import { BuyerUnmatchedDemandEntity } from './database/buyer-unmatched-demand.entity';
+import { CreateBuyerUnmatchedDemand1740000000000 } from './database/1740000000000-create-buyer-unmatched-demand';
 import { BuyerCriteriaEntity } from './database/buyer-criteria.entity';
 import { BuyerRequestEntity } from './database/buyer-request.entity';
 import { SellerLeadEntity } from './database/seller-lead.entity';
@@ -69,6 +71,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       BuyerCriteriaEntity,
       BuyerConversationEntity,
       SellerIntakeDraftEntity,
+      BuyerUnmatchedDemandEntity,
     ],
     migrations: [
       CreateAuctionLots1710000000000,
@@ -79,6 +82,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateUserProfiles1730000000000,
       CreateAiHistory1740000000000,
       AddAiConversations1750000000000,
+      CreateBuyerUnmatchedDemand1740000000000,
       CreateSellerLeads1788220800000,
       AddSellerLeadRecommendation1788220800001,
       AddSellerLeadChoice1788220800002,

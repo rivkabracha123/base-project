@@ -4,7 +4,7 @@ import { criteriaToSearchRequest } from './criteria-to-search-request';
 
 /** Application service for creating buyer search requests. */
 export class BuyerSearchService {
-  /** Builds a typed P2 request with caller-supplied language. */
+  /** Builds a typed lots-search request with caller-supplied language. */
   createSearchRequest(
     criteria: BuyerCriteria,
     language: SearchRequest['language'],

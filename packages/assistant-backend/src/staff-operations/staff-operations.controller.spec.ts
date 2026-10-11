@@ -77,4 +77,13 @@ describe('StaffOperationsController', () => {
     await expect(controller.getLeadDetail('11111111-1111-4111-8111-111111111111')).resolves.toEqual(leadDetail);
     expect(staffOperationsService.getLeadDetail).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
   });
+
+  it('forwards a pipeline update without exposing the stored lead payload', async () => {
+    const result = { status: 'reviewing', nextAction: 'Review the lots.', statusHistory: [], activityNotes: [] };
+    const staffOperationsService = { updatePipeline: jest.fn().mockResolvedValue(result) };
+    const controller = new StaffOperationsController(staffOperationsService as never);
+
+    await expect(controller.updatePipeline('buyer-lead-001', { status: 'reviewing', note: 'Opened for review.' })).resolves.toEqual(result);
+    expect(staffOperationsService.updatePipeline).toHaveBeenCalledWith('buyer-lead-001', { status: 'reviewing', note: 'Opened for review.' });
+  });
 });

@@ -1,19 +1,6 @@
-import type { BuyerSearchRequest } from './buyer-search-request';
-import type { DemandSummary } from './explained-results';
+import type { BuyerSearchRequest, BuyerUnmatchedDemandDashboardView, DemandSummary } from '@monabid/shared';
 
-/** Dashboard-safe unmatched buyer demand view for P5. */
-export interface BuyerUnmatchedDemandDashboardView {
-  id: string;
-  type: 'buyer';
-  status: string;
-  createdAt: string;
-  unmatchedDemand: {
-    searchRequest: BuyerSearchRequest;
-    reason: 'no_results';
-    searchedAt: string;
-    demandSummary: DemandSummary;
-  };
-}
+export type { BuyerUnmatchedDemandDashboardView };
 
 export interface UnmatchedDemandDashboardInput {
   id: string;

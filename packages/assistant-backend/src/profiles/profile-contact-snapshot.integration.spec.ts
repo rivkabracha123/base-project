@@ -45,6 +45,11 @@ describe('Profiles <-> ProfileContactSnapshot contract (integration)', () => {
       rows.set(entity.sessionId, entity);
       return Promise.resolve(entity);
     }),
+    // Mirrors TypeORM's repository.delete(): removes matching rows, never throws when none match.
+    delete: jest.fn(({ sessionId }: { sessionId: string }) => {
+      const affected = rows.delete(sessionId) ? 1 : 0;
+      return Promise.resolve({ affected, raw: [] });
+    }),
   };
 
   beforeAll(async () => {
@@ -113,5 +118,39 @@ describe('Profiles <-> ProfileContactSnapshot contract (integration)', () => {
     expect(snapshot.preferredName).toBe('Dana');
     expect(snapshot.email || snapshot.phone).toBeTruthy();
     expect(snapshot.serviceConsentGranted).toBe(true);
+  });
+
+  // Week 5, Test 3: Deletion is scoped to the calling session and is real, not a soft flag.
+  it('deletes only the calling session profile and starts fresh on the next visit', async () => {
+    await fetch(`${baseUrl}/api/profiles/me`, { headers: { 'x-anonymous-session-id': 'sess-victim' } });
+    await fetch(`${baseUrl}/api/profiles/me`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'x-anonymous-session-id': 'sess-victim' },
+      body: JSON.stringify({ preferredName: 'Dana' }),
+    });
+    await fetch(`${baseUrl}/api/profiles/me`, { headers: { 'x-anonymous-session-id': 'sess-bystander' } });
+    await fetch(`${baseUrl}/api/profiles/me`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'x-anonymous-session-id': 'sess-bystander' },
+      body: JSON.stringify({ preferredName: 'Noa' }),
+    });
+
+    const deleteResponse = await fetch(`${baseUrl}/api/profiles/me`, {
+      method: 'DELETE',
+      headers: { 'x-anonymous-session-id': 'sess-victim' },
+    });
+    expect(deleteResponse.status).toBe(204);
+
+    // The other session's profile must be untouched.
+    const bystanderResponse = await fetch(`${baseUrl}/api/profiles/me`, {
+      headers: { 'x-anonymous-session-id': 'sess-bystander' },
+    });
+    expect((await bystanderResponse.json()).preferredName).toBe('Noa');
+
+    // The deleted session gets a brand-new, empty profile - not the old one.
+    const revisitResponse = await fetch(`${baseUrl}/api/profiles/me`, {
+      headers: { 'x-anonymous-session-id': 'sess-victim' },
+    });
+    expect((await revisitResponse.json()).preferredName).toBeNull();
   });
 });

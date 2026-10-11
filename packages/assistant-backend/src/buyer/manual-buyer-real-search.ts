@@ -5,8 +5,8 @@ import { BuyerSearchOrchestrator, type LotsSearchClient } from './buyer-search.o
 import type { BuyerCriteria } from './buyer-criteria';
 import type { SearchRequest } from './search-request';
 
-// Default criteria: the B3<->P2 named fixture lot, requested with a Hebrew
-// category alias so a real run also proves P2's alias resolution.
+// Default criteria: the named fixture lot, requested with a Hebrew
+// category alias so a real run also proves the alias resolution.
 const defaultCriteria: BuyerCriteria = {
   categories: ['ספרים נדירים'],
   creators: ['Yitzhak Abrabanel'],
@@ -20,7 +20,7 @@ const defaultCriteria: BuyerCriteria = {
   hardConstraints: [],
 };
 
-// Runs the real BuyerSearchOrchestrator against Mali's real LotsService and the
+// Runs the real BuyerSearchOrchestrator against the real LotsService and the
 // live database (not a mock), so the printed results are ones you can actually use.
 // Usage: npm run manual:buyer:real-search [-- '<BuyerCriteria JSON>']
 async function run(): Promise<void> {
@@ -29,8 +29,8 @@ async function run(): Promise<void> {
   await AppDataSource.initialize();
   const repository = AppDataSource.getRepository(AuctionLotEntity);
   const lotsService = new LotsService(repository);
-  const p2: LotsSearchClient = { search: (request: SearchRequest) => lotsService.search(request) };
-  const orchestrator = new BuyerSearchOrchestrator(p2);
+  const lotsSearch: LotsSearchClient = { search: (request: SearchRequest) => lotsService.search(request) };
+  const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
   const now = new Date().toISOString();
   const outcome = await orchestrator.search({

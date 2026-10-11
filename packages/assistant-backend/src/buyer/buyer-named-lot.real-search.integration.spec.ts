@@ -9,19 +9,19 @@ import { BuyerSearchOrchestrator, type LotsSearchClient } from './buyer-search.o
 import { criteriaToSearchRequest } from './criteria-to-search-request';
 import type { SearchRequest } from './search-request';
 
-// B3 <-> P2 Week 4 CONNECT: same named fixture as buyer-p2-connect.contract.spec.ts,
-// but run against Mali's actual LotsService (only the DB repository is faked) instead
+// Buyer search <-> lots search: same named fixture as the lots-search contract spec,
+// but run against the real LotsService (only the DB repository is faked) instead
 // of a jest.fn() stand-in for search — proves the wired flow, alias resolution included.
 const contract = JSON.parse(
-  readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-p2-connect.json'), 'utf8'),
+  readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
   namedLotId: string;
-  expectedResponse: { data: AuctionLot[] };
+  expectedExplainedResponse: { data: Array<{ lot: AuctionLot }> };
   scenarios: Array<{ name: string; criteria: BuyerCriteria; language: 'en' | 'he' }>;
 };
 
 const lead = {
-  leadId: 'buyer-lead-p2-connect-real',
+  leadId: 'buyer-lead-named-lot-real',
   status: 'new',
   createdAt: '2026-09-01T10:00:00.000Z',
   searchedAt: '2026-09-01T10:01:00.000Z',
@@ -29,22 +29,29 @@ const lead = {
 
 for (const scenario of contract.scenarios) {
   it(`sends "${scenario.name}" criteria to the real LotsService and gets the named lot back (${contract.namedLotId})`, async () => {
-    const entities = contract.expectedResponse.data.map((payload) => ({ payload }));
+    const entities = contract.expectedExplainedResponse.data.map((entry) => ({ payload: entry.lot }));
     const queryBuilder = {
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      setParameters: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
-      getManyAndCount: jest.fn().mockResolvedValue([entities, entities.length]),
+      getRawAndEntities: jest.fn().mockResolvedValue({ entities, raw: [] }),
+      getCount: jest.fn().mockResolvedValue(entities.length),
     };
     const repository = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
     } as unknown as Repository<AuctionLotEntity>;
 
-    // Mali's real search — no mocked "P2", just her service with a faked DB layer.
+    // The real lots search service, not a mock; only the DB layer is faked.
     const lotsService = new LotsService(repository);
-    const p2: LotsSearchClient = { search: (request: SearchRequest) => lotsService.search(request) };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const lotsSearch: LotsSearchClient = { search: (request: SearchRequest) => lotsService.search(request) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const searchRequest = criteriaToSearchRequest(scenario.criteria, scenario.language);
     const outcome = await orchestrator.search({
@@ -60,7 +67,7 @@ for (const scenario of contract.scenarios) {
     );
     expect(handedOffIds).toEqual([contract.namedLotId]);
 
-    // The Hebrew-alias scenario must still resolve through P2's real alias table,
+    // The Hebrew-alias scenario must still resolve through the real alias table,
     // not just pass because the mock ignores the query.
     if (searchRequest.filters?.categories) {
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(

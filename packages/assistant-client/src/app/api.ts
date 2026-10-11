@@ -29,7 +29,7 @@ import {
   type SubmitSellerLead,
 } from '@monabid/shared';
 import lotFixtures from '../../../../fixtures/auction-data/lots.json';
-import type { StaffLeadDetail, StaffLead } from '../staff-operations/staff-operations.types';
+import type { StaffLeadDetail, StaffLead, StaffLeadPipeline, UpdateStaffLeadPipelineInput } from '../staff-operations/staff-operations.types';
 import { parseConversation, type BuyerMessage } from '../buyer/messages';
 import { parseConversation as parseSellerConversation, type SellerMessage } from '../seller/messages';
 import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draft-enquiry.json';
@@ -190,15 +190,38 @@ export async function updateCurrentProfile(
   return userProfileSchema.parse(await response.json());
 }
 
+// Week 5: delete the current anonymous session's profile.
+export async function deleteCurrentProfile(): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/profiles/me`, {
+    method: 'DELETE',
+    headers: profileHeaders(),
+  });
+
+  if (!response.ok) throw new Error(`Profile deletion failed with status ${response.status}`);
+}
+
 // Keep dashboard data limited to the fields required for manual review.
 const staffLeadListSchema = z.array(z.object({
   id: z.string().min(1),
   type: z.enum(['buyer', 'seller']),
   clientName: z.string().min(1),
   status: z.string().min(1),
+  category: z.string().min(1).optional(),
   requestDetails: z.string().min(1),
   createdAt: z.string().datetime(),
 }));
+
+const staffPipelineStatusSchema = z.enum(['new', 'reviewing', 'contacted', 'qualified', 'item_found', 'negotiating', 'won', 'lost', 'closed']);
+const staffLeadPipelineSchema = z.object({
+  status: staffPipelineStatusSchema,
+  nextAction: z.string().min(1).nullable(),
+  statusHistory: z.array(z.object({
+    at: z.string().datetime(),
+    from: staffPipelineStatusSchema.nullable(),
+    to: staffPipelineStatusSchema,
+  })),
+  activityNotes: z.array(z.object({ at: z.string().datetime(), text: z.string().min(1) })),
+});
 
 const buyerLeadDetailSchema = z.object({
   id: z.string().min(1),
@@ -436,6 +459,27 @@ export async function getStaffOperationLeads(signal?: AbortSignal): Promise<Staf
   const response = await fetch(`${apiBaseUrl}/staff-operations/leads`, { signal });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
   return staffLeadListSchema.parse(await response.json());
+}
+
+export async function getStaffLeadPipeline(leadId: string, signal?: AbortSignal): Promise<StaffLeadPipeline> {
+  const response = await fetch(`${apiBaseUrl}/staff-operations/leads/${encodeURIComponent(leadId)}/pipeline`, { signal });
+  if (!response.ok) throw new StaffOperationLeadRequestError(response.status);
+  return staffLeadPipelineSchema.parse(await response.json());
+}
+
+export async function updateStaffLeadPipeline(
+  leadId: string,
+  update: UpdateStaffLeadPipelineInput,
+  signal?: AbortSignal,
+): Promise<StaffLeadPipeline> {
+  const response = await fetch(`${apiBaseUrl}/staff-operations/leads/${encodeURIComponent(leadId)}/pipeline`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+    signal,
+  });
+  if (!response.ok) throw new StaffOperationLeadRequestError(response.status);
+  return staffLeadPipelineSchema.parse(await response.json());
 }
 
 export async function getStaffOperationLeadDetail(

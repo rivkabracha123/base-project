@@ -28,6 +28,8 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
       language: 'en',
       filters: {
         categories: ['painting'],
+        creators: ['Monet'],
+        periods: ['19th century'],
         price: { min: 10000, max: 10000, currency: 'USD' },
       },
     });

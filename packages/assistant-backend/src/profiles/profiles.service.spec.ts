@@ -10,6 +10,7 @@ describe('ProfilesService', () => {
     findOneBy: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    delete: jest.Mock;
   };
   let service: ProfilesService;
 
@@ -17,11 +18,16 @@ describe('ProfilesService', () => {
     id: string,
     sessionId: string,
     language: 'he' | 'en',
-    overrides: Partial<UserProfileEntity> = {},
+    overrides: Partial<Pick<UserProfileEntity,
+      | 'grammaticalForm'
+      | 'preferredName'
+      | 'email'
+      | 'phone'
+      | 'serviceConsent'
+      | 'marketingConsent'
+    >> = {},
   ): UserProfileEntity => {
-    // This fake entity includes the same conversion method as the real entity.
-    // Its fields are read at conversion time, after an update may have changed them.
-    const profile = {
+    return Object.assign(new UserProfileEntity(), {
       id,
       sessionId,
       language,
@@ -34,26 +40,8 @@ describe('ProfilesService', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       ...overrides,
-    } as UserProfileEntity;
-    profile.toUserProfile = () => ({
-      id: profile.id,
-      sessionId: profile.sessionId,
-      language: profile.language as 'he' | 'en',
-      grammaticalForm: profile.grammaticalForm as
-        | 'masculine'
-        | 'feminine'
-        | 'neutral'
-        | 'unspecified'
-        | undefined,
-      preferredName: profile.preferredName ?? null,
-      email: profile.email ?? null,
-      phone: profile.phone ?? null,
-      serviceConsent: profile.serviceConsent as any,
-      marketingConsent: profile.marketingConsent as any,
-      createdAt: profile.createdAt.toISOString(),
-      updatedAt: profile.updatedAt.toISOString(),
+
     });
-    return profile;
   };
 
   beforeEach(() => {
@@ -63,6 +51,7 @@ describe('ProfilesService', () => {
       findOneBy: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     };
 
     // The service does not exist yet. This line is intentional in TDD:
@@ -436,5 +425,21 @@ describe('ProfilesService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  // Week 5, Test 1: Delete is scoped to the requesting session only.
+  it('deletes only the profile scoped to the given session', async () => {
+    repository.delete.mockResolvedValue({ affected: 1 });
+
+    await service.deleteBySessionId('session-1');
+
+    expect(repository.delete).toHaveBeenCalledWith({ sessionId: 'session-1' });
+  });
+
+  // Week 5, Test 2: Deleting a session with no profile is idempotent, not an error.
+  it('resolves without throwing when the session has no profile to delete', async () => {
+    repository.delete.mockResolvedValue({ affected: 0 });
+
+    await expect(service.deleteBySessionId('session-without-profile')).resolves.toBeUndefined();
   });
 });
