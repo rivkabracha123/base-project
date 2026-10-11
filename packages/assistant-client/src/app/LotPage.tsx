@@ -8,7 +8,7 @@ import {
   localHistoryDemoLots,
   localHistoryDemoSelectedLot,
 } from './local-history-demo.fixture';
-import { getLotById } from './api';
+import { getLotById, getLotSaleHistory } from './api';
 
 /**
  * קורא את מזהה הלוט מהכתובת /lots/:id ומציג את תבנית דף הפריט.
@@ -30,6 +30,12 @@ export function LotPage() {
   });
   // בהדגמה משתמשים בפריט המקומי עם היסטוריה; אחרת משתמשים בתשובת השרת.
   const lot = isLocalHistoryDemo ? localHistoryDemoSelectedLot : query.data;
+  const historyQuery = useQuery({
+    queryKey: ['lot-sale-history', lot?.itemKey],
+    queryFn: ({ signal }) => getLotSaleHistory(lot?.itemKey ?? '', signal),
+    enabled: Boolean(lot?.itemKey) && !isLocalHistoryDemo,
+  });
+  const historyLots = isLocalHistoryDemo ? localHistoryDemoLots : historyQuery.data;
 
   return (
     <PageShell>
@@ -40,7 +46,9 @@ export function LotPage() {
         <ItemDetail
           lot={lot}
           lang={language}
-          historyLots={isLocalHistoryDemo ? localHistoryDemoLots : undefined}
+          historyLots={historyLots}
+          historyLoading={historyQuery.isPending && !isLocalHistoryDemo}
+          historyError={historyQuery.isError}
           onBack={() => navigate('/results')}
         />
       ) : null}

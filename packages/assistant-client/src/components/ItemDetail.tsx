@@ -8,13 +8,22 @@ interface ItemDetailProps {
   lang: 'he' | 'en';
   onBack: () => void;
   historyLots?: ItemHistoryLot[];
+  historyLoading?: boolean;
+  historyError?: boolean;
 }
 
 /**
  * תבנית דף הפריט: מקבלת לוט אחד ומציגה את פרטיו, המקור שלו, והיסטוריית מחיר אם התקבלה.
  * היא אינה מחפשת נתונים בעצמה; LotPage הוא שמספק לה את הלוט ואת רשימת ההיסטוריה.
  */
-export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailProps) {
+export function ItemDetail({
+  lot,
+  lang,
+  onBack,
+  historyLots = [],
+  historyLoading = false,
+  historyError = false,
+}: ItemDetailProps) {
   const isRtl = lang === 'he';
   // קובע אם להציג את טופס בקשת העזרה; שליחה אמיתית תחובר בעתיד ל-P3.
   const [showHelpForm, setShowHelpForm] = useState(false);
@@ -77,7 +86,7 @@ export function ItemDetail({ lot, lang, onBack, historyLots = [] }: ItemDetailPr
         </div>
       </section>
 
-      <PriceHistory sales={historicalSales} lang={lang} />
+      <PriceHistory sales={historicalSales} lang={lang} loading={historyLoading} error={historyError} />
 
       <section className="border-t border-slate-200 pt-6 text-center">
         {!showHelpForm ? (

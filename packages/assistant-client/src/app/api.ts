@@ -366,6 +366,15 @@ export async function getLotById(id: string, language: string, signal?: AbortSig
   return auctionLotSchema.parse(await response.json());
 }
 
+/** Returns verified prior sales for one canonical itemKey. */
+export async function getLotSaleHistory(itemKey: string, signal?: AbortSignal): Promise<AuctionLot[]> {
+  if (import.meta.env.VITE_FIXTURE_MODE === 'true') return [];
+
+  const response = await fetch(`${apiBaseUrl}/lots/history/${encodeURIComponent(itemKey)}`, { signal });
+  if (!response.ok) throw new Error(`Sale history API request failed with status ${response.status}`);
+  return z.array(auctionLotSchema).parse(await response.json());
+}
+
 export async function getConversation(language: string, signal?: AbortSignal): Promise<BuyerMessage[]> {
   const response = await fetch(`${apiBaseUrl}/chat/conversation?language=${encodeURIComponent(language)}`, { signal });
   if (!response.ok) throw new Error(`Conversation API request failed with status ${response.status}`);
