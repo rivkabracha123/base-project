@@ -35,7 +35,7 @@ export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPa
   const renderLotGroup = (title: string, entries: typeof outcome.results.current) => (
     <section className="mb-8">
       <h2 className="mb-3 text-lg font-bold text-stone-800">{title}</h2>
-      <div dir="ltr" className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div dir="ltr" className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {entries.map((entry) => (
           <ResultCard
             key={entry.lot.id}
@@ -51,7 +51,7 @@ export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPa
   );
 
   return (
-    <div className="mx-auto max-w-6xl p-6" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className="mx-auto max-w-7xl p-6" dir={isRtl ? 'rtl' : 'ltr'}>
       <h1 className="mb-4 text-xl font-bold text-stone-950">
         {isRtl ? 'תוצאות מכירות מונאביד' : 'Auction matches'}
       </h1>

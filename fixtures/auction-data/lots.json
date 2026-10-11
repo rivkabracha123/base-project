@@ -330,5 +330,194 @@
     },
     "realizedPrice": { "amount": 2400, "currency": "USD" },
     "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-kedem-esther-scroll-2026",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kedem-esther-scroll-2026",
+      "url": "https://www.kedem-auctions.com/en/item/esther-scroll-2026",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "41",
+    "title": {
+      "en": "Early and Important Esther Scroll – Italy, First Half of the 18th Century",
+      "he": "מגילת אסתר חשובה – איטליה, מחצית ראשונה של המאה ה־18"
+    },
+    "description": {
+      "en": "An Italian Esther scroll coming to auction.",
+      "he": "מגילת אסתר איטלקית העומדת למכירה."
+    },
+    "category": "rare_books",
+    "itemKey": "esther_scroll_italy",
+    "saleDate": "2026-12-03",
+    "status": "upcoming",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    }
+  },
+  {
+    "id": "lot-kedem-bechinat-olam-2026",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kedem-bechinat-olam-2026",
+      "url": "https://www.kedem-auctions.com/en/item/bechinat-olam-2026",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "56",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Bechinat Olam",
+      "he": "כתב יד קלף מעוטר – בחינת עולם"
+    },
+    "description": {
+      "en": "A decorated parchment manuscript of Bechinat Olam.",
+      "he": "כתב יד קלף מעוטר של בחינת עולם."
+    },
+    "category": "rare_books",
+    "itemKey": "bechinat_olam_parchment",
+    "saleDate": "2026-12-10",
+    "status": "upcoming",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    }
+  },
+  {
+    "id": "lot-kestenbaum-ashkenazic-parchment-2027",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kestenbaum-ashkenazic-parchment-2027",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/ashkenazic-2027",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+    "lotNumber": "8",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Ashkenazic Script",
+      "he": "כתב יד קלף מעוטר – כתב אשכנזי"
+    },
+    "description": {
+      "en": "A decorated Ashkenazic parchment manuscript coming to auction.",
+      "he": "כתב יד קלף אשכנזי מעוטר העומד למכירה."
+    },
+    "category": "rare_books",
+    "itemKey": "ashkenazic_decorated_parchment",
+    "saleDate": "2027-01-15",
+    "status": "upcoming",
+    "estimate": {
+      "low": { "amount": 300000, "currency": "USD" },
+      "high": { "amount": 500000, "currency": "USD" }
+    }
+  },
+  {
+    "id": "lot-history-esther-kedem-2024",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "esther-kedem-2024",
+      "url": "https://www.kedem-auctions.com/en/item/esther-scroll-2024",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "40",
+    "title": {
+      "en": "Early and Important Esther Scroll – Italy, First Half of the 18th Century",
+      "he": "מגילת אסתר חשובה – איטליה, מחצית ראשונה של המאה ה־18"
+    },
+    "description": {
+      "en": "Verified 2024 sale of the same Italian Esther scroll.",
+      "he": "מכירה מאומתת משנת 2024 של אותה מגילת אסתר איטלקית."
+    },
+    "category": "rare_books",
+    "itemKey": "esther_scroll_italy",
+    "saleDate": "2024-02-18",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 75000, "currency": "USD" }
+  },
+  {
+    "id": "lot-history-bechinat-kedem-2023",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "bechinat-kedem-2023",
+      "url": "https://www.kedem-auctions.com/en/item/bechinat-olam-2023",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "55",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Bechinat Olam",
+      "he": "כתב יד קלף מעוטר – בחינת עולם"
+    },
+    "description": {
+      "en": "Verified 2023 sale of the same Bechinat Olam manuscript.",
+      "he": "מכירה מאומתת משנת 2023 של אותו כתב יד בחינת עולם."
+    },
+    "category": "rare_books",
+    "itemKey": "bechinat_olam_parchment",
+    "saleDate": "2023-02-09",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 80000, "currency": "USD" }
+  },
+  {
+    "id": "lot-history-ashkenazic-kestenbaum-2025",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "ashkenazic-kestenbaum-2025",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/ashkenazic-2025",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+    "lotNumber": "6",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Ashkenazic Script",
+      "he": "כתב יד קלף מעוטר – כתב אשכנזי"
+    },
+    "description": {
+      "en": "Verified 2025 sale of the same Ashkenazic parchment manuscript.",
+      "he": "מכירה מאומתת משנת 2025 של אותו כתב יד אשכנזי."
+    },
+    "category": "rare_books",
+    "itemKey": "ashkenazic_decorated_parchment",
+    "saleDate": "2025-02-12",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 300000, "currency": "USD" },
+      "high": { "amount": 500000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 380000, "currency": "USD" }
   }
 ]

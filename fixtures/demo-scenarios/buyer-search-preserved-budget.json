@@ -4,7 +4,13 @@
   "auctionDataFixtureIds": [
     "lot-kestenbaum-54554-121421",
     "lot-kedem-sefer-hasidim-2026",
-    "lot-kestenbaum-2026-spring-12"
+    "lot-kestenbaum-2026-spring-12",
+    "lot-kedem-esther-scroll-2026",
+    "lot-kedem-bechinat-olam-2026",
+    "lot-kestenbaum-ashkenazic-parchment-2027",
+    "lot-history-esther-kedem-2024",
+    "lot-history-bechinat-kedem-2023",
+    "lot-history-ashkenazic-kestenbaum-2025"
   ],
   "scenario": {
     "language": "en",
@@ -20,7 +26,13 @@
       "resultsCase": [
         "lot-kestenbaum-54554-121421",
         "lot-kedem-sefer-hasidim-2026",
-        "lot-kestenbaum-2026-spring-12"
+        "lot-kestenbaum-2026-spring-12",
+        "lot-kedem-esther-scroll-2026",
+        "lot-kedem-bechinat-olam-2026",
+        "lot-kestenbaum-ashkenazic-parchment-2027",
+        "lot-history-esther-kedem-2024",
+        "lot-history-bechinat-kedem-2023",
+        "lot-history-ashkenazic-kestenbaum-2025"
       ],
       "unmatchedCase": []
     }
@@ -43,7 +55,13 @@
       "itemIds": [
         "lot-kestenbaum-54554-121421",
         "lot-kedem-sefer-hasidim-2026",
-        "lot-kestenbaum-2026-spring-12"
+        "lot-kestenbaum-2026-spring-12",
+        "lot-kedem-esther-scroll-2026",
+        "lot-kedem-bechinat-olam-2026",
+        "lot-kestenbaum-ashkenazic-parchment-2027",
+        "lot-history-esther-kedem-2024",
+        "lot-history-bechinat-kedem-2023",
+        "lot-history-ashkenazic-kestenbaum-2025"
       ]
     },
     "unmatched": {

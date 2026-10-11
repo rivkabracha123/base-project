@@ -79,15 +79,15 @@ export function ResultCard({ lot, lang, onSelect, matchReasons = [], selected = 
             if (lot.imageUrl && !imageUnavailable) setImageUnavailable(true);
           }}
         />
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-[#1b365d] px-2 py-1.5">
+        <div className="absolute inset-x-0 top-0 flex flex-nowrap items-center justify-between gap-2 bg-[#1b365d] px-2 py-1.5">
           {lot.status === 'sold' && lot.realizedPrice ? (
-            <span className="shrink-0 text-[12px] font-medium text-white">
+            <span className="shrink-0 whitespace-nowrap text-[12px] font-medium text-white">
               Sold for: {formatCardPrice(lot.realizedPrice)}
             </span>
           ) : (
             <span />
           )}
-          <span className="max-w-[70%] truncate rounded-full bg-[#111827] px-2.5 py-0.5 text-[10px] leading-4 text-white">
+          <span className="min-w-0 truncate rounded-full bg-[#111827] px-2.5 py-0.5 text-[10px] leading-4 text-white">
             {category}
           </span>
         </div>
@@ -111,17 +111,17 @@ export function ResultCard({ lot, lang, onSelect, matchReasons = [], selected = 
         ) : null}
 
         {lot.estimate ? (
-          <div className="mt-3 flex items-baseline justify-between gap-2 text-[14px]">
+          <div className="mt-3 flex flex-nowrap items-baseline justify-between gap-2 whitespace-nowrap text-[14px]">
             <span dir="ltr" className="font-semibold text-[#c4a36a]">
               {formatCardPrice(lot.estimate.low)}–{formatCardPrice(lot.estimate.high)}
             </span>
-            <span className="text-stone-500">{isRtl ? 'הערכה' : 'Estimate'}</span>
+            <span className="shrink-0 whitespace-nowrap text-stone-500">{isRtl ? 'הערכה' : 'Estimate'}</span>
           </div>
         ) : null}
         {lot.status === 'sold' && lot.realizedPrice ? (
-          <div className="mt-0.5 flex items-baseline justify-between gap-2 text-[14px]">
+          <div className="mt-0.5 flex flex-nowrap items-baseline justify-between gap-2 whitespace-nowrap text-[14px]">
             <span dir="ltr" className="font-semibold text-[#c4a36a]">{formatCardPrice(lot.realizedPrice)}</span>
-            <span className="text-stone-500">{isRtl ? 'נמכר תמורת' : 'Realized price'}</span>
+            <span className="shrink-0 whitespace-nowrap text-stone-500">{isRtl ? 'נמכר תמורת' : 'Realized price'}</span>
           </div>
         ) : null}
         <p className="mt-1 text-right text-[12px] text-stone-400">{saleMonth}</p>

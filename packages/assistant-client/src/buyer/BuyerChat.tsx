@@ -33,7 +33,7 @@ function ChatMessage({
     return (
       <li data-kind={message.kind} className="flex flex-col gap-4">
         <p className="text-sm text-stone-500">{message.title}</p>
-        <ul dir="ltr" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul dir="ltr" className="grid gap-4 sm:grid-cols-3">
           {message.lots.map((lot) => (
             <li key={lot.id}>
               <ResultCard lot={lot} lang={lang} onSelect={onSelectLot} />
