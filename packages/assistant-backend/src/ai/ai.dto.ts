@@ -158,7 +158,7 @@ function isIntentRoute(value: unknown): value is IntentRoute {
   const route = value as Record<string, unknown>;
   const intents = ['get_lot_details', 'same_item_sale_history', 'search_similar_lots', 'search_auction_lots', 'unknown'];
   intents.push('buyer_house_ranking');
-  const functions = ['getLotById', 'getComparableSaleHistory', 'rankSellerHouses'];
+  const functions = ['getLotById', 'getComparableSaleHistory', 'rankSellerHouses', 'searchLots'];
   return intents.includes(String(route.intent)) &&
     (route.functionName === null || (typeof route.functionName === 'string' && functions.includes(route.functionName))) &&
     typeof route.readyForFunction === 'boolean' &&

@@ -310,7 +310,7 @@ export class SellerIntakeService {
     if (text.includes('oil') || text.includes('שמן')) materials.push('oil');
     if (text.includes('canvas') || text.includes('בד')) materials.push('canvas');
 
-    const markings =
+    const markings = /no markings/i.test(input) ? 'No markings reported' :
       text.includes('mark') ||
       text.includes('stamp') ||
       text.includes('inscription') ||
@@ -324,7 +324,7 @@ export class SellerIntakeService {
       ? 'Good condition'
       : 'Not yet confirmed';
 
-  const signatures =
+  const signatures = /not signed/i.test(input) ? 'No signature reported' :
     text.includes('signed') || text.includes('חתום')
       ? 'Signed'
       : 'Not yet confirmed';
@@ -507,10 +507,19 @@ export class SellerIntakeService {
 
     const confirmedValues: SellerItemDraft['confirmedFacts'] = {};
     const item = draft.item;
+    // Older persisted drafts use widthCm/heightCm instead of measurement values.
+    const dimensions = item.dimensions.values.length > 0 ? item.dimensions
+      : typeof item.dimensions.widthCm === 'number' && Number.isFinite(item.dimensions.widthCm) && item.dimensions.widthCm > 0
+        && typeof item.dimensions.heightCm === 'number' && Number.isFinite(item.dimensions.heightCm) && item.dimensions.heightCm > 0
+        ? { ...item.dimensions, values: [
+            { label: 'width', value: item.dimensions.widthCm, unit: 'cm' },
+            { label: 'height', value: item.dimensions.heightCm, unit: 'cm' },
+          ] }
+        : undefined;
     const availableValues: Partial<Record<SellerDraftCorrectionField, unknown>> = {
       category: item.category !== 'unknown' ? item.category : undefined,
       materials: item.materials.length > 0 ? item.materials : undefined,
-      dimensions: item.dimensions.values.length > 0 ? item.dimensions : undefined,
+      dimensions,
       condition: item.condition,
       marks: item.markings,
       signatures: item.signatures,

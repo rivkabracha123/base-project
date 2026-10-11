@@ -75,8 +75,9 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.results.current).toEqual([]);
     expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(fixture);
     expect(lotsSearch.search).toHaveBeenCalledWith({
-      query: 'Yitzhak Abrabanel manuscript',
+      query: 'manuscript',
       language: 'en',
+      filters: { creators: ['Yitzhak Abrabanel'] },
     });
   });
 
@@ -237,8 +238,9 @@ describe('BuyerSearchOrchestrator', () => {
 
     expect(lotsSearch.search).toHaveBeenCalledTimes(1);
     expect(lotsSearch.search).toHaveBeenCalledWith({
-      query: 'Someone',
+      query: '',
       language: 'en',
+      filters: { creators: ['Someone'] },
     });
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;

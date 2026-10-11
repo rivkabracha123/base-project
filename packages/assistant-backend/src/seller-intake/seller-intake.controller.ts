@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider, type SellerIntakeAiResult } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
@@ -34,6 +34,14 @@ export class SellerIntakeController {
     }
 
     const scopedSessionId = `${profileId}:${sessionId}`;
+    if (this.sellerIntakeAi.restoreSession && !this.sellerIntakeAi.hasSession?.(scopedSessionId)) {
+      try {
+        const saved = await this.drafts.getDraft(String(profileId), String(sessionId));
+        this.sellerIntakeAi.restoreSession(scopedSessionId, saved.draft);
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) throw error;
+      }
+    }
     const { sessionId: _sessionId, structuredAnswer, functionCall, ai, ...analysis } = await this.sellerIntakeAi.analyze(
       input,
       scopedSessionId,

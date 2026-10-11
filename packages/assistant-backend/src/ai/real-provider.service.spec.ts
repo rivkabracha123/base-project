@@ -1,6 +1,28 @@
 import { MAX_PROVIDER_PROMPT_LENGTH, RealProviderService, sanitizePrompt } from './real-provider.service';
 //test real provider service
 describe('RealProviderService', () => {
+  it.each([null, { values: [{ label: 'ring_size', value: 8, unit: 'size' }] }])('accepts strict seller measurements %j', async dimensions => {
+    const structuredAnswer = {
+      role: 'seller', language: 'en', intent: 'Sell a ring', category: 'rings',
+      item: { title: 'Blue ring', dimensions, condition: null, markings: null, signature: null, provenance: null, notes: null },
+      missingFacts: ['condition'], confirmedFacts: [], uncertainFacts: [],
+      sellerConfirmation: { required: true, status: 'pending' }, hasContactDetails: false, hasImages: false,
+    };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({
+      isRelevant: true, error: null, summary: 'A blue ring.', recommendation: 'Collect item details.',
+      nextAction: 'What is its condition?', confidence: 'low', structuredAnswer,
+      functionCall: { functionToRun: 'rankSellerHouses', argumentsJson: JSON.stringify({ category: 'rings' }) },
+    }) } }] }) });
+    const result = await new RealProviderService().generate({ prompt: 'Blue ring', role: 'seller',
+      baseUrl: 'https://api.groq.com/openai/v1', modelName: 'openai/gpt-oss-120b', apiKey: 'test', fetchImpl: fetchMock });
+    expect(result.provider).toBe('real');
+    expect(result.functionCall).toEqual({ functionToRun: 'rankSellerHouses', object: { category: 'rings' } });
+    expect((result.structuredAnswer as { item: unknown }).item).toEqual({ title: 'Blue ring', ...(dimensions ? { dimensions } : {}) });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.response_format.json_schema.name).toBe('seller_response');
+    expect(body.response_format.json_schema.strict).toBe(true);
+    expect(body.response_format.json_schema.schema.required).toContain('functionCall');
+  });
   it('calls the OpenAI-compatible endpoint and returns the model content', async () => {
     const modelResponse = {
       isRelevant: true,

@@ -43,8 +43,8 @@ const aiResponseSchema = z.object({
   recommendation: z.string(), nextAction: z.string(),
   confidence: z.enum(['low', 'medium']), structuredAnswer: z.record(z.unknown()),
   intentRoute: z.object({
-    intent: z.enum(['get_lot_details', 'same_item_sale_history', 'search_similar_lots', 'search_auction_lots', 'unknown']),
-    functionName: z.enum(['getLotById', 'getComparableSaleHistory']).nullable(),
+    intent: z.enum(['get_lot_details', 'same_item_sale_history', 'search_similar_lots', 'search_auction_lots', 'buyer_house_ranking', 'unknown']),
+    functionName: z.enum(['getLotById', 'getComparableSaleHistory', 'rankSellerHouses', 'searchLots']).nullable(),
     readyForFunction: z.boolean(), missingFields: z.array(z.string()), arguments: z.record(z.unknown()),
   }).optional(),
 });
@@ -87,8 +87,8 @@ export type AiResponse = {
   confidence: 'low' | 'medium';
   structuredAnswer: Record<string, unknown>;
   intentRoute?: {
-    intent: 'get_lot_details' | 'same_item_sale_history' | 'search_similar_lots' | 'search_auction_lots' | 'unknown';
-    functionName: 'getLotById' | 'getComparableSaleHistory' | null;
+    intent: 'get_lot_details' | 'same_item_sale_history' | 'search_similar_lots' | 'search_auction_lots' | 'buyer_house_ranking' | 'unknown';
+    functionName: 'getLotById' | 'getComparableSaleHistory' | 'rankSellerHouses' | 'searchLots' | null;
     readyForFunction: boolean;
     missingFields: string[];
     arguments: Record<string, unknown>;

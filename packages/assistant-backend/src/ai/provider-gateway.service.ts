@@ -104,7 +104,7 @@ export class ProviderGatewayService {
             break;
           } catch (error) {
             this.logger.warn(`Real provider attempt ${attempt + 1} failed: ${classifyProviderFailure(error)}`);
-            if (attempt === 1) {
+            if (attempt === 1 || classifyProviderFailure(error) === 'http_429') {
               throw error;
             }
           }

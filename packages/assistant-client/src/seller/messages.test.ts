@@ -13,6 +13,44 @@ const currentProfile = {
 };
 
 describe('connectSellerLevels', () => {
+  it('does not repeat model questions after all intake details are collected', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        nextQuestion: null, missingFields: [], ai: { nextAction: 'What is its condition?' },
+      }), { status: 200 })));
+    const callback = vi.fn();
+    await connectSellerLevels('No', callback);
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'Your item details are saved. Would you like recommended auction houses?' });
+  });
+  it.each([
+    { categories: ['paintings'], expected: 'Recommended auction house: Test House.' },
+    { categories: ['rare_books'], expected: 'No auction house specializing in this category was found in the available data.' },
+  ])('displays the actual house ranking without claiming an unsupported specialization', async ({ categories, expected }) => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        functionCall: { functionToRun: 'rankSellerHouses', object: { category: 'paintings' } },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: {
+        recommendation: { house: { name: 'Test House', categories }, reasons: ['Any wording'] }, alternatives: [],
+      } }), { status: 200 })));
+    const callback = vi.fn();
+    await connectSellerLevels('Which auction houses are recommended?', callback);
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: expected });
+  });
+  it('shows the AI next action after intake instead of the fixed review summary', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        nextQuestion: null,
+        ai: { summary: 'Your ring details are saved.', nextAction: 'Would you like auction-house recommendations?' },
+        conversation: { assistantSummary: { en: 'The item is being reviewed.' } },
+      }), { status: 200 })));
+    const callback = vi.fn();
+    await connectSellerLevels('No known history', callback);
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'Your ring details are saved. Would you like auction-house recommendations?' });
+  });
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();

@@ -53,7 +53,10 @@ export class BuyerP4BridgeService {
     }
 
     const ai = await this.p4.generateBuyerExtract(
-      mergeBuyerContextIntoShilatRequest(P4_SEARCH_READINESS_PROBE_MESSAGE, session.criteria.language, {
+      mergeBuyerContextIntoShilatRequest(`${P4_SEARCH_READINESS_PROBE_MESSAGE}\n${JSON.stringify({
+        criteria: session.criteria,
+        skippedFields: session.conversation.skipped,
+      })}`, session.criteria.language, {
         ...context,
         sessionId,
       }),

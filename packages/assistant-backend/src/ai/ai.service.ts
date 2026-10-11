@@ -82,11 +82,13 @@ export class AiService {
     const intentRoute = role === 'buyer'
       ? routeBuyerIntent(input.prompt, {
           language: input.language,
+          sessionId: input.sessionId,
           selectedLot: input.selectedLot ?? undefined,
           lots: input.lots,
           ...(result.structuredAnswer.role === 'buyer' ? {
             category: result.structuredAnswer.category,
             geography: result.structuredAnswer.geography?.join(', '),
+            completionState: result.structuredAnswer.completionState,
           } : {}),
         })
       : undefined;

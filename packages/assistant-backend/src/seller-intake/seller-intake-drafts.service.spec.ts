@@ -80,7 +80,27 @@ describe('SellerIntakeDraftsService', () => {
     expect(loaded.draft.item.catalogDraft.en).toContain('provenance: Family archive');
     expect(loaded.draft.revisionHistory).toHaveLength(2);
     expect(loaded.draft.recalculationRequired).toBe(true);
+    expect(loaded.draft.confirmedFacts.dimensions?.values).toEqual([
+      { label: 'width', value: 40, unit: 'cm' },
+      { label: 'height', value: 30, unit: 'cm' },
+    ]);
   });
+
+  it('confirms generic measurements without requiring legacy rectangular dimensions', async () => {
+    fixture.item.dimensions = { values: [{ label: 'ring_size', value: 8, unit: 'size' }] };
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const confirmed = await service.confirmFacts('profile-a', 'session-1', ['dimensions']);
+    expect(confirmed.draft.confirmedFacts.dimensions).toEqual(fixture.item.dimensions);
+  });
+
+  it.each([{ values: [] }, { values: [], widthCm: 0, heightCm: 30 }, { values: [], widthCm: 40 }])(
+    'rejects missing or incomplete dimensions %j', async dimensions => {
+      fixture.item.dimensions = dimensions;
+      await service.saveDraft('profile-a', 'session-1', fixture);
+      await expect(service.confirmFacts('profile-a', 'session-1', ['dimensions']))
+        .rejects.toBeInstanceOf(BadRequestException);
+    },
+  );
 
   it('does not allow one profile to read another profile session', async () => {
     await service.saveDraft('profile-a', 'session-1', fixture);

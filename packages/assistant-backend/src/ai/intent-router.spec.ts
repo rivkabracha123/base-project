@@ -1,4 +1,5 @@
 import { routeBuyerIntent } from './intent-router';
+import { buildCompletionState } from './completion-state';
 
 describe('routeBuyerIntent', () => {
   it('routes Hebrew buyer house specialization with category and geography', () => {
@@ -30,8 +31,34 @@ describe('routeBuyerIntent', () => {
       intent: 'same_item_sale_history',
       functionName: 'getComparableSaleHistory',
       readyForFunction: false,
-      missingFields: ['selectedLot', 'lots'],
+      missingFields: ['selectedLot.id'],
       arguments: {},
+    });
+  });
+  it('allows B2 to resolve sale history from a lot id alone', () => {
+    expect(routeBuyerIntent('היסטוריית מכירות', { selectedLot: { id: 'lot-1' } })).toMatchObject({
+      functionName: 'getComparableSaleHistory', readyForFunction: true, missingFields: [],
+    });
+  });
+  it('routes ready search requests to B2 with the session id', () => {
+    const completionState = buildCompletionState({
+      category: { required: true, status: 'provided', value: 'paintings' },
+      budget: { required: false, status: 'skipped', value: null },
+    });
+    expect(routeBuyerIntent('חפש ציורים', { completionState, sessionId: 'session-1' })).toEqual({
+      intent: 'search_auction_lots', functionName: 'searchLots', readyForFunction: true,
+      missingFields: [], arguments: { language: 'he', sessionId: 'session-1' },
+    });
+  });
+  it('blocks search when required facts are missing or uncertain', () => {
+    const completionState = buildCompletionState({
+      category: { required: true, status: 'uncertain', value: null },
+    });
+    expect(routeBuyerIntent('Find items', { completionState })).toMatchObject({
+      functionName: 'searchLots', readyForFunction: false, missingFields: ['category'],
+    });
+    expect(routeBuyerIntent('Find items')).toMatchObject({
+      readyForFunction: false, missingFields: ['completionState'],
     });
   });
 //test similar iteam

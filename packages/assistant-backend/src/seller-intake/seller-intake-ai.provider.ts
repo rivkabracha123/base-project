@@ -24,6 +24,8 @@ export type SellerIntakeAiEnrichment = {
   error: string | null;
   // AI-suggested missing facts mapped to intake names (markings -> marks, signature -> signatures).
   aiMissingFields: string[];
+  summary?: string;
+  nextAction?: string;
 };
 
 export type SellerIntakeAiResult = SellerIntakeResult & {
@@ -34,5 +36,7 @@ export type SellerIntakeAiResult = SellerIntakeResult & {
 };
 
 export interface SellerIntakeAiProvider {
+  hasSession?(sessionId: string): boolean;
+  restoreSession?(sessionId: string, draft: SellerItemDraft): void;
   analyze(input: string, sessionId?: string): Promise<SellerIntakeAiResult> | SellerIntakeAiResult;
 }

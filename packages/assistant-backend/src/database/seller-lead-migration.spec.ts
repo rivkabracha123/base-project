@@ -141,12 +141,13 @@ describe('seller lead schema', () => {
     const migration = new AddSellerLeadFinal1788220800003();
     await migration.up(queryRunner);
     expect(queries[0]).toContain('ADD COLUMN "catalog_draft" jsonb');
-    expect(queries[0]).toContain('ADD COLUMN "status" varchar NOT NULL DEFAULT \'draft\'');
+    expect(queries[0]).toContain('ADD COLUMN IF NOT EXISTS "status" varchar NOT NULL DEFAULT \'draft\'');
     expect(queries[0]).toContain('ADD COLUMN "history" jsonb');
 
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP COLUMN "catalog_draft"');
+    expect(queries[0]).not.toContain('DROP COLUMN "status"');
   });
 
   it('registers the dashboard-detail column migration', async () => {
@@ -176,11 +177,12 @@ describe('seller lead schema', () => {
     await migration.up(queryRunner);
     expect(queries[0]).toContain('ADD COLUMN "comparables" jsonb');
     expect(queries[0]).toContain('ADD COLUMN "service_consent" boolean NOT NULL DEFAULT true');
-    expect(queries[0]).toContain('ADD COLUMN "updated_at" timestamptz');
+    expect(queries[0]).toContain('ADD COLUMN IF NOT EXISTS "updated_at" timestamptz');
 
     queries.length = 0;
     await migration.down(queryRunner);
-    expect(queries[0]).toContain('DROP COLUMN "updated_at"');
+    expect(queries[0]).toContain('DROP COLUMN "comparables"');
+    expect(queries[0]).not.toContain('DROP COLUMN "updated_at"');
   });
 
   it('registers the S1 intake draft entity and persistence migration in both data sources', async () => {
@@ -213,67 +215,4 @@ describe('seller lead schema', () => {
     expect(queries[0]).toContain('DROP TABLE "seller_intake_drafts"');
   });
 
-  it('registers the final-lead column migration', async () => {
-    const { databaseOptions } = await import('../app.module');
-    const { default: AppDataSource } = await import('./data-source');
-    const { AddSellerLeadFinal1788220800003 } = await import('./1788220800003-add-seller-lead-final');
-
-    expect(databaseOptions(config).migrations).toContain(AddSellerLeadFinal1788220800003);
-    expect(AppDataSource.options.migrations).toContain(AddSellerLeadFinal1788220800003);
-  });
-
-  it('adds and drops the catalog draft, item, evidence, valuation, status, and history columns', async () => {
-    const { AddSellerLeadFinal1788220800003 } = await import('./1788220800003-add-seller-lead-final');
-
-    const queries: string[] = [];
-    const queryRunner = {
-      query: async (sql: string) => {
-        queries.push(sql);
-      },
-    } as unknown as QueryRunner;
-
-    const migration = new AddSellerLeadFinal1788220800003();
-    await migration.up(queryRunner);
-    expect(queries[0]).toContain('ADD COLUMN "catalog_draft" jsonb');
-    expect(queries[0]).toContain('ADD COLUMN "status" varchar NOT NULL DEFAULT \'draft\'');
-    expect(queries[0]).toContain('ADD COLUMN "history" jsonb');
-
-    queries.length = 0;
-    await migration.down(queryRunner);
-    expect(queries[0]).toContain('DROP COLUMN "catalog_draft"');
-  });
-
-  it('registers the dashboard-detail column migration', async () => {
-    const { databaseOptions } = await import('../app.module');
-    const { default: AppDataSource } = await import('./data-source');
-    const { AddSellerLeadDashboard1788220800004 } = await import(
-      './1788220800004-add-seller-lead-dashboard'
-    );
-
-    expect(databaseOptions(config).migrations).toContain(AddSellerLeadDashboard1788220800004);
-    expect(AppDataSource.options.migrations).toContain(AddSellerLeadDashboard1788220800004);
-  });
-
-  it('adds and drops comparables, service consent, and updated_at', async () => {
-    const { AddSellerLeadDashboard1788220800004 } = await import(
-      './1788220800004-add-seller-lead-dashboard'
-    );
-
-    const queries: string[] = [];
-    const queryRunner = {
-      query: async (sql: string) => {
-        queries.push(sql);
-      },
-    } as unknown as QueryRunner;
-
-    const migration = new AddSellerLeadDashboard1788220800004();
-    await migration.up(queryRunner);
-    expect(queries[0]).toContain('ADD COLUMN "comparables" jsonb');
-    expect(queries[0]).toContain('ADD COLUMN "service_consent" boolean NOT NULL DEFAULT true');
-    expect(queries[0]).toContain('ADD COLUMN "updated_at" timestamptz');
-
-    queries.length = 0;
-    await migration.down(queryRunner);
-    expect(queries[0]).toContain('DROP COLUMN "updated_at"');
-  });
 });

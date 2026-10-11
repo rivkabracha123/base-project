@@ -5,7 +5,6 @@ import { z } from 'zod';
 // Reported in this order: `query` first, then the list filters, then dateRange and price.
 export const MATCH_REASON_FIELDS = [
   'query',
-  'keywords',
   'categories',
   'creators',
   'auctionHouseIds',

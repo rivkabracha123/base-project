@@ -1,3 +1,5 @@
+import type { CompletionState } from './completion-state';
+
 export type BuyerIntent =
   | 'get_lot_details'
   | 'same_item_sale_history'
@@ -12,20 +14,22 @@ type RouterContext = {
   language?: 'he' | 'en';
   category?: string;
   geography?: string;
+  completionState?: CompletionState;
+  sessionId?: string;
 };
 
 export type IntentRoute = {
   intent: BuyerIntent;
-  functionName: 'getLotById' | 'getComparableSaleHistory' | 'rankSellerHouses' | null;
+  functionName: 'getLotById' | 'getComparableSaleHistory' | 'rankSellerHouses' | 'searchLots' | null;
   readyForFunction: boolean;
   missingFields: string[];
   arguments: Record<string, unknown>;
 };
 
 const similarItemsPattern = /פריטים דומים|פריטים נוספים|פריטים כאלה|similar items|similar lots|alternatives/i;
-const saleHistoryPattern = /היסטור(?:יית|ית) (?:המכירות|מכירה|מחירים)|המחירים\b|מחירי(?:ם)?\b|previous sales|sale history|price history|sold records/i;
+const saleHistoryPattern = /היסטור(?:יית|ית) (?:המכירות|מכירות|מכירה|מחירים)|(?:המחירים|מחירים|מחירי)(?=\s|[?!.,]|$)|previous sales|sale history|price history|sold records/i;
 const lotDetailsPattern = /פרטי הפריט|פרטים על הפריט|איך אפשר להעריך|item details|details of the item|evaluate (?:it|the item)/i;
-const searchPattern = /מחפש|מחפשת|לחפש|search|find|עד \$?\d|עד [\d,]+/i;
+const searchPattern = /מחפש|מחפשת|לחפש|חפש|חפשי|מצא|תמצא|search|find|עד \$?\d|עד [\d,]+/i;
 
 export function routeBuyerIntent(prompt: string, context: RouterContext = {}): IntentRoute {
   const normalizedPrompt = prompt.trim();
@@ -46,9 +50,10 @@ export function routeBuyerIntent(prompt: string, context: RouterContext = {}): I
 
   if (saleHistoryPattern.test(normalizedPrompt)) {
     const missingFields: string[] = [];
-    if (!context.selectedLot) missingFields.push('selectedLot');
-    else if (typeof context.selectedLot.itemKey !== 'string' || !context.selectedLot.itemKey.trim()) missingFields.push('selectedLot.itemKey');
-    if (!Array.isArray(context.lots)) missingFields.push('lots');
+    // B2 loads itemKey and the sale pool through its lots resolver.
+    if (typeof context.selectedLot?.id !== 'string' || !context.selectedLot.id.trim()) {
+      missingFields.push('selectedLot.id');
+    }
 
     return {
       intent: 'same_item_sale_history',
@@ -85,12 +90,22 @@ export function routeBuyerIntent(prompt: string, context: RouterContext = {}): I
   }
 
   if (searchPattern.test(normalizedPrompt)) {
+    const state = context.completionState;
+    const missingFields = state
+      ? [...new Set([
+          ...state.blockingFields,
+          ...Object.entries(state.fields)
+            .filter(([, field]) => field.required && ['missing', 'uncertain'].includes(field.status))
+            .map(([name]) => name),
+        ])]
+      : ['completionState'];
+    if (state && !state.readyForFunctions && missingFields.length === 0) missingFields.push('completionState');
     return {
       intent: 'search_auction_lots',
-      functionName: null,
-      readyForFunction: false,
-      missingFields: ['searchAuctionLotsFunction'],
-      arguments: { language },
+      functionName: 'searchLots',
+      readyForFunction: missingFields.length === 0,
+      missingFields,
+      arguments: { language, ...(context.sessionId ? { sessionId: context.sessionId } : {}) },
     };
   }
 

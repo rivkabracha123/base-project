@@ -85,6 +85,23 @@ export function SellerChat() {
   // לחצן צירוף תמונה: תווית שמפעילה שדה קובץ מוסתר, ואזהרה כשהקובץ שנבחר אינו תמונה תקינה.
   const attachPhoto = (
     <div className="flex flex-col justify-center gap-1">
+      <select
+        aria-label={language === 'he' ? '\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea' : 'Actions'}
+        value=""
+        disabled={isLoading || isBusy || isUploading}
+        className="max-w-40 rounded border border-neutral-300 bg-transparent px-2 py-2 text-sm"
+        onChange={(event) => {
+          if (event.target.value) handleSend(event.target.value);
+        }}
+      >
+        <option value="">{language === 'he' ? '\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea' : 'Actions'}</option>
+        <option value={language === 'he' ? '\u05d0\u05d9\u05dc\u05d5 \u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05de\u05d5\u05de\u05dc\u05e6\u05d9\u05dd \u05dc\u05e4\u05e8\u05d9\u05d8 \u05e9\u05dc\u05d9?' : 'Which auction houses are recommended for my item?'}>
+          {language === 'he' ? '\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05de\u05d5\u05de\u05dc\u05e6\u05d9\u05dd' : 'Recommended auction houses'}
+        </option>
+        <option value={language === 'he' ? '\u05d4\u05e6\u05d2 \u05d0\u05ea \u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea \u05e9\u05dc\u05d9' : 'List my saved enquiries'}>
+          {language === 'he' ? '\u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05e9\u05dc\u05d9' : 'My enquiries'}
+        </option>
+      </select>
       <label
         title={t('chat.attachPhoto')}
         className="flex cursor-pointer items-center rounded-xl border border-neutral-300 px-3 py-2 text-neutral-700 hover:bg-white/60"

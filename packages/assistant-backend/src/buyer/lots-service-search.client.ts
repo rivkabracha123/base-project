@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { LotsService } from '../lots/lots.service';
 import type { LotsSearchClient } from './buyer-search.orchestrator';
-import type { PaginatedSearchResult, SearchRequest } from './search-request';
+import type { SearchRequest } from './search-request';
+import type { LotSearchResult } from '../lots/lot-match';
 
 const DEFAULT_SEARCH_LIMIT = 50;
 
@@ -10,7 +11,7 @@ const DEFAULT_SEARCH_LIMIT = 50;
 export class LotsServiceSearchClient implements LotsSearchClient {
   constructor(private readonly lots: LotsService) {}
 
-  async search(request: SearchRequest): Promise<PaginatedSearchResult<import('@monabid/shared').AuctionLot>> {
+  async search(request: SearchRequest): Promise<LotSearchResult> {
     return this.lots.search({
       query: request.query,
       language: request.language,

@@ -9,14 +9,14 @@ export class AddSellerLeadDashboard1788220800004 implements MigrationInterface {
       ALTER TABLE "seller_leads"
       ADD COLUMN "comparables" jsonb,
       ADD COLUMN "service_consent" boolean NOT NULL DEFAULT true,
-      ADD COLUMN "updated_at" timestamptz NOT NULL DEFAULT now()
+      ADD COLUMN IF NOT EXISTS "updated_at" timestamptz NOT NULL DEFAULT now()
     `);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    // Keep updated_at: it may predate this migration on upgraded databases.
     await queryRunner.query(`
       ALTER TABLE "seller_leads"
-      DROP COLUMN "updated_at",
       DROP COLUMN "service_consent",
       DROP COLUMN "comparables"
     `);

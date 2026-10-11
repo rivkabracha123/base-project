@@ -49,6 +49,15 @@ function shilatFixtureResponse(): P4AiGenerateResponse {
 }
 
 describe('p4BuyerRouting (Shilat contract)', () => {
+  it('honors an explicit P4 search block even if extraction claims readiness', () => {
+    const ai = shilatFixtureResponse();
+    ai.intentRoute = {
+      intent: SHILAT_INTENT_SEARCH_AUCTION_LOTS, functionName: 'searchLots',
+      readyForFunction: false, missingFields: ['category'],
+    };
+    expect(p4AllowsBuyerLotSearch(ai)).toBe(false);
+    expect(resolveBuyerActionFromP4(ai)).toEqual({ kind: 'none' });
+  });
   it('allows B2 search when intent is search_auction_lots and only searchAuctionLotsFunction is missing', () => {
     const ai = shilatFixtureResponse();
     expect(p4AllowsBuyerLotSearch(ai)).toBe(true);

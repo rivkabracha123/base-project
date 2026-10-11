@@ -95,8 +95,9 @@ export function AssistantPage() {
             <div className="mt-3 border-s-2 border-indigo-400 ps-4" dir={entry.language === 'he' ? 'rtl' : 'ltr'}>
               <p className="text-sm font-semibold">{t('navigation.assistant')}</p>
               <p className="mt-1 whitespace-pre-wrap">{entry.response.summary}</p>
-              <p className="mt-2 whitespace-pre-wrap">{entry.response.recommendation}</p>
-              <p className="mt-2 whitespace-pre-wrap">{entry.response.nextAction}</p>
+              {entry.response.recommendation.trim() !== entry.response.summary.trim() && entry.response.recommendation.trim() !== entry.response.nextAction.trim()
+                ? <p className="mt-2 whitespace-pre-wrap">{entry.response.recommendation}</p> : null}
+              {entry.response.nextAction.trim() !== entry.response.summary.trim() ? <p className="mt-2 whitespace-pre-wrap">{entry.response.nextAction}</p> : null}
               {entry.response.error ? <p className="mt-2 text-red-800">{entry.response.error}</p> : null}
               {entry.response.isRelevant && entry.response.fallbackMode === 'guided' ? <p className="mt-2 text-amber-800">{t('assistant.fallback')}</p> : null}
               {(() => {
@@ -105,7 +106,7 @@ export function AssistantPage() {
                 const amounts = [price?.min, price?.max].filter((amount): amount is number => typeof amount === 'number');
                 return amounts.length ? <p className="mt-2">{t('assistant.budget')}: {amounts.map(amount => amount.toLocaleString()).join(' - ')} {price?.currency}</p> : null;
               })()}
-              {entry.response.isRelevant && Array.isArray(entry.response.structuredAnswer.missingFacts) ? <ul className="mt-2 list-disc ps-5">{entry.response.structuredAnswer.missingFacts.filter((fact): fact is string => typeof fact === 'string').map((fact, index) => <li key={index}>{fact}</li>)}</ul> : null}
+              {entry.response.isRelevant && Array.isArray(entry.response.structuredAnswer.missingFacts) ? <ul className="mt-2 list-disc ps-5">{entry.response.structuredAnswer.missingFacts.filter((fact): fact is string => typeof fact === 'string').map((fact, index) => <li key={index}>{t(`assistant.facts.${fact}`, { defaultValue: fact })}</li>)}</ul> : null}
             </div>
           </li>)}
         </ol>

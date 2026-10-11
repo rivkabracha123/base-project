@@ -11,6 +11,7 @@ export type BuyerSessionSearchGroup = {
 
 export type BuyerSessionSearchResponse =
   | { kind: 'results'; groups: BuyerSessionSearchGroup[] }
+  | { kind: 'insufficient-criteria'; message: string }
   | { kind: 'unmatched'; message: string };
 
 @Injectable()
@@ -40,6 +41,11 @@ export class BuyerSessionSearchService {
       searchedAt,
     });
 
+    if (outcome.kind === 'insufficient-criteria') {
+      return { kind: 'insufficient-criteria', message: criteria.language === 'he'
+        ? '\u05d0\u05d9\u05dc\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d1\u05e8\u05e6\u05d5\u05e0\u05da \u05dc\u05d7\u05e4\u05e9?'
+        : 'What items would you like to search for?' };
+    }
     if (outcome.kind === 'unmatched') {
       return {
         kind: 'unmatched',

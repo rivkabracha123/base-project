@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import {
-  B2_SEARCH_LOTS_FUNCTION,
   SHILAT_FUNCTION_GET_LOT_BY_ID,
   resolveBuyerActionFromP4,
   shouldRunComparableSaleHistory,
@@ -49,7 +48,7 @@ export class BuyerP4FunctionExecutor {
       return await this.runGetLotById(ai, ctx, updates);
     }
 
-    if (action.kind === 'searchLots' || routeName === B2_SEARCH_LOTS_FUNCTION) {
+    if (action.kind === 'searchLots') {
       if (!ctx.criteriaComplete) {
         return false;
       }
@@ -148,6 +147,10 @@ export class BuyerP4FunctionExecutor {
     updates.push({ speaker: 'system', text: review.summary });
 
     const search = await this.sessionSearch.searchForSession(ctx.sessionId);
+    if (search.kind === 'insufficient-criteria') {
+      updates.push({ speaker: 'system', text: search.message });
+      return true;
+    }
     if (search.kind === 'unmatched') {
       updates.push({ speaker: 'no-results', text: search.message });
       return true;
@@ -172,6 +175,7 @@ export class BuyerP4FunctionExecutor {
 
 function readLotIdFromArguments(args: Record<string, unknown> | undefined): string | null {
   if (!args) return null;
+  if (typeof args.id === 'string' && args.id.trim()) return args.id.trim();
   if (typeof args.lotId === 'string') return args.lotId;
   if (args.selectedLot && typeof args.selectedLot === 'object') {
     const id = (args.selectedLot as { id?: string }).id;

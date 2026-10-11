@@ -29,7 +29,9 @@ function readIntentRoute(record: Record<string, unknown>): P4IntentRoute {
           : null;
 
   const intent = typeof raw.intent === 'string' ? raw.intent : null;
-  const readyForFunction = raw.readyForFunction === true || record.readyForFunction === true || record.ready === true;
+  const readyForFunction = typeof raw.readyForFunction === 'boolean'
+    ? raw.readyForFunction
+    : record.readyForFunction === true || record.ready === true;
   const missingFields = Array.isArray(raw.missingFields)
     ? raw.missingFields.filter((f): f is string => typeof f === 'string')
     : undefined;
@@ -100,7 +102,7 @@ function normalizeP4Response(body: unknown, fallbackExtract: AiExtractResponse):
   const record = body as Record<string, unknown>;
   const intentRoute = readIntentRoute(record);
   const extract = normalizeExtract(record, fallbackExtract);
-  const readyForFunction = intentRoute.readyForFunction || record.readyForFunction === true;
+  const readyForFunction = intentRoute.readyForFunction;
 
   return {
     extract,
@@ -119,7 +121,8 @@ export class P4AiGenerateClient {
     const fallback = fixtureExtract(request);
 
     if (mode !== 'real') {
-      const readinessProbe = request.prompt === P4_SEARCH_READINESS_PROBE_MESSAGE;
+      const readinessProbe = request.prompt === P4_SEARCH_READINESS_PROBE_MESSAGE ||
+        request.prompt.startsWith(`${P4_SEARCH_READINESS_PROBE_MESSAGE}\n`);
       return {
         extract: fallback,
         readyForFunction: readinessProbe,
@@ -240,6 +243,7 @@ export class P4AiGenerateClient {
       nextAction: typeof body.nextAction === 'string' ? body.nextAction : '',
       confidence: body.confidence === 'medium' ? 'medium' : 'low',
       structuredAnswer,
+      ...(body.functionCall !== undefined ? { functionCall: body.functionCall as ShilatSellerGenerateResponse['functionCall'] } : {}),
     };
   }
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockConversation } from '../buyer/mock-conversation';
-import { getAnonymousSessionId, getConversation, getLotById } from './api';
+import { generateAi, getAnonymousSessionId, getConversation, getLotById } from './api';
 
 const lot = {
   id: 'lot-1',
@@ -19,6 +19,26 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   localStorage.clear();
+});
+
+describe('generateAi routing responses', () => {
+  it.each([
+    ['search_auction_lots', 'searchLots'],
+    ['buyer_house_ranking', 'rankSellerHouses'],
+  ])('accepts backend route %s with function %s', async (intent, functionName) => {
+    localStorage.setItem('anonymousSessionId', 'test-session');
+    const response = {
+      provider: 'real', mode: 'real', isRelevant: true, error: null,
+      content: '{}', summary: 'Summary', recommendation: 'Recommendation',
+      nextAction: 'Next action', confidence: 'medium', structuredAnswer: {},
+      intentRoute: { intent, functionName, readyForFunction: false, missingFields: ['category'], arguments: {} },
+      conversationId: '11111111-1111-4111-8111-111111111111',
+      exchangeId: '22222222-2222-4222-8222-222222222222',
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status: 200 })));
+
+    await expect(generateAi('Find a blue ring', 'buyer', 'en')).resolves.toEqual(response);
+  });
 });
 
 describe('getAnonymousSessionId', () => {

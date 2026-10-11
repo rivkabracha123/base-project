@@ -3,7 +3,7 @@ import { getCurrentProfile } from '../app/api';
 import type { SellerUpdate } from '../chat/chat-types';
 
 interface SellerIntakeResponse {
-  ai?: { fallbackMode?: 'guided' };
+  ai?: { fallbackMode?: 'guided'; summary?: string; nextAction?: string };
   missingFields?: string[];
   nextQuestion?: { field: string; he: string; en: string } | null;
   conversation?: { assistantSummary?: { he?: string; en?: string } };
@@ -72,13 +72,22 @@ function getSystemText(response: SellerIntakeResponse): string {
     : '';
   if (nextQuestion) return `${fallbackNotice}${nextQuestion[language]}`;
 
+  if (response.missingFields?.length === 0) {
+    return `${fallbackNotice}${language === 'he'
+      ? '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e0\u05e9\u05de\u05e8\u05d5. \u05dc\u05d4\u05e6\u05d9\u05d2 \u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05de\u05d5\u05de\u05dc\u05e6\u05d9\u05dd?'
+      : 'Your item details are saved. Would you like recommended auction houses?'}`;
+  }
+  if (response.ai?.nextAction?.trim()) {
+    return [response.ai.summary, response.ai.nextAction].filter(Boolean).join(' ');
+  }
+
   const summary = response.conversation?.assistantSummary?.[language];
   if (summary) return `${fallbackNotice}${summary}`;
 
   return `${fallbackNotice}${language === 'he' ? 'קיבלתי את פרטי הפריט.' : 'I received the item details.'}`;
 }
 
-function getFunctionResultText(functionName: string, result: unknown, language: 'he' | 'en'): string {
+function getFunctionResultText(functionName: string, result: unknown, language: 'he' | 'en', category?: unknown): string {
   const messages: Record<string, { he: string; en: string }> = {
     createSellerLeadDraft: { he: 'טיוטת הפנייה נשמרה.', en: 'The enquiry draft was saved.' },
     createSellerLead: { he: 'טיוטת הפנייה נשמרה.', en: 'The enquiry draft was saved.' },
@@ -119,7 +128,7 @@ function getFunctionResultText(functionName: string, result: unknown, language: 
   }
 
   if (['rankSellerHouses', 'rankAndStoreSellerHouses', 'rankHousesForLead', 'submitFinalSellerLead'].includes(functionName) && record) {
-    const ranking = record.recommendation && typeof record.recommendation === 'object'
+    const ranking = record.recommendation && typeof record.recommendation === 'object' && !('house' in record.recommendation)
       ? record.recommendation as Record<string, unknown>
       : record;
     const recommended = ranking.recommendation && typeof ranking.recommendation === 'object'
@@ -129,6 +138,11 @@ function getFunctionResultText(functionName: string, result: unknown, language: 
       ? recommended.house as Record<string, unknown>
       : undefined;
     if (typeof house?.name === 'string') {
+      if (typeof category === 'string' && Array.isArray(house.categories) && !house.categories.includes(category)) {
+        return language === 'he'
+          ? '\u05dc\u05d0 \u05e0\u05de\u05e6\u05d0 \u05d1\u05d9\u05ea \u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05e9\u05de\u05ea\u05de\u05d7\u05d4 \u05d1\u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4 \u05d4\u05d6\u05d0\u05ea \u05d1\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d4\u05d6\u05de\u05d9\u05e0\u05d9\u05dd.'
+          : 'No auction house specializing in this category was found in the available data.';
+      }
       return language === 'he' ? `בית המכירות המומלץ: ${house.name}.` : `Recommended auction house: ${house.name}.`;
     }
   }
@@ -178,7 +192,7 @@ export async function connectSellerLevels(
         sessionStorage.setItem(PENDING_UPLOAD_ITEM_KEY, functionCall.object.itemId);
       }
       await sendSellerMessage(
-        `${getSystemText(body)} ${getFunctionResultText(functionCall.functionToRun, workflowResult.result, language)}`.trim(),
+        `${['rankSellerHouses', 'listSellerLeads'].includes(functionCall.functionToRun) ? '' : getSystemText(body)} ${getFunctionResultText(functionCall.functionToRun, workflowResult.result, language, functionCall.object?.category)}`.trim(),
         onUpdate,
       );
       return;

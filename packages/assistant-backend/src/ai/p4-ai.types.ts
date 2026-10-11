@@ -1,5 +1,6 @@
 import type { AiExtractResponse } from '../buyer/buyer-criteria';
 import type { SellerHandoffContract } from './seller-handoff';
+import type { AiFunctionCall } from './ai.dto';
 
 /** Body Shilat expects on POST /ai/generate (same shape B2 forwards in real mode). */
 export type ShilatAiGenerateRequest = {
@@ -21,6 +22,7 @@ export type ShilatSellerGenerateResponse = {
   nextAction: string;
   confidence: 'low' | 'medium';
   structuredAnswer: SellerHandoffContract;
+  functionCall?: AiFunctionCall | null;
 };
 
 /** @deprecated alias — use ShilatAiGenerateRequest */

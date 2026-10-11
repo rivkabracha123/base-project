@@ -13,7 +13,7 @@ export const SHILAT_FUNCTION_GET_LOT_BY_ID = 'getLotById';
 export const SHILAT_MISSING_SEARCH_FUNCTION = 'searchAuctionLotsFunction';
 export const SHILAT_MISSING_SIMILAR_FUNCTION = 'similarLotsFunction';
 
-/** B2 execution name (until Shilat adds this to IntentRoute.functionName). */
+/** Search handler implemented by B2. */
 export const B2_SEARCH_LOTS_FUNCTION = 'searchLots';
 
 export type ResolvedBuyerAction =
@@ -43,8 +43,8 @@ function onlyP4RegistryMissing(missingFields: string[] | undefined, allowed: str
 export function p4AllowsBuyerLotSearch(ai: P4AiGenerateResponse): boolean {
   const route = ai.intentRoute;
 
-  if (route.functionName === B2_SEARCH_LOTS_FUNCTION && route.readyForFunction) {
-    return true;
+  if (route.functionName === B2_SEARCH_LOTS_FUNCTION) {
+    return route.readyForFunction && !route.missingFields?.length;
   }
 
   if (route.intent !== SHILAT_INTENT_SEARCH_AUCTION_LOTS) {

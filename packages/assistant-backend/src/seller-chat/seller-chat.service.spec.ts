@@ -3,12 +3,10 @@ import { SellerChatService } from './seller-chat.service';
 // Tests for SellerChatService — mirrors buyer-chat/buyer-chat.service.spec.ts for the seller demo file.
 describe('SellerChatService', () => {
   // Verifies asking for 'he' returns a non-empty conversation that opens with a seller message.
-  it('returns the Hebrew conversation from the demo file', async () => {
+  it('starts an empty Hebrew conversation without a demo file', async () => {
     const service = new SellerChatService();
     const conversation = await service.findConversation('he');
-    expect(conversation.length).toBeGreaterThan(0);
-    expect(conversation[0]).toMatchObject({ speaker: 'seller', text: expect.any(String) });
-    expect((conversation[0] as { text: string }).text.length).toBeGreaterThan(0);
+    expect(conversation).toEqual([]);
   });
 
   // Verifies an unsupported language returns an empty list instead of crashing the service.
@@ -19,11 +17,11 @@ describe('SellerChatService', () => {
   });
 
   // Verifies 'en' returns the English conversation — non-empty and different from the Hebrew one.
-  it('returns the English conversation when en is requested', async () => {
+  it('starts empty conversations in both supported languages', async () => {
     const service = new SellerChatService();
     const hebrew = await service.findConversation('he');
     const english = await service.findConversation('en');
-    expect(english.length).toBeGreaterThan(0);
-    expect(english).not.toEqual(hebrew);
+    expect(english).toEqual([]);
+    expect(hebrew).toEqual([]);
   });
 });

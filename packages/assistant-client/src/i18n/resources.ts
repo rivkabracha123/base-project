@@ -3,6 +3,7 @@ export const resources = {
     translation: {
       appName: 'Monabid Assistant',
       assistant: {
+        facts: { dimensions: 'Dimensions', provenance: 'Provenance and ownership history', condition: 'Condition', marks: 'Marks and inscriptions', markings: 'Marks and inscriptions', signature: 'Signature', signatures: 'Signatures', title: 'Item title', 'item title': 'Item title', category: 'Category', materials: 'Materials' },
         newConversation: 'New conversation', dialogue: 'Conversation messages',
         history: 'Conversation history', historyEmpty: 'No saved conversations yet.', historyError: 'Could not load history.', newer: 'Newer', older: 'Older',
         eyebrow: 'Guided assistant', title: 'Tell us what you need', intro: 'You can correct the request and continue after missing details are identified.',
@@ -207,6 +208,7 @@ export const resources = {
       navigation: { dashboard: 'לוח בקרה', sample: 'פריט לדוגמה', assistant: 'העוזר', houses: 'בתי מכירות', enquiry: 'פניית מוכר' , buyer: 'חיפוש פריט', seller: 'מכירת פריט', gallery: 'גלריה'},
       assistant: {
         newConversation: 'שיחה חדשה', dialogue: 'הודעות השיחה',
+        facts: { dimensions: 'מידות', provenance: 'מקור והיסטוריית בעלות', condition: 'מצב הפריט', marks: 'סימנים וכיתובים', markings: 'סימנים וכיתובים', signature: 'חתימה', signatures: 'חתימות', title: 'שם הפריט', 'item title': 'שם הפריט', category: 'קטגוריה', materials: 'חומרים' },
         history: 'היסטוריית שיחות', historyEmpty: 'אין עדיין שיחות שמורות.', historyError: 'לא ניתן לטעון את ההיסטוריה.', newer: 'חדשות יותר', older: 'ישנות יותר',
         eyebrow: 'עוזר מונחה', title: 'ספרו לנו מה אתם צריכים', intro: 'אפשר לתקן את הבקשה ולהמשיך אחרי זיהוי פרטים חסרים.',
         buyer: 'קונה', seller: 'מוכר', prompt: 'הבקשה שלכם', send: 'שליחה', retry: 'נסו שוב', saving: 'מעבד…',

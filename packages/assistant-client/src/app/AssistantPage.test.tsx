@@ -44,7 +44,7 @@ describe('AssistantPage conversations', () => {
     const calls = fetchMock.mock.calls.filter(([url]) => url.includes('/ai/generate'));
     expect(JSON.parse(calls[0]![1].body).conversationId).toBeUndefined();
     expect(JSON.parse(calls[1]![1].body).conversationId).toBe(conversationId);
-    expect(within(screen.getByRole('list', { name: 'Conversation messages' })).getAllByText('dimensions')).toHaveLength(2);
+    expect(within(screen.getByRole('list', { name: 'Conversation messages' })).getAllByText('Dimensions')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
     expect(screen.queryByText('Seller summary')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Buyer' })).toBeEnabled();
@@ -53,6 +53,29 @@ describe('AssistantPage conversations', () => {
     await screen.findByText('Seller summary');
     const lastCall = fetchMock.mock.calls.filter(([url]) => url.includes('/ai/generate')).at(-1)!;
     expect(JSON.parse(lastCall[1].body).conversationId).toBeUndefined();
+  });
+
+  it('shows one next step and translates missing seller facts in Hebrew', async () => {
+    await i18n.changeLanguage('he');
+    const nextAction = 'מה מידות כתב היד ומה ידוע על מקורו?';
+    fetchMock.mockImplementation(async (url: string) => ({
+      ok: true, json: async () => url.includes('/ai/history')
+        ? { items: [], total: 0, page: 1, pageSize: 20 }
+        : {
+            ...response, summary: nextAction, recommendation: 'A photo of the markings may help.', nextAction,
+            structuredAnswer: { role: 'seller', missingFacts: ['dimensions', 'provenance'] },
+            conversationId, exchangeId: crypto.randomUUID(),
+          },
+    }));
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'מוכר' }));
+    fireEvent.click(screen.getByRole('button', { name: 'שליחה' }));
+    await screen.findByText(nextAction);
+    expect(screen.getAllByText(nextAction)).toHaveLength(1);
+    expect(screen.getByText('A photo of the markings may help.')).toBeInTheDocument();
+    expect(screen.getByText('מידות')).toBeInTheDocument();
+    expect(screen.getByText('מקור והיסטוריית בעלות')).toBeInTheDocument();
+    expect(screen.queryByText('dimensions')).not.toBeInTheDocument();
   });
 
   it('reopens all user and assistant turns after remount', async () => {
