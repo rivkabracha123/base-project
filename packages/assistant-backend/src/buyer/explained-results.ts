@@ -1,7 +1,31 @@
-import type { AuctionLot, ExplainedLot, GroupedResults, MatchReason } from '@monabid/shared';
+import type { AuctionLot } from '@monabid/shared';
 import type { BuyerCriteria, Constraint } from './buyer-criteria';
 
-export type { ExplainedLot, GroupedResults, MatchReason };
+/** Why one returned lot matched: a typed field plus a short detail for B4 to render. */
+export interface MatchReason {
+  field:
+    | 'categories'
+    | 'creators'
+    | 'periods'
+    | 'media'
+    | 'keywords'
+    | 'geography'
+    | 'auctionHouseIds'
+    | 'price';
+  detail: string;
+}
+
+/** A P2 result lot paired with the deterministic reasons it matched. */
+export interface ExplainedLot {
+  lot: AuctionLot;
+  matchReasons: MatchReason[];
+}
+
+/** Results grouped for B4 as upcoming ("current") vs past sales ("historical"). */
+export interface GroupedResults {
+  current: ExplainedLot[];
+  historical: ExplainedLot[];
+}
 
 /** Honest no-result account for P5: active criteria, enforced hard constraints, no relaxation or invention. */
 export interface DemandSummary {

@@ -9,7 +9,7 @@ import { ResultsPage } from './components/ResultPage';
 import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
 import { SellerEnquiryPage } from './app/SellerEnquiryPage';
 import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
-import { CurrentProfileGallery } from './app/CurrentProfileGallery'
+import { CurrentProfileGallery } from './app/CurrentProfileGallery';
 
 export function App() {
   return (

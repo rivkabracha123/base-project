@@ -6,7 +6,8 @@ import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-histo
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
 import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
-import { BuyerSessionSearchService } from './buyer-session-search.service';
+import { BuyerSearchExecutionService } from './buyer-search-execution.service';
+import { DefaultBuyerResultsPresentationService } from './default-buyer-results-presentation.service';
 import { FixtureLotsSearchClient } from './fixture-lots-search.client';
 import { findBuyerFixtureLot, resolveBuyerFixtureLots } from './fixture-lots.pool';
 
@@ -25,7 +26,9 @@ describe('BuyerChatOrchestratorService', () => {
     const saleHistory = new BuyerComparableSaleHistoryService(lotsResolver);
     const executor = new BuyerP4FunctionExecutor(
       saleHistory,
-      new BuyerSessionSearchService(new FixtureLotsSearchClient()),
+      new DefaultBuyerResultsPresentationService(
+        new BuyerSearchExecutionService(new FixtureLotsSearchClient()),
+      ),
       criteria,
       lotsResolver,
     );

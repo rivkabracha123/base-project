@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   B2_SEARCH_LOTS_FUNCTION,
   SHILAT_FUNCTION_GET_LOT_BY_ID,
@@ -7,10 +7,14 @@ import {
 } from '../ai/p4-buyer-routing';
 import type { P4AiGenerateResponse, P4BuyerAiContext } from '../ai/p4-ai.types';
 import type { BuyerChatUpdate } from './buyer-chat-update';
+import { buyerFlowUpdatesToChatUpdates } from './buyer-flow-update-mapper';
+import {
+  BUYER_RESULTS_PRESENTATION_PORT,
+  type BuyerResultsPresentationPort,
+} from './buyer-results-presentation.port';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
-import { BuyerSessionSearchService } from './buyer-session-search.service';
 
 export type P4FunctionExecutionContext = {
   sessionId: string;
@@ -27,7 +31,8 @@ export type P4FunctionExecutionContext = {
 export class BuyerP4FunctionExecutor {
   constructor(
     private readonly saleHistory: BuyerComparableSaleHistoryService,
-    private readonly sessionSearch: BuyerSessionSearchService,
+    @Inject(BUYER_RESULTS_PRESENTATION_PORT)
+    private readonly resultsPresentation: BuyerResultsPresentationPort,
     private readonly criteriaService: BuyerCriteriaService,
     private readonly lotsResolver: BuyerLotsResolverService,
   ) {}
@@ -57,15 +62,10 @@ export class BuyerP4FunctionExecutor {
     }
 
     if (action.kind === 'similarLots') {
-      updates.push({
-        speaker: 'error',
-        code: 'similar_not_wired',
-        text:
-          ctx.language === 'he'
-            ? 'חיפוש פריטים דומים עדיין לא מחובר — B3/B4.'
-            : 'Similar items search is not wired yet (B3/B4).',
-      });
-      return true;
+      if (!ctx.criteriaComplete) {
+        return false;
+      }
+      return this.runSearchLots(ctx, updates);
     }
 
     return false;
@@ -147,25 +147,15 @@ export class BuyerP4FunctionExecutor {
     const review = this.criteriaService.getCriteriaReview(ctx.sessionId);
     updates.push({ speaker: 'system', text: review.summary });
 
-    const search = await this.sessionSearch.searchForSession(ctx.sessionId);
-    if (search.kind === 'unmatched') {
-      updates.push({ speaker: 'no-results', text: search.message });
-      return true;
-    }
-
-    const totalLots = search.groups.reduce((count, group) => count + group.lots.length, 0);
-    updates.push({
-      speaker: 'results-found',
-      text:
-        ctx.language === 'he'
-          ? `מצאנו ${totalLots} פריטים שמתאימים לבקשה.`
-          : `Found ${totalLots} lots that match this request.`,
+    const criteria = this.criteriaService.getCriteriaForSession(ctx.sessionId);
+    await this.resultsPresentation.presentSearchResults({
+      searchContextId: ctx.sessionId,
+      criteria,
+      selectedLotId: ctx.p4Context?.selectedLot?.id,
+      onUpdate: (flowUpdate) => {
+        updates.push(...buyerFlowUpdatesToChatUpdates(flowUpdate, ctx.language));
+      },
     });
-
-    for (const group of search.groups) {
-      if (group.lots.length === 0) continue;
-      updates.push({ speaker: 'result-group', title: group.title, lots: group.lots });
-    }
     return true;
   }
 }

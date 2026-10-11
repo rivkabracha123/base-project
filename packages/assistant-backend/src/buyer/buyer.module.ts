@@ -10,12 +10,20 @@ import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-histo
 import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { LotsServiceSearchClient } from './lots-service-search.client';
+import { BUYER_RESULTS_PRESENTATION_PORT } from './buyer-results-presentation.port';
+import { DefaultBuyerResultsPresentationService } from './default-buyer-results-presentation.service';
+import { BuyerSearchExecutionService } from './buyer-search-execution.service';
 
 @Module({
   imports: [AiModule, LotsModule],
   controllers: [BuyerController],
   providers: [
     BuyerCriteriaService,
+    BuyerSearchExecutionService,
+    {
+      provide: BUYER_RESULTS_PRESENTATION_PORT,
+      useClass: DefaultBuyerResultsPresentationService,
+    },
     BuyerSessionSearchService,
     BuyerP4BridgeService,
     BuyerComparableSaleHistoryService,
@@ -29,6 +37,8 @@ import { LotsServiceSearchClient } from './lots-service-search.client';
     BuyerSessionSearchService,
     BuyerP4BridgeService,
     BuyerChatOrchestratorService,
+    BuyerSearchExecutionService,
+    BUYER_RESULTS_PRESENTATION_PORT,
   ],
 })
 export class BuyerModule {}

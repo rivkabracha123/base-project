@@ -9,6 +9,7 @@ import {
   nextFocusedQuestion,
   applyClarificationTurn,
   skipCurrentQuestion,
+  type BuyerCriteriaConversation,
 } from './buyer-criteria';
 import { sampleAiExtractResponses, sampleClarificationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
@@ -190,6 +191,37 @@ describe('Week 3 focused questions', () => {
     expect(corrected.criteria.price?.max).toBe(8000);
     expect(corrected.criteria.price?.min).toBe(8000);
     expect(corrected.criteria.categories).toEqual(initial.criteria.categories);
+  });
+
+  it('accepts plain and worded budget answers when the buyer is answering the budget question', () => {
+    const criteria = emptyBuyerCriteria('en');
+    const conversation: BuyerCriteriaConversation = {
+      skipped: [],
+      missing: ['budget', 'category', 'creator', 'period', 'location'],
+      nextQuestion: 'Is there a budget range I should stay within?',
+      notes: [],
+    };
+
+    expect(applyBuyerAnswer(criteria, conversation, '600').criteria.price).toEqual({
+      min: 600,
+      max: 600,
+      currency: 'USD',
+    });
+    expect(applyBuyerAnswer(criteria, conversation, '600 thousand').criteria.price).toEqual({
+      min: 600_000,
+      max: 600_000,
+      currency: 'USD',
+    });
+    expect(applyBuyerAnswer(criteria, conversation, '600 אלף').criteria.price).toEqual({
+      min: 600_000,
+      max: 600_000,
+      currency: 'USD',
+    });
+    expect(applyBuyerAnswer(criteria, conversation, '500-1500').criteria.price).toEqual({
+      min: 500,
+      max: 1500,
+      currency: 'USD',
+    });
   });
 
   it('applies answer and skip using shared turn fixtures', () => {
