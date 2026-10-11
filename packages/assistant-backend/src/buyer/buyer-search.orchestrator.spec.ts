@@ -304,6 +304,41 @@ describe('BuyerSearchOrchestrator', () => {
     expect(outcome.kind).toBe('results');
   });
 
+  it('reports an error, not a no-result, when saving the unmatched demand fails, and rethrows', async () => {
+    const failure = new Error('demand store unavailable');
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, {
+      record: jest.fn().mockRejectedValue(failure),
+    });
+    const progress: unknown[] = [];
+
+    await expect(
+      orchestrator.search(
+        { criteria: searchableCriteria(), language: 'en', ...baseLead },
+        (update) => progress.push(update),
+      ),
+    ).rejects.toBe(failure);
+
+    expect(progress).toEqual([{ stage: 'searching' }, { stage: 'error' }]);
+  });
+
+  it('treats a malformed lots search response as a failure and records no false demand', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue({ total: 0 }) };
+    const record = jest.fn();
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record });
+    const progress: unknown[] = [];
+
+    await expect(
+      orchestrator.search(
+        { criteria: searchableCriteria(), language: 'en', ...baseLead },
+        (update) => progress.push(update),
+      ),
+    ).rejects.toThrow('Lots search returned no result list');
+
+    expect(progress).toEqual([{ stage: 'searching' }, { stage: 'error' }]);
+    expect(record).not.toHaveBeenCalled();
+  });
+
   it('works with no callback at all, unchanged from before', async () => {
     const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
@@ -315,5 +350,105 @@ describe('BuyerSearchOrchestrator', () => {
     });
 
     expect(outcome.kind).toBe('results');
+  });
+
+  describe('searchOtherCategories', () => {
+    // Buyer wants rare books by a creator within a budget, with the category kept as a hard constraint.
+    const otherCategoriesCriteria = () => {
+      const criteria = emptyBuyerCriteria('he');
+      criteria.categories = ['ספרים נדירים'];
+      criteria.creators = ['Yitzhak Abrabanel'];
+      criteria.price = { max: 5000, currency: 'USD' };
+      criteria.hardConstraints = deriveHardConstraints(criteria);
+      return criteria;
+    };
+
+    it('searches the other criteria without the category filter and keeps the original criteria untouched', async () => {
+      const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-j', category: 'judaica' })])) };
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+      const criteria = otherCategoriesCriteria();
+      const original = structuredClone(criteria);
+
+      const outcome = await orchestrator.searchOtherCategories({ criteria, language: 'he', ...baseLead });
+
+      const sent = lotsSearch.search.mock.calls[0][0];
+      expect(sent.filters.categories).toBeUndefined();
+      expect(sent.filters.creators).toEqual(['Yitzhak Abrabanel']);
+      expect(sent.filters.price).toEqual({ max: 5000, currency: 'USD' });
+      expect(criteria).toEqual(original);
+      expect(outcome.kind).toBe('results');
+      if (outcome.kind !== 'results') return;
+      expect(outcome.searchRequest.criteria.categories).toEqual([]);
+      expect(outcome.searchRequest.hardConstraints.map((constraint) => constraint.field)).not.toContain('categories');
+      expect(outcome.searchRequest.hardConstraints.map((constraint) => constraint.field)).toContain('price');
+    });
+
+    it('drops lots in the requested category, matching Hebrew and English names, and keeps the search order', async () => {
+      const lotsSearch = {
+        search: jest.fn().mockResolvedValue(
+          page([
+            makeLot({ id: 'lot-j', category: 'judaica', status: 'upcoming' }),
+            makeLot({ id: 'lot-book', category: 'rare_books' }),
+            makeLot({ id: 'lot-map', category: 'maps' }),
+          ]),
+        ),
+      };
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+
+      const outcome = await orchestrator.searchOtherCategories({
+        criteria: otherCategoriesCriteria(),
+        language: 'he',
+        ...baseLead,
+      });
+
+      expect(outcome.kind).toBe('results');
+      if (outcome.kind !== 'results') return;
+      expect(outcome.results.current.map((entry) => entry.lot.id)).toEqual(['lot-j']);
+      expect(outcome.results.historical.map((entry) => entry.lot.id)).toEqual(['lot-map']);
+    });
+
+    it('returns unmatched without recording demand when only the requested category came back', async () => {
+      const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-book' })])) };
+      const record = jest.fn();
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record });
+      const progress: unknown[] = [];
+
+      const outcome = await orchestrator.searchOtherCategories(
+        { criteria: otherCategoriesCriteria(), language: 'he', ...baseLead },
+        (update) => progress.push(update),
+      );
+
+      expect(outcome.kind).toBe('unmatched');
+      if (outcome.kind !== 'unmatched') return;
+      expect(outcome.relaxationOptions.map((option) => option.field)).not.toContain('categories');
+      expect(record).not.toHaveBeenCalled();
+      expect(progress).toEqual([{ stage: 'searching' }, { stage: 'no-results' }]);
+    });
+
+    it('reports insufficient criteria when the buyer asked for a category only', async () => {
+      const lotsSearch = { search: jest.fn() };
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+
+      const outcome = await orchestrator.searchOtherCategories({
+        criteria: searchableCriteria(),
+        language: 'en',
+        ...baseLead,
+      });
+
+      expect(outcome.kind).toBe('insufficient-criteria');
+      expect(lotsSearch.search).not.toHaveBeenCalled();
+    });
+
+    it('still records demand for a regular search after an other-categories search', async () => {
+      const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
+      const record = jest.fn();
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record });
+      const input = { criteria: otherCategoriesCriteria(), language: 'he' as const, ...baseLead };
+
+      await orchestrator.searchOtherCategories(input);
+      await orchestrator.search(input);
+
+      expect(record).toHaveBeenCalledTimes(1);
+    });
   });
 });
