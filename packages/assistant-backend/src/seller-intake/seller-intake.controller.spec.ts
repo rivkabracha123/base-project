@@ -4,6 +4,8 @@ import { Test } from '@nestjs/testing';
 import { SellerIntakeController } from './seller-intake.controller';
 import { SellerIntakeService } from './seller-intake.service';
 import { SellerIntakeAiMock } from './seller-intake-ai.mock';
+import { AiService } from '../ai/ai.service';
+import { SellerIntakeAiAdapter } from './seller-intake-ai.adapter';
 import { SELLER_INTAKE_AI_PROVIDER } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 
@@ -13,6 +15,21 @@ import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 describe('SellerIntakeController', () => {
   let app: INestApplication;
   let baseUrl: string;
+  let persistedDraft: Record<string, any>;
+  const drafts = {
+    saveIntakeTurn: jest.fn(async (_profileId: string, _sessionId: string, draft: Record<string, any>) => {
+      persistedDraft = { profileId: _profileId, sessionId: _sessionId, draft };
+      return persistedDraft;
+    }),
+    getDraft: jest.fn(async (profileId: string, sessionId: string) => {
+      if (!persistedDraft || persistedDraft.profileId !== profileId || persistedDraft.sessionId !== sessionId) {
+        throw new Error('Draft not found');
+      }
+      return persistedDraft;
+    }),
+    correctDraft: jest.fn(async (profileId: string, sessionId: string, field: unknown, value: unknown) => ({ profileId, sessionId, field, value })),
+    confirmFacts: jest.fn(async (profileId: string, sessionId: string, fields: unknown) => ({ profileId, sessionId, fields })),
+  };
 
   // Fixed mock data for the tests.
   // The data is defined here so the test does not depend on an external JSON file.
@@ -70,8 +87,10 @@ describe('SellerIntakeController', () => {
       providers: [
         SellerIntakeService,
         SellerIntakeAiMock,
-        { provide: SELLER_INTAKE_AI_PROVIDER, useExisting: SellerIntakeAiMock },
-        { provide: SellerIntakeDraftsService, useValue: { saveIntakeTurn: jest.fn() } },
+        SellerIntakeAiAdapter,
+        { provide: SELLER_INTAKE_AI_PROVIDER, useExisting: SellerIntakeAiAdapter },
+        { provide: AiService, useValue: { generate: jest.fn(async () => { throw new Error('down'); }) } },
+        { provide: SellerIntakeDraftsService, useValue: drafts },
       ],
     })
       .compile();
@@ -97,6 +116,11 @@ describe('SellerIntakeController', () => {
     await app.close();
   });
 
+  beforeEach(() => {
+    persistedDraft = undefined as never;
+    jest.clearAllMocks();
+  });
+
   // Verify the Week 3 normal path: dimensions and signature are present, while condition, marks, and provenance are missing.
   it('asks for the remaining required Week 3 details on the normal path', async () => {
     const response = await fetch(`${baseUrl}/seller-intake/draft`, {
@@ -108,6 +132,8 @@ describe('SellerIntakeController', () => {
       // Send a seller message through a real HTTP request.
       body: JSON.stringify({
         input: 'I have an oil painting, 60 x 80 cm, signed.',
+        profileId: 'profile-test',
+        sessionId: 'session-test',
       }),
     });
 
@@ -130,12 +156,20 @@ describe('SellerIntakeController', () => {
 
     // Verify that missing details are derived from the seller's message and that marks remain distinct from signatures.
     expect(body.missingFields).toEqual(['condition', 'marks', 'provenance']);
+    expect(body.nextQuestion.field).toBe('condition');
+    expect(body.nextQuestion.he).toContain('מצב');
+    expect(body.nextQuestion.en).toContain('condition');
 
     // Verify that the draft can be handed off to S3, S4, and S5.
     expect(body.handoff.to).toEqual(['s3', 's4', 's5']);
 
     // Verify that weak evidence cannot produce an invented price.
     expect(body.safetyRules.weakEvidenceNeverProducesInventedPrice).toBe(true);
+    expect(drafts.saveIntakeTurn).toHaveBeenCalledWith('profile-test', 'session-test', expect.objectContaining({
+      seller: expect.objectContaining({ anonymousProfileId: 'profile-test' }),
+      id: expect.stringMatching(/^seller-draft-/),
+    }));
+    expect(body).not.toHaveProperty('sessionId');
 
     expect(JSON.stringify(body)).not.toMatch(/phone|email|password|credential|signed.?url/i);
   });
@@ -149,9 +183,7 @@ describe('SellerIntakeController', () => {
       },
 
       // Send an empty input.
-      body: JSON.stringify({
-        input: '',
-      }),
+      body: JSON.stringify({ input: '', profileId: 'profile-test', sessionId: 'session-test' }),
     });
 
     // The controller should return HTTP 400 for invalid input.
@@ -167,11 +199,80 @@ describe('SellerIntakeController', () => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ input: sellerMessage }),
+      body: JSON.stringify({ input: sellerMessage, profileId: 'profile-test', sessionId: 'session-log-test' }),
     });
 
     expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining(sellerMessage));
     expect(logSpy).not.toHaveBeenCalledWith(expect.stringMatching(/phone|email|password|credential|signed.?url/i));
     logSpy.mockRestore();
+  });
+
+  it('exposes persisted draft read, correction, and seller confirmation routes', async () => {
+    const initialResponse = await fetch(`${baseUrl}/seller-intake/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'I have a painting.', profileId: 'profile-test', sessionId: 'session-flow' }),
+    });
+    expect(initialResponse.status).toBe(201);
+
+    const readResponse = await fetch(`${baseUrl}/seller-intake/draft/profile-test/session-flow`);
+    expect(readResponse.status).toBe(200);
+    expect(drafts.getDraft).toHaveBeenCalledWith('profile-test', 'session-flow');
+
+    const correctionResponse = await fetch(`${baseUrl}/seller-intake/draft/profile-test/session-flow/corrections`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field: 'provenance', value: 'Family archive' }),
+    });
+    expect(correctionResponse.status).toBe(200);
+    expect(drafts.correctDraft).toHaveBeenCalledWith('profile-test', 'session-flow', 'provenance', 'Family archive');
+
+    const confirmationResponse = await fetch(`${baseUrl}/seller-intake/draft/profile-test/session-flow/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: ['dimensions', 'condition'] }),
+    });
+    expect(confirmationResponse.status).toBe(201);
+    expect(drafts.confirmFacts).toHaveBeenCalledWith('profile-test', 'session-flow', ['dimensions', 'condition']);
+  });
+
+  // Without profileId and sessionId the message is analyzed but nothing is persisted.
+  it('returns a draft without persisting it when no profileId and sessionId are sent', async () => {
+    const response = await fetch(`${baseUrl}/seller-intake/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'I have an oil painting, 60 x 80 cm, signed.' }),
+    });
+
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    expect(body.status).toBe('draft');
+    expect(body.missingFields).toEqual(['condition', 'marks', 'provenance']);
+    expect(body).not.toHaveProperty('sessionId');
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+  });
+
+  // Sending only one of the two identifiers is a client mistake and must not be silently ignored.
+  it('rejects a request that sends only profileId with 400', async () => {
+    const response = await fetch(`${baseUrl}/seller-intake/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'I have a painting.', profileId: 'profile-test' }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+  });
+
+  it('rejects a request that sends only sessionId with 400', async () => {
+    const response = await fetch(`${baseUrl}/seller-intake/draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: 'I have a painting.', sessionId: 'session-test' }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
   });
 });

@@ -62,6 +62,18 @@ describe('seller house-choice route', () => {
       const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
       const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
 
+      if (method === 'GET' && url.endsWith('/profiles/me')) {
+        return new Response(JSON.stringify({
+          id: 'profile-1',
+          sessionId: 'session-1',
+          language: 'en',
+          serviceConsent: { granted: false },
+          marketingConsent: { granted: false },
+          createdAt: '2026-09-15T00:00:00.000Z',
+          updatedAt: '2026-09-15T00:00:00.000Z',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+
       if (method === 'PATCH' && url.includes('/profiles/me')) {
         return new Response(
           JSON.stringify({
@@ -109,7 +121,7 @@ describe('seller house-choice route', () => {
     expect(await screen.findByText('Kestenbaum & Company')).toBeInTheDocument();
     expect(screen.getByText(chosenHouseName)).toBeInTheDocument();
     expect(screen.queryByText('Inactive Prepared House')).not.toBeInTheDocument();
-    expect(screen.getByText(/does not contact an auction house automatically/i)).toBeInTheDocument();
+    expect(await screen.findByText(/does not contact an auction house automatically/i)).toBeInTheDocument();
     expect(screen.queryByText(/commission/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/will accept/i)).not.toBeInTheDocument();
 

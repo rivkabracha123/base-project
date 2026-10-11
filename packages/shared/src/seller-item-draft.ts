@@ -84,6 +84,8 @@ export const sellerItemDraftSchema = z.object({
   }),
   evidence: z.array(sellerItemEvidenceSchema),
   factEvidence: z.record(z.array(z.string())).optional(),
+  missingFields: z.array(z.string()).optional(),
+  recalculationRequired: z.boolean().optional(),
   // Yael Sagis — photo references: evidence items are references, not storage or valuation logic.
   // Heni Cohen — confirmed facts: trusted seller-approved fields remain separate from uncertainFacts.
   confirmedFacts: z.object({
@@ -109,8 +111,7 @@ export const sellerItemDraftSchema = z.object({
     summary: z.string().min(1),
     changes: z.array(z.string()),
   })),
-  missingFields: z.array(z.string()).optional(),
-  recalculationRequired: z.boolean().optional(),
+
   sellerConfirmation: z.object({
     required: z.boolean(),
     status: z.enum(['partial', 'complete', 'pending']),

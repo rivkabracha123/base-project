@@ -1,0 +1,179 @@
+{
+  "id": "buyer-conversation-basic-bilingual",
+  "fixtureIds": ["lot-kestenbaum-54554-121421"],
+  "expectedOutcome": "The buyer chat screen renders a typed Hebrew or English conversation - buyer and system messages, a results-found message followed by one result group of source-backed lots, and one error message - and drops anything that fails validation.",
+  "conversations": {
+    "he": [
+      {
+        "speaker": "buyer",
+        "id": "he-1",
+        "sessionId": "fixture-session-he",
+        "skipped": false,
+        "date": "2026-01-01T10:00:00.000Z",
+        "text": "אני מחפשת כתבי יד עבריים נדירים, עד 15,000 דולר"
+      },
+      {
+        "speaker": "system",
+        "id": "he-2",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:05.000Z",
+        "text": "מחפש בארכיון ההיסטורי…"
+      },
+      {
+        "speaker": "results-found",
+        "id": "he-3",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:10.000Z",
+        "text": "מצאתי פריטים מתאימים בטווח המחיר הזה"
+      },
+      {
+        "speaker": "result-group",
+        "id": "he-4",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:15.000Z",
+        "lots": [
+          {
+            "id": "lot-kestenbaum-54554-121421",
+            "source": {
+              "provider": "bidspirit-snapshot",
+              "recordId": "kestenbaum-54554-121421",
+              "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
+              "retrievedAt": "2025-08-21T00:00:00.000Z"
+            },
+            "auctionHouse": {
+              "id": "house-kestenbaum",
+              "name": "Kestenbaum & Company"
+            },
+            "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
+            "lotNumber": "1",
+            "title": {
+              "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+              "he": "עטרת זקנים מאת יצחק אברבנאל"
+            },
+            "description": {
+              "en": "A rare Hebrew printed philosophy volume.",
+              "he": "ספר פילוסופיה עברי נדיר."
+            },
+            "category": "rare_books",
+            "saleDate": "2025-01-23",
+            "status": "sold",
+            "estimate": {
+              "low": { "amount": 800, "currency": "USD" },
+              "high": { "amount": 1200, "currency": "USD" }
+            },
+            "realizedPrice": { "amount": 1200, "currency": "USD" }
+          }
+        ]
+      },
+      {
+        "speaker": "error",
+        "id": "he-5",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:20.000Z",
+        "code": "results_failed",
+        "text": "טעינת התוצאות נכשלה. נסו שוב."
+      },
+      {
+        "speaker": "buyer",
+        "id": "he-6",
+        "sessionId": "fixture-session-he",
+        "skipped": false,
+        "date": "2026-01-01T10:00:25.000Z",
+        "text": "יש פריטים דומים גם מתחומים אחרים, כמו אמנות יודאיקה?"
+      },
+      {
+        "speaker": "system",
+        "id": "he-7",
+        "sessionId": "fixture-session-he",
+        "date": "2026-01-01T10:00:30.000Z",
+        "text": "כן. מצאתי כמה פריטי אמנות יודאיקה בטווח המחיר שלך."
+      }
+    ],
+    "en": [
+      {
+        "speaker": "buyer",
+        "id": "en-1",
+        "sessionId": "fixture-session-en",
+        "skipped": false,
+        "date": "2026-01-01T10:00:00.000Z",
+        "text": "I'm looking for rare Hebrew manuscripts, up to $15,000"
+      },
+      {
+        "speaker": "system",
+        "id": "en-2",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:05.000Z",
+        "text": "Searching the historical archive…"
+      },
+      {
+        "speaker": "results-found",
+        "id": "en-3",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:10.000Z",
+        "text": "I found matching items in this price range"
+      },
+      {
+        "speaker": "result-group",
+        "id": "en-4",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:15.000Z",
+        "lots": [
+          {
+            "id": "lot-kestenbaum-54554-121421",
+            "source": {
+              "provider": "bidspirit-snapshot",
+              "recordId": "kestenbaum-54554-121421",
+              "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
+              "retrievedAt": "2025-08-21T00:00:00.000Z"
+            },
+            "auctionHouse": {
+              "id": "house-kestenbaum",
+              "name": "Kestenbaum & Company"
+            },
+            "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
+            "lotNumber": "1",
+            "title": {
+              "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+              "he": "עטרת זקנים מאת יצחק אברבנאל"
+            },
+            "description": {
+              "en": "A rare Hebrew printed philosophy volume.",
+              "he": "ספר פילוסופיה עברי נדיר."
+            },
+            "category": "rare_books",
+            "saleDate": "2025-01-23",
+            "status": "sold",
+            "estimate": {
+              "low": { "amount": 800, "currency": "USD" },
+              "high": { "amount": 1200, "currency": "USD" }
+            },
+            "realizedPrice": { "amount": 1200, "currency": "USD" }
+          }
+        ]
+      },
+      {
+        "speaker": "error",
+        "id": "en-5",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:20.000Z",
+        "code": "results_failed",
+        "text": "Loading results failed. Please try again."
+      },
+      {
+        "speaker": "buyer",
+        "id": "en-6",
+        "sessionId": "fixture-session-en",
+        "skipped": false,
+        "date": "2026-01-01T10:00:25.000Z",
+        "text": "Are there similar items from other fields too, like Judaica art?"
+      },
+      {
+        "speaker": "system",
+        "id": "en-7",
+        "sessionId": "fixture-session-en",
+        "date": "2026-01-01T10:00:30.000Z",
+        "text": "Yes. I found several Judaica art pieces within your price range."
+      }
+    ]
+  }
+}

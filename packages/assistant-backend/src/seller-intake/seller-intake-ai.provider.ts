@@ -1,4 +1,5 @@
 import type { SellerItemDraft } from '@monabid/shared';
+import type { SellerHandoffContract } from '../ai/seller-handoff';
 import type { MissingSellerQuestion } from './seller-intake.service';
 
 export const SELLER_INTAKE_AI_PROVIDER = Symbol('SELLER_INTAKE_AI_PROVIDER');
@@ -20,11 +21,13 @@ export type SellerIntakeAiEnrichment = {
   fallbackMode?: 'guided';
   isRelevant: boolean;
   error: string | null;
+  // AI-suggested missing facts mapped to intake names (markings -> marks, signature -> signatures).
   aiMissingFields: string[];
 };
 
 export type SellerIntakeAiResult = SellerIntakeResult & {
-  structuredAnswer: unknown | null;
+  // null only when the AI service itself failed; the intake result stays valid.
+  structuredAnswer: SellerHandoffContract | null;
   ai: SellerIntakeAiEnrichment;
 };
 

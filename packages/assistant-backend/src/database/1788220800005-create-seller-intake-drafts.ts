@@ -7,7 +7,7 @@ export class CreateSellerIntakeDrafts1788220800005 implements MigrationInterface
   // Creates the S1 draft table with profile/session isolation and version tracking.
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE IF NOT EXISTS "seller_intake_drafts" (
+      CREATE TABLE "seller_intake_drafts" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "profile_id" varchar NOT NULL,
         "session_id" varchar NOT NULL,

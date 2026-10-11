@@ -54,7 +54,7 @@ describe('seller lead schema', () => {
 
     await migration.up(queryRunner);
     const [createTable] = queries;
-    expect(createTable).toContain('CREATE TABLE "seller_leads"');
+    expect(createTable).toContain('CREATE TABLE IF NOT EXISTS "seller_leads"');
     expect(createTable).toContain('"profile_id"');
     expect(createTable).toContain('"contact" jsonb');
     expect(createTable).toContain('"created_at"');
@@ -169,5 +169,35 @@ describe('seller lead schema', () => {
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP COLUMN "updated_at"');
+  });
+
+  it('registers the S1 intake draft entity and persistence migration in both data sources', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { SellerIntakeDraftEntity } = await import('./seller-intake-draft.entity');
+    const { CreateSellerIntakeDrafts1788220800005 } = await import('./1788220800005-create-seller-intake-drafts');
+
+    expect(databaseOptions(config).entities).toContain(SellerIntakeDraftEntity);
+    expect(databaseOptions(config).migrations).toContain(CreateSellerIntakeDrafts1788220800005);
+    expect(AppDataSource.options.entities).toContain(SellerIntakeDraftEntity);
+    expect(AppDataSource.options.migrations).toContain(CreateSellerIntakeDrafts1788220800005);
+  });
+
+  it('creates a profile/session-scoped JSONB draft table with version tracking', async () => {
+    const { CreateSellerIntakeDrafts1788220800005 } = await import('./1788220800005-create-seller-intake-drafts');
+    const queries: string[] = [];
+    const queryRunner = { query: async (sql: string) => { queries.push(sql); } } as unknown as QueryRunner;
+    const migration = new CreateSellerIntakeDrafts1788220800005();
+
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('CREATE TABLE "seller_intake_drafts"');
+    expect(queries[0]).toContain('"profile_id"');
+    expect(queries[0]).toContain('"session_id"');
+    expect(queries[0]).toContain('"draft" jsonb');
+    expect(queries[0]).toContain('UNIQUE ("profile_id", "session_id")');
+
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('DROP TABLE "seller_intake_drafts"');
   });
 });

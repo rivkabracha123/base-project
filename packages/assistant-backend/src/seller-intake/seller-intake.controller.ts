@@ -12,18 +12,21 @@ export class SellerIntakeController {
   ) {}
 
   @Post('draft')
-  // Analyzes intake. Persists only when S1 sends profileId + sessionId.
+  // מנתח טיוטת intake; שומר אותה רק כש-profileId ו-sessionId נשלחים יחד.
+  // Analyzes an intake draft; persists it only when both profileId and sessionId are sent.
   async createDraft(@Body() body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
     const { input, sessionId, profileId } = body;
     if (typeof input !== 'string' || input.trim().length === 0) {
       throw new BadRequestException('input must be a non-empty string');
     }
 
-    const hasScope =
-      typeof profileId === 'string' &&
-      profileId.trim().length > 0 &&
-      typeof sessionId === 'string' &&
-      sessionId.trim().length > 0;
+    const hasProfileId = typeof profileId === 'string' && profileId.trim().length > 0;
+    const hasSessionId = typeof sessionId === 'string' && sessionId.trim().length > 0;
+    // Sending only one of the two identifiers is a client mistake, so reject it instead of silently skipping the save.
+    if (hasProfileId !== hasSessionId) {
+      throw new BadRequestException('profileId and sessionId must be sent together');
+    }
+    const hasScope = hasProfileId && hasSessionId;
 
     if (!hasScope) {
       const { sessionId: _sessionId, ...analysis } = await this.sellerIntakeAi.analyze(input);
@@ -47,11 +50,18 @@ export class SellerIntakeController {
   }
 
   @Get('draft/:profileId/:sessionId')
-  getDraft(@Param('profileId') profileId: string, @Param('sessionId') sessionId: string) {
+  // מחזיר טיוטה שמורה של הפרופיל והשיחה המבוקשים.
+  // Returns the persisted draft for the requested profile and session.
+  getDraft(
+    @Param('profileId') profileId: string,
+    @Param('sessionId') sessionId: string,
+  ) {
     return this.drafts.getDraft(profileId, sessionId);
   }
 
   @Patch('draft/:profileId/:sessionId/corrections')
+  // מקבל תיקון של המוכרת ומחזיר את הטיוטה לאחר שמירתו.
+  // Applies a seller correction and returns the persisted updated draft.
   correctDraft(
     @Param('profileId') profileId: string,
     @Param('sessionId') sessionId: string,
@@ -61,6 +71,8 @@ export class SellerIntakeController {
   }
 
   @Post('draft/:profileId/:sessionId/confirm')
+  // מקבל אישור מפורש לעובדות שנבחרו ושומר את מצב האישור.
+  // Records explicit seller approval for selected facts and persists the confirmation state.
   confirmFacts(
     @Param('profileId') profileId: string,
     @Param('sessionId') sessionId: string,

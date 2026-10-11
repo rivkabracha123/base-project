@@ -17,5 +17,7 @@ import { SellerLeadsService } from './seller-leads.service';
   ],
   controllers: [SellerLeadsController],
   providers: [SellerLeadsService, ItemValuationService],
+  exports: [SellerLeadsService],
+  
 })
 export class SellerLeadsModule {}
