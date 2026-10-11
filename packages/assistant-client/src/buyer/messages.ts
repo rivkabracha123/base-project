@@ -32,6 +32,18 @@ export const buyerMessageSchema = z.discriminatedUnion('speaker', [
     title: z.string().min(1).optional(),
     lots: z.array(auctionLotSchema),
   }),
+  z.object({
+    speaker: z.literal('price-trend'),
+    ...baseMessageFields,
+    title: z.string().min(1),
+    lots: z.array(auctionLotSchema),
+    points: z.array(z.object({
+      lotId: z.string().min(1),
+      saleDate: z.string().min(1),
+      title: z.string().min(1),
+      price: z.object({ amount: z.number(), currency: z.string().min(1) }),
+    })),
+  }),
 ]);
 
 // BuyerMessage type — inferred automatically from the schema, for use by TypeScript while writing code.

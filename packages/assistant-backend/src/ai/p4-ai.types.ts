@@ -7,7 +7,7 @@ export type ShilatAiGenerateRequest = {
   prompt: string;
   language: 'he' | 'en';
   sessionId?: string;
-  selectedLot?: { id: string } | null;
+  selectedLot?: { id: string; itemKey?: string } | null;
   lots?: { id: string }[];
 };
 
@@ -31,7 +31,7 @@ export type P4AiGenerateRequest = ShilatAiGenerateRequest;
 /** Safe buyer context from Tamar — flattened into ShilatAiGenerateRequest. */
 export type P4BuyerAiContext = {
   sessionId?: string;
-  selectedLot?: { id: string } | null;
+  selectedLot?: { id: string; itemKey?: string } | null;
   lots?: { id: string }[];
 };
 

@@ -1,5 +1,8 @@
-import { BadRequestException, Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { BadRequestException, Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { createHash, randomUUID } from 'node:crypto';
+import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE_BYTES, type UploadedFile } from '../uploads/evidence.types';
+import { UploadsService } from '../uploads/uploads.service';
 import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider, type SellerIntakeAiResult } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 
@@ -9,6 +12,7 @@ export class SellerIntakeController {
   constructor(
     @Inject(SELLER_INTAKE_AI_PROVIDER) private readonly sellerIntakeAi: SellerIntakeAiProvider,
     private readonly drafts: SellerIntakeDraftsService,
+    private readonly uploads: UploadsService,
   ) {}
 
   @Post('draft')
@@ -55,6 +59,25 @@ export class SellerIntakeController {
     };
     await this.drafts.saveIntakeTurn(String(profileId), String(sessionId), persistedDraft);
     return { ...persistedDraft, structuredAnswer, functionCall, ai };
+  }
+
+  @Post('draft/:profileId/:sessionId/photos')
+  @UseInterceptors(FilesInterceptor('files', MAX_FILES_PER_UPLOAD, { limits: { fileSize: MAX_FILE_SIZE_BYTES } }))
+  // מקבל מהצ'אט (B1) את תמונות המוכרת יחד עם הפרופיל של P3, מעביר אותן ל-S2 לשמירה ומצרף את ההפניות לטיוטה.
+  // העלאה אחת = פריט אחד. כללי הקבצים (סוג, גודל, עד 10) נבדקים ב-S2. מחזיר רק את תמונות ההעלאה הזאת.
+  // Receives the seller's photos from the chat (B1) with the P3 profile, hands them to S2 for storage, and attaches the
+  // references to the draft. One upload = one item. The file rules (type, size, up to 10) are checked by S2.
+  // Returns only the photos of this upload.
+  async uploadPhotos(
+    @Param('profileId') profileId: string,
+    @Param('sessionId') sessionId: string,
+    @UploadedFiles() files: UploadedFile[],
+  ) {
+    const itemId = `seller-photos-${randomUUID()}`;
+    const stored = await this.uploads.addEvidence(profileId, itemId, files ?? []);
+    const references = stored.filter((reference) => reference.itemId === itemId);
+    await this.drafts.attachEvidence(profileId, sessionId, references);
+    return references;
   }
 
   @Get('draft/:profileId/:sessionId')

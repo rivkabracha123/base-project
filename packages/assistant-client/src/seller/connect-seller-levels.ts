@@ -1,6 +1,7 @@
 import i18n, { getBrowserLanguage } from '../i18n';
 import { getCurrentProfile } from '../app/api';
 import type { SellerUpdate } from '../chat/chat-types';
+import { getSellerMessageIds } from './seller-ids';
 
 interface SellerIntakeResponse {
   ai?: { fallbackMode?: 'guided'; summary?: string; nextAction?: string };
@@ -11,7 +12,6 @@ interface SellerIntakeResponse {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
-const SESSION_STORAGE_KEY = 'monabid.seller.sessionId';
 const PENDING_UPLOAD_ITEM_KEY = 'monabid.seller.pendingEvidenceItemId';
 
 export function getPendingSellerEvidenceItemId(): string | undefined {
@@ -33,31 +33,6 @@ export async function sendSellerMessage(
   onUpdate: (update: SellerUpdate) => void | Promise<void>,
 ): Promise<void> {
   await onUpdate({ speaker: 'system', text });
-}
-
-// מחזירה מזהה קיים מהאחסון או יוצרת ושומרת מזהה חדש.
-// Returns an existing stored identifier or creates and stores a new one.
-function getOrCreateId(storage: Storage, key: string): string {
-  const existingId = storage.getItem(key);
-  if (existingId) return existingId;
-
-  const id = crypto.randomUUID();
-  storage.setItem(key, id);
-  return id;
-}
-
-// מנהלת מזהי פרופיל ושיחה פנימיים הנדרשים ל־API, בלי להוסיף אותם לעדכוני הממשק.
-// Manages internal profile and session IDs required by the API without adding them to UI updates.
-async function getSellerMessageIds(): Promise<{ profileId: string; sessionId: string }> {
-  if (typeof sessionStorage === 'undefined') {
-    throw new Error('Seller chat requires browser storage');
-  }
-
-  const profile = await getCurrentProfile();
-  return {
-    profileId: profile.id,
-    sessionId: getOrCreateId(sessionStorage, SESSION_STORAGE_KEY),
-  };
 }
 
 // בוחרת את השאלה הבאה או סיכום המערכת בשפה הפעילה של האפליקציה.

@@ -42,6 +42,46 @@ export function BuyerChat() {
 
   // Renders a single conversation message in the form that fits its kind.
   function renderMessage(message: BuyerMessage) {
+    if (message.speaker === 'price-trend') {
+      const points = message.points;
+      const prices = points.map((point) => point.price.amount);
+      const min = Math.min(...prices, 0);
+      const max = Math.max(...prices, 1);
+      const scaleY = (amount: number) => 150 - ((amount - min) / Math.max(max - min, 1)) * 120;
+      const scaleX = (index: number) => 28 + (index * 304) / Math.max(points.length - 1, 1);
+      const polyline = points.map((point, index) => `${scaleX(index)},${scaleY(point.price.amount)}`).join(' ');
+      const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, {
+        style: 'currency', currency, maximumFractionDigits: 0,
+      }).format(amount);
+
+      return (
+        <li data-speaker={message.speaker} className="rounded-2xl border border-[#e1d4bd] bg-[#fffaf0] p-5">
+          <h2 className="mb-4 text-lg font-semibold text-neutral-900">{message.title}</h2>
+          {points.length >= 2 ? (
+            <svg viewBox="0 0 360 180" className="h-52 w-full" role="img" aria-label={message.title}>
+              <line x1="28" y1="150" x2="332" y2="150" stroke="#c9b692" />
+              <line x1="28" y1="24" x2="28" y2="150" stroke="#c9b692" />
+              <polyline points={polyline} fill="none" stroke="#ad8545" strokeWidth="3" />
+              {points.map((point, index) => (
+                <g key={point.lotId}>
+                  <circle cx={scaleX(index)} cy={scaleY(point.price.amount)} r="5" fill="#fffaf0" stroke="#ad8545" strokeWidth="3" />
+                  <text x={scaleX(index)} y="170" textAnchor="middle" className="fill-slate-600 text-[10px]">{point.saleDate.slice(0, 4)}</text>
+                  <title>{`${point.title}: ${money(point.price.amount, point.price.currency)}`}</title>
+                </g>
+              ))}
+            </svg>
+          ) : (
+            <p className="text-sm text-slate-600">{language === 'he' ? 'אין מספיק מכירות מאומתות להצגת מגמה.' : 'There are not enough verified sales to show a trend.'}</p>
+          )}
+          <ul className="mt-4 flex gap-4 overflow-x-auto pb-2">
+            {message.lots.map((lot) => (
+              <li key={lot.id} className="w-72 shrink-0"><ItemCard lot={lot} locale={locale} labels={cardLabels} /></li>
+            ))}
+          </ul>
+        </li>
+      );
+    }
+
     if (message.speaker === 'result-group') {
       return (
         <li data-speaker={message.speaker} className="flex flex-col gap-4">

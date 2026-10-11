@@ -1,9 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { AuctionLot } from '@monabid/shared';
 import type { P4BuyerAiContext } from '../ai/p4-ai.types';
-import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
-import { getComparableSaleHistory } from './comparable-sale-history';
-import type { ItemHistoryLot } from './buyer-history-fixture-lots';
+import { LotsService } from '../lots/lots.service';
 
 export type ComparableSaleHistoryRequest = {
   selectedLot: { id: string; itemKey?: string };
@@ -20,7 +18,7 @@ export type ComparableSaleHistoryResponse = {
 
 @Injectable()
 export class BuyerComparableSaleHistoryService {
-  constructor(private readonly lotsResolver: BuyerLotsResolverService) {}
+  constructor(private readonly lots: LotsService) {}
 
   resolveFromP4Context(
     routeArguments: Record<string, unknown> | undefined,
@@ -44,17 +42,17 @@ export class BuyerComparableSaleHistoryService {
 
   async getHistory(request: ComparableSaleHistoryRequest): Promise<ComparableSaleHistoryResponse> {
     const language = request.language;
-    let selected = await this.lotsResolver.findLot(request.selectedLot.id);
-    if (!selected) {
-      throw new NotFoundException(`Unknown lot: ${request.selectedLot.id}`);
-    }
+    let selected = await this.lots.findOne(request.selectedLot.id);
 
     if (request.selectedLot.itemKey && !selected.itemKey) {
       selected = { ...selected, itemKey: request.selectedLot.itemKey };
     }
 
-    const pool = await this.lotsResolver.resolveLotPool(request.lots);
-    const sales = getComparableSaleHistory(selected, pool);
+    // itemKey links separate auction records of the same item. The database is
+    // the source of truth; chat never falls back to local demonstration lots.
+    const sales = selected.itemKey
+      ? await this.lots.findSaleHistoryByItemKey(selected.itemKey)
+      : [];
 
     const title = language === 'he' ? 'היסטוריית מכירות של אותו פריט' : 'Sale history for this item';
     const summary =

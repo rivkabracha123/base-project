@@ -1,15 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   SHILAT_FUNCTION_GET_LOT_BY_ID,
+  SHILAT_FUNCTION_PRICE_TREND,
   resolveBuyerActionFromP4,
   shouldRunComparableSaleHistory,
 } from '../ai/p4-buyer-routing';
 import type { P4AiGenerateResponse, P4BuyerAiContext } from '../ai/p4-ai.types';
 import type { BuyerChatUpdate } from './buyer-chat-update';
+import { buyerFlowUpdatesToChatUpdates } from './buyer-flow-update-mapper';
+import {
+  BUYER_RESULTS_PRESENTATION_PORT,
+  type BuyerResultsPresentationPort,
+} from './buyer-results-presentation.port';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
-import { BuyerSessionSearchService } from './buyer-session-search.service';
 
 export type P4FunctionExecutionContext = {
   sessionId: string;
@@ -26,7 +31,8 @@ export type P4FunctionExecutionContext = {
 export class BuyerP4FunctionExecutor {
   constructor(
     private readonly saleHistory: BuyerComparableSaleHistoryService,
-    private readonly sessionSearch: BuyerSessionSearchService,
+    @Inject(BUYER_RESULTS_PRESENTATION_PORT)
+    private readonly resultsPresentation: BuyerResultsPresentationPort,
     private readonly criteriaService: BuyerCriteriaService,
     private readonly lotsResolver: BuyerLotsResolverService,
   ) {}
@@ -39,6 +45,10 @@ export class BuyerP4FunctionExecutor {
   ): Promise<boolean> {
     const action = resolveBuyerActionFromP4(ai);
     const routeName = ai.intentRoute.functionName;
+
+    if (action.kind === 'priceTrend' || routeName === SHILAT_FUNCTION_PRICE_TREND) {
+      return this.runPriceTrend(ctx, updates);
+    }
 
     if (action.kind === 'getComparableSaleHistory' || shouldRunComparableSaleHistory(ai, ctx.p4Context)) {
       return await this.runComparableSaleHistory(ai, ctx, updates);
@@ -56,15 +66,10 @@ export class BuyerP4FunctionExecutor {
     }
 
     if (action.kind === 'similarLots') {
-      updates.push({
-        speaker: 'error',
-        code: 'similar_not_wired',
-        text:
-          ctx.language === 'he'
-            ? 'חיפוש פריטים דומים עדיין לא מחובר — B3/B4.'
-            : 'Similar items search is not wired yet (B3/B4).',
-      });
-      return true;
+      if (!ctx.criteriaComplete) {
+        return false;
+      }
+      return this.runSearchLots(ctx, updates);
     }
 
     return false;
@@ -146,29 +151,47 @@ export class BuyerP4FunctionExecutor {
     const review = this.criteriaService.getCriteriaReview(ctx.sessionId);
     updates.push({ speaker: 'system', text: review.summary });
 
-    const search = await this.sessionSearch.searchForSession(ctx.sessionId);
-    if (search.kind === 'insufficient-criteria') {
-      updates.push({ speaker: 'system', text: search.message });
+    const criteria = this.criteriaService.getCriteriaForSession(ctx.sessionId);
+    if (!criteria.categories.length) {
+      updates.push({ speaker: 'system', text: ctx.language === 'he' ? '\u05d0\u05d9\u05dc\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05dc\u05d7\u05e4\u05e9?' : 'What items would you like to search for?' });
       return true;
     }
-    if (search.kind === 'unmatched') {
-      updates.push({ speaker: 'no-results', text: search.message });
-      return true;
-    }
-
-    const totalLots = search.groups.reduce((count, group) => count + group.lots.length, 0);
-    updates.push({
-      speaker: 'results-found',
-      text:
-        ctx.language === 'he'
-          ? `מצאנו ${totalLots} פריטים שמתאימים לבקשה.`
-          : `Found ${totalLots} lots that match this request.`,
+    await this.resultsPresentation.presentSearchResults({
+      searchContextId: ctx.sessionId,
+      criteria,
+      selectedLotId: ctx.p4Context?.selectedLot?.id,
+      onUpdate: (flowUpdate) => {
+        updates.push(...buyerFlowUpdatesToChatUpdates(flowUpdate, ctx.language));
+      },
     });
+    return true;
+  }
 
-    for (const group of search.groups) {
-      if (group.lots.length === 0) continue;
-      updates.push({ speaker: 'result-group', title: group.title, lots: group.lots });
+  private async runPriceTrend(ctx: P4FunctionExecutionContext, updates: BuyerChatUpdate[]): Promise<boolean> {
+    const lots = ctx.p4Context?.lots;
+    if (!lots?.length) {
+      updates.push({
+        speaker: 'error',
+        code: 'price_trend_missing_results',
+        text: ctx.language === 'he'
+          ? 'כדי להציג מגמת מחירים צריך לבצע קודם חיפוש של פריטים.'
+          : 'Search for lots first to show a price trend.',
+      });
+      return true;
     }
+
+    if (!this.resultsPresentation.presentPriceTrend) {
+      updates.push({ speaker: 'error', code: 'price_trend_unavailable', text: 'Price trend is unavailable.' });
+      return true;
+    }
+
+    await this.resultsPresentation.presentPriceTrend({
+      lots,
+      language: ctx.language,
+      onUpdate: (flowUpdate) => {
+        updates.push(...buyerFlowUpdatesToChatUpdates(flowUpdate, ctx.language));
+      },
+    });
     return true;
   }
 }

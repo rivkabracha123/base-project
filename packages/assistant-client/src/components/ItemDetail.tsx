@@ -8,10 +8,24 @@ interface ItemDetailProps {
   lang: 'he' | 'en';
   onBack: () => void;
   historyLots?: ItemHistoryLot[];
+  historyLoading?: boolean;
+  historyError?: boolean;
   onOpenChat?: () => void;
 }
 
-export function ItemDetail({ lot, lang, onBack, historyLots = [], onOpenChat }: ItemDetailProps) {
+/**
+ * תבנית דף הפריט: מקבלת לוט אחד ומציגה את פרטיו, המקור שלו, והיסטוריית מחיר אם התקבלה.
+ * היא אינה מחפשת נתונים בעצמה; LotPage הוא שמספק לה את הלוט ואת רשימת ההיסטוריה.
+ */
+export function ItemDetail({
+  lot,
+  lang,
+  onBack,
+  historyLots = [],
+  historyLoading = false,
+  historyError = false,
+  onOpenChat,
+}: ItemDetailProps) {
   const isRtl = lang === 'he';
   const [showHelpForm, setShowHelpForm] = useState(false);
   const title = lot.title[lang] ?? lot.title.en;
@@ -71,7 +85,7 @@ export function ItemDetail({ lot, lang, onBack, historyLots = [], onOpenChat }: 
         </div>
       </section>
 
-      <PriceHistory sales={historicalSales} lang={lang} />
+      <PriceHistory sales={historicalSales} lang={lang} loading={historyLoading} error={historyError} />
 
       {onOpenChat ? (
         <section className="mb-8 border-t border-gray-100 pt-6 text-center">

@@ -9,7 +9,7 @@ import { ResultsPage } from './components/ResultPage';
 import { StaffOperationsDashboard } from './staff-operations/StaffOperationsDashboard';
 import { SellerEnquiryPage } from './app/SellerEnquiryPage';
 import { SellerHouseChoicePage } from './app/SellerHouseChoicePage';
-import { EvidenceGallery } from './app/evidenceGallery';
+import { CurrentProfileGallery } from './app/CurrentProfileGallery';
 
 export function App() {
   return (
@@ -27,10 +27,7 @@ export function App() {
         {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
         <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
         {import.meta.env.DEV && (
-          <Route
-            path="/seller/gallery"
-            element={<EvidenceGallery profileId="demo-profile-gallery" />}
-          />
+        <Route path="/seller/gallery" element={<CurrentProfileGallery />} />
         )}
         {/* S5 Week 5: catalog draft review and final internal lead */}
         <Route path="/seller/enquiry" element={<SellerEnquiryPage />} />

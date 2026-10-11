@@ -286,4 +286,18 @@ export class LotsService {
     if (!entity) throw new NotFoundException(`Auction lot ${id} was not found`);
     return entity.payload;
   }
+
+  // Returns verified past sales linked to one item. itemKey joins separate auction
+  // records that represent the same item across different sales.
+  async findSaleHistoryByItemKey(itemKey: string): Promise<AuctionLot[]> {
+    const entities = await this.lots
+      .createQueryBuilder('lot')
+      .where("lot.payload->>'itemKey' = :itemKey", { itemKey })
+      .andWhere("lot.payload->>'status' = :status", { status: 'sold' })
+      .andWhere("lot.payload->'realizedPrice' IS NOT NULL")
+      .orderBy("(lot.payload->>'saleDate')::date", 'ASC')
+      .getMany();
+
+    return entities.map((entity) => entity.payload);
+  }
 }

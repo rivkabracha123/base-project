@@ -69,3 +69,8 @@ export const itemHistoryLotFixtures = [
   secondHistoricalSale,
   firstHistoricalSale,
 ];
+
+// Kept for the local walkthrough only. Production lots come from the API.
+export const localHistoryDemoLotId = upcomingLotWithHistoryFixture.id;
+export const localHistoryDemoSelectedLot = upcomingLotWithHistoryFixture;
+export const localHistoryDemoLots = itemHistoryLotFixtures;

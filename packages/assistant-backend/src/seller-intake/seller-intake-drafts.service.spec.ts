@@ -107,6 +107,37 @@ describe('SellerIntakeDraftsService', () => {
     await expect(service.getDraft('profile-b', 'session-1')).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  // תמונות שהמוכרת העלתה מצורפות לטיוטה השמורה של אותו פרופיל ושיחה, בלי לאשר שום עובדה.
+  it('attaches uploaded photo references to the saved draft without confirming any fact', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const reference = {
+      fileId: 'file-1',
+      profileId: 'profile-a',
+      itemId: 'chat-1',
+      originalName: 'front.jpg',
+      mimeType: 'image/jpeg' as const,
+      size: 2048,
+      previewUri: '/api/evidence/profile-a/file-1',
+      downloadUri: '/api/evidence/profile-a/file-1/download',
+    };
+
+    const attached = await service.attachEvidence('profile-a', 'session-1', [reference]);
+    const loaded = await service.getDraft('profile-a', 'session-1');
+
+    expect(attached?.version).toBe(2);
+    expect(loaded.draft.item.evidenceIds).toContain('file-1');
+    expect(loaded.draft.evidence).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'file-1', originalName: 'front.jpg' })]),
+    );
+    expect(loaded.draft.confirmedFacts).toEqual({});
+  });
+
+  // כשעדיין אין טיוטה לפרופיל ולשיחה, אין למה לצרף: מחזירים null ולא נכשלים.
+  it('returns null instead of failing when there is no draft to attach photos to yet', async () => {
+    const attached = await service.attachEvidence('profile-a', 'session-1', []);
+    expect(attached).toBeNull();
+  });
+
   it('rejects corrections with malformed values and attempts to confirm missing facts', async () => {
     await service.saveDraft('profile-a', 'session-1', fixture);
     await expect(service.correctDraft('profile-a', 'session-1', 'dimensions', { widthCm: 0, heightCm: 30 }))
