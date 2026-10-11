@@ -97,4 +97,24 @@ describe('parseConversation', () => {
       expect(parseConversation(messages)).toHaveLength(messages.length);
     }
   });
+
+  // Positive: the other-categories marker and the match reasons survive parsing.
+  it('keeps the other-categories marker and the match reasons of a result group', () => {
+    const group = mockConversation.en.find((message) => message.speaker === 'result-group');
+    if (!group || group.speaker !== 'result-group') throw new Error('mock conversation has no result group');
+    const [lot] = group.lots;
+    if (!lot) throw new Error('mock conversation has no lot');
+    const input = [
+      { ...group, variant: 'other-categories', matchReasons: { [lot.id]: [{ field: 'creators', detail: 'Test Maker' }] } },
+    ];
+    expect(parseConversation(input)).toEqual(input);
+  });
+
+  // Negative: a match reason without the field it refers to makes the whole group invalid.
+  it('drops a result group whose match reason has no field', () => {
+    const group = mockConversation.en.find((message) => message.speaker === 'result-group');
+    if (!group || group.speaker !== 'result-group') throw new Error('mock conversation has no result group');
+    const input = [{ ...group, matchReasons: { 'mock-lot-1': [{ detail: 'Test Maker' }] } }];
+    expect(parseConversation(input)).toEqual([]);
+  });
 });

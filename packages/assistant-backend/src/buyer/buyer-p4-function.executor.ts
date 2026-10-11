@@ -11,7 +11,10 @@ import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-histo
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerHouseRecommendationService, RANK_HOUSES_FUNCTION } from './buyer-house-recommendation.service';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
-import { BuyerSessionSearchService } from './buyer-session-search.service';
+import {
+  BuyerSessionSearchService,
+  type BuyerOtherCategoriesSearchResponse,
+} from './buyer-session-search.service';
 
 export type P4FunctionExecutionContext = {
   sessionId: string;
@@ -63,15 +66,7 @@ export class BuyerP4FunctionExecutor {
     }
 
     if (action.kind === 'similarLots') {
-      updates.push({
-        speaker: 'error',
-        code: 'similar_not_wired',
-        text:
-          ctx.language === 'he'
-            ? 'חיפוש פריטים דומים עדיין לא מחובר — B3/B4.'
-            : 'Similar items search is not wired yet (B3/B4).',
-      });
-      return true;
+      return this.runSimilarLots(ctx, updates);
     }
 
     return false;
@@ -215,6 +210,67 @@ export class BuyerP4FunctionExecutor {
     for (const group of search.groups) {
       if (group.lots.length === 0) continue;
       updates.push({ speaker: 'result-group', title: group.title, lots: group.lots });
+    }
+    return true;
+  }
+
+  // Follow-up "similar items in other categories": the search itself belongs to the orchestrator; this only reports it.
+  private async runSimilarLots(ctx: P4FunctionExecutionContext, updates: BuyerChatUpdate[]): Promise<boolean> {
+    let search: BuyerOtherCategoriesSearchResponse;
+    try {
+      search = await this.sessionSearch.searchOtherCategoriesForSession(ctx.sessionId);
+    } catch {
+      updates.push({
+        speaker: 'error',
+        code: 'similar_failed',
+        text:
+          ctx.language === 'he'
+            ? 'לא הצלחנו לחפש פריטים דומים בתחומים אחרים.'
+            : 'Could not search for similar items in other categories.',
+      });
+      return true;
+    }
+
+    if (search.kind === 'unavailable') {
+      updates.push({
+        speaker: 'error',
+        code: 'similar_not_wired',
+        text:
+          ctx.language === 'he'
+            ? 'חיפוש פריטים דומים עדיין לא מחובר — B3/B4.'
+            : 'Similar items search is not wired yet (B3/B4).',
+      });
+      return true;
+    }
+
+    if (search.kind === 'unmatched') {
+      updates.push({ speaker: 'no-results', text: search.message });
+      return true;
+    }
+
+    if (search.kind === 'insufficient-criteria') {
+      updates.push({ speaker: 'system', text: search.message });
+      return true;
+    }
+
+    const totalLots = search.groups.reduce((count, group) => count + group.lots.length, 0);
+    updates.push({
+      speaker: 'results-found',
+      text:
+        ctx.language === 'he'
+          ? `מצאנו ${totalLots} פריטים דומים בתחומים אחרים.`
+          : `Found ${totalLots} similar lots in other categories.`,
+    });
+
+    for (const group of search.groups) {
+      if (group.lots.length === 0) continue;
+      updates.push({
+        speaker: 'result-group',
+        title: group.title,
+        lots: group.lots,
+        variant: 'other-categories',
+        ...(group.matchReasons ? { matchReasons: group.matchReasons } : {}),
+      });
     }
     return true;
   }

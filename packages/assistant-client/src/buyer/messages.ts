@@ -31,6 +31,12 @@ export const buyerMessageSchema = z.discriminatedUnion('speaker', [
     // כותרת הקבוצה, כפי שהשרת קובע אותה (למשל "מכירות קרובות"); אופציונלית כדי ששיחות בלי כותרת ימשיכו להיקרא.
     title: z.string().min(1).optional(),
     lots: z.array(auctionLotSchema),
+    // Set by the server on the "similar items in other categories" follow-up; those lots get the card that shows the category.
+    variant: z.literal('other-categories').optional(),
+    // Why each lot matched, by lot id, exactly as the search reported it; absent when the server sent none.
+    matchReasons: z
+      .record(z.string(), z.array(z.object({ field: z.string().min(1), detail: z.string() })))
+      .optional(),
   }),
 ]);
 
