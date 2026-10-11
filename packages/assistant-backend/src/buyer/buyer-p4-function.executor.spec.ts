@@ -117,7 +117,11 @@ describe('BuyerP4FunctionExecutor', () => {
       searchOtherCategories.mockResolvedValue({
         kind: 'results',
         groups: [
-          { title: 'מכירות קרובות', lots: [similarLot] },
+          {
+            title: 'מכירות קרובות',
+            lots: [similarLot],
+            matchReasons: { [similarLot.id]: [{ field: 'creators', detail: 'Yitzhak Abrabanel' }] },
+          },
           { title: 'מכירות קודמות', lots: [similarLot, similarLot] },
         ],
       });
@@ -126,8 +130,20 @@ describe('BuyerP4FunctionExecutor', () => {
 
       expect(updates.map((update) => update.speaker)).toEqual(['results-found', 'result-group', 'result-group']);
       expect(updates[0]).toMatchObject({ text: expect.stringContaining('3') });
-      expect(updates[1]).toEqual({ speaker: 'result-group', title: 'מכירות קרובות', lots: [similarLot] });
-      expect(updates[2]).toEqual({ speaker: 'result-group', title: 'מכירות קודמות', lots: [similarLot, similarLot] });
+      // Marked as other-categories for the chat, with the reasons passed through only where the search gave any.
+      expect(updates[1]).toEqual({
+        speaker: 'result-group',
+        title: 'מכירות קרובות',
+        lots: [similarLot],
+        variant: 'other-categories',
+        matchReasons: { [similarLot.id]: [{ field: 'creators', detail: 'Yitzhak Abrabanel' }] },
+      });
+      expect(updates[2]).toEqual({
+        speaker: 'result-group',
+        title: 'מכירות קודמות',
+        lots: [similarLot, similarLot],
+        variant: 'other-categories',
+      });
     });
 
     it('pushes no-results with the service message when nothing matched', async () => {

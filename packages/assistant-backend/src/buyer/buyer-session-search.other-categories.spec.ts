@@ -205,6 +205,38 @@ describe('BuyerSessionSearchService.searchOtherCategoriesForSession', () => {
       }
     });
 
+    it('keeps the match reasons the orchestrator reported, by lot id', async () => {
+      const sessionId = startSession();
+
+      const response = await service.searchOtherCategoriesForSession(sessionId);
+
+      expect(response.kind).toBe('results');
+      if (response.kind !== 'results') return;
+      expect(response.groups.map((group) => group.matchReasons)).toEqual([
+        { [upcomingOtherCategoryLot.id]: [{ field: 'query', detail: 'manuscript' }] },
+        {
+          [soldOtherCategoryLot.id]: [{ field: 'query', detail: 'manuscript' }],
+          [soldOriginalCategoryLot.id]: [{ field: 'creators', detail: 'Yitzhak Abrabanel' }],
+        },
+      ]);
+    });
+
+    it('sends no match reasons for a group whose lots have none', async () => {
+      const sessionId = startSession();
+      const outcome = resultsOutcome();
+      mockSearchOtherCategories.mockResolvedValue({
+        ...outcome,
+        results: { current: [{ lot: upcomingOtherCategoryLot, matchReasons: [] }], historical: [] },
+      });
+
+      const response = await service.searchOtherCategoriesForSession(sessionId);
+
+      expect(response).toEqual({
+        kind: 'results',
+        groups: [{ title: expect.any(String), lots: [upcomingOtherCategoryLot] }],
+      });
+    });
+
     it('omits an empty group from a results outcome', async () => {
       const sessionId = startSession();
       const outcome = resultsOutcome();

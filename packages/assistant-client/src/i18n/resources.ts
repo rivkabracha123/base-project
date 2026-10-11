@@ -135,6 +135,15 @@ export const resources = {
         estimate: 'Estimate', realized: 'Realized price', source: 'View exact source',
         sold: 'Sold', unsold: 'Unsold', upcoming: 'Upcoming', withdrawn: 'Withdrawn', unknown: 'Status unknown',
       },
+      buyerCard: {
+        lot: 'Lot', matchReasons: 'Why this item matches',
+        categories: { rare_books: 'Rare books', paintings: 'Paintings' },
+        reasons: {
+          query: 'Search text', keywords: 'Keyword', categories: 'Category', creators: 'Creator',
+          auctionHouseIds: 'Auction house', geography: 'Place', media: 'Medium', periods: 'Period',
+          statuses: 'Status', dateRange: 'Sale date', price: 'Budget',
+        },
+      },
       chat: {
         send: 'Send', inputLabel: 'Message', loading: 'Loading conversation…',
         error: "Couldn't load the conversation.", retry: 'Try again',
@@ -281,6 +290,15 @@ export const resources = {
       card: {
         estimate: 'הערכה', realized: 'מחיר מכירה', source: 'הצגת המקור המדויק',
         sold: 'נמכר', unsold: 'לא נמכר', upcoming: 'עתידי', withdrawn: 'הוסר', unknown: 'סטטוס לא ידוע',
+      },
+      buyerCard: {
+        lot: 'לוט', matchReasons: 'למה הפריט מתאים',
+        categories: { rare_books: 'ספרים נדירים', paintings: 'ציורים' },
+        reasons: {
+          query: 'טקסט החיפוש', keywords: 'מילת מפתח', categories: 'תחום', creators: 'יוצר',
+          auctionHouseIds: 'בית מכירות', geography: 'מקום', media: 'טכניקה', periods: 'תקופה',
+          statuses: 'סטטוס', dateRange: 'תאריך מכירה', price: 'תקציב',
+        },
       },
       chat: {
         send: 'שליחה', inputLabel: 'הודעה', loading: 'טוען שיחה…',

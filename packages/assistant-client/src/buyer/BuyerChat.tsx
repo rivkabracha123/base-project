@@ -5,6 +5,7 @@ import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
 import { getBuyerChatFlowSnapshot } from './buyer-chat-flow';
+import { BuyerLotCard, type BuyerLotCardLabels } from './BuyerLotCard';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
 
@@ -25,6 +26,26 @@ export function BuyerChat() {
     unknown: t('card.unknown'),
   };
 
+  const lotCardLabels: BuyerLotCardLabels = {
+    estimate: cardLabels.estimate,
+    realized: cardLabels.realized,
+    source: cardLabels.source,
+    lot: t('buyerCard.lot'),
+    matchReasons: t('buyerCard.matchReasons'),
+    status: {
+      sold: cardLabels.sold,
+      unsold: cardLabels.unsold,
+      upcoming: cardLabels.upcoming,
+      withdrawn: cardLabels.withdrawn,
+      unknown: cardLabels.unknown,
+    },
+  };
+
+  // The lot's category in the buyer's language; a category with no translation is shown as the data names it.
+  function categoryLabel(category: string): string {
+    return t(`buyerCard.categories.${category}`, { defaultValue: category.replace(/[_-]+/g, ' ') });
+  }
+
   // הלוגיקה המשותפת לקונה ולמוכר: טעינת שיחה, callback להצגה, נעילה בזמן עבודה ושגיאות.
   // כאן מוגדר רק מה שייחודי לקונה: הסכמה, צורת הודעת הקונה והחיבור לשכבה שמנהלת את התהליך.
   const { messages, isLoading, isError, refetch, isBusy, handleSend } = useChatFlow<BuyerMessage>({
@@ -42,6 +63,32 @@ export function BuyerChat() {
 
   // Renders a single conversation message in the form that fits its kind.
   function renderMessage(message: BuyerMessage) {
+    // Lots from other categories: a card that shows each lot's category and the reasons the search reported.
+    if (message.speaker === 'result-group' && message.variant === 'other-categories') {
+      return (
+        <li data-speaker={message.speaker} data-variant={message.variant} className="flex flex-col gap-4">
+          {message.title && <h2 className="text-lg font-semibold text-neutral-900">{message.title}</h2>}
+          {/* Horizontal carousel: one card wide on a phone, up to three side by side when the chat is wide enough. */}
+          <ul className="flex snap-x gap-4 overflow-x-auto pb-3">
+            {message.lots.map((lot) => (
+              <li key={lot.id} className="w-72 shrink-0 snap-start sm:w-80 lg:w-[calc((100%-2rem)/3)] lg:min-w-[17rem]">
+                <BuyerLotCard
+                  lot={lot}
+                  locale={locale}
+                  labels={lotCardLabels}
+                  categoryLabel={categoryLabel(lot.category)}
+                  reasons={(message.matchReasons?.[lot.id] ?? []).map((reason) => ({
+                    label: t(`buyerCard.reasons.${reason.field}`, { defaultValue: '' }),
+                    detail: reason.detail,
+                  }))}
+                />
+              </li>
+            ))}
+          </ul>
+        </li>
+      );
+    }
+
     if (message.speaker === 'result-group') {
       return (
         <li data-speaker={message.speaker} className="flex flex-col gap-4">

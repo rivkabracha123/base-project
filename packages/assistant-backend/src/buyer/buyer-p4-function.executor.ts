@@ -214,7 +214,13 @@ export class BuyerP4FunctionExecutor {
 
     for (const group of search.groups) {
       if (group.lots.length === 0) continue;
-      updates.push({ speaker: 'result-group', title: group.title, lots: group.lots });
+      updates.push({
+        speaker: 'result-group',
+        title: group.title,
+        lots: group.lots,
+        variant: 'other-categories',
+        ...(group.matchReasons ? { matchReasons: group.matchReasons } : {}),
+      });
     }
     return true;
   }

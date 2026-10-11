@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { AuctionLot } from '@monabid/shared';
+import type { BuyerChatMatchReason } from './buyer-chat-update';
 import { getBuyerCriteriaSession } from './buyer-criteria-session.store';
 import {
   BuyerSearchOrchestrator,
@@ -11,6 +12,8 @@ import { LotsServiceSearchClient } from './lots-service-search.client';
 export type BuyerSessionSearchGroup = {
   title: string;
   lots: AuctionLot[];
+  // Reasons by lot id, as the search reported them; only the other-categories follow-up fills this.
+  matchReasons?: Record<string, BuyerChatMatchReason[]>;
 };
 
 export type BuyerSessionSearchResponse =
@@ -24,14 +27,32 @@ export type BuyerOtherCategoriesSearchResponse =
   // The orchestrator in this build has no cross-category search yet.
   | { kind: 'unavailable' };
 
+// One result as the chat reads it: the lot and the reasons the search reported for it.
+type OtherCategoriesEntry = { lot: AuctionLot; matchReasons?: BuyerChatMatchReason[] };
+
 /** What the chat reads from BuyerSearchOrchestrator.searchOtherCategories; the orchestrator owns the full outcome. */
 export type OtherCategoriesSearchOutcome =
-  | { kind: 'results'; results: { current: { lot: AuctionLot }[]; historical: { lot: AuctionLot }[] } }
+  | { kind: 'results'; results: { current: OtherCategoriesEntry[]; historical: OtherCategoriesEntry[] } }
   | { kind: 'unmatched' }
   | { kind: 'insufficient-criteria' };
 
 interface OtherCategoriesSearch {
   searchOtherCategories(input: BuyerSearchInput): Promise<OtherCategoriesSearchOutcome>;
+}
+
+// Builds one chat group from search entries, keeping the reported reasons for the lots that have any.
+function toOtherCategoriesGroup(title: string, entries: OtherCategoriesEntry[]): BuyerSessionSearchGroup {
+  const matchReasons: Record<string, BuyerChatMatchReason[]> = {};
+  for (const entry of entries) {
+    if (entry.matchReasons && entry.matchReasons.length > 0) {
+      matchReasons[entry.lot.id] = entry.matchReasons.map(({ field, detail }) => ({ field, detail }));
+    }
+  }
+  return {
+    title,
+    lots: entries.map((entry) => entry.lot),
+    ...(Object.keys(matchReasons).length > 0 ? { matchReasons } : {}),
+  };
 }
 
 // True once the orchestrator provides the cross-category search; drop this check when it always does.
@@ -141,16 +162,10 @@ export class BuyerSessionSearchService {
     const { current, historical } = outcome.results;
     const groups: BuyerSessionSearchGroup[] = [];
     if (current.length > 0) {
-      groups.push({
-        title: criteria.language === 'he' ? 'מכירות קרובות' : 'Upcoming lots',
-        lots: current.map((entry) => entry.lot),
-      });
+      groups.push(toOtherCategoriesGroup(criteria.language === 'he' ? 'מכירות קרובות' : 'Upcoming lots', current));
     }
     if (historical.length > 0) {
-      groups.push({
-        title: criteria.language === 'he' ? 'מכירות קודמות' : 'Past sales',
-        lots: historical.map((entry) => entry.lot),
-      });
+      groups.push(toOtherCategoriesGroup(criteria.language === 'he' ? 'מכירות קודמות' : 'Past sales', historical));
     }
 
     return { kind: 'results', groups };
