@@ -40,7 +40,7 @@ export function AppHeader() {
           </Link>
           <Link
             to="/staff-operations"
-            className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
           >
             {t('navigation.dashboard')}
           </Link>
@@ -74,7 +74,7 @@ export function AppHeader() {
             languageMutation.mutate(nextLanguage);
           }}
           isDisabled={languageMutation.isPending}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3ead8] focus:outline-none focus:ring-2 focus:ring-amber-700"
         >
           {t('language')}
         </Button>

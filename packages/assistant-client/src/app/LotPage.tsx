@@ -10,11 +10,16 @@ import {
 } from './local-history-demo.fixture';
 import { getLotById, getLotSaleHistory } from './api';
 
+/**
+ * קורא את מזהה הלוט מהכתובת /lots/:id ומציג את תבנית דף הפריט.
+ * במצב רגיל הוא מבקש את הפריט מה-backend; מצב ההדגמה המקומי פעיל רק בדגל מפורש.
+ */
 export function LotPage() {
   const { i18n, t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
+  // הדגמת ההיסטוריה מותרת רק עבור עטרת זקנים ורק כשמפעילים את הדגל המקומי במפורש.
   const isLocalHistoryDemo = import.meta.env.VITE_LOCAL_HISTORY_DEMO === 'true'
     && id === localHistoryDemoLotId;
   const query = useQuery({

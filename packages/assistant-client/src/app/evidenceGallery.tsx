@@ -106,14 +106,14 @@ function PhotoActionsMenu({
       {open && (
         <div
           role="menu"
-          className="absolute end-0 top-full mt-1 min-w-32 rounded-sm border border-slate-300 bg-white p-1 shadow-md"
+          className="absolute end-0 top-full mt-1 min-w-32 rounded-sm border border-[#ead9b8] bg-white p-1 shadow-md"
         >
 
           <a
             role="menuitem"
             href={evidenceUrl(photo.downloadUri)}
             onClick={() => setOpen(false)}
-            className="block px-3 py-2 text-sm text-slate-800 hover:bg-slate-100"
+            className="block px-3 py-2 text-sm text-stone-800 hover:bg-[#f7f1e6]"
           >
             {downloadLabel}
           </a>
@@ -337,12 +337,12 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
       className="min-h-screen bg-[#f6f1e7] px-4 py-8 sm:px-6"
     >
       <div className="mx-auto max-w-5xl">
-        <h1 className="mb-6 text-2xl font-semibold text-slate-950">
+        <h1 className="mb-6 text-2xl font-semibold text-stone-950">
           {text.title}
         </h1>
 
-        <section className="mb-6 space-y-3 border-b border-slate-400/30 pb-5">
-          <label className="inline-flex cursor-pointer rounded-md border border-slate-400 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-white/50">
+        <section className="mb-6 space-y-3 border-b border-[#ead9b8] pb-5">
+          <label className="inline-flex cursor-pointer rounded-full border border-[#ead9b8] bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-[#f7f1e6]">
             {text.chooseFiles}
             <input
               className="sr-only"
@@ -369,7 +369,7 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
                 <button
                   type="button"
                   onClick={() => uploadMutation.mutate(pendingUpload)}
-                  className="mt-2 rounded-md border border-slate-400 px-3 py-2 text-sm"
+                  className="mt-2 rounded-full border border-[#ead9b8] bg-white px-3 py-2 text-sm"
                 >
                   {text.retry}
                 </button>
@@ -383,7 +383,7 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
         </section>
 
         {evidenceQuery.isPending && (
-          <p role="status" className="py-4 text-slate-700">
+          <p role="status" className="py-4 text-stone-700">
             {text.loading}
           </p>
         )}
@@ -394,7 +394,7 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
             <button
               type="button"
               onClick={() => void evidenceQuery.refetch()}
-              className="rounded-md border border-slate-400 px-3 py-2 text-sm hover:bg-white/50"
+              className="rounded-full border border-[#ead9b8] bg-white px-3 py-2 text-sm hover:bg-[#f7f1e6]"
             >
               {text.retry}
             </button>
@@ -402,7 +402,7 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
         )}
 
         {evidenceQuery.isSuccess && groups.size === 0 && (
-          <p className="py-3 text-slate-700">{text.empty}</p>
+          <p className="py-3 text-stone-700">{text.empty}</p>
         )}
 
         {[...groups.entries()].map(([itemId, photos], groupIndex) => (
@@ -412,7 +412,7 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
             className={
               groupIndex === 0
                 ? 'py-3'
-                : 'border-t border-slate-400/30 py-5'
+                : 'border-t border-[#ead9b8] py-5'
             }
           >
             <ul className="grid grid-cols-2 gap-x-5 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
@@ -427,7 +427,7 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
                   onDrop={(event) => handleDrop(event, itemId, index)}
                   className={`group w-full max-w-44 rounded-md border border-[#d9cebe] bg-white/80 p-2 shadow-sm transition-shadow hover:shadow-md ${
                     dropTargetId === photo.fileId
-                      ? 'outline outline-2 outline-slate-500'
+                      ? 'outline outline-2 outline-[#b08948]'
                       : ''
                   } ${draggedPhotoId === photo.fileId ? 'opacity-40' : ''}`}
                 >
@@ -511,7 +511,7 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
               className="max-h-[80vh] max-w-full object-contain"
             />
 
-            <p className="mt-3 text-sm text-slate-800">
+            <p className="mt-3 text-sm text-stone-800">
               {selectedPhoto.originalName}
             </p>
           </section>

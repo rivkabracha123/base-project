@@ -53,13 +53,14 @@ export function PriceHistory({ sales, lang, loading = false, error = false }: Pr
       <div className="mb-7 flex justify-start" dir="ltr"><p className="rounded-full bg-[#080613] px-4 py-2 text-sm font-semibold text-white shadow-sm">{question}</p></div>
       <p className={`mb-6 text-sm text-[#aca396] ${isRtl ? 'text-right' : 'text-left'}`}>{searching}</p>
       <div className="rounded-2xl border border-[#e1d4bd] bg-[#fffaf0] px-4 py-5 shadow-[0_1px_2px_rgba(74,55,28,0.06)] sm:px-8">
-        <h2 id="price-history-heading" className="mb-4 text-center text-sm font-bold leading-6 text-[#111019] sm:text-base">{latestSale.title[lang] ?? latestSale.title.en}</h2>
+        <h2 id="price-history-heading" className="mb-2 text-center text-sm font-bold leading-6 text-[#111019] sm:text-base">{heading}</h2>
+        <p className="mb-4 text-center text-sm text-[#111019]">{latestSale.title[lang] ?? latestSale.title.en}</p>
         <ol className="relative mb-4 before:absolute before:right-[0.55rem] before:top-5 before:bottom-5 before:w-px before:bg-[#d8cfbf] sm:before:right-[0.68rem]">
           {validSales.map((sale, index) => {
             const isLatest = index === validSales.length - 1;
             return <li key={sale.id} className="grid grid-cols-[6.75rem_1fr_1.25rem] items-center gap-2 py-2 text-sm sm:grid-cols-[8rem_1fr_1.5rem]">
               <strong className="text-left text-[#9b783e]">{formatCurrency(sale.realizedPrice)}</strong>
-              <p className={isRtl ? 'text-right font-semibold text-[#17131b]' : 'text-left font-semibold text-[#17131b]'}>{sale.auctionHouse.name} <span className="text-[#655f64]">• {formatYear(sale.saleDate)}</span></p>
+              <a href={sale.source.url} target="_blank" rel="noopener noreferrer" className={isRtl ? 'text-right font-semibold text-[#17131b]' : 'text-left font-semibold text-[#17131b]'}>{sale.auctionHouse.name} <span className="text-[#655f64]">· {formatYear(sale.saleDate)}</span></a>
               <span className={`h-3 w-3 rounded-full border-2 ${isLatest ? 'border-[#ad8545] bg-[#ad8545]' : 'border-[#aaa6a2] bg-[#fffaf0]'}`} aria-label={isLatest ? (isRtl ? 'המכירה האחרונה' : 'Most recent sale') : undefined} />
             </li>;
           })}

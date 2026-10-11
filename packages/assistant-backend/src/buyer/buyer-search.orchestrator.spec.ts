@@ -72,8 +72,12 @@ describe('BuyerSearchOrchestrator', () => {
         },
       ],
     });
-    expect(outcome.results.current).toEqual([]);
-    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(fixture);
+    expect(outcome.results.current.map((entry) => entry.lot)).toEqual(
+      fixture.filter((lot) => lot.status === 'upcoming'),
+    );
+    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(
+      fixture.filter((lot) => lot.status !== 'upcoming'),
+    );
     expect(lotsSearch.search).toHaveBeenCalledWith({
       query: 'manuscript',
       language: 'en',

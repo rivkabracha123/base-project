@@ -26,7 +26,9 @@ function renderChat(body: unknown) {
   queryClient.setDefaultOptions({ queries: { retry: false } });
   render(
     <QueryClientProvider client={queryClient}>
-      <BuyerChat />
+      <MemoryRouter>
+        <BuyerChat />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -38,7 +40,9 @@ function renderChatWithError() {
   queryClient.setDefaultOptions({ queries: { retry: false } });
   render(
     <QueryClientProvider client={queryClient}>
-      <BuyerChat />
+      <MemoryRouter>
+        <BuyerChat />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -138,7 +142,9 @@ describe('BuyerChat', () => {
     const queryClient = createQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <BuyerChat />
+        <MemoryRouter>
+          <BuyerChat />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -166,7 +172,9 @@ describe('BuyerChat', () => {
     queryClient.setDefaultOptions({ queries: { retry: false } });
     render(
       <QueryClientProvider client={queryClient}>
-        <BuyerChat />
+        <MemoryRouter>
+          <BuyerChat />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -272,7 +280,9 @@ describe('BuyerChat', () => {
     queryClient.setDefaultOptions({ queries: { retry: false } });
     render(
       <QueryClientProvider client={queryClient}>
-        <BuyerChat />
+        <MemoryRouter>
+          <BuyerChat />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 

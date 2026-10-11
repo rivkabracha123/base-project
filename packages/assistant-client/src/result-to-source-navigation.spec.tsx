@@ -15,6 +15,7 @@ vi.mock('./app/api', () => ({
   updateProfileLanguage: vi.fn(),
   getSampleLot: vi.fn(),
   getLotById: vi.fn(),
+  getLotSaleHistory: vi.fn().mockResolvedValue([]),
   getConversation: vi.fn(),
 }));
 
@@ -37,10 +38,13 @@ const profile = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllEnvs();
+});
 
 describe('B4 fixture journey', () => {
-  it('opens a selected result and shows its exact source evidence', async () => {
+  it('opens a selected result, preserves safe source evidence, and returns to results', async () => {
     vi.mocked(getLotById).mockResolvedValue(lot);
     vi.mocked(getCurrentProfile).mockResolvedValue(profile);
     await i18n.changeLanguage('en');
@@ -55,11 +59,48 @@ describe('B4 fixture journey', () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'View item details' }))[0]!);
+    fireEvent.click(await screen.findByText('Atereth Zekeinim by Yitzhak Abrabanel'));
 
-    expect(await screen.findByRole('link', { name: /View Original Lot on Auction Site/ })).toHaveAttribute(
+    const sourceLink = await screen.findByRole('link', { name: /View Original Lot on Auction Site/ });
+
+    expect(sourceLink).toHaveAttribute(
       'href',
       'https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en',
     );
+    expect(sourceLink).toHaveAttribute('target', '_blank');
+    expect(sourceLink).toHaveAttribute('rel', 'noopener noreferrer');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Results' }));
+
+    expect(await screen.findByRole('heading', { name: 'Auction matches' })).toBeInTheDocument();
+    expect(screen.getByText('Atereth Zekeinim by Yitzhak Abrabanel')).toBeInTheDocument();
+  });
+
+  it('shows the local history only through the complete local demo journey', async () => {
+    vi.stubEnv('VITE_LOCAL_HISTORY_DEMO', 'true');
+    await i18n.changeLanguage('en');
+    const queryClient = createQueryClient();
+    queryClient.setDefaultOptions({ queries: { retry: false } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/results']}>
+          <App />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Past sales' })).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByText('Atereth Zekeinim by Yitzhak Abrabanel'));
+
+    expect(await screen.findByRole('heading', { name: 'Price History' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Kestenbaum & Company · 2016/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Tiroche Auction House · 2020/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Kedem Auction House · 2026/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Results' }));
+
+    expect(await screen.findByRole('heading', { name: 'Auction matches' })).toBeInTheDocument();
   });
 });

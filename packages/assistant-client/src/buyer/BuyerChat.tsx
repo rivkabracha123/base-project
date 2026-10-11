@@ -87,9 +87,9 @@ export function BuyerChat() {
         <li data-speaker={message.speaker} className="flex flex-col gap-4">
           {message.title && <h2 className="text-lg font-semibold text-neutral-900">{message.title}</h2>}
           {/* שורת כרטיסים אחת שנגללת אופקית; לכל כרטיס רוחב קבוע (w-72) כדי שלא יימעך. */}
-          <ul className="flex gap-4 overflow-x-auto pb-2">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {message.lots.map((lot) => (
-              <li key={lot.id} className="w-72 shrink-0">
+              <li key={lot.id} className="min-w-0">
                 <ItemCard lot={lot} locale={locale} labels={cardLabels} />
               </li>
             ))}

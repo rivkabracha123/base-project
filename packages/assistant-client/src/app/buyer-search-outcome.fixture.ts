@@ -50,10 +50,25 @@ type UnmatchedDemandDashboardViewFixture = {
  * Local deterministic copy of B3's JSON response contract until B3 publishes
  * the type in @monabid/shared. It must not be used to make live API calls.
  */
+export type MatchReasonFixture = {
+  field: string;
+  detail: string;
+};
+
+export type ExplainedLotFixture = {
+  lot: AuctionLot;
+  matchReasons: MatchReasonFixture[];
+};
+
 export type BuyerSearchResultsFixture = {
   kind: 'results';
   searchRequest: BuyerSearchRequestFixture;
-  items: AuctionLot[];
+  results: {
+    current: ExplainedLotFixture[];
+    historical: ExplainedLotFixture[];
+  };
+  approvedRefinements: string[];
+  selectedLotId?: string;
 };
 
 export type BuyerSearchOutcomeFixture =
@@ -82,7 +97,17 @@ const resultLots = buyerSearchScenario.expected.results.itemIds.map((id) => {
 export const resultsSearchOutcomeFixture: BuyerSearchResultsFixture = {
   kind: 'results',
   searchRequest: buyerSearchScenario.expected.results.searchRequest,
-  items: resultLots,
+  // The Week 3 JSON records ids only for readability. B4 turns them into
+  // complete lots here until B3's Week 4 fixture is published.
+  results: {
+    current: resultLots
+      .filter((lot) => lot.status === 'upcoming')
+      .map((lot) => ({ lot, matchReasons: [] })),
+    historical: resultLots
+      .filter((lot) => lot.status !== 'upcoming')
+      .map((lot) => ({ lot, matchReasons: [] })),
+  },
+  approvedRefinements: [],
 };
 
 export const unmatchedSearchOutcomeFixture: BuyerSearchOutcomeFixture = {
