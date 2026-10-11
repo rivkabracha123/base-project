@@ -11,7 +11,20 @@ async function bootstrap(): Promise<void> {
   const config = app.get(ConfigService);
 
   app.use(createHttpLogger(config.get<string>('LOG_LEVEL', 'info')));
-  app.enableCors({ origin: config.getOrThrow<string>('CORS_ORIGIN'), credentials: true });
+  const corsOrigin = config.getOrThrow<string>('CORS_ORIGIN');
+  const corsOrigins = new Set([corsOrigin]);
+  try {
+    const corsUrl = new URL(corsOrigin);
+    if (corsUrl.hostname === 'localhost') {
+      corsOrigins.add(corsOrigin.replace('localhost', '127.0.0.1'));
+    }
+    if (corsUrl.hostname === '127.0.0.1') {
+      corsOrigins.add(corsOrigin.replace('127.0.0.1', 'localhost'));
+    }
+  } catch {
+    /* keep the configured origin only */
+  }
+  app.enableCors({ origin: [...corsOrigins], credentials: true });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());

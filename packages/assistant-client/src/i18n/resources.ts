@@ -2,7 +2,7 @@ export const resources = {
   en: {
     translation: {
       appName: 'Monabid Assistant',
-      navigation: { sample: 'Sample lot', houses: 'Auction houses', dashboard: 'Staff dashboard' },
+      navigation: { sample: 'Sample lot', houses: 'Auction houses', dashboard: 'Staff dashboard', chat: 'Chat' },
       sample: {
         eyebrow: 'Foundation example',
         title: 'A source-backed auction lot',
@@ -124,8 +124,13 @@ export const resources = {
         sold: 'Sold', unsold: 'Unsold', upcoming: 'Upcoming', withdrawn: 'Withdrawn', unknown: 'Status unknown',
       },
       chat: {
-        send: 'Send', inputLabel: 'Message', loading: 'Loading conversation…',
+        send: 'Send', inputLabel: 'Message',
+        placeholder: 'Ask about an item, a price, or where it is worth selling…',
+        loading: 'Loading conversation…',
         error: "Couldn't load the conversation.", retry: 'Try again',
+      },
+      history: {
+        searching: 'Looking for earlier appearances of this item…',
       },
       language: 'עברית',
     },
@@ -133,7 +138,7 @@ export const resources = {
   he: {
     translation: {
       appName: 'העוזר של מונביד',
-      navigation: { sample: 'פריט לדוגמה', houses: 'בתי מכירות', dashboard: 'לוח בקרה' },
+      navigation: { sample: 'פריט לדוגמה', houses: 'בתי מכירות', dashboard: 'לוח בקרה', chat: 'צ׳אט' },
       sample: {
         eyebrow: 'דוגמת תשתית',
         title: 'פריט מכירה עם מקור',
@@ -255,8 +260,13 @@ export const resources = {
         sold: 'נמכר', unsold: 'לא נמכר', upcoming: 'עתידי', withdrawn: 'הוסר', unknown: 'סטטוס לא ידוע',
       },
       chat: {
-        send: 'שליחה', inputLabel: 'הודעה', loading: 'טוען שיחה…',
+        send: 'שליחה', inputLabel: 'הודעה',
+        placeholder: 'שאל על פריט, מחיר, או איפה כדאי למכור…',
+        loading: 'טוען שיחה…',
         error: 'לא הצלחנו לטעון את השיחה.', retry: 'נסו שוב',
+      },
+      history: {
+        searching: 'מחפש מופעים קודמים של הפריט…',
       },
       language: 'English',
     },

@@ -25,7 +25,7 @@ describe('ResultsPage', () => {
     );
 
     expect(screen.getByText('Atereth Zekeinim by Yitzhak Abrabanel')).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: 'View item details' })[0]!);
+    fireEvent.click(screen.getByText('Atereth Zekeinim by Yitzhak Abrabanel'));
     expect(screen.getByTestId('current-path')).toHaveTextContent('/lots/lot-kestenbaum-54554-121421');
   });
 

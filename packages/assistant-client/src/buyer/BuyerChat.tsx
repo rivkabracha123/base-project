@@ -1,41 +1,42 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ItemCard, PageShell, type ItemCardLabels } from '@monabid/ui';
+import { PageShell } from '@monabid/ui';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { getConversation } from '../app/api';
+import { ResultCard } from '../components/ResultCard';
 import type { BuyerMessage } from './messages';
 
 // מחזירה את מחלקות העיצוב לכל הודעה לפי סוג הדובר: בועה שחורה לקונה, טקסט על הרקע לעוזר, בלוק אדום לשגיאה.
 function bubbleClass(kind: BuyerMessage['kind']) {
   const base = 'max-w-lg whitespace-pre-wrap text-sm';
   if (kind === 'buyer') {
-    return `${base} self-end rounded-2xl bg-neutral-900 px-4 py-2 text-white`;
+    return `${base} self-end rounded-full bg-[#2b2438] px-4 py-2 text-white`;
   }
   if (kind === 'error') {
     return `${base} self-start rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-red-900`;
   }
-  return `${base} self-start text-neutral-600`;
+  return `${base} self-start text-stone-500`;
 }
 
 // Renders a single conversation message in the form that fits its kind.
 function ChatMessage({
   message,
-  locale,
-  cardLabels,
+  lang,
+  onSelectLot,
 }: {
   message: BuyerMessage;
-  locale: string;
-  cardLabels: ItemCardLabels;
+  lang: 'he' | 'en';
+  onSelectLot: (id: string) => void;
 }) {
   if (message.kind === 'result-group') {
     return (
       <li data-kind={message.kind} className="flex flex-col gap-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{message.title}</p>
-        {/* שורת כרטיסים אחת שנגללת אופקית; לכל כרטיס רוחב קבוע (w-72) כדי שלא יימעך. */}
-        <ul className="flex gap-4 overflow-x-auto pb-2">
+        <p className="text-sm text-stone-500">{message.title}</p>
+        <ul dir="ltr" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {message.lots.map((lot) => (
-            <li key={lot.id} className="w-72 shrink-0">
-              <ItemCard lot={lot} locale={locale} labels={cardLabels} />
+            <li key={lot.id}>
+              <ResultCard lot={lot} lang={lang} onSelect={onSelectLot} />
             </li>
           ))}
         </ul>
@@ -54,18 +55,8 @@ function ChatMessage({
 export function BuyerChat() {
   const { i18n, t } = useTranslation();
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
-  const locale = language === 'he' ? 'he-IL' : 'en-US';
   const dir = language === 'he' ? 'rtl' : 'ltr';
-  const cardLabels: ItemCardLabels = {
-    estimate: t('card.estimate'),
-    realized: t('card.realized'),
-    source: t('card.source'),
-    sold: t('card.sold'),
-    unsold: t('card.unsold'),
-    upcoming: t('card.upcoming'),
-    withdrawn: t('card.withdrawn'),
-    unknown: t('card.unknown'),
-  };
+  const navigate = useNavigate();
   const query = useQuery({
     queryKey: ['buyer-conversation', language],
     queryFn: ({ signal }) => getConversation(language, signal),
@@ -119,8 +110,8 @@ export function BuyerChat() {
   }
 
   return (
-    // רקע קרם למסך הצ'אט בלבד; #f7efe2 הוא צבע זמני עד שיתקבל טוקן המותג הרשמי של Monabid.
-    <div className="min-h-screen bg-[#f7efe2]">
+    // Cream page from the buyer-journey mock: cream ground, dark buyer pill, pill composer.
+    <div className="min-h-screen bg-[#f6f1e8]">
       <PageShell>
         {/*
           Keyboard a11y (W2): the only Tab stops on this screen are the source links in the item cards,
@@ -129,10 +120,14 @@ export function BuyerChat() {
         */}
         <ol role="log" dir={dir} className="flex flex-col gap-4">
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} locale={locale} cardLabels={cardLabels} />
+            <ChatMessage
+              key={message.id}
+              message={message}
+              lang={language}
+              onSelectLot={(id) => navigate(`/lots/${id}`)}
+            />
           ))}
         </ol>
-        {/* חיווי טעינה: מוצג רק כל עוד השיחה הראשונית עדיין בדרך מהשרת. */}
         {isLoading && (
           <p role="status" dir={dir} className="text-sm text-neutral-500">
             {t('chat.loading')}
@@ -155,21 +150,26 @@ export function BuyerChat() {
         <div ref={bottomRef} aria-hidden="true" className="scroll-mb-28" />
 
         {/* שדה כתיבת הודעה וכפתור שליחה. */}
-        <form onSubmit={handleSubmit} dir={dir} className="sticky bottom-0 mt-4 flex gap-2 bg-[#f7efe2] py-3">
+        <form
+          onSubmit={handleSubmit}
+          dir={dir}
+          className={`sticky bottom-0 mt-4 gap-2 bg-[#f6f1e8] py-3 ${dir === 'rtl' ? 'flex flex-row-reverse' : 'flex'}`}
+        >
           <textarea
             ref={inputRef}
             aria-label={t('chat.inputLabel')}
+            placeholder={t('chat.placeholder')}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100"
+            className="flex-1 resize-none rounded-full border border-[#ead9b8] bg-white px-5 py-3 text-sm text-stone-800 placeholder:text-stone-400 disabled:bg-stone-100"
           />
           <button
             type="submit"
             disabled={isLoading}
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-full bg-[#2b2438] px-6 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
             {t('chat.send')}
           </button>

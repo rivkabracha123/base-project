@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client';
 import { BuyerChat } from './BuyerChat';
@@ -19,7 +20,9 @@ function renderChat(body: unknown) {
   queryClient.setDefaultOptions({ queries: { retry: false } });
   render(
     <QueryClientProvider client={queryClient}>
-      <BuyerChat />
+      <MemoryRouter>
+        <BuyerChat />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -31,7 +34,9 @@ function renderChatWithError() {
   queryClient.setDefaultOptions({ queries: { retry: false } });
   render(
     <QueryClientProvider client={queryClient}>
-      <BuyerChat />
+      <MemoryRouter>
+        <BuyerChat />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -102,7 +107,9 @@ describe('BuyerChat', () => {
     const queryClient = createQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
-        <BuyerChat />
+        <MemoryRouter>
+          <BuyerChat />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -130,7 +137,9 @@ describe('BuyerChat', () => {
     queryClient.setDefaultOptions({ queries: { retry: false } });
     render(
       <QueryClientProvider client={queryClient}>
-        <BuyerChat />
+        <MemoryRouter>
+          <BuyerChat />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 
@@ -178,7 +187,9 @@ describe('BuyerChat', () => {
     queryClient.setDefaultOptions({ queries: { retry: false } });
     render(
       <QueryClientProvider client={queryClient}>
-        <BuyerChat />
+        <MemoryRouter>
+          <BuyerChat />
+        </MemoryRouter>
       </QueryClientProvider>,
     );
 

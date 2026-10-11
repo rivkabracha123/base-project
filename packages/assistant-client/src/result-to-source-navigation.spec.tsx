@@ -15,6 +15,7 @@ vi.mock('./app/api', () => ({
   updateProfileLanguage: vi.fn(),
   getSampleLot: vi.fn(),
   getLotById: vi.fn(),
+  getLotSaleHistory: vi.fn().mockResolvedValue([]),
   getConversation: vi.fn(),
 }));
 
@@ -58,7 +59,7 @@ describe('B4 fixture journey', () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'View item details' }))[0]!);
+    fireEvent.click(await screen.findByText('Atereth Zekeinim by Yitzhak Abrabanel'));
 
     const sourceLink = await screen.findByRole('link', { name: /View Original Lot on Auction Site/ });
 
@@ -72,7 +73,7 @@ describe('B4 fixture journey', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to Results' }));
 
     expect(await screen.findByRole('heading', { name: 'Auction matches' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'View item details' })).not.toHaveLength(0);
+    expect(screen.getByText('Atereth Zekeinim by Yitzhak Abrabanel')).toBeInTheDocument();
   });
 
   it('shows the local history only through the complete local demo journey', async () => {
@@ -91,10 +92,12 @@ describe('B4 fixture journey', () => {
 
     expect(screen.getByRole('heading', { name: 'Past sales' })).toBeInTheDocument();
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'View item details' }))[0]!);
+    fireEvent.click(await screen.findByText('Atereth Zekeinim by Yitzhak Abrabanel'));
 
     expect(await screen.findByRole('heading', { name: 'Price History' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Sale source' })).toHaveLength(2);
+    expect(screen.getByRole('link', { name: /Kestenbaum & Company · 2016/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Tiroche Auction House · 2020/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Kedem Auction House · 2026/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to Results' }));
 

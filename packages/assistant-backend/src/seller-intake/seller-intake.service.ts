@@ -9,6 +9,15 @@ const REQUIRED_SELLER_DETAILS = [
   'provenance',
 ] as const;
 
+export type MissingSellerQuestion = {
+  field: (typeof REQUIRED_SELLER_DETAILS)[number];
+  he: string;
+  en: string;
+};
+
+type CorrectableSellerField = 'category' | 'materials' | 'dimensions' | 'condition' | 'marks' | 'signatures' | 'provenance';
+type CorrectionValue = string | string[] | { widthCm: number; heightCm: number };
+
 @Injectable()
 export class SellerIntakeService {
   // Build a review state from the seller's initial intake text.
@@ -372,6 +381,102 @@ export class SellerIntakeService {
         ...draft.factEvidence,
         [field]: linkedEvidenceIds,
       },
+    };
+  }
+
+  mergeNewIntakeTurn(existing: SellerItemDraft, incoming: SellerItemDraft): SellerItemDraft {
+    return {
+      ...incoming,
+      confirmedFacts: { ...incoming.confirmedFacts, ...existing.confirmedFacts },
+      sellerConfirmation: existing.sellerConfirmation,
+      revisionHistory: [...existing.revisionHistory, ...incoming.revisionHistory],
+    };
+  }
+
+  applySellerDraftCorrection(
+    draft: SellerItemDraft,
+    field: CorrectableSellerField,
+    value: CorrectionValue,
+  ): SellerItemDraft {
+    const item = { ...draft.item };
+    const confirmedFacts = { ...draft.confirmedFacts };
+
+    if (field === 'dimensions' && typeof value === 'object' && !Array.isArray(value)) {
+      item.dimensions = { ...item.dimensions, ...value };
+      confirmedFacts.dimensions = item.dimensions;
+    } else if (field === 'materials' && Array.isArray(value)) {
+      item.materials = value;
+      confirmedFacts.materials = value;
+    } else if (typeof value === 'string') {
+      if (field === 'category') {
+        item.category = value;
+        confirmedFacts.category = value;
+      } else if (field === 'condition') {
+        item.condition = value;
+        confirmedFacts.condition = value;
+      } else if (field === 'marks') {
+        item.markings = value;
+        confirmedFacts.markings = value;
+      } else if (field === 'provenance') {
+        item.provenance = value;
+        confirmedFacts.provenance = value;
+      }
+    }
+
+    const catalogLine = `${field}: ${typeof value === 'string' ? value : JSON.stringify(value)}`;
+    item.catalogDraft = {
+      he: [item.catalogDraft.he, catalogLine].filter(Boolean).join('\n'),
+      en: [item.catalogDraft.en, catalogLine].filter(Boolean).join('\n'),
+    };
+
+    return {
+      ...draft,
+      item,
+      confirmedFacts,
+      updatedAt: new Date().toISOString(),
+      revisionHistory: [
+        ...draft.revisionHistory,
+        this.appendRevisionEntry('seller', `Corrected ${field}`, [field]),
+      ],
+    };
+  }
+
+  confirmSellerFacts(draft: SellerItemDraft, fields: CorrectableSellerField[]): SellerItemDraft {
+    const confirmedFacts = { ...draft.confirmedFacts };
+
+    for (const field of fields) {
+      if (field === 'category') confirmedFacts.category = draft.item.category;
+      if (field === 'materials') confirmedFacts.materials = draft.item.materials;
+      if (field === 'dimensions') confirmedFacts.dimensions = draft.item.dimensions;
+      if (field === 'condition') {
+        if (!draft.item.condition) throw new Error('Cannot confirm a missing condition fact');
+        confirmedFacts.condition = draft.item.condition;
+      }
+      if (field === 'marks') {
+        if (!draft.item.markings) throw new Error('Cannot confirm a missing marks fact');
+        confirmedFacts.markings = draft.item.markings;
+      }
+      if (field === 'provenance') {
+        if (!draft.item.provenance && !confirmedFacts.provenance) {
+          throw new Error('Cannot confirm a missing provenance fact');
+        }
+        confirmedFacts.provenance = confirmedFacts.provenance ?? draft.item.provenance;
+      }
+    }
+
+    return {
+      ...draft,
+      confirmedFacts,
+      updatedAt: new Date().toISOString(),
+      sellerConfirmation: {
+        ...draft.sellerConfirmation,
+        status: 'partial',
+        lastConfirmedAt: new Date().toISOString(),
+      },
+      revisionHistory: [
+        ...draft.revisionHistory,
+        this.appendRevisionEntry('seller', 'Confirmed seller facts', fields),
+      ],
     };
   }
 

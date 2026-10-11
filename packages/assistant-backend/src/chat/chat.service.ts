@@ -18,8 +18,21 @@ export class ChatService {
 
   // Reads and parses the fixture file from disk. Runs only on the first request.
   private async loadFixture(): Promise<Record<string, unknown[]>> {
-    const fixturePath = resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-conversation.json');
-    const raw = await readFile(fixturePath, 'utf8');
-    return (JSON.parse(raw) as { conversations: Record<string, unknown[]> }).conversations;
+    const candidates = [
+      resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-conversation.json'),
+      resolve(__dirname, '../../../../../fixtures/demo-scenarios/buyer-conversation.json'),
+      resolve(process.cwd(), '../../fixtures/demo-scenarios/buyer-conversation.json'),
+    ];
+
+    for (const fixturePath of candidates) {
+      try {
+        const raw = await readFile(fixturePath, 'utf8');
+        return (JSON.parse(raw) as { conversations: Record<string, unknown[]> }).conversations;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    }
+
+    throw new Error('buyer-conversation fixture was not found');
   }
 }

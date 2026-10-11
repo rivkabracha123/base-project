@@ -9,13 +9,13 @@ describe('ResultCard', () => {
     render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
 
     expect(screen.getByText('Realized price')).toBeInTheDocument();
-    expect(screen.getByText('USD $1,200')).toBeInTheDocument();
+    expect(screen.getAllByText('$1,200').length).toBeGreaterThan(0);
   });
 
-  it('keeps the original currency code visible with sold prices', () => {
+  it('shows the sold overlay in the mock form', () => {
     render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
 
-    expect(screen.getAllByText(/USD/)).not.toHaveLength(0);
+    expect(screen.getByText('Sold for: $1,200')).toBeInTheDocument();
   });
 
   it('does not present an unsold estimate as a realized price', () => {
@@ -25,20 +25,20 @@ describe('ResultCard', () => {
     expect(screen.queryByText('Realized price')).not.toBeInTheDocument();
   });
 
-  it('shows the source status for both sold and unsold lots', () => {
+  it('does not show a status line on the card', () => {
     const { rerender } = render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
 
-    expect(screen.getByText('Status: Sold')).toBeInTheDocument();
+    expect(screen.queryByText('Status: Sold')).not.toBeInTheDocument();
 
     rerender(<ResultCard lot={unsoldLotFixture} lang="en" onSelect={vi.fn()} />);
-    expect(screen.getByText('Status: Unsold')).toBeInTheDocument();
+    expect(screen.queryByText('Status: Unsold')).not.toBeInTheDocument();
   });
 
   it('renders without an estimate and selects the lot', () => {
     const onSelect = vi.fn();
     render(<ResultCard lot={{ ...soldLotFixture, estimate: undefined }} lang="en" onSelect={onSelect} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'View item details' }));
+    fireEvent.click(screen.getByRole('heading', { name: soldLotFixture.title.en }));
     expect(onSelect).toHaveBeenCalledWith(soldLotFixture.id);
   });
 
@@ -57,13 +57,13 @@ describe('ResultCard', () => {
     );
   });
 
-  it('shows an honest placeholder when no image is supplied', () => {
+  it('uses the local manuscript image when no lot image is supplied', () => {
     render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
 
-    expect(screen.getByRole('img', { name: 'No image available for this lot' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: soldLotFixture.title.en })).toHaveAttribute('src', '/history-lot.jpg');
   });
 
-  it('replaces a failed image with the honest placeholder', () => {
+  it('replaces a failed image with the local manuscript image', () => {
     render(
       <ResultCard
         lot={{ ...soldLotFixture, imageUrl: 'https://fixtures.monabid.test/images/missing.jpg' }}
@@ -74,22 +74,22 @@ describe('ResultCard', () => {
 
     fireEvent.error(screen.getByRole('img', { name: soldLotFixture.title.en }));
 
-    expect(screen.getByRole('img', { name: 'No image available for this lot' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: soldLotFixture.title.en })).toHaveAttribute('src', '/history-lot.jpg');
   });
 
-  it('allows the details button to receive keyboard focus', () => {
+  it('does not render a details button', () => {
     render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
 
-    const detailsButton = screen.getByRole('button', { name: 'View item details' });
-    detailsButton.focus();
-
-    expect(detailsButton).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'View item details' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'לפרטי הפריט' })).not.toBeInTheDocument();
   });
 
-  it('uses right-to-left direction and Hebrew action text for Hebrew', () => {
+  it('centers the title and keeps Hebrew price labels', () => {
     render(<ResultCard lot={soldLotFixture} lang="he" onSelect={vi.fn()} />);
 
-    const detailsButton = screen.getByRole('button', { name: 'לפרטי הפריט' });
-    expect(detailsButton.closest('article')).toHaveAttribute('dir', 'rtl');
+    expect(screen.getByRole('heading', { name: soldLotFixture.title.en })).toHaveClass('text-center');
+    expect(screen.getByText('הערכה')).toBeInTheDocument();
+    expect(screen.getByText('נמכר תמורת')).toBeInTheDocument();
+    expect(screen.getByText('צפה ברישום המקורי')).toBeInTheDocument();
   });
 });

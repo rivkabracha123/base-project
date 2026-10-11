@@ -22,23 +22,26 @@ export function AppHeader() {
   });
 
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className="border-b border-[#ead9b8] bg-[#f6f1e8]">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <nav className="flex items-center gap-4">
           <Link
             to="/staff-operations"
-            className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
           >
             {t('navigation.dashboard')}
           </Link>
           {/* S5 Week 4: open the house recommendation / choice screen */}
           <Link
             to="/seller/houses"
-            className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
           >
             {t('navigation.houses')}
           </Link>
-          <Link to="/sample" className="font-semibold text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <Link to="/chat" className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700">
+            {t('navigation.chat')}
+          </Link>
+          <Link to="/sample" className="font-semibold text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700">
             {t('appName')}
           </Link>
         </nav>
@@ -49,7 +52,7 @@ export function AppHeader() {
             languageMutation.mutate(nextLanguage);
           }}
           isDisabled={languageMutation.isPending}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3ead8] focus:outline-none focus:ring-2 focus:ring-amber-700"
         >
           {t('language')}
         </Button>

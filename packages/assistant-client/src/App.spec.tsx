@@ -14,6 +14,7 @@ vi.mock('./app/api', () => ({
   updateProfileLanguage: vi.fn(),
   getSampleLot: vi.fn(),
   getLotById: vi.fn(),
+  getLotSaleHistory: vi.fn().mockResolvedValue([]),
   getConversation: vi.fn(),
 }));
 

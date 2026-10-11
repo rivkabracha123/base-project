@@ -19,9 +19,9 @@ export function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/lots/:id" element={<LotPage />} />
         <Route path="/chat" element={<BuyerChat />} />
-        <Route path="*" element={<Navigate to="/results" replace />} />
-  {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
+        {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
         <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
+        <Route path="*" element={<Navigate to="/results" replace />} />
       </Routes>
     </>
   );

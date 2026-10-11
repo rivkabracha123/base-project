@@ -1,7 +1,11 @@
 {
   "id": "buyer-search-preserved-budget-through-refinement",
   "description": "Buyer search hand-off with preserved strict filters. The orchestrator receives refined BuyerCriteria carrying several strict filters - budget min/max, category, creator, period, location - and carries the whole criteria object unchanged onto the results hand-off and the unmatched-demand hand-off, never loosening the budget or narrowing to a subset of fields. Contains no profile, session, contact, or conversation data. NOTE: expected.results.itemIds lists lot ids only for readability; the real outcome carries full AuctionLot objects (see packages/shared/src/auction-lot.ts).",
-  "auctionDataFixtureIds": ["lot-kestenbaum-54554-121421"],
+  "auctionDataFixtureIds": [
+    "lot-kestenbaum-54554-121421",
+    "lot-kedem-sefer-hasidim-2026",
+    "lot-kestenbaum-2026-spring-12"
+  ],
   "scenario": {
     "language": "en",
     "criteria": {
@@ -13,7 +17,11 @@
       "missing": []
     },
     "searchResults": {
-      "resultsCase": ["lot-kestenbaum-54554-121421"],
+      "resultsCase": [
+        "lot-kestenbaum-54554-121421",
+        "lot-kedem-sefer-hasidim-2026",
+        "lot-kestenbaum-2026-spring-12"
+      ],
       "unmatchedCase": []
     }
   },
@@ -32,7 +40,11 @@
         "language": "en",
         "hardConstraints": []
       },
-      "itemIds": ["lot-kestenbaum-54554-121421"]
+      "itemIds": [
+        "lot-kestenbaum-54554-121421",
+        "lot-kedem-sefer-hasidim-2026",
+        "lot-kestenbaum-2026-spring-12"
+      ]
     },
     "unmatched": {
       "kind": "unmatched",

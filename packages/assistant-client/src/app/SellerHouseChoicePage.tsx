@@ -44,11 +44,11 @@ export function SellerHouseChoicePage() {
 
   return (
     <PageShell>
-      <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">{t('houses.eyebrow')}</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{t('houses.title')}</h1>
-      <p className="mb-4 mt-3 max-w-2xl text-slate-600">{t('houses.intro')}</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-[#b08948]">{t('houses.eyebrow')}</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-stone-950">{t('houses.title')}</h1>
+      <p className="mb-4 mt-3 max-w-2xl text-stone-600">{t('houses.intro')}</p>
       {/* S5 durable rule: internal Monabid enquiry only — never auto-contact a house. */}
-      <p className="mb-8 max-w-2xl text-sm text-slate-500">{t('houses.internalOnly')}</p>
+      <p className="mb-8 max-w-2xl text-sm text-stone-500">{t('houses.internalOnly')}</p>
 
       {rankingQuery.isPending ? <LoadingState label={t('houses.loading')} /> : null}
       {rankingQuery.isError ? (
@@ -69,8 +69,8 @@ export function SellerHouseChoicePage() {
             if (houseId) choiceMutation.mutate(houseId);
           }}
         >
-          <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-            <h2 className="text-lg font-semibold text-slate-950">{t('houses.recommended')}</h2>
+          <section className="rounded-xl border border-[#ead9b8] bg-[#f7f1e6] p-5">
+            <h2 className="text-lg font-semibold text-stone-950">{t('houses.recommended')}</h2>
             {ranking.recommendation ? (
               <HouseOption
                 row={ranking.recommendation}
@@ -78,14 +78,14 @@ export function SellerHouseChoicePage() {
                 onSelect={setSelectedHouseId}
               />
             ) : (
-              <p className="mt-2 text-slate-600">{t('houses.none')}</p>
+              <p className="mt-2 text-stone-600">{t('houses.none')}</p>
             )}
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-semibold text-slate-950">{t('houses.alternatives')}</h2>
+          <section className="rounded-xl border border-[#ead9b8] bg-white p-5">
+            <h2 className="text-lg font-semibold text-stone-950">{t('houses.alternatives')}</h2>
             {ranking.alternatives.length === 0 ? (
-              <p className="mt-2 text-slate-600">{t('houses.noAlternatives')}</p>
+              <p className="mt-2 text-stone-600">{t('houses.noAlternatives')}</p>
             ) : (
               <ul className="mt-3 space-y-4">
                 {ranking.alternatives.map((row) => (
@@ -101,11 +101,11 @@ export function SellerHouseChoicePage() {
             )}
           </section>
 
-          <p className="text-sm text-slate-500">{t('houses.choiceHint')}</p>
+          <p className="text-sm text-stone-500">{t('houses.choiceHint')}</p>
           <button
             type="submit"
             disabled={choiceMutation.isPending || options.length === 0}
-            className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+            className="rounded-full bg-[#2b2438] px-4 py-2 text-sm font-medium text-white hover:bg-[#3a314d] focus:outline-none focus:ring-2 focus:ring-amber-700 disabled:opacity-50"
           >
             {t('houses.saveChoice')}
           </button>
@@ -152,9 +152,9 @@ function HouseOption({
           className="mt-1"
         />
         <span>
-          <span className="block font-medium text-slate-950">{row.house.name}</span>
-          <span className="mt-1 block text-sm text-slate-600">{t('houses.reasons')}</span>
-          <ul className="mt-1 list-disc ps-5 text-sm text-slate-600">
+          <span className="block font-medium text-stone-950">{row.house.name}</span>
+          <span className="mt-1 block text-sm text-stone-600">{t('houses.reasons')}</span>
+          <ul className="mt-1 list-disc ps-5 text-sm text-stone-600">
             {row.reasons.map((reason) => (
               <li key={reason}>{reason}</li>
             ))}

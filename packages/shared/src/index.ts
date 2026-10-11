@@ -16,3 +16,6 @@ export * from './profile-contact-snapshot';
 export * from './seller-item-draft';
 export * from './comparable';
 export * from './house-recommendation';
+export * from './dashboard-valuation';
+export * from './valuation-history';
+export { dashboardValuationSchema as sellerLeadValuationSchema } from './dashboard-valuation';

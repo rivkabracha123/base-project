@@ -20,11 +20,11 @@ export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPa
   if (outcome.kind === 'unmatched') {
     return (
       <div className="mx-auto max-w-3xl p-6" dir={isRtl ? 'rtl' : 'ltr'}>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm" role="status">
-          <h1 className="mb-2 text-xl font-bold text-slate-900">
+        <div className="rounded-xl border border-[#ead9b8] bg-white p-6 text-center shadow-sm" role="status">
+          <h1 className="mb-2 text-xl font-bold text-stone-950">
             {isRtl ? 'לא נמצאו התאמות' : 'No matches found'}
           </h1>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-stone-600">
             {isRtl ? 'לא נמצאו פריטים המתאימים לחיפוש שבוצע.' : 'No auction items matched this search.'}
           </p>
         </div>
@@ -34,8 +34,8 @@ export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPa
 
   const renderLotGroup = (title: string, entries: typeof outcome.results.current) => (
     <section className="mb-8">
-      <h2 className="mb-3 text-lg font-bold text-slate-800">{title}</h2>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <h2 className="mb-3 text-lg font-bold text-stone-800">{title}</h2>
+      <div dir="ltr" className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {entries.map((entry) => (
           <ResultCard
             key={entry.lot.id}
@@ -52,7 +52,7 @@ export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPa
 
   return (
     <div className="mx-auto max-w-6xl p-6" dir={isRtl ? 'rtl' : 'ltr'}>
-      <h1 className="mb-4 text-xl font-bold text-slate-900">
+      <h1 className="mb-4 text-xl font-bold text-stone-950">
         {isRtl ? 'תוצאות מכירות מונאביד' : 'Auction matches'}
       </h1>
       {outcome.approvedRefinements.length > 0 ? (
