@@ -111,6 +111,14 @@ export async function submitBuyerChatMessage(
     });
 
     activeSessionId = body.sessionId;
+    // Keep only B3's latest result set. A later price-trend request sends these
+    // IDs back to B2; B4 uses them as evidence and never chooses similarity.
+    const resultLots = body.updates.flatMap((update) =>
+      update.speaker === 'result-group' ? update.lots.map((lot) => ({ id: lot.id })) : [],
+    );
+    if (resultLots.length > 0) {
+      activeContext = { ...activeContext, lots: resultLots };
+    }
     options?.onSessionId?.(body.sessionId);
     options?.onTurnLog?.(body.turn);
     for (const update of body.updates) {

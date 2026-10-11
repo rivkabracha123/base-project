@@ -465,6 +465,15 @@ export async function getLotById(id: string, language: string, signal?: AbortSig
   return auctionLotSchema.parse(await response.json());
 }
 
+/** Returns verified prior sales for one canonical itemKey. */
+export async function getLotSaleHistory(itemKey: string, signal?: AbortSignal): Promise<AuctionLot[]> {
+  if (import.meta.env.VITE_FIXTURE_MODE === 'true') return [];
+
+  const response = await fetch(`${apiBaseUrl}/lots/history/${encodeURIComponent(itemKey)}`, { signal });
+  if (!response.ok) throw new Error(`Sale history API request failed with status ${response.status}`);
+  return z.array(auctionLotSchema).parse(await response.json());
+}
+
 // Fetches a conversation from the given path and returns only messages that pass the role's schema validation.
 async function fetchConversation<TMessage>(
   path: string,

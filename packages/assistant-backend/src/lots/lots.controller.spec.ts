@@ -36,4 +36,15 @@ describe('LotsController', () => {
     expect(lotsService.search).toHaveBeenCalledWith(body);
     expect(result).toBe(paginated);
   });
+
+  it('forwards an itemKey to the sale-history service method', async () => {
+    const sales = [{ id: 'sale-1', itemKey: 'abrabanel_commentary' }];
+    const lotsService = {
+      findSaleHistoryByItemKey: jest.fn().mockResolvedValue(sales),
+    } as unknown as LotsService;
+    const controller = new LotsController(lotsService, {} as never);
+
+    await expect(controller.history('abrabanel_commentary')).resolves.toBe(sales);
+    expect(lotsService.findSaleHistoryByItemKey).toHaveBeenCalledWith('abrabanel_commentary');
+  });
 });

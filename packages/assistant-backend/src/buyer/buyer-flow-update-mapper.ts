@@ -24,6 +24,8 @@ export function buyerFlowUpdatesToChatUpdates(
           title: group.title,
           lots: group.items.map((item) => item.lot),
         }));
+    case 'price_trend':
+      return [{ speaker: 'price-trend', title: update.title, lots: update.lots, points: update.points }];
     case 'unmatched':
       return [{ speaker: 'no-results', text: update.text }];
     case 'error':

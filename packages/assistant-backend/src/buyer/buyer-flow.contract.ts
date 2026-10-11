@@ -7,6 +7,9 @@ export {
   type BuyerResultsPresentationPort,
   type PresentSearchResultsInput,
   type PresentSearchResultsResult,
+  type PresentPriceTrendInput,
+  type PresentPriceTrendResult,
+  type PriceTrendPoint,
 } from './buyer-results-presentation.port';
 export type {
   BuyerFlowOnUpdate,

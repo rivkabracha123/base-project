@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockConversation } from '../buyer/mock-conversation';
-import { getAnonymousSessionId, getConversation, getLotById } from './api';
+import { getAnonymousSessionId, getConversation, getLotById, getLotSaleHistory } from './api';
 
 const lot = {
   id: 'lot-1',
@@ -57,6 +57,25 @@ describe('getLotById', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
 
     await expect(getLotById('missing', 'en')).rejects.toThrow('API request failed with status 404');
+  });
+});
+
+describe('getLotSaleHistory', () => {
+  it('returns validated historical sales for an itemKey', async () => {
+    vi.stubEnv('VITE_FIXTURE_MODE', 'false');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([lot]), { status: 200 })));
+
+    await expect(getLotSaleHistory('abrabanel_commentary')).resolves.toEqual([lot]);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://localhost:3001/api/lots/history/abrabanel_commentary',
+      expect.objectContaining({ signal: undefined }),
+    );
+  });
+
+  it('returns an empty list in fixture mode instead of inventing sales', async () => {
+    vi.stubEnv('VITE_FIXTURE_MODE', 'true');
+
+    await expect(getLotSaleHistory('abrabanel_commentary')).resolves.toEqual([]);
   });
 });
 

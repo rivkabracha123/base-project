@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { BuyerChatOrchestratorService } from './buyer-chat-orchestrator.service';
 import type { BuyerLotsResolverService } from './buyer-lots-resolver.service';
+import type { LotsService } from '../lots/lots.service';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
@@ -23,7 +24,11 @@ describe('BuyerChatOrchestratorService', () => {
       findLot: jest.fn(async (id: string) => findBuyerFixtureLot(id) ?? null),
       resolveLotPool: jest.fn(async (refs?: { id: string }[]) => resolveBuyerFixtureLots(refs)),
     } as unknown as BuyerLotsResolverService;
-    const saleHistory = new BuyerComparableSaleHistoryService(lotsResolver);
+    const lotsService = {
+      findOne: jest.fn(async (id: string) => findBuyerFixtureLot(id)),
+      findSaleHistoryByItemKey: jest.fn(async () => resolveBuyerFixtureLots().filter((lot) => lot.status === 'sold')),
+    } as unknown as LotsService;
+    const saleHistory = new BuyerComparableSaleHistoryService(lotsService);
     const executor = new BuyerP4FunctionExecutor(
       saleHistory,
       new DefaultBuyerResultsPresentationService(

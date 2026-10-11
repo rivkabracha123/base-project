@@ -11,7 +11,7 @@ import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import { LotsServiceSearchClient } from './lots-service-search.client';
 import { BUYER_RESULTS_PRESENTATION_PORT } from './buyer-results-presentation.port';
-import { DefaultBuyerResultsPresentationService } from './default-buyer-results-presentation.service';
+import { BatyaBuyerResultsPresentationService } from './batya-buyer-results-presentation.service';
 import { BuyerSearchExecutionService } from './buyer-search-execution.service';
 
 @Module({
@@ -22,7 +22,7 @@ import { BuyerSearchExecutionService } from './buyer-search-execution.service';
     BuyerSearchExecutionService,
     {
       provide: BUYER_RESULTS_PRESENTATION_PORT,
-      useClass: DefaultBuyerResultsPresentationService,
+      useClass: BatyaBuyerResultsPresentationService,
     },
     BuyerSessionSearchService,
     BuyerP4BridgeService,

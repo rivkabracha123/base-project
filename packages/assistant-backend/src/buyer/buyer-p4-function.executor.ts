@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   B2_SEARCH_LOTS_FUNCTION,
   SHILAT_FUNCTION_GET_LOT_BY_ID,
+  SHILAT_FUNCTION_PRICE_TREND,
   resolveBuyerActionFromP4,
   shouldRunComparableSaleHistory,
 } from '../ai/p4-buyer-routing';
@@ -45,6 +46,10 @@ export class BuyerP4FunctionExecutor {
   ): Promise<boolean> {
     const action = resolveBuyerActionFromP4(ai);
     const routeName = ai.intentRoute.functionName;
+
+    if (action.kind === 'priceTrend' || routeName === SHILAT_FUNCTION_PRICE_TREND) {
+      return this.runPriceTrend(ctx, updates);
+    }
 
     if (action.kind === 'getComparableSaleHistory' || shouldRunComparableSaleHistory(ai, ctx.p4Context)) {
       return await this.runComparableSaleHistory(ai, ctx, updates);
@@ -152,6 +157,34 @@ export class BuyerP4FunctionExecutor {
       searchContextId: ctx.sessionId,
       criteria,
       selectedLotId: ctx.p4Context?.selectedLot?.id,
+      onUpdate: (flowUpdate) => {
+        updates.push(...buyerFlowUpdatesToChatUpdates(flowUpdate, ctx.language));
+      },
+    });
+    return true;
+  }
+
+  private async runPriceTrend(ctx: P4FunctionExecutionContext, updates: BuyerChatUpdate[]): Promise<boolean> {
+    const lots = ctx.p4Context?.lots;
+    if (!lots?.length) {
+      updates.push({
+        speaker: 'error',
+        code: 'price_trend_missing_results',
+        text: ctx.language === 'he'
+          ? 'כדי להציג מגמת מחירים צריך לבצע קודם חיפוש של פריטים.'
+          : 'Search for lots first to show a price trend.',
+      });
+      return true;
+    }
+
+    if (!this.resultsPresentation.presentPriceTrend) {
+      updates.push({ speaker: 'error', code: 'price_trend_unavailable', text: 'Price trend is unavailable.' });
+      return true;
+    }
+
+    await this.resultsPresentation.presentPriceTrend({
+      lots,
+      language: ctx.language,
       onUpdate: (flowUpdate) => {
         updates.push(...buyerFlowUpdatesToChatUpdates(flowUpdate, ctx.language));
       },
