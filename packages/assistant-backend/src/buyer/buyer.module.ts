@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiModule } from '../ai/ai.module';
 import { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
 import { LotsModule } from '../lots/lots.module';
-import { LotsService } from '../lots/lots.service';
 import { SellerLeadsModule } from '../seller-leads/seller-leads.module';
 import { BuyerHouseRecommendationService } from './buyer-house-recommendation.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
@@ -26,11 +25,11 @@ import { LotsServiceSearchClient } from './lots-service-search.client';
     BuyerCriteriaService,
     UnmatchedDemandDbStore,
     {
-      // Buyer search runs on the real lots search and records no-result demand in the database.
+      // Buyer search runs on the real lots search, validated against its own request rules, and records no-result demand in the database.
       provide: BuyerSearchOrchestrator,
-      inject: [LotsService, UnmatchedDemandDbStore],
-      useFactory: (lotsService: LotsService, demandStore: UnmatchedDemandDbStore) =>
-        new BuyerSearchOrchestrator(lotsService, new BuyerSearchService(), demandStore),
+      inject: [LotsServiceSearchClient, UnmatchedDemandDbStore],
+      useFactory: (lotsSearch: LotsServiceSearchClient, demandStore: UnmatchedDemandDbStore) =>
+        new BuyerSearchOrchestrator(lotsSearch, new BuyerSearchService(), demandStore),
     },
     BuyerSessionSearchService,
     BuyerP4BridgeService,

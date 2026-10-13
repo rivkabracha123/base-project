@@ -13,6 +13,7 @@ import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerModule } from './buyer.module';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
 import { UnmatchedDemandDbStore } from './unmatched-demand.db-store';
+import { InvalidLotsSearchRequestError } from './lots-service-search.client';
 
 // Runtime wiring: the orchestrator the Nest container provides runs on the real LotsService and records demand in the database store.
 const contract = JSON.parse(
@@ -115,6 +116,16 @@ describe('BuyerModule search wiring', () => {
     if (outcome.kind !== 'results') return;
     const ids = [...outcome.results.current, ...outcome.results.historical].map((entry) => entry.lot.id);
     expect(ids).toEqual([namedLot.id]);
+    expect(demand.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects input the lots search rules forbid before any query, and records no demand', async () => {
+    const { demand, orchestrator } = await compileBuyerModule([namedLot]);
+
+    const search = orchestrator.search({ ...input, criteria: { ...input.criteria, price: { min: -1, currency: 'USD' } } });
+
+    await expect(search).rejects.toBeInstanceOf(InvalidLotsSearchRequestError);
+    await expect(search).rejects.toMatchObject({ fields: ['filters.price.min'] });
     expect(demand.save).not.toHaveBeenCalled();
   });
 });
