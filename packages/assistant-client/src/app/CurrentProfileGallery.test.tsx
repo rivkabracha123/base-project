@@ -9,6 +9,7 @@ import '../i18n';
 vi.mock('./api', () => ({
   deleteEvidence: vi.fn(),
   evidenceUrl: (path: string) => `http://localhost:3001/api${path}`,
+  fetchEvidenceObjectUrl: vi.fn(async (path: string) => `blob:test${path}`),
   getCurrentProfile: vi.fn(),
   getProfileEvidence: vi.fn(),
   saveProfileEvidenceOrder: vi.fn(),

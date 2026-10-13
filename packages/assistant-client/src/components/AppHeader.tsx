@@ -68,7 +68,7 @@ export function AppHeader() {
           {/* Entry point to the personal area (profile update and deletion) */}
           <Link
             to="/account"
-            className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3ead8] focus:outline-none focus:ring-2 focus:ring-amber-700"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
           >
             {t('navigation.account')}
           </Link>
@@ -79,7 +79,7 @@ export function AppHeader() {
               languageMutation.mutate(nextLanguage);
             }}
             isDisabled={languageMutation.isPending}
-            className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3ead8] focus:outline-none focus:ring-2 focus:ring-amber-700"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
           >
             {t('language')}
           </Button>

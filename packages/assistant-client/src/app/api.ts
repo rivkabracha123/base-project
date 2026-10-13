@@ -648,7 +648,11 @@ async function evidenceRequest<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}${path}`, init);
+  // Evidence routes are owner-only: every request must prove which browser session it comes from.
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    headers: { ...profileHeaders(), ...(init?.headers as Record<string, string> | undefined) },
+  });
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as
@@ -659,6 +663,16 @@ async function evidenceRequest<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+/**
+ * Loads an evidence file as a temporary browser URL.
+ * An <img src> or <a href> cannot send the session header, so the file is fetched with it instead.
+ */
+export async function fetchEvidenceObjectUrl(path: string, signal?: AbortSignal): Promise<string> {
+  const response = await fetch(evidenceUrl(path), { headers: profileHeaders(), signal });
+  if (!response.ok) throw new Error(`Evidence file request failed (${response.status})`);
+  return URL.createObjectURL(await response.blob());
 }
 
 /** Fetch all evidence for a profile. The ordering endpoint requires the full profile list. */

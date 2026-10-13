@@ -1,7 +1,8 @@
 import { useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { evidenceUrl, getSellerConversation } from '../app/api';
+import { getSellerConversation } from '../app/api';
+import { EvidenceImage } from '../app/EvidenceImage';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
@@ -88,9 +89,9 @@ export function SellerChat() {
       <MessageBubble speaker={message.speaker} isOwn={message.speaker === 'seller'}>
         {message.speaker === 'seller' &&
           message.images?.map((image) => (
-            <img
+            <EvidenceImage
               key={image.fileId}
-              src={evidenceUrl(image.previewUri)}
+              path={image.previewUri}
               alt={image.originalName}
               className="max-h-60 rounded-lg"
             />

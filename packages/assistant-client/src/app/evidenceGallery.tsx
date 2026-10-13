@@ -10,12 +10,13 @@ import {
 import { useTranslation } from 'react-i18next';
 import {
   deleteEvidence,
-  evidenceUrl,
+  fetchEvidenceObjectUrl,
   getProfileEvidence,
   saveProfileEvidenceOrder,
   uploadItemEvidence,
   type EvidenceReference,
 } from './api';
+import { EvidenceImage } from './EvidenceImage';
 
 const maxFiles = 10;
 const maxFileSize = 10 * 1024 * 1024;
@@ -109,14 +110,26 @@ function PhotoActionsMenu({
           className="absolute end-0 top-full mt-1 min-w-32 rounded-sm border border-[#ead9b8] bg-white p-1 shadow-md"
         >
 
-          <a
+          <button
             role="menuitem"
-            href={evidenceUrl(photo.downloadUri)}
-            onClick={() => setOpen(false)}
-            className="block px-3 py-2 text-sm text-stone-800 hover:bg-[#f7f1e6]"
+            type="button"
+            onClick={async () => {
+              setOpen(false);
+              try {
+                const url = await fetchEvidenceObjectUrl(photo.downloadUri);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = photo.originalName;
+                link.click();
+                URL.revokeObjectURL(url);
+              } catch {
+                // Download failures are silent; the photo stays available in the gallery.
+              }
+            }}
+            className="block w-full px-3 py-2 text-start text-sm text-stone-800 hover:bg-[#f7f1e6]"
           >
             {downloadLabel}
-          </a>
+          </button>
 
           <button
             role="menuitem"
@@ -446,8 +459,8 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
                       }
                       className="block h-full w-full cursor-grab active:cursor-grabbing"
                     >
-                      <img
-                        src={evidenceUrl(photo.previewUri)}
+                      <EvidenceImage
+                        path={photo.previewUri}
                         alt={photo.originalName}
                         className="h-full w-full object-contain p-2"
                       />
@@ -505,8 +518,8 @@ export function EvidenceGallery({ profileId }: { profileId: string }) {
               ×
             </button>
 
-            <img
-              src={evidenceUrl(selectedPhoto.previewUri)}
+            <EvidenceImage
+              path={selectedPhoto.previewUri}
               alt={selectedPhoto.originalName}
               className="max-h-[80vh] max-w-full object-contain"
             />
