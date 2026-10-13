@@ -34,6 +34,7 @@ export const sellerDimensionMeasurementSchema = z.object({
   value: z.number().nonnegative(),
   unit: z.string().min(1),
 });
+export type SellerDimensionMeasurement = z.infer<typeof sellerDimensionMeasurementSchema>;
 
 export const sellerDimensionsSchema = z.object({
   values: z.array(sellerDimensionMeasurementSchema).default([]),
@@ -75,6 +76,7 @@ export const sellerItemDraftSchema = z.object({
     dimensions: sellerDimensionsSchema,
     condition: z.string().optional(),
     markings: z.string().optional(),
+    signatures: z.string().optional(),
     provenance: z.string().optional(),
     eraGuess: z.string().optional(),
     source: z.string().min(1),
@@ -83,6 +85,8 @@ export const sellerItemDraftSchema = z.object({
   }),
   evidence: z.array(sellerItemEvidenceSchema),
   factEvidence: z.record(z.array(z.string())).optional(),
+  missingFields: z.array(z.string()).optional(),
+  recalculationRequired: z.boolean().optional(),
   // Yael Sagis — photo references: evidence items are references, not storage or valuation logic.
   // Heni Cohen — confirmed facts: trusted seller-approved fields remain separate from uncertainFacts.
   confirmedFacts: z.object({
@@ -91,6 +95,7 @@ export const sellerItemDraftSchema = z.object({
     dimensions: sellerDimensionsSchema.optional(),
     condition: z.string().optional(),
     markings: z.string().optional(),
+    signatures: z.string().optional(),
     provenance: z.string().optional(),
   }),
   uncertainFacts: z.array(z.object({
@@ -107,6 +112,7 @@ export const sellerItemDraftSchema = z.object({
     summary: z.string().min(1),
     changes: z.array(z.string()),
   })),
+
   sellerConfirmation: z.object({
     required: z.boolean(),
     status: z.enum(['partial', 'complete', 'pending']),

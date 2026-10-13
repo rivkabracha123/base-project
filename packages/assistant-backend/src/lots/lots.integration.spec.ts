@@ -31,10 +31,14 @@ describe('Lots API (integration)', () => {
   const queryBuilder = {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
     orderBy: jest.fn().mockReturnThis(),
+    addOrderBy: jest.fn().mockReturnThis(),
     skip: jest.fn().mockReturnThis(),
     take: jest.fn().mockReturnThis(),
-    getManyAndCount: jest.fn().mockResolvedValue([[{ payload: lot }], 1]),
+    setParameters: jest.fn().mockReturnThis(),
+    getRawAndEntities: jest.fn().mockResolvedValue({ entities: [{ payload: lot }], raw: [] }),
+    getCount: jest.fn().mockResolvedValue(1),
   };
   const repository = {
     createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
@@ -78,7 +82,7 @@ describe('Lots API (integration)', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      data: [lot],
+      data: [{ lot, matchReasons: [] }],
       total: 1,
       page: 1,
       limit: 10,
@@ -101,7 +105,7 @@ describe('Lots API (integration)', () => {
     const response = await postSearch({ query: 'book', page: 2, limit: 5 });
 
     expect(response.status).toBe(200);
-    expect(queryBuilder.orderBy).toHaveBeenCalledWith('lot.id', 'ASC');
+    expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('lot.id', 'ASC');
     expect(queryBuilder.skip).toHaveBeenCalledWith(5);
     expect(queryBuilder.take).toHaveBeenCalledWith(5);
   });
@@ -126,17 +130,49 @@ describe('Lots API (integration)', () => {
     expect(validatedRecords).toHaveLength(2); // sanity check: the broken record was filtered here
 
     // Seed the mocked DB with only what validation accepted.
-    queryBuilder.getManyAndCount.mockResolvedValueOnce([
-      validatedRecords.map((payload) => ({ payload })),
-      validatedRecords.length,
-    ]);
+    queryBuilder.getRawAndEntities.mockResolvedValueOnce({
+      entities: validatedRecords.map((payload) => ({ payload })),
+      raw: [],
+    });
+    queryBuilder.getCount.mockResolvedValueOnce(validatedRecords.length);
 
     // Consumer step (P2): a real search request through the actual controller/service.
     const response = await postSearch({ filters: { categories: ['rare_books'] } });
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data.map((entry: AuctionLot) => entry.id)).toEqual(['lot-valid-1', 'lot-valid-2']);
-    expect(body.data.every((entry: AuctionLot) => entry.title?.en && entry.category)).toBe(true);
+    expect(body.data.map((entry: { lot: AuctionLot }) => entry.lot.id)).toEqual(['lot-valid-1', 'lot-valid-2']);
+    expect(
+      body.data.every((entry: { lot: AuctionLot }) => entry.lot.title?.en && entry.lot.category),
+    ).toBe(true);
+  });
+
+  it('serves a record with every optional field missing, fully intact', async () => {
+    const minimalRecord = {
+      id: 'lot-minimal-1',
+      source: { provider: 'demo', recordId: 'minimal-1', url: 'https://example.com/minimal-1', retrievedAt: '2025-01-01T00:00:00.000Z' },
+      auctionHouse: { id: 'house-1', name: 'Demo House' },
+      auctionTitle: 'Demo Auction',
+      lotNumber: '1',
+      title: { en: 'Minimal lot' },
+      description: { en: 'No optional fields at all.' },
+      category: 'rare_books',
+      saleDate: '2025-01-01',
+      status: 'upcoming',
+    };
+    const { records: validatedRecords } = validateAuctionLotFixture([minimalRecord]);
+    expect(validatedRecords).toHaveLength(1); // sanity check: minimal record is accepted, not rejected
+
+    queryBuilder.getRawAndEntities.mockResolvedValueOnce({
+      entities: validatedRecords.map((payload) => ({ payload })),
+      raw: [],
+    });
+    queryBuilder.getCount.mockResolvedValueOnce(validatedRecords.length);
+
+    const response = await postSearch({ filters: { categories: ['rare_books'] } });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([{ lot: minimalRecord, matchReasons: [] }]);
   });
 });

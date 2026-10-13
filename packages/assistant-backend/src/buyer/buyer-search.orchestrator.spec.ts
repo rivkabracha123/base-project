@@ -3,20 +3,23 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { deriveHardConstraints, emptyBuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-import type { PaginatedSearchResult } from './search-request';
+import type { LotSearchResult } from '../lots/lot-match';
 
 const fixture = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
 
-// Wraps fixture lots as the single-page PaginatedResult the lots search API returns.
-const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
-  data,
+// Wraps fixture lots as the single-page result the lots search API returns, with no match reasons.
+const page = (data: AuctionLot[]): LotSearchResult => ({
+  data: data.map((lot) => ({ lot, matchReasons: [] })),
   total: data.length,
   page: 1,
   limit: data.length || 10,
   totalPages: data.length > 0 ? 1 : 0,
 });
+
+// Smallest criteria the lots search can search by: one category filter (empty criteria never reach it).
+const searchableCriteria = () => ({ ...emptyBuyerCriteria('en'), categories: ['rare_books'] });
 
 const baseLead = {
   leadId: 'lead-1',
@@ -69,11 +72,16 @@ describe('BuyerSearchOrchestrator', () => {
         },
       ],
     });
-    expect(outcome.results.current).toEqual([]);
-    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(fixture);
+    expect(outcome.results.current.map((entry) => entry.lot)).toEqual(
+      fixture.filter((lot) => lot.status === 'upcoming'),
+    );
+    expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(
+      fixture.filter((lot) => lot.status !== 'upcoming'),
+    );
     expect(lotsSearch.search).toHaveBeenCalledWith({
-      query: 'Yitzhak Abrabanel manuscript',
+      query: 'manuscript',
       language: 'en',
+      filters: { creators: ['Yitzhak Abrabanel'] },
     });
   });
 
@@ -124,6 +132,10 @@ describe('BuyerSearchOrchestrator', () => {
           },
         },
       },
+      relaxationOptions: [
+        { field: 'creators', requiresApproval: true },
+        { field: 'price', requiresApproval: true },
+      ],
     });
     expect(JSON.stringify(outcome)).not.toContain('profileId');
     expect(JSON.stringify(outcome)).not.toContain('conversation');
@@ -178,7 +190,7 @@ describe('BuyerSearchOrchestrator', () => {
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
-      criteria: emptyBuyerCriteria('en'),
+      criteria: searchableCriteria(),
       language: 'en',
       ...baseLead,
       selectedLotId: 'lot-1',
@@ -230,12 +242,82 @@ describe('BuyerSearchOrchestrator', () => {
 
     expect(lotsSearch.search).toHaveBeenCalledTimes(1);
     expect(lotsSearch.search).toHaveBeenCalledWith({
-      query: 'Someone',
+      query: '',
       language: 'en',
+      filters: { creators: ['Someone'] },
     });
     expect(outcome.kind).toBe('results');
     if (outcome.kind !== 'results') return;
     expect(outcome.results.historical.map((entry) => entry.lot)).toEqual(returned);
     expect(outcome.results.historical[0]?.lot).toBe(returned[0]);
+  });
+
+  it('reports in-process progress to an optional callback, in order, with no lot data', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+    const progress: unknown[] = [];
+
+    await orchestrator.search(
+      { criteria: searchableCriteria(), language: 'en', ...baseLead },
+      (update) => progress.push(update),
+    );
+
+    expect(progress).toEqual([{ stage: 'searching' }, { stage: 'results-found', count: 1 }]);
+  });
+
+  it('reports a no-results progress stage when the lots search returns nothing', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+    const progress: unknown[] = [];
+
+    await orchestrator.search(
+      { criteria: searchableCriteria(), language: 'en', ...baseLead },
+      (update) => progress.push(update),
+    );
+
+    expect(progress).toEqual([{ stage: 'searching' }, { stage: 'no-results' }]);
+  });
+
+  it('reports an error stage when the lots search fails, and still rethrows the original error', async () => {
+    const failure = new Error('lots search unavailable');
+    const lotsSearch = { search: jest.fn().mockRejectedValue(failure) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+    const progress: unknown[] = [];
+
+    await expect(
+      orchestrator.search(
+        { criteria: searchableCriteria(), language: 'en', ...baseLead },
+        (update) => progress.push(update),
+      ),
+    ).rejects.toBe(failure);
+
+    expect(progress).toEqual([{ stage: 'searching' }, { stage: 'error' }]);
+  });
+
+  it('keeps searching when the progress callback itself throws', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+
+    const outcome = await orchestrator.search(
+      { criteria: searchableCriteria(), language: 'en', ...baseLead },
+      () => {
+        throw new Error('listener broke');
+      },
+    );
+
+    expect(outcome.kind).toBe('results');
+  });
+
+  it('works with no callback at all, unchanged from before', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
+
+    const outcome = await orchestrator.search({
+      criteria: searchableCriteria(),
+      language: 'en',
+      ...baseLead,
+    });
+
+    expect(outcome.kind).toBe('results');
   });
 });

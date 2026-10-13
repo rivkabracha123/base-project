@@ -166,6 +166,19 @@ describe('validateAuctionLotFixture', () => {
     });
   });
 
+  it('produces an independent, correct report on each call — not influenced by a previous run', () => {
+    const firstRun = validateAuctionLotFixture([makeLot({ id: 'lot-1' }), makeLot({ id: 'lot-2' })]);
+    expect(firstRun.report).toMatchObject({ total: 2, accepted: 2, rejected: 0 });
+
+    const secondRun = validateAuctionLotFixture([
+      makeLot({ id: 'lot-3' }),
+      { id: 'broken-1' }, // a new invalid record, unrelated to the first run
+    ]);
+
+    expect(secondRun.report).toMatchObject({ total: 2, accepted: 1, rejected: 1 });
+    expect(secondRun.records.map((lot) => lot.id)).toEqual(['lot-3']);
+  });
+
   it('keeps the committed fixture free of private contact fields', async () => {
     const fixture = await readCommittedFixture();
     const serialized = JSON.stringify(fixture).toLowerCase();

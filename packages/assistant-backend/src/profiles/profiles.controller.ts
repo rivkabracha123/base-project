@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, 
 import type { ProfileContactSnapshot, UserProfile } from '@monabid/shared';
 import { ProfilesService } from './profiles.service';
 import { UpdateCurrentProfileDto } from './update-current-profile.dto';
+import { UpdateContactDto } from './update-contact.dto';
 
 // This controller receives anonymous profile requests from the frontend.
 @Controller('profiles')
@@ -51,6 +52,14 @@ export class ProfilesController {
       this.requireSessionId(sessionId),
       update,
     );
+  }
+
+  @Patch('me/contact')
+  updateContact(
+    @Headers('x-anonymous-session-id') sessionId: string,
+    @Body() body: UpdateContactDto,
+  ): Promise<UserProfile> {
+    return this.profilesService.updateContact(this.requireSessionId(sessionId), body);
   }
 
   // Week 5: delete the current session's profile. 204 even if none existed - idempotent for the caller.

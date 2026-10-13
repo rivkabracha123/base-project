@@ -10,5 +10,6 @@ import { UploadsService } from "./uploads.service";
   imports: [StorageModule, ProfilesModule],
   controllers: [UploadsController],
   providers: [UploadsService, ProfileOwnershipGuard],
+  exports: [UploadsService],
 })
 export class UploadsModule {}

@@ -3,13 +3,13 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-import type { PaginatedSearchResult } from './search-request';
+import type { LotSearchResult } from '../lots/lot-match';
 
 const repoRoot = resolve(__dirname, '../../../..');
 
-// Wraps fixture lots as the single-page PaginatedResult P2's real search() returns.
-const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
-  data,
+// Wraps fixture lots as the single-page result the real lots search() returns, with no match reasons.
+const page = (data: AuctionLot[]): LotSearchResult => ({
+  data: data.map((lot) => ({ lot, matchReasons: [] })),
   total: data.length,
   page: 1,
   limit: data.length || 10,
@@ -65,8 +65,8 @@ const lead = {
 
 const forbiddenKeys = ['profileId', 'sessionId', 'conversation'];
 
-// Week 3 checkpoint: trace one named fixture from B2/P2 through B3 into B4/P5, budget and filters preserved.
-describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
+// Traces one named fixture from buyer criteria and lots search through the orchestrator into the results and unmatched-demand hand-offs, budget and filters preserved.
+describe('Buyer search hand-off hard-constraint preservation contract', () => {
   const { scenario, expected } = contract;
   const criteria = legacyToCanonical(scenario.criteria, scenario.language);
   const expectedCriteria = legacyToCanonical(
@@ -74,11 +74,11 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     expected.results.searchRequest.language,
   );
 
-  it('carries the whole received criteria onto the B4 results handoff', async () => {
-    const p2 = {
-      search: jest.fn().mockResolvedValue(page(scenario.p2Results.resultsCase.map(lotById))),
+  it('carries the whole received criteria onto the results hand-off', async () => {
+    const lotsSearch = {
+      search: jest.fn().mockResolvedValue(page(scenario.searchResults.resultsCase.map(lotById))),
     };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
       criteria,
@@ -98,7 +98,10 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     ]);
     expect(
       [...outcome.results.current, ...outcome.results.historical].map((entry) => entry.lot.id),
-    ).toEqual(expected.results.itemIds);
+    ).toEqual([
+      ...expected.results.itemIds.filter((id: string) => lotById(id).status === 'upcoming'),
+      ...expected.results.itemIds.filter((id: string) => lotById(id).status !== 'upcoming'),
+    ]);
 
     const serialized = JSON.stringify(outcome);
     for (const key of forbiddenKeys) {
@@ -106,11 +109,11 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     }
   });
 
-  it('carries the whole received criteria onto the P5 unmatched-demand handoff without inventing inventory', async () => {
-    const p2 = {
-      search: jest.fn().mockResolvedValue(page(scenario.p2Results.unmatchedCase.map(lotById))),
+  it('carries the whole received criteria onto the unmatched-demand hand-off without inventing inventory', async () => {
+    const lotsSearch = {
+      search: jest.fn().mockResolvedValue(page(scenario.searchResults.unmatchedCase.map(lotById))),
     };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
       criteria,
@@ -134,11 +137,11 @@ describe('B3 -> B4 / P5 hard-constraint preservation contract', () => {
     }
   });
 
-  it('leaves the received budget unchanged on the handoff (no silent relaxation by B3)', async () => {
-    const p2 = {
-      search: jest.fn().mockResolvedValue(page(scenario.p2Results.resultsCase.map(lotById))),
+  it('leaves the received budget unchanged on the handoff (no silent relaxation)', async () => {
+    const lotsSearch = {
+      search: jest.fn().mockResolvedValue(page(scenario.searchResults.resultsCase.map(lotById))),
     };
-    const orchestrator = new BuyerSearchOrchestrator(p2);
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
       criteria,

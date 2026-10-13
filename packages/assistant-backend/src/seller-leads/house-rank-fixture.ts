@@ -2,8 +2,13 @@ import {
   preparedAuctionHouseFixtureSchema,
   type PreparedAuctionHouse,
 } from '@monabid/shared';
+import { chatDemoHouses } from '../database/chat-demo-fixture';
 
 export function loadPreparedHouses(): PreparedAuctionHouse[] {
+  // Explicit opt-in; fictional venues must never become production recommendations.
+  if (process.env.CHAT_DEMO_DATA === 'true' && process.env.NODE_ENV !== 'production') {
+    return chatDemoHouses();
+  }
   return preparedAuctionHouseFixtureSchema.parse([
     {
       id: 'house-kestenbaum',

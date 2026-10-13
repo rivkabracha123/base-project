@@ -68,8 +68,16 @@ export class ProfilesService {
       marketingConsent: { granted: false },
     });
     // Save the profile so it can be restored when the visitor returns.
-    const savedProfile = await this.profiles.save(newProfile);
-    return savedProfile.toUserProfile();
+    try {
+      const savedProfile = await this.profiles.save(newProfile);
+      return savedProfile.toUserProfile();
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+        const concurrentProfile = await this.profiles.findOneBy({ sessionId });
+        if (concurrentProfile) return concurrentProfile.toUserProfile();
+      }
+      throw error;
+    }
   }
 
   /**
@@ -95,7 +103,6 @@ export class ProfilesService {
     const savedProfile = await this.profiles.save(profile);
     return savedProfile.toUserProfile();
   }
-
   async updateCurrentProfile(
     sessionId: string,
     update: UpdateCurrentProfileInput,
@@ -173,6 +180,69 @@ export class ProfilesService {
     return savedProfile.toUserProfile();
   }
 
+  async updateContact(
+    sessionId: string,
+    input: { email?: string; phone?: string; consentGranted: boolean },
+  ): Promise<UserProfile> {
+    if (!input.consentGranted) {
+      throw new BadRequestException('Consent is required before saving contact details');
+    }
+
+    if (!input.email && !input.phone) {
+      throw new BadRequestException('Email or phone is required');
+    }
+
+    const profile = await this.profiles.findOneBy({ sessionId });
+    if (!profile) {
+      throw new BadRequestException('Profile could not be found');
+    }
+
+    if (input.email !== undefined) {
+      profile.email = input.email.trim().toLowerCase();
+    }
+
+    if (input.phone !== undefined) {
+      profile.phone = input.phone.replace(/[()\s-]/g, '');
+    }
+    profile.serviceConsent = {
+      ...profile.serviceConsent,
+      granted: true,
+      grantedAt: new Date().toISOString(),
+      channel: 'buyer-profile-contact',
+    };
+
+    const savedProfile = await this.profiles.save(profile);
+    return savedProfile.toUserProfile();
+  }
+  async captureContactIfPresent(sessionId: string, text: string): Promise<void> {
+    const email = text
+      .match(/(?<![A-Z0-9._%+])([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i)?.[1]
+      ?.replace(/^[-.]+/, '');
+    const phone = text.match(/(?<!\d)\+?\d[\d\s().-]{6,}\d(?!\d)/)?.[0];
+
+    if (!email && !phone) {
+      return;
+    }
+
+    const profile = await this.profiles.findOneBy({ sessionId });
+    if (!profile) {
+      return;
+    }
+
+    if (!profile.serviceConsent?.granted) {
+      return;
+    }
+
+    if (email) {
+      profile.email = email.trim().toLowerCase();
+    }
+
+    if (phone) {
+      profile.phone = phone.replace(/[()\s-]/g, '');
+    }
+
+    await this.profiles.save(profile);
+  }
   // Week 5: delete by sessionId, not by internal id, so a session can only ever delete its own profile.
   async deleteBySessionId(sessionId: string): Promise<void> {
     const profile = await this.profiles.findOneBy({ sessionId });

@@ -316,3 +316,114 @@ describe('gradual scoring (Week 3)', () => {
     expect(second).toEqual(first);
   });
 });
+
+// Week 5 — sparse data, credible realized-sale boundary, outlier boundary, and inclusion/exclusion
+// explanations. S3 never applies the three-sale minimum (that is S4's refusal rule) and never
+// excludes on price (no outlier rule is agreed; S4 records outlier treatment).
+describe('Week 5 — inclusion/exclusion boundary', () => {
+  const NO_REALIZED_PRICE = 'No realized price recorded — lot cannot contribute to valuation evidence';
+  const paintingItem = { category: 'paintings', materials: ['oil', 'canvas'] };
+  const strongLot: AuctionLot = {
+    ...base,
+    id: 'w5-strong',
+    category: 'paintings',
+    title: { en: 'Oil on canvas portrait' },
+    description: { en: 'A signed oil on canvas painting.' },
+  };
+
+  it('excludes a sold same-category lot whose realized price is zero, using the existing no-realized-price reason', () => {
+    const zeroPriceLot: AuctionLot = { ...strongLot, id: 'w5-zero-price', realizedPrice: { amount: 0, currency: 'USD' } };
+
+    const zero = scoreComparable(zeroPriceLot, paintingItem);
+    const valid = scoreComparable(strongLot, paintingItem);
+
+    expect(zero.included).toBe(false);
+    expect(zero.exclusionReason).toBe(NO_REALIZED_PRICE);
+    expect(valid.included).toBe(true);
+
+    const { included, excluded } = partitionAndSort([zero, valid]);
+    expect(included.map(s => s.lot.id)).toEqual(['w5-strong']);
+    expect(excluded.map(s => s.lot.id)).toEqual(['w5-zero-price']);
+  });
+
+  it('keeps an unsold lot with an estimate out of the credible set, unchanged, with its reason', () => {
+    const unsoldWithEstimate: AuctionLot = {
+      ...strongLot,
+      id: 'w5-unsold-estimate',
+      status: 'unsold',
+      realizedPrice: undefined,
+      estimate: { low: { amount: 3000, currency: 'USD' }, high: { amount: 5000, currency: 'USD' } },
+    };
+
+    const { included, excluded } = partitionAndSort([
+      scoreComparable(strongLot, paintingItem),
+      scoreComparable(unsoldWithEstimate, paintingItem),
+    ]);
+
+    // Only the realized sale counts toward the credible set S4 receives.
+    expect(included.map(s => s.lot.id)).toEqual(['w5-strong']);
+    expect(excluded).toHaveLength(1);
+    expect(excluded[0]!.lot.realizedPrice).toBeUndefined();
+    expect(excluded[0]!.lot.estimate).toEqual(unsoldWithEstimate.estimate);
+    expect(excluded[0]!.exclusionReason).toBe(
+      'Not a completed sale (status: unsold) — unsold estimates do not count as realized prices',
+    );
+  });
+
+  it('gives every candidate either an inclusion matchReason or an exclusionReason', () => {
+    const lots: AuctionLot[] = [
+      strongLot,
+      { ...strongLot, id: 'w5-partial', title: { en: 'Canvas study' }, description: { en: 'Medium unconfirmed.' } },
+      { ...strongLot, id: 'w5-weak', title: { en: 'Bronze sculpture' }, description: { en: 'Cast bronze.' } },
+      { ...strongLot, id: 'w5-unsold', status: 'unsold', realizedPrice: undefined },
+      { ...strongLot, id: 'w5-withdrawn', status: 'withdrawn', realizedPrice: undefined },
+      { ...strongLot, id: 'w5-no-price', realizedPrice: undefined },
+      { ...strongLot, id: 'w5-zero', realizedPrice: { amount: 0, currency: 'USD' } },
+      { ...strongLot, id: 'w5-other-category', category: 'judaica' },
+    ];
+
+    const { included, excluded } = partitionAndSort(lots.map(lot => scoreComparable(lot, paintingItem)));
+
+    expect(included.length + excluded.length).toBe(lots.length);
+    for (const s of included) {
+      expect(s.included).toBe(true);
+      expect(s.matchReason).toBeTruthy();
+      expect(s.exclusionReason).toBeUndefined();
+    }
+    for (const s of excluded) {
+      expect(s.included).toBe(false);
+      expect(s.exclusionReason).toBeTruthy();
+    }
+  });
+
+  it('produces identical ranked output regardless of input order', () => {
+    const lots: AuctionLot[] = [
+      { ...strongLot, id: 'w5-order-b', saleDate: '2025-02-01' },
+      { ...strongLot, id: 'w5-order-a', saleDate: '2025-02-01' },
+      { ...strongLot, id: 'w5-order-newer', saleDate: '2025-05-01' },
+      { ...strongLot, id: 'w5-order-partial', title: { en: 'Canvas study' }, description: { en: 'Medium unconfirmed.' } },
+      { ...strongLot, id: 'w5-order-unsold', status: 'unsold', realizedPrice: undefined },
+    ];
+    const rank = (input: AuctionLot[]) => partitionAndSort(input.map(lot => scoreComparable(lot, paintingItem)));
+
+    const forward = rank(lots);
+    expect(rank([...lots].reverse())).toEqual(forward);
+    expect(rank([...lots.slice(2), ...lots.slice(0, 2)])).toEqual(forward);
+    expect(forward.included.map(s => s.lot.id)).toEqual(['w5-order-newer', 'w5-order-a', 'w5-order-b', 'w5-order-partial']);
+  });
+
+  it('does not exclude, demote, or alter an extreme realized price — outlier treatment belongs to S4', () => {
+    const typical: AuctionLot = { ...strongLot, id: 'w5-typical', realizedPrice: { amount: 1000, currency: 'USD' } };
+    const extreme: AuctionLot = { ...strongLot, id: 'w5-extreme', realizedPrice: { amount: 1000000, currency: 'USD' } };
+
+    const { included, excluded } = partitionAndSort([
+      scoreComparable(typical, paintingItem),
+      scoreComparable(extreme, paintingItem),
+    ]);
+
+    expect(excluded).toHaveLength(0);
+    expect(included.map(s => s.lot.id)).toEqual(['w5-extreme', 'w5-typical']); // same score and date: id asc
+    expect(included[0]!.score).toBe(included[1]!.score);
+    expect(included.find(s => s.lot.id === 'w5-extreme')!.lot).toEqual(extreme);
+  });
+});

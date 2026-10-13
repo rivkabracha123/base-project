@@ -4,6 +4,7 @@ export interface StaffOperationListItem {
   type: 'buyer' | 'seller';
   clientName: string;
   status: string;
+  category?: string;
   requestDetails: string;
   createdAt: Date;
 }

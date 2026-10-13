@@ -10,7 +10,6 @@ type BuyerCriteriaSessionRecord = {
 
 const sessions = new Map<string, BuyerCriteriaSessionRecord>();
 
-/** Listener — append one chat line for DB/history; caller supplies id. */
 export function appendBuyerCriteriaHistory(
   sessionId: string,
   entry: BuyerChatHistoryInput,
@@ -30,7 +29,6 @@ export function appendBuyerCriteriaHistory(
 
 export function createBuyerCriteriaSession(
   response: BuyerCriteriaResponse,
-  date: string,
 ): { sessionId: string; systemMessage: BuyerChatHistoryEntry & { speaker: 'system' } } {
   const sessionId = randomUUID();
   sessions.set(sessionId, {
@@ -42,7 +40,6 @@ export function createBuyerCriteriaSession(
     id: randomUUID(),
     speaker: 'system',
     text: response.conversation.nextQuestion,
-    date,
   }) as BuyerChatHistoryEntry & { speaker: 'system' };
   return { sessionId, systemMessage };
 }
@@ -54,7 +51,6 @@ export function getBuyerCriteriaSession(sessionId: string): BuyerCriteriaSession
 export function saveSessionAfterClarification(
   sessionId: string,
   response: BuyerCriteriaResponse,
-  date: string,
 ): (BuyerChatHistoryEntry & { speaker: 'system' }) | undefined {
   const existing = sessions.get(sessionId);
   if (!existing) {
@@ -75,10 +71,23 @@ export function saveSessionAfterClarification(
     id: randomUUID(),
     speaker: 'system',
     text: response.conversation.nextQuestion,
-    date,
   }) as BuyerChatHistoryEntry & { speaker: 'system' };
+}
+
+export function getBuyerCriteriaSessionSnapshot(sessionId: string): BuyerCriteriaSessionRecord {
+  const existing = sessions.get(sessionId);
+  if (!existing) {
+    throw new Error(`Unknown buyer criteria session: ${sessionId}`);
+  }
+  return {
+    criteria: existing.criteria,
+    conversation: existing.conversation,
+    history: [...existing.history],
+  };
 }
 
 export function resetBuyerCriteriaSessions(): void {
   sessions.clear();
 }
+
+export type { BuyerCriteriaSessionRecord };
