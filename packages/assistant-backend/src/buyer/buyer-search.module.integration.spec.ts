@@ -5,6 +5,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import type { AuctionLot } from '@monabid/shared';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
+import { UserProfileEntity } from '../database/user-profile.entity';
+import { AiHistoryEntity } from '../database/ai-history.entity';
+import { SellerLeadEntity } from '../database/seller-lead.entity';
+import { ConfigModule } from '@nestjs/config';
 import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerModule } from './buyer.module';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
@@ -54,10 +58,16 @@ function demandRepository() {
   };
 }
 
-// Compiles BuyerModule with only the two database repositories faked.
+// Keep the production module graph; fake all repositories and supply its config dependency.
 async function compileBuyerModule(lots: AuctionLot[]) {
   const demand = demandRepository();
-  const moduleRef = await Test.createTestingModule({ imports: [BuyerModule] })
+  const moduleRef = await Test.createTestingModule({ imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), BuyerModule] })
+    .overrideProvider(getRepositoryToken(UserProfileEntity))
+    .useValue({})
+    .overrideProvider(getRepositoryToken(AiHistoryEntity))
+    .useValue({})
+    .overrideProvider(getRepositoryToken(SellerLeadEntity))
+    .useValue({})
     .overrideProvider(getRepositoryToken(AuctionLotEntity))
     .useValue(lotsRepository(lots))
     .overrideProvider(getRepositoryToken(BuyerUnmatchedDemandEntity))

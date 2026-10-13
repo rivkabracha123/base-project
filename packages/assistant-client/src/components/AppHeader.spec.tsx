@@ -2,7 +2,7 @@ import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { updateProfileLanguage } from '../app/api';
 import { createQueryClient } from '../app/query-client';
 import i18n from '../i18n';
@@ -12,6 +12,10 @@ import { AppHeader } from './AppHeader';
 vi.mock('../app/api', () => ({
   updateProfileLanguage: vi.fn(),
 }));
+
+beforeEach(async () => {
+  await i18n.changeLanguage('he');
+});
 
 afterEach(async () => {
   vi.clearAllMocks();
@@ -51,5 +55,20 @@ describe('AppHeader language control', () => {
     );
 
     expect(screen.getByRole('link', { name: resources.he.translation.navigation.dashboard })).toHaveAttribute('href', '/staff-operations');
+  });
+
+  it('keeps the selected language when saving the preference fails', async () => {
+    vi.mocked(updateProfileLanguage).mockRejectedValue(new Error('Unavailable'));
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter><AppHeader /></MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: resources.he.translation.language }));
+    await screen.findByRole('alert');
+    expect(i18n.language).toBe('en');
+    expect(document.documentElement.lang).toBe('en');
+    expect(document.documentElement.dir).toBe('ltr');
+    expect(screen.getByRole('button', { name: resources.en.translation.language })).toBeEnabled();
   });
 });

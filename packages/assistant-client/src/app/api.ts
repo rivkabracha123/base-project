@@ -6,19 +6,36 @@ import {
   type UserProfile,
   userProfileSchema,
   houseRankingSchema,
+  leadHandoffFromS1Draft,
+  parseP3CurrentProfile,
+  rankingItemFromS1Draft,
+  s1DemoIntakeInput,
+  confirmedItemDraftSchema,
+  defaultRankingItem,
   sellerChoiceSchema,
+  sellerContactFromP3Profile,
+  sellerLeadSummarySchema,
+  sellerLeadValuationSchema,
+  sellerFinalLeadFixture,
+  submitSellerLeadSchema,
+  emitSellerEnquiryEvent,
   type HouseRanking,
+  type P3CurrentProfile,
   type RankingItem,
+  type ConfirmedItemDraft,
   type SellerChoice,
+  type SellerLeadSummary,
+  type SellerLeadValuation,
+  type SubmitSellerLead,
 } from '@monabid/shared';
 import lotFixtures from '../../../../fixtures/auction-data/lots.json';
 import type { StaffLeadDetail, StaffLead, StaffLeadPipeline, UpdateStaffLeadPipelineInput } from '../staff-operations/staff-operations.types';
 import { parseConversation, type BuyerMessage } from '../buyer/messages';
+import { parseConversation as parseSellerConversation, type SellerMessage } from '../seller/messages';
 import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draft-enquiry.json';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const anonymousSessionStorageKey = 'anonymousSessionId';
-
 export interface UpdateCurrentProfileInput {
   preferredName?: string;
   grammaticalForm?: 'masculine' | 'feminine' | 'neutral' | 'unspecified';
@@ -54,7 +71,6 @@ export function getAnonymousSessionId(): string {
   localStorage.setItem(anonymousSessionStorageKey, newSessionId);
   return newSessionId;
 }
-
 function profileHeaders(): HeadersInit {
   // The backend uses this identifier to find only this browser's profile.
   return { 'x-anonymous-session-id': getAnonymousSessionId() };
@@ -294,12 +310,65 @@ const staffLeadDetailSchema = z.union([buyerLeadDetailSchema, sellerLeadDetailSc
 
 // Fetches a sample lot either from fixtures or the backend API.
 // Keeps the UI deterministic in fixture mode and contract-safe in real mode.
-/** S5 ranking input until S1 publishes confirmed items. */
-export const sellerRankingItem: RankingItem = {
-  category: 'rare_books',
-  geography: 'United States',
-  preferredLanguage: 'en',
-};
+
+function anonymousSessionId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return getAnonymousSessionId();
+  return 'session-synthetic-seller-1';
+}
+
+/** P3: GET /api/profiles/me. Returns null when the profile API is unavailable. */
+export async function getCurrentP3Profile(
+  signal?: AbortSignal,
+): Promise<P3CurrentProfile | UserProfile | null> {
+  const response = await fetch(`${apiBaseUrl}/profiles/me`, {
+    headers: { 'x-anonymous-session-id': anonymousSessionId() },
+    signal,
+  });
+  if (!response.ok) return null;
+  return parseP3CurrentProfile(await response.json());
+}
+
+/** P3: PATCH /api/profiles/me — grant service-contact consent for this browser session. */
+export async function grantP3ServiceConsent(): Promise<P3CurrentProfile | UserProfile | null> {
+  const response = await fetch(`${apiBaseUrl}/profiles/me`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-anonymous-session-id': anonymousSessionId(),
+    },
+    body: JSON.stringify({
+      serviceConsent: {
+        granted: true,
+        grantedAt: new Date().toISOString(),
+        channel: 'web',
+      },
+    }),
+  });
+  if (!response.ok) return null;
+  return parseP3CurrentProfile(await response.json());
+}
+
+export { sellerContactFromP3Profile, rankingItemFromS1Draft, leadHandoffFromS1Draft };
+
+/** Fallback ranking when S1 has not returned a confirmed item yet. */
+export const sellerRankingItem: RankingItem = defaultRankingItem;
+
+/** S1: POST /api/seller-intake/draft. Returns null when intake is unavailable. */
+export async function getS1SellerDraft(
+  signal?: AbortSignal,
+  input: string = s1DemoIntakeInput,
+): Promise<ConfirmedItemDraft | null> {
+  const response = await fetch(`${apiBaseUrl}/seller-intake/draft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input }),
+    signal,
+  });
+  if (!response.ok) return null;
+  const parsed = confirmedItemDraftSchema.safeParse(await response.json());
+  return parsed.success ? parsed.data : null;
+}
+
 export async function getSampleLot(language: string, signal?: AbortSignal): Promise<AuctionLot> {
   if (import.meta.env.VITE_FIXTURE_MODE === 'true') {
     const [sampleLot] = auctionLotFixtureSchema.parse(lotFixtures);
@@ -366,18 +435,116 @@ export async function getLotById(id: string, language: string, signal?: AbortSig
   return auctionLotSchema.parse(await response.json());
 }
 
-export async function getConversation(language: string, signal?: AbortSignal): Promise<BuyerMessage[]> {
-  const response = await fetch(`${apiBaseUrl}/chat/conversation?language=${encodeURIComponent(language)}`, { signal });
-  if (!response.ok) throw new Error(`Conversation API request failed with status ${response.status}`);
-  return parseConversation(await response.json());
+/** Returns verified prior sales for one canonical itemKey. */
+export async function getLotSaleHistory(itemKey: string, signal?: AbortSignal): Promise<AuctionLot[]> {
+  if (import.meta.env.VITE_FIXTURE_MODE === 'true') return [];
+
+  const response = await fetch(`${apiBaseUrl}/lots/history/${encodeURIComponent(itemKey)}`, { signal });
+  if (!response.ok) throw new Error(`Sale history API request failed with status ${response.status}`);
+  return z.array(auctionLotSchema).parse(await response.json());
 }
 
-/** S5 Week 2: create an internal draft lead. Uses the prepared P3-shaped contact fixture. */
-export async function createSellerLead(signal?: AbortSignal): Promise<string> {
-  const response = await fetch(`${apiBaseUrl}/seller-leads`, {
+// Fetches a conversation from the given path and returns only messages that pass the role's schema validation.
+async function fetchConversation<TMessage>(
+  path: string,
+  parse: (input: unknown) => TMessage[],
+  language: string,
+  signal?: AbortSignal,
+): Promise<TMessage[]> {
+  const response = await fetch(`${apiBaseUrl}/${path}?language=${encodeURIComponent(language)}`, { signal });
+  if (!response.ok) throw new Error(`Conversation API request failed with status ${response.status}`);
+  return parse(await response.json());
+}
+
+
+// Fetches a buyer chat conversation.
+export function getConversation(language: string, signal?: AbortSignal): Promise<BuyerMessage[]> {
+  return fetchConversation('buyer-chat/conversation', parseConversation, language, signal);
+}
+
+// Fetches a seller chat conversation.
+export function getSellerConversation(language: string, signal?: AbortSignal): Promise<SellerMessage[]> {
+  return fetchConversation('seller-chat/conversation', parseSellerConversation, language, signal);
+}
+export async function getAuctionLot(id: string, signal?: AbortSignal): Promise<AuctionLot | null> {
+  const response = await fetch(`${apiBaseUrl}/lots/${encodeURIComponent(id)}`, { signal });
+  if (!response.ok) return null;
+  const parsed = auctionLotSchema.safeParse(await response.json());
+  return parsed.success ? parsed.data : null;
+}
+
+export { sellerFinalLeadFixture };
+
+export function finalHandoffFromS1(
+  draft: ConfirmedItemDraft | null,
+  valuation?: SellerLeadValuation | null,
+  comparables?: SubmitSellerLead['comparables'],
+): SubmitSellerLead {
+  const fallback = submitSellerLeadSchema.parse(sellerFinalLeadFixture.handoff);
+  if (!draft) {
+    return valuation
+      ? submitSellerLeadSchema.parse({ ...fallback, valuation, ...(comparables ? { comparables } : {}) })
+      : fallback;
+  }
+  try {
+    const copied = leadHandoffFromS1Draft(draft, valuation ?? fallback.valuation);
+    return submitSellerLeadSchema.parse({
+      ...copied,
+      ...(comparables?.length ? { comparables } : {}),
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+export type SellerJourneyBundle = {
+  ranking: HouseRanking;
+  catalogDraft: { he: string; en: string };
+  item: { id: string; category: string; title: string; evidenceIds: string[] };
+  evidence: Array<{ id: string; type: string }>;
+  valuation: SellerLeadValuation | null;
+  comparables: NonNullable<SubmitSellerLead['comparables']>;
+};
+
+/** S1 confirmed draft in; S5 ranking plus live S3/S4 valuation out. */
+export async function receiveS1SellerHandoff(
+  draft: ConfirmedItemDraft,
+  signal?: AbortSignal,
+): Promise<SellerJourneyBundle | null> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/s1-handoff`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(draftEnquiryFixture.request),
+    body: JSON.stringify(draft),
+    signal,
+  });
+  if (!response.ok) return null;
+  const body = (await response.json()) as SellerJourneyBundle;
+  if (!body?.ranking || !body.catalogDraft) return null;
+  const parsedValuation = body.valuation ? sellerLeadValuationSchema.safeParse(body.valuation) : null;
+  return {
+    ...body,
+    valuation: parsedValuation?.success ? parsedValuation.data : null,
+    comparables: body.comparables ?? [],
+  };
+}
+
+/** S5 Week 2: create an internal draft lead. Contact/profile come from P3 when available. */
+export async function createSellerLead(
+  signal?: AbortSignal,
+  contact?: { preferredName: string; email?: string; phone?: string },
+  profile?: { profileId: string; serviceConsent: boolean },
+): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-anonymous-session-id': anonymousSessionId(),
+    },
+    body: JSON.stringify({
+      ...draftEnquiryFixture.request,
+      ...(profile ? { profileId: profile.profileId, serviceConsent: profile.serviceConsent } : {}),
+      ...(contact ? { contact } : {}),
+    }),
     signal,
   });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
@@ -387,21 +554,41 @@ export async function createSellerLead(signal?: AbortSignal): Promise<string> {
 }
 
 /** S5 Week 3: rank houses for that lead and store the ranking on it. */
-export async function rankHousesForLead(leadId: string, signal?: AbortSignal): Promise<HouseRanking> {
+export async function rankHousesForLead(
+  leadId: string,
+  signal?: AbortSignal,
+  item: RankingItem = sellerRankingItem,
+): Promise<HouseRanking> {
   const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/house-rankings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sellerRankingItem),
+    body: JSON.stringify(item),
     signal,
   });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-  return houseRankingSchema.parse(await response.json());
+  const ranking = houseRankingSchema.parse(await response.json());
+  emitSellerEnquiryEvent({ kind: 'house_ranking', ranking });
+  return ranking;
 }
 
-/**
- * S5 Week 4: save the seller’s house pick.
- * Parses the response with sellerChoiceSchema so a bad API shape cannot reach the UI.
- */
+/** S5: rank without creating a lead so the UI can show houses before contact. */
+export async function rankHouses(
+  signal?: AbortSignal,
+  item: RankingItem = sellerRankingItem,
+  emitEvent = true,
+): Promise<HouseRanking> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/house-rankings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  const ranking = houseRankingSchema.parse(await response.json());
+  if (emitEvent) emitSellerEnquiryEvent({ kind: 'house_ranking', ranking });
+  return ranking;
+}
+
 export async function saveSellerHouseChoice(
   leadId: string,
   houseId: string,
@@ -414,5 +601,161 @@ export async function saveSellerHouseChoice(
     signal,
   });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-  return sellerChoiceSchema.parse(await response.json());
+  const choice = sellerChoiceSchema.parse(await response.json());
+  emitSellerEnquiryEvent({ kind: 'seller_choice', choice });
+  return choice;
+}
+
+/** S5 Week 5: persist catalog draft and mark the internal lead submitted. Never contacts a house. */
+export async function submitFinalSellerLead(
+  leadId: string,
+  handoff: SubmitSellerLead = submitSellerLeadSchema.parse(sellerFinalLeadFixture.handoff),
+  signal?: AbortSignal,
+): Promise<SellerLeadSummary> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/final`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(handoff),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  const summary = sellerLeadSummarySchema.parse(await response.json());
+  emitSellerEnquiryEvent({
+    kind: 'internal_enquiry',
+    houseName: summary.sellerChoice?.houseName ?? summary.recommendation?.recommendation?.house.name ?? 'Monabid',
+  });
+  return summary;
+}
+
+export type EvidenceReference = {
+  fileId: string;
+  profileId: string;
+  itemId: string;
+  originalName: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  size: number;
+  previewUri: string;
+  downloadUri: string;
+};
+
+async function evidenceRequest<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetch(`${apiBaseUrl}${path}`, init);
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
+
+    throw new Error(body?.message ?? `Evidence request failed (${response.status})`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+/** Fetch all evidence for a profile. The ordering endpoint requires the full profile list. */
+export function getProfileEvidence(
+  profileId: string,
+  signal?: AbortSignal,
+): Promise<EvidenceReference[]> {
+  return evidenceRequest(
+    `/evidence/${encodeURIComponent(profileId)}`,
+    { signal },
+  );
+}
+
+/** Fetch evidence for one item to display in its gallery. */
+export function getItemEvidence(
+  profileId: string,
+  itemId: string,
+  signal?: AbortSignal,
+): Promise<EvidenceReference[]> {
+  return evidenceRequest(
+    `/evidence/${encodeURIComponent(profileId)}/items/${encodeURIComponent(itemId)}`,
+    { signal },
+  );
+}
+
+export function uploadItemEvidence(
+  profileId: string,
+  itemId: string,
+  files: File[],
+): Promise<EvidenceReference[]> {
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file, file.name));
+
+  return evidenceRequest(
+    `/evidence/${encodeURIComponent(profileId)}/items/${encodeURIComponent(itemId)}`,
+    { method: 'POST', body: formData },
+  );
+}
+
+export function deleteEvidence(
+  profileId: string,
+  fileId: string,
+): Promise<{ success: boolean }> {
+  return evidenceRequest(
+    `/evidence/${encodeURIComponent(profileId)}/${encodeURIComponent(fileId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+export async function saveProfileEvidenceOrder(
+  profileId: string,
+  fileIds: string[],
+): Promise<EvidenceReference[]> {
+  const result = await evidenceRequest<{
+    success: boolean;
+    evidence: EvidenceReference[];
+  }>(`/evidence/${encodeURIComponent(profileId)}/order`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileIds }),
+  });
+
+  return result.evidence;
+}
+
+/** Resolve an API-provided path against the backend URL. */
+export function evidenceUrl(path: string): string {
+  return new URL(path, apiBaseUrl).toString();
+}
+
+/** One persist call: rank once, save choice, submit. Used by the enquiry screen. */
+export async function completeSellerEnquiry(
+  input: {
+    houseId: string;
+    handoff: SubmitSellerLead;
+    contact: { preferredName: string; email?: string; phone?: string };
+    profileId?: string;
+    preferredLanguage?: string;
+    geography?: string;
+  },
+  signal?: AbortSignal,
+): Promise<SellerLeadSummary> {
+  const response = await fetch(`${apiBaseUrl}/seller-leads/enquiry`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-anonymous-session-id': anonymousSessionId(),
+    },
+    body: JSON.stringify({
+      houseId: input.houseId,
+      ...input.handoff,
+      contact: input.contact,
+      ...(input.profileId ? { profileId: input.profileId } : {}),
+      ...(input.preferredLanguage ? { preferredLanguage: input.preferredLanguage } : {}),
+      ...(input.geography ? { geography: input.geography } : {}),
+    }),
+    signal,
+  });
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+  const summary = sellerLeadSummarySchema.parse(await response.json());
+  emitSellerEnquiryEvent({
+    kind: 'internal_enquiry',
+    houseName: summary.sellerChoice?.houseName ?? summary.recommendation?.recommendation?.house.name ?? 'Monabid',
+  });
+  return summary;
 }

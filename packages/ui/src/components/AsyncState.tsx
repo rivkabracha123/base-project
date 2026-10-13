@@ -2,14 +2,14 @@ import type { ReactNode } from 'react';
 import { Button } from 'react-aria-components';
 
 export function LoadingState({ label }: { label: string }) {
-  return <p role="status" className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">{label}</p>;
+  return <p role="status" className="rounded-xl border border-[#ead9b8] bg-white p-8 text-center text-stone-600">{label}</p>;
 }
 
 export function EmptyState({ title, detail }: { title: string; detail?: string }) {
   return (
-    <section className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-      <h2 className="font-semibold text-slate-900">{title}</h2>
-      {detail ? <p className="mt-2 text-sm text-slate-600">{detail}</p> : null}
+    <section className="rounded-xl border border-dashed border-[#ead9b8] bg-white p-8 text-center">
+      <h2 className="font-semibold text-stone-950">{title}</h2>
+      {detail ? <p className="mt-2 text-sm text-stone-600">{detail}</p> : null}
     </section>
   );
 }

@@ -29,6 +29,13 @@ export class LotsController {
     return this.importReports.getReport();
   }
 
+  // This static route must precede :id, otherwise "history" would be treated
+  // as a lot id instead of the history resource.
+  @Get('history/:itemKey')
+  history(@Param('itemKey') itemKey: string): Promise<AuctionLot[]> {
+    return this.lotsService.findSaleHistoryByItemKey(itemKey);
+  }
+
   @Get(':id')
   one(@Param('id') id: string, @Query() _query: LotQueryDto): Promise<AuctionLot> {
     return this.lotsService.findOne(id);

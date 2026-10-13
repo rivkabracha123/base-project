@@ -98,7 +98,10 @@ describe('Buyer search hand-off hard-constraint preservation contract', () => {
     ]);
     expect(
       [...outcome.results.current, ...outcome.results.historical].map((entry) => entry.lot.id),
-    ).toEqual(expected.results.itemIds);
+    ).toEqual([
+      ...expected.results.itemIds.filter((id: string) => lotById(id).status === 'upcoming'),
+      ...expected.results.itemIds.filter((id: string) => lotById(id).status !== 'upcoming'),
+    ]);
 
     const serialized = JSON.stringify(outcome);
     for (const key of forbiddenKeys) {

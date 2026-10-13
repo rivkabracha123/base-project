@@ -14,16 +14,15 @@ describe('getComparableSaleHistory', () => {
 });
 
 describe('PriceHistory', () => {
-  it('shows the chart, original prices, and a source for each historical sale', () => {
+  it('shows verified past sales, their prices, and the latest-sale source', () => {
     const sales = getComparableSaleHistory(upcomingLotWithHistoryFixture, itemHistoryLotFixtures);
     render(<PriceHistory sales={sales} lang="en" />);
 
-    const chart = screen.getByRole('img', { name: 'Price history chart' });
-    const labels = Array.from(chart.querySelectorAll('text')).map((label) => label.textContent);
-
-    expect(chart).toBeInTheDocument();
-    expect(labels).toEqual(expect.arrayContaining(['USD $900', 'USD $1,100', 'Apr 2023', 'Nov 2024']));
-    expect(screen.getAllByRole('link', { name: 'Sale source' })).toHaveLength(2);
+    expect(screen.getByText('USD $900')).toBeInTheDocument();
+    expect(screen.getByText('USD $1,100')).toBeInTheDocument();
+    expect(screen.getByText(/2023/)).toBeInTheDocument();
+    expect(screen.getByText(/2024/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View sale record' })).toHaveAttribute('href', sales[1]!.source.url);
   });
 
   it('shows an honest empty state instead of a chart when fewer than two valid sales are available', () => {
@@ -31,6 +30,6 @@ describe('PriceHistory', () => {
 
     expect(screen.getByRole('heading', { name: 'Price History' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('There are not enough verified past sales');
-    expect(screen.queryByRole('img', { name: 'Price history chart' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View sale record' })).not.toBeInTheDocument();
   });
 });

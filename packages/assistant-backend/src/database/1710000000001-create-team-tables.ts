@@ -33,26 +33,12 @@ export class CreateTeamTables1710000000001 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(`
-      CREATE TABLE "seller_leads" (
-        "id" varchar PRIMARY KEY,
-        "seller_name" varchar NOT NULL,
-        "email" varchar,
-        "phone" varchar,
-        "item_title" varchar NOT NULL,
-        "item_category" varchar,
-        "suggested_house" varchar,
-        "valuation_range" varchar,
-        "status" varchar NOT NULL DEFAULT 'new',
-        "consent" boolean NOT NULL DEFAULT false,
-        "created_at" timestamptz NOT NULL DEFAULT now(),
-        "updated_at" timestamptz NOT NULL DEFAULT now()
-      )
-    `);
+    // The "seller_leads" table is no longer created here: it is created by CreateSellerLeads1788220800000
+    // (S5 seller enquiry), which owns its definition. Creating it in both migrations left the old columns
+    // (such as "status") in place, so AddSellerLeadFinal1788220800003 failed on a fresh database.
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('DROP TABLE "seller_leads"');
     await queryRunner.query('DROP TABLE "ai_provider_configs"');
     await queryRunner.query('DROP TABLE "anonymous_profiles"');
   }

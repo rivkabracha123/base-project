@@ -44,6 +44,7 @@ describe('criteriaToSearchRequest', () => {
   it('sends structured filters for every populated auction-data facet', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.categories = ['rare_books'];
+    // creators has a P2 filter facet but no committed lot populates the creator column yet.
     criteria.creators = ['Yitzhak Abrabanel'];
     criteria.auctionHouseIds = ['house-1'];
     criteria.dateRange = { from: '2026-01-01', to: '2026-12-31' };

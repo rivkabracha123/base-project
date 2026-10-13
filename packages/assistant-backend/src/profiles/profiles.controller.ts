@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, Patch } from '@nestjs/common';
 import type { UserProfile } from '@monabid/shared';
 import { ProfilesService, type UpdateCurrentProfileInput } from './profiles.service';
+import { UpdateContactDto } from './update-contact.dto';
 
 // This controller receives anonymous profile requests from the frontend.
 @Controller('profiles')
@@ -31,7 +32,7 @@ export class ProfilesController {
 
   // Update only the profile owned by the current anonymous browser session.
   @Patch('me')
-    updateCurrentProfile(
+  updateCurrentProfile(
     @Headers('x-anonymous-session-id') sessionId: string,
     @Body() update: UpdateCurrentProfileInput,
   ): Promise<UserProfile> {
@@ -39,6 +40,14 @@ export class ProfilesController {
       this.requireSessionId(sessionId),
       update,
     );
+  }
+
+  @Patch('me/contact')
+  updateContact(
+    @Headers('x-anonymous-session-id') sessionId: string,
+    @Body() body: UpdateContactDto,
+  ): Promise<UserProfile> {
+    return this.profilesService.updateContact(this.requireSessionId(sessionId), body);
   }
 
   // Week 5: delete the current session's profile. 204 even if none existed - idempotent for the caller.
