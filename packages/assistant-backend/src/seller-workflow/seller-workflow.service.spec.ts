@@ -40,6 +40,49 @@ describe('SellerWorkflowService', () => {
     jest.clearAllMocks();
   });
 
+  it('copies the saved catalog and previews an enquiry without creating or submitting a lead', async () => {
+    const item = { id: 'saved-item', category: 'rare_books', title: 'Manuscript', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'Good', catalogDraft: { he: 'מקור לא אושר', en: 'Origin unconfirmed' } };
+    const draft = { item, evidence: [] };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft }) };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
+    expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1' } } })).result)
+      .toEqual({ title: 'Manuscript', ...item.catalogDraft });
+    expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1' } } })).result)
+      .toMatchObject({ draft });
+    expect(drafts.getDraft).toHaveBeenCalledWith(profileId, 's1');
+    expect(leads.draft).not.toHaveBeenCalled();
+    expect(leads.submitFinal).not.toHaveBeenCalled();
+  });
+
+  it('blocks catalog and enquiry previews when mandatory facts are missing', async () => {
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item: { category: 'rare_books', dimensions: { values: [] }, condition: 'Good' } } }) };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
+    await expect(connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1' } } })).rejects.toThrow('require category');
+    expect(leads.rankHouses).not.toHaveBeenCalled();
+  });
+
+  it('calculates valuation using the current profile saved draft rather than supplied item data', async () => {
+    const item = { id: 'saved-item', category: 'rings', dimensions: { values: [{ label: 'size', value: 8, unit: 'ring_size' }] }, condition: 'Good' };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ version: 3, draft: { item } }) };
+    const valuation = { calculateFromItem: jest.fn().mockResolvedValue({ status: 'refusal', reason: 'insufficient_comparable_sales' }) };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never, valuation as never);
+    const result = await connected.execute({ profileId, structuredAnswer: { functionToRun: 'calculateSellerValuation', object: { sessionId: 'session-1', itemId: 'untrusted-item' } } });
+    expect(drafts.getDraft).toHaveBeenCalledWith(profileId, 'session-1');
+    expect(valuation.calculateFromItem).toHaveBeenCalledWith({ itemId: 'saved-item', itemVersion: 'v3', item });
+    expect(result.result).toMatchObject({ status: 'refusal' });
+  });
+
+  it('does not calculate valuation for an incomplete or inaccessible draft', async () => {
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ version: 1, draft: { item: { category: 'rings', dimensions: { values: [] }, condition: 'Good' } } }) };
+    const valuation = { calculateFromItem: jest.fn() };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never, valuation as never);
+    const request = { profileId, structuredAnswer: { functionToRun: 'calculateSellerValuation' as const, object: { sessionId: 'session-1' } } };
+    await expect(connected.execute(request)).rejects.toThrow(BadRequestException);
+    drafts.getDraft.mockRejectedValueOnce(new NotFoundException());
+    await expect(connected.execute(request)).rejects.toThrow(NotFoundException);
+    expect(valuation.calculateFromItem).not.toHaveBeenCalled();
+  });
+
   it('dispatches each function in Shilat\'s contract and returns the result through the callback', async () => {
     const calls = [
       [{ functionToRun: 'analyzeSellerIntake', object: { input: 'ציור שמן' } }, sellerIntakeAi.analyze],

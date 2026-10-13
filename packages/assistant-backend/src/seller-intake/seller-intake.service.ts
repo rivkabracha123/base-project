@@ -34,7 +34,7 @@ const MISSING_SELLER_QUESTION_COPY = {
 } as const;
 
 export type MissingSellerQuestion = {
-  field: (typeof REQUIRED_SELLER_DETAILS)[number];
+  field: (typeof REQUIRED_SELLER_DETAILS)[number] | 'category';
   he: string;
   en: string;
 };
@@ -305,7 +305,7 @@ export class SellerIntakeService {
         || input.includes('ספר')
         || input.includes('כתב יד')
         ? 'rare_books'
-        : 'unknown';
+        : /\bring\b|\u05d8\u05d1\u05e2\u05ea/.test(text) ? 'rings' : 'unknown';
     const materials = [] as string[];
     if (text.includes('oil') || text.includes('שמן')) materials.push('oil');
     if (text.includes('canvas') || text.includes('בד')) materials.push('canvas');
@@ -369,7 +369,7 @@ export class SellerIntakeService {
   ): MissingSellerQuestion[] {
     return this.askMissingSellerDetails(reviewState).map((field) => ({
       field: field as MissingSellerQuestion['field'],
-      ...MISSING_SELLER_QUESTION_COPY[field as MissingSellerQuestion['field']],
+      ...MISSING_SELLER_QUESTION_COPY[field as keyof typeof MISSING_SELLER_QUESTION_COPY],
     }));
   }
 
@@ -697,6 +697,7 @@ export class SellerIntakeService {
       },
     };
   }
+
 
   // Prepare the downstream payload with only safe confirmed item facts.
   buildHandoffPayload(

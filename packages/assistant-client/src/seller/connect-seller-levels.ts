@@ -1,11 +1,14 @@
 import i18n, { getBrowserLanguage } from '../i18n';
-import { getCurrentProfile } from '../app/api';
 import type { SellerUpdate } from '../chat/chat-types';
 import { getSellerMessageIds } from './seller-ids';
+import { sellerComparisonModes, sellerComparisonResultSchema } from './seller-comparison-result';
+import { houseRankingSchema } from '@monabid/shared';
+import { sellerActionResultSchema } from './seller-action-result';
 
 interface SellerIntakeResponse {
   ai?: { fallbackMode?: 'guided'; summary?: string; nextAction?: string };
   missingFields?: string[];
+  requiredMissingFields?: string[];
   nextQuestion?: { field: string; he: string; en: string } | null;
   conversation?: { assistantSummary?: { he?: string; en?: string } };
   functionCall?: { functionToRun: string | null; object: Record<string, unknown> | null } | null;
@@ -40,29 +43,50 @@ export async function sendSellerMessage(
 function getSystemText(response: SellerIntakeResponse): string {
   const language = getBrowserLanguage(i18n.language);
   const nextQuestion = response.nextQuestion;
-  const fallbackNotice = response.ai?.fallbackMode === 'guided'
-    ? language === 'he'
-      ? 'ה־AI אינו זמין כרגע, אז נמשיך באיסוף פרטים מונחה. '
-      : 'AI is temporarily unavailable, so we will continue with guided questions. '
-    : '';
-  if (nextQuestion) return `${fallbackNotice}${nextQuestion[language]}`;
+  if (nextQuestion) return nextQuestion[language];
 
-  if (response.missingFields?.length === 0) {
-    return `${fallbackNotice}${language === 'he'
-      ? '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e0\u05e9\u05de\u05e8\u05d5. \u05dc\u05d4\u05e6\u05d9\u05d2 \u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05de\u05d5\u05de\u05dc\u05e6\u05d9\u05dd?'
-      : 'Your item details are saved. Would you like recommended auction houses?'}`;
+  if (response.requiredMissingFields?.length === 0 || response.missingFields?.length === 0) {
+    return language === 'he'
+      ? '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e0\u05e9\u05de\u05e8\u05d5.'
+      : 'Your item details are saved.';
   }
   if (response.ai?.nextAction?.trim()) {
     return [response.ai.summary, response.ai.nextAction].filter(Boolean).join(' ');
   }
 
   const summary = response.conversation?.assistantSummary?.[language];
-  if (summary) return `${fallbackNotice}${summary}`;
+  if (summary) return summary;
 
-  return `${fallbackNotice}${language === 'he' ? 'קיבלתי את פרטי הפריט.' : 'I received the item details.'}`;
+  return language === 'he' ? 'קיבלתי את פרטי הפריט.' : 'I received the item details.';
 }
 
 function getFunctionResultText(functionName: string, result: unknown, language: 'he' | 'en', category?: unknown): string {
+  if (functionName === 'calculateSellerValuation' && result && typeof result === 'object') {
+    const report = result as { status?: string; valuationRange?: { min: number; max: number; currency: string }; reason?: string };
+    if (report.status === 'supported' && report.valuationRange) {
+      const { min, max, currency } = report.valuationRange;
+      const money = new Intl.NumberFormat(language === 'he' ? 'he-IL' : 'en-US', { style: 'currency', currency });
+      return `${language === 'he' ? '\u05d4\u05e2\u05e8\u05db\u05ea \u05e9\u05d5\u05d5\u05d9' : 'Estimated value'}: ${money.format(min)} - ${money.format(max)}`;
+    }
+    if (report.reason !== 'insufficient_comparable_sales') {
+      const reasons: Record<string, { he: string; en: string }> = {
+        missing_exchange_rate_data: {
+          he: '\u05d7\u05e1\u05e8\u05d9\u05dd \u05e0\u05ea\u05d5\u05e0\u05d9 \u05d4\u05de\u05e8\u05ea \u05de\u05d8\u05d1\u05e2 \u05dc\u05d7\u05d9\u05e9\u05d5\u05d1 \u05d4\u05e2\u05e8\u05db\u05ea \u05e9\u05d5\u05d5\u05d9.',
+          en: 'Currency conversion data is missing for the valuation.',
+        },
+        unusable_range_requires_expert_review: {
+          he: '\u05d4\u05e2\u05e8\u05db\u05ea \u05d4\u05e9\u05d5\u05d5\u05d9 \u05d3\u05d5\u05e8\u05e9\u05ea \u05d1\u05d3\u05d9\u05e7\u05ea \u05de\u05d5\u05de\u05d7\u05d4.',
+          en: 'The valuation requires expert review.',
+        },
+      };
+      return reasons[report.reason ?? '']?.[language] ?? (language === 'he'
+        ? '\u05dc\u05d0 \u05d4\u05ea\u05e7\u05d1\u05dc\u05d4 \u05d4\u05e2\u05e8\u05db\u05ea \u05e9\u05d5\u05d5\u05d9 \u05de\u05d1\u05d5\u05e1\u05e1\u05ea.'
+        : 'No reliable valuation was returned.');
+    }
+    return language === 'he'
+      ? '\u05dc\u05d0 \u05e0\u05d9\u05ea\u05df \u05dc\u05d7\u05e9\u05d1 \u05d4\u05e2\u05e8\u05db\u05ea \u05e9\u05d5\u05d5\u05d9 \u05de\u05d1\u05d5\u05e1\u05e1\u05ea \u05de\u05d4\u05e0\u05ea\u05d5\u05e0\u05d9\u05dd \u05d4\u05e7\u05d9\u05d9\u05de\u05d9\u05dd. \u05d0\u05d9\u05df \u05de\u05e1\u05e4\u05d9\u05e7 \u05e8\u05d0\u05d9\u05d5\u05ea \u05de\u05db\u05d9\u05e8\u05d4 \u05d0\u05de\u05d9\u05e0\u05d5\u05ea.'
+      : 'A reliable valuation cannot be calculated from the available data. There is insufficient credible sale evidence.';
+  }
   const messages: Record<string, { he: string; en: string }> = {
     createSellerLeadDraft: { he: 'טיוטת הפנייה נשמרה.', en: 'The enquiry draft was saved.' },
     createSellerLead: { he: 'טיוטת הפנייה נשמרה.', en: 'The enquiry draft was saved.' },
@@ -163,11 +187,57 @@ export async function connectSellerLevels(
         throw new Error(`Seller workflow request failed (${workflowResponse.status})`);
       }
       const workflowResult = await workflowResponse.json() as { result?: unknown };
+      const kinds: Record<string, 'catalog' | 'enquiry' | 'valuation'> = {
+        getSellerCatalogDraft: 'catalog', getSellerEnquiryPreview: 'enquiry', calculateSellerValuation: 'valuation',
+      };
+      if (kinds[functionCall.functionToRun]) {
+        const action = sellerActionResultSchema.safeParse({
+          ...(workflowResult.result && typeof workflowResult.result === 'object' ? workflowResult.result : {}),
+          kind: kinds[functionCall.functionToRun],
+        });
+        if (action.success) {
+          await onUpdate({ speaker: 'system', text: getFunctionResultText(functionCall.functionToRun, workflowResult.result, language), action: action.data });
+          return;
+        }
+        if (functionCall.functionToRun !== 'calculateSellerValuation') throw new Error('Seller action returned an invalid draft');
+      }
+      if (functionCall.functionToRun === 'getSellerProvenanceAdvice') {
+        const result = workflowResult.result as { text?: { he?: string; en?: string } } | undefined;
+        if (result?.text?.[language]) { await sendSellerMessage(result.text[language]!, onUpdate); return; }
+      }
+      if (['rankSellerHouses', 'rankAndStoreSellerHouses', 'rankHousesForLead', 'getSellerHouseRecommendation'].includes(functionCall.functionToRun)) {
+        const result = workflowResult.result;
+        const direct = houseRankingSchema.safeParse(result);
+        const nested = !direct.success && result && typeof result === 'object'
+          ? houseRankingSchema.safeParse((result as Record<string, unknown>).recommendation) : direct;
+        if (nested.success) {
+          const category = functionCall.object?.category ?? (result && typeof result === 'object' ? (result as Record<string, unknown>).category : undefined);
+          await onUpdate({ speaker: 'system', text: language === 'he' ? 'בתי מכירות מומלצים' : 'Recommended auction houses',
+            houseRanking: nested.data,
+            ...(typeof category === 'string' ? { houseCategory: category } : {}),
+          });
+          return;
+        }
+      }
+      const mode = sellerComparisonModes[functionCall.functionToRun];
+      if (mode) {
+        const comparison = sellerComparisonResultSchema.parse({
+          ...(workflowResult.result && typeof workflowResult.result === 'object' ? workflowResult.result : {}), mode,
+        });
+        const titles = {
+          search: { he: '\u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd', en: 'Similar items' },
+          history: { he: '\u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05e7\u05d5\u05d3\u05de\u05d5\u05ea \u05e9\u05dc \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd', en: 'Past sales of similar items' },
+          trend: { he: '\u05d2\u05e8\u05e3 \u05de\u05d7\u05d9\u05e8\u05d9\u05dd \u05e9\u05dc \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd', en: 'Prices of similar items' },
+          details: { he: '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e9\u05dc\u05d9', en: 'My item details' },
+        };
+        await onUpdate({ speaker: 'system', text: titles[mode][language], comparison });
+        return;
+      }
       if (functionCall.functionToRun === 'uploadEvidence' && typeof functionCall.object?.itemId === 'string') {
         sessionStorage.setItem(PENDING_UPLOAD_ITEM_KEY, functionCall.object.itemId);
       }
       await sendSellerMessage(
-        `${['rankSellerHouses', 'listSellerLeads'].includes(functionCall.functionToRun) ? '' : getSystemText(body)} ${getFunctionResultText(functionCall.functionToRun, workflowResult.result, language, functionCall.object?.category)}`.trim(),
+        getFunctionResultText(functionCall.functionToRun, workflowResult.result, language, functionCall.object?.category),
         onUpdate,
       );
       return;

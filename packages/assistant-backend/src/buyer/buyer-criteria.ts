@@ -228,7 +228,13 @@ const extractPrice = (text: string, options?: { lenientPlainNumbers?: boolean })
 
 const parseCategory = (text: string): string | null => {
   const lower = text.toLowerCase();
-  if (lower.includes('painting') || lower.includes('ציור') || lower.includes('תמונה')) return 'painting';
+  if (/\brings?\b|\u05d8\u05d1\u05e2(?:\u05ea|\u05d5\u05ea)/i.test(lower)) return 'rings';
+  if (/\b(?:manuscripts?|rare books?)\b|\u05db\u05ea\u05d1\u05d9?\s+\u05d9\u05d3|\u05e1\u05e4\u05e8(?:\u05d9\u05dd)?\s+\u05e0\u05d3\u05d9\u05e8/i.test(lower)) return 'rare_books';
+  if (/\bjewelry\b|\u05ea\u05db\u05e9\u05d9\u05d8/i.test(lower)) return 'jewelry';
+  if (/\bjudaica\b|\u05d9\u05d5\u05d3\u05d0\u05d9\u05e7\u05d4/i.test(lower)) return 'judaica';
+  if (/\bwatches?\b|\u05e9\u05e2\u05d5\u05df|\u05e9\u05e2\u05d5\u05e0\u05d9\u05dd/i.test(lower)) return 'watches';
+  if (/\bfurniture\b|\u05e8\u05d4\u05d9\u05d8/i.test(lower)) return 'furniture';
+  if (lower.includes('painting') || lower.includes('ציור') || lower.includes('תמונה') || lower.includes('אמנות') || lower.includes('אומנות')) return 'painting';
   if (lower.includes('sculpture') || lower.includes('פסל')) return 'sculpture';
   return null;
 };
@@ -246,7 +252,7 @@ const KEYWORD_HINTS: Array<{ pattern: RegExp; keyword: string }> = [
   { pattern: /\bgreen\b|ירוק/i, keyword: 'green' },
   { pattern: /\brare\b|נדיר/i, keyword: 'rare' },
   { pattern: /\bhebrew\b|עברי/i, keyword: 'Hebrew' },
-  { pattern: /\bmanuscript\b|כתב יד/i, keyword: 'manuscript' },
+  { pattern: /\bmanuscripts?\b|כתבי?\s+יד/i, keyword: 'manuscript' },
 ];
 
 export function extractKeywords(text: string): string[] {

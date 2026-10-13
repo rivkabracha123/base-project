@@ -56,7 +56,8 @@ export function ResultCard({ lot, lang, onSelect, matchReasons = [], selected = 
   const [imageUnavailable, setImageUnavailable] = useState(false);
   const imageSrc = !imageUnavailable && lot.imageUrl ? lot.imageUrl : FALLBACK_IMAGE;
   const category = categoryLabels[lot.category]?.[lang] ?? lot.category;
-  const title = lot.title.en;
+  const title = lot.title[lang] ?? lot.title.en;
+  const temporaryImage = imageSrc === FALLBACK_IMAGE || imageSrc.endsWith('/history-lot.jpg');
   const saleMonth = new Intl.DateTimeFormat(isRtl ? 'he-IL' : 'en-US', {
     month: 'short',
     year: 'numeric',
@@ -65,12 +66,17 @@ export function ResultCard({ lot, lang, onSelect, matchReasons = [], selected = 
 
   return (
     <article
-      className={`cursor-pointer overflow-hidden rounded-2xl border border-[#eadfd0] bg-white shadow-[0_1px_2px_rgba(80,60,20,0.06)] ${selected ? 'ring-2 ring-amber-700' : ''}`}
+      className={`flex h-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#eadfd0] bg-white shadow-[0_1px_2px_rgba(80,60,20,0.06)] ${selected ? 'ring-2 ring-amber-700' : ''}`}
       dir="ltr"
       aria-label={selected ? (isRtl ? 'פריט שנבחר' : 'Selected item') : undefined}
       onClick={() => onSelect(lot.id)}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(lot.id); }
+      }}
     >
-      <div className="relative aspect-[4/3] bg-[#d9cbb3]">
+      <div className="relative aspect-[4/3] shrink-0 bg-[#d9cbb3]">
         <img
           className="h-full w-full object-cover"
           src={imageSrc}
@@ -79,6 +85,7 @@ export function ResultCard({ lot, lang, onSelect, matchReasons = [], selected = 
             if (lot.imageUrl && !imageUnavailable) setImageUnavailable(true);
           }}
         />
+        {temporaryImage ? <span className="absolute bottom-0 inset-x-0 bg-black/70 px-2 py-1 text-center text-xs text-white">{isRtl ? 'תמונת הדגמה זמנית' : 'Temporary demo image'}</span> : null}
         <div className="absolute inset-x-0 top-0 flex flex-nowrap items-center justify-between gap-2 bg-[#1b365d] px-2 py-1.5">
           {lot.status === 'sold' && lot.realizedPrice ? (
             <span className="shrink-0 whitespace-nowrap text-[12px] font-medium text-white">
@@ -93,9 +100,9 @@ export function ResultCard({ lot, lang, onSelect, matchReasons = [], selected = 
         </div>
       </div>
 
-      <div className="px-4 pb-4 pt-3">
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-3">
         <h2 className="line-clamp-2 min-h-[2.5rem] text-center text-[15px] font-semibold leading-snug text-[#1c1917]">{title}</h2>
-        <p className="mt-1 text-center text-[13px] text-stone-500">{lot.auctionHouse.name}</p>
+        <p className="mt-1 min-h-10 line-clamp-2 text-center text-[13px] leading-5 text-stone-500" title={lot.auctionHouse.name}>{lot.auctionHouse.name}</p>
 
         {matchReasons.length > 0 ? (
           <section className="mt-3 rounded-md bg-[#f7f1e6] p-3" aria-label={isRtl ? 'למה הפריט מתאים' : 'Why this matches'}>
@@ -110,30 +117,34 @@ export function ResultCard({ lot, lang, onSelect, matchReasons = [], selected = 
           </section>
         ) : null}
 
-        {lot.estimate ? (
-          <div className="mt-3 flex flex-nowrap items-baseline justify-between gap-2 whitespace-nowrap text-[14px]">
-            <span dir="ltr" className="font-semibold text-[#c4a36a]">
-              {formatCardPrice(lot.estimate.low)}–{formatCardPrice(lot.estimate.high)}
-            </span>
-            <span className="shrink-0 whitespace-nowrap text-stone-500">{isRtl ? 'הערכה' : 'Estimate'}</span>
+        <div className="mt-auto pt-3">
+          <div className="min-h-11">
+            {lot.estimate ? (
+              <div className="flex flex-wrap items-baseline justify-between gap-2 text-[14px]">
+                <span dir="ltr" className="font-semibold text-[#c4a36a]">
+                  {formatCardPrice(lot.estimate.low)}–{formatCardPrice(lot.estimate.high)}
+                </span>
+                <span className="shrink-0 whitespace-nowrap text-stone-500">{isRtl ? 'הערכה' : 'Estimate'}</span>
+              </div>
+            ) : null}
+            {lot.status === 'sold' && lot.realizedPrice ? (
+              <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-2 text-[14px]">
+                <span dir="ltr" className="font-semibold text-[#c4a36a]">{formatCardPrice(lot.realizedPrice)}</span>
+                <span className="shrink-0 whitespace-nowrap text-stone-500">{isRtl ? 'נמכר תמורת' : 'Realized price'}</span>
+              </div>
+            ) : null}
           </div>
-        ) : null}
-        {lot.status === 'sold' && lot.realizedPrice ? (
-          <div className="mt-0.5 flex flex-nowrap items-baseline justify-between gap-2 whitespace-nowrap text-[14px]">
-            <span dir="ltr" className="font-semibold text-[#c4a36a]">{formatCardPrice(lot.realizedPrice)}</span>
-            <span className="shrink-0 whitespace-nowrap text-stone-500">{isRtl ? 'נמכר תמורת' : 'Realized price'}</span>
-          </div>
-        ) : null}
-        <p className="mt-1 text-right text-[12px] text-stone-400">{saleMonth}</p>
-        <a
-          href={lot.source.url}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(event) => event.stopPropagation()}
-          className="mt-1 block text-right text-[13px] font-medium text-[#c4a36a] underline underline-offset-2"
-        >
-          {isRtl ? 'צפה ברישום המקורי' : 'View original listing'}
-        </a>
+          <p className="mt-1 text-right text-[12px] text-stone-400">{saleMonth}</p>
+          <a
+            href={lot.source.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(event) => event.stopPropagation()}
+            className="mt-1 block text-right text-[13px] font-medium text-[#c4a36a] underline underline-offset-2"
+          >
+            {isRtl ? 'צפה ברישום המקורי' : 'View original listing'}
+          </a>
+        </div>
       </div>
     </article>
   );

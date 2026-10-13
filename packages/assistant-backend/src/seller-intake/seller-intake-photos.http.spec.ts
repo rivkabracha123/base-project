@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AiService } from '../ai/ai.service';
+import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { HttpExceptionFilter } from '../common/http-exception.filter';
 import { UploadsModule } from '../uploads/uploads.module';
 import { SellerIntakeAiAdapter } from './seller-intake-ai.adapter';
@@ -39,7 +39,7 @@ describe('SellerIntakeController photos (HTTP)', () => {
         SellerIntakeAiMock,
         SellerIntakeAiAdapter,
         { provide: SELLER_INTAKE_AI_PROVIDER, useExisting: SellerIntakeAiAdapter },
-        { provide: AiService, useValue: { generate: jest.fn() } },
+        { provide: P4AiGenerateClient, useValue: { generate: jest.fn() } },
         { provide: SellerIntakeDraftsService, useValue: drafts },
       ],
     }).compile();
@@ -55,7 +55,7 @@ describe('SellerIntakeController photos (HTTP)', () => {
   });
 
   afterEach(async () => {
-    await app.close();
+    await app?.close();
     await rm(root, { recursive: true, force: true });
   });
 

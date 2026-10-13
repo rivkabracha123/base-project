@@ -1,6 +1,6 @@
 import { isGenerateAiResponseDto, type AiFunctionCall, type AiRole, type StructuredAnswer } from './ai.dto';
 import { buyerResponseExample, buyerResponseSchema, omitNullableBuyerFields } from './buyer-response-schema';
-import { sellerResponseSchema } from './seller-response-schema';
+import { sellerResponseSchema, sellerFunctionNames } from './seller-response-schema';
 
 export type RealProviderRequest = {
   prompt: string;
@@ -216,7 +216,7 @@ export class RealProviderService {
               'For seller dimensions, use null when no measurements are stated. For a ring size without a specified sizing system, use label ring_size and unit size; never invent a US or EU sizing system. Never return an empty measurement object.',
               ...(role === 'seller' ? [
                 ...(strictSellerOutput ? ['For functionCall use argumentsJson containing a JSON-encoded argument object instead of object. For no action set both functionToRun and argumentsJson to null.'] : []),
-                'When one seller action is appropriate, include functionCall: {"functionToRun":"<name>","object":{...}} in the top-level response. Use only these function names: createSellerLeadDraft, rankSellerHouses, rankAndStoreSellerHouses, chooseSellerHouse, submitFinalSellerLead, listSellerLeads, getSellerLead, listEvidence, uploadEvidence, getEvidenceFile, reorderEvidence, deleteEvidence. If no action is appropriate, use functionCall: {"functionToRun":null,"object":null}. Never invent IDs; use IDs explicitly supplied in the conversation or current session context.',
+                `When one seller action is appropriate, include functionCall: {"functionToRun":"<name>","object":{...}} in the top-level response. Use only these function names: ${sellerFunctionNames.join(', ')}. Enquiry requests must first use getSellerEnquiryPreview: never submit or grant consent without explicit review. If no action is appropriate, use functionCall: {"functionToRun":null,"object":null}. Never invent IDs; use IDs explicitly supplied in the conversation or current session context.`,
                 'For uploadEvidence, request a client upload action; never request or return image bytes. For getEvidenceFile, return a reference/URL request, never image bytes or image interpretation.',
                 'For seller structuredAnswer, always include category as a non-empty string; use "unknown" when the seller did not state the item category. Never use null or omit category.',
               ] : []),

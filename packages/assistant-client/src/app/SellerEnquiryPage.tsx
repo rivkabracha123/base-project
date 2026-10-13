@@ -2,6 +2,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState, PageShell } from '@monabid/ui';
 import { sellerContactFromP3Profile } from '@monabid/shared';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { confirmedItemDraftSchema } from '@monabid/shared';
 import { useTranslation } from 'react-i18next';
 import {
   completeSellerEnquiry,
@@ -28,25 +30,30 @@ function hasContact(name: string, email: string, phone: string): boolean {
  * Layout follows the seller-journey video (chat, house cards, catalog, enquiry card).
  */
 export function SellerEnquiryPage() {
+  const location = useLocation();
+  const chatDraft = useMemo(() => {
+    const parsed = confirmedItemDraftSchema.safeParse(location.state?.draft);
+    return parsed.success ? parsed.data : null;
+  }, [location.state]);
   const { i18n, t } = useTranslation();
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
   const [selectedHouseId, setSelectedHouseId] = useState<string>();
-  const [preferredName, setPreferredName] = useState(sellerFinalLeadFixture.request.contact.preferredName);
-  const [email, setEmail] = useState(sellerFinalLeadFixture.request.contact.email ?? '');
+  const [preferredName, setPreferredName] = useState(chatDraft ? '' : sellerFinalLeadFixture.request.contact.preferredName);
+  const [email, setEmail] = useState(chatDraft ? '' : sellerFinalLeadFixture.request.contact.email ?? '');
   const [phone, setPhone] = useState('');
   const [sellerMessage, setSellerMessage] = useState('');
   const [intakeInput, setIntakeInput] = useState('');
   const [intakeNonce, setIntakeNonce] = useState(0);
-  const started = Boolean(intakeInput);
+  const started = Boolean(intakeInput || chatDraft);
 
   const profileQuery = useQuery({
     queryKey: ['p3-current-profile'],
     queryFn: ({ signal }) => getCurrentP3Profile(signal),
   });
   const s1DraftQuery = useQuery({
-    queryKey: ['s1-seller-draft', intakeInput, intakeNonce],
+    queryKey: ['s1-seller-draft', intakeInput, intakeNonce, chatDraft],
     enabled: started,
-    queryFn: ({ signal, queryKey }) => getS1SellerDraft(signal, String(queryKey[1])),
+    queryFn: ({ signal, queryKey }) => chatDraft ?? getS1SellerDraft(signal, String(queryKey[1])),
   });
   const rankingItem = useMemo(() => rankingItemFromS1Draft(s1DraftQuery.data), [s1DraftQuery.data]);
   const journeyQuery = useQuery({

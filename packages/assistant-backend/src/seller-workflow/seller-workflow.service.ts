@@ -4,9 +4,16 @@ import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider } from '../selle
 import { SellerLeadsService } from '../seller-leads/seller-leads.service';
 import { toSellerLeadDashboardDetail } from '../seller-leads/seller-lead-dashboard';
 import { UploadsService } from '../uploads/uploads.service';
+import { SellerIntakeDraftsService } from '../seller-intake/seller-intake-drafts.service';
+import { ItemValuationService } from '../valuation-calculation/item-valuation.service';
+import { ComparablesService } from '../comparables/comparables.service';
+import { sellerComparisonCategory, sellerItemReady } from '../seller-intake/seller-item-readiness';
 import type { SellerFunctionName, SellerFunctionResponse, SellerWorkflowRequest, SellerWorkflowResult, SellerWorkflowResultCallback } from './seller-workflow.types';
 
 const SELLER_FUNCTIONS = new Set<SellerFunctionName>([
+  'searchSellerComparables', 'getSellerComparableHistory', 'getSellerPriceTrend', 'getSellerItemDetails',
+  'getSellerCatalogDraft', 'getSellerEnquiryPreview', 'getSellerProvenanceAdvice', 'getSellerHouseRecommendation',
+  'calculateSellerValuation',
   'analyzeSellerIntake',
   'createSellerLeadDraft', 'createSellerLead',
   'rankSellerHouses', 'rankAndStoreSellerHouses', 'rankHousesForLead',
@@ -36,6 +43,9 @@ export class SellerWorkflowService {
     @Inject(SELLER_INTAKE_AI_PROVIDER) private readonly sellerIntakeAi: SellerIntakeAiProvider,
     private readonly sellerLeads: SellerLeadsService,
     @Optional() private readonly uploads?: UploadsService,
+    @Optional() private readonly drafts?: SellerIntakeDraftsService,
+    @Optional() private readonly itemValuation?: ItemValuationService,
+    @Optional() private readonly comparables?: ComparablesService,
   ) {}
 
   async execute(
@@ -81,6 +91,55 @@ export class SellerWorkflowService {
     profileId: string,
   ): Promise<unknown> {
     switch (action.functionToRun) {
+      case 'searchSellerComparables':
+      case 'getSellerComparableHistory':
+      case 'getSellerPriceTrend':
+      case 'getSellerItemDetails': {
+        if (!this.drafts) throw new BadRequestException('Seller draft service is unavailable');
+        const saved = await this.drafts.getDraft(profileId, requiredString(action.object, 'sessionId'));
+        const item = saved.draft.item;
+        if (!sellerItemReady(item)) {
+          throw new BadRequestException('Seller actions require category, dimensions and condition');
+        }
+        if (action.functionToRun === 'getSellerItemDetails') return { item };
+        if (!this.comparables) throw new BadRequestException('Seller comparison service is unavailable');
+        const category = sellerComparisonCategory(item.category, `${item.title}\n${item.description?.he ?? ''}\n${item.description?.en ?? ''}`);
+        const criteria = { category, ...(saved.draft.confirmedFacts.materials?.length ? { materials: saved.draft.confirmedFacts.materials } : {}) };
+        const evidence = await this.comparables.findComparables(criteria);
+        // Available items and completed sales belong to separate actions.
+        const matches = action.functionToRun === 'searchSellerComparables'
+          ? [...evidence.included, ...evidence.excluded].filter((match) => match.lot.status === 'upcoming' && match.lot.category === criteria.category && match.score >= 0.8)
+          : evidence.included.filter((match) => match.lot.status === 'sold');
+        return { criteria, lots: matches.map((match) => match.lot).sort((a, b) => a.saleDate.localeCompare(b.saleDate) || a.id.localeCompare(b.id)) };
+      }
+      case 'getSellerCatalogDraft':
+      case 'getSellerEnquiryPreview':
+      case 'getSellerHouseRecommendation':
+      case 'getSellerProvenanceAdvice': {
+        if (!this.drafts) throw new BadRequestException('Seller draft service is unavailable');
+        const saved = await this.drafts.getDraft(profileId, requiredString(action.object, 'sessionId'));
+        if (!sellerItemReady(saved.draft.item)) throw new BadRequestException('Seller actions require category, dimensions and condition');
+        if (action.functionToRun === 'getSellerHouseRecommendation') return { ...this.sellerLeads.rankHouses({ category: saved.draft.item.category }), category: saved.draft.item.category };
+        if (action.functionToRun === 'getSellerProvenanceAdvice') return { text: {
+          he: 'תיעוד אמין של מקור הפריט עשוי לסייע בבדיקת הזיהוי והאותנטיות. אי אפשר לקבוע בכמה ישתנה השווי בלי לבדוק את התיעוד ואת הפריט. ההערכה הקיימת אינה כוללת תוספת שווי משוערת עבור תיעוד שלא נבדק.',
+          en: 'Reliable provenance can help verify identity and authenticity. Its effect on value requires reviewing the documents and the item. The current valuation does not add an assumed premium for unverified provenance.',
+        } };
+        if (action.functionToRun === 'getSellerCatalogDraft') return { title: saved.draft.item.title, ...saved.draft.item.catalogDraft };
+        return { draft: saved.draft, ranking: this.sellerLeads.rankHouses({ category: saved.draft.item.category }) };
+      }
+      case 'calculateSellerValuation': {
+        if (!this.drafts || !this.itemValuation) throw new BadRequestException('Seller valuation is unavailable');
+        // Read the authenticated profile's saved item, never model-supplied prices or item IDs.
+        const saved = await this.drafts.getDraft(profileId, requiredString(action.object, 'sessionId'));
+        const item = saved.draft.item;
+        if (!sellerItemReady(item)) {
+          throw new BadRequestException('Seller valuation requires category, dimensions and condition');
+        }
+        const report = await this.itemValuation.calculateFromItem({ itemId: item.id, itemVersion: `v${saved.version}`, item });
+        const evidence = this.comparables ? await this.comparables.findComparables(item) : undefined;
+        const ids = new Set(report.includedComparableIds ?? []);
+        return { ...report, lots: evidence?.included.filter(entry => entry.lot.status === 'sold' && ids.has(entry.lot.id)).map(entry => entry.lot) ?? [] };
+      }
       case null:
         return null;
       case 'analyzeSellerIntake':

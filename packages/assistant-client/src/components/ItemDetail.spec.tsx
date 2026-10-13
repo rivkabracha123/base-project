@@ -39,8 +39,9 @@ describe('ItemDetail', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Price History' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Sale source' })).toHaveLength(2);
+    expect(screen.getByRole('heading', { level: 2, name: 'Price History' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View sale record' })).toHaveAttribute('href', 'https://fixtures.monabid.test/lots/sold-002');
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
 
   it('shows an honest price-history empty state when no history is supplied', () => {

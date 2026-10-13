@@ -6,13 +6,21 @@ function object(properties: Record<string, unknown>) {
 const optionalText = { type: ['string', 'null'] };
 const strings = { type: 'array', items: { type: 'string' } };
 
+export const sellerFunctionNames = [
+  'searchSellerComparables', 'getSellerComparableHistory', 'getSellerPriceTrend', 'getSellerItemDetails',
+  'getSellerCatalogDraft', 'getSellerEnquiryPreview', 'getSellerProvenanceAdvice', 'getSellerHouseRecommendation',
+  'calculateSellerValuation', 'createSellerLeadDraft', 'rankSellerHouses', 'rankAndStoreSellerHouses',
+  'chooseSellerHouse', 'submitFinalSellerLead', 'listSellerLeads', 'getSellerLead', 'listEvidence',
+  'uploadEvidence', 'getEvidenceFile', 'reorderEvidence', 'deleteEvidence',
+] as const;
+
 export const sellerResponseSchema = {
   ...buyerResponseSchema,
   required: [...buyerResponseSchema.required, 'functionCall'],
   properties: {
     ...buyerResponseSchema.properties,
     functionCall: object({
-      functionToRun: { type: ['string', 'null'], enum: [null, 'createSellerLeadDraft', 'rankSellerHouses', 'rankAndStoreSellerHouses', 'chooseSellerHouse', 'submitFinalSellerLead', 'listSellerLeads', 'getSellerLead', 'listEvidence', 'uploadEvidence', 'getEvidenceFile', 'reorderEvidence', 'deleteEvidence'] },
+      functionToRun: { type: ['string', 'null'], enum: [null, ...sellerFunctionNames] },
       argumentsJson: optionalText,
     }),
     structuredAnswer: object({

@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { baseMessageFields, errorMessageSchema, systemMessageSchema } from '@monabid/shared';
+import { baseMessageFields, errorMessageSchema, systemMessageSchema, houseRankingSchema } from '@monabid/shared';
 import { parseConversationWith } from '../chat/parse-conversation';
+import { sellerComparisonResultSchema } from './seller-comparison-result';
+import { sellerActionResultSchema } from './seller-action-result';
 
 // A photo the seller attached, by reference — the same shape the evidence API returns (EvidenceReference in app/api.ts).
 // The message stores the reference, not the picture; the picture URL is built from previewUri when displayed.
@@ -29,7 +31,7 @@ export const sellerMessageSchema = z.discriminatedUnion('speaker', [
     text: z.string().min(1).optional(),
     images: sellerImagesSchema.optional(),
   }),
-  systemMessageSchema,
+  systemMessageSchema.extend({ comparison: sellerComparisonResultSchema.optional(), houseRanking: houseRankingSchema.optional(), houseCategory: z.string().optional(), action: sellerActionResultSchema.optional() }),
   errorMessageSchema,
 ]).refine(
   // A seller message must carry text, a photo, or both; system and error messages always have text.

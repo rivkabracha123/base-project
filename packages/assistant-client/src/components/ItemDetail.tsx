@@ -11,6 +11,7 @@ interface ItemDetailProps {
   historyLoading?: boolean;
   historyError?: boolean;
   onOpenChat?: () => void;
+  backLabel?: string;
 }
 
 /**
@@ -25,6 +26,7 @@ export function ItemDetail({
   historyLoading = false,
   historyError = false,
   onOpenChat,
+  backLabel,
 }: ItemDetailProps) {
   const isRtl = lang === 'he';
   // קובע אם להציג את טופס בקשת העזרה; שליחה אמיתית תחובר בעתיד ל-P3.
@@ -43,7 +45,7 @@ export function ItemDetail({
   return (
     <div className={`mx-auto max-w-3xl rounded-xl border border-[#ead9b8] bg-white p-6 shadow-sm ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
       <button type="button" onClick={onBack} className="mb-6 flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-stone-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
-        {isRtl ? 'חזרה לתוצאות החיפוש' : 'Back to Results'}
+        {backLabel ?? (isRtl ? 'חזרה לתוצאות החיפוש' : 'Back to Results')}
       </button>
 
       <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-amber-700">{lot.auctionTitle}</span>

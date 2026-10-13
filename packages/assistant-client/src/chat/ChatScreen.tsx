@@ -129,8 +129,9 @@ export function ChatScreen<T extends { id: string }>({
         <div ref={bottomRef} aria-hidden="true" className="scroll-mb-28" />
 
         {/* שדה כתיבת הודעה וכפתור שליחה. mt-auto דוחף אותו לתחתית ה-flex גם כששיחה קצרה. */}
-        <form onSubmit={handleSubmit} dir={dir} className="sticky bottom-0 mt-auto flex gap-2 bg-[#f7efe2] py-3">
-          {composerExtra}
+        <form onSubmit={handleSubmit} dir={dir} className="sticky bottom-0 mt-auto flex flex-col gap-2 bg-[#f7efe2] py-3">
+          {composerExtra && <div className="flex items-center gap-2">{composerExtra}</div>}
+          <div className="flex w-full items-start gap-2">
           <textarea
             ref={inputRef}
             aria-label={inputLabel}
@@ -139,15 +140,16 @@ export function ChatScreen<T extends { id: string }>({
             onKeyDown={handleKeyDown}
             disabled={isLoading || isBusy}
             rows={1}
-            className="max-h-40 flex-1 resize-none overflow-y-auto rounded-xl border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100"
+            className="min-h-11 max-h-40 min-w-0 flex-1 resize-none overflow-y-auto rounded-xl border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100"
           />
           <button
             type="submit"
             disabled={isLoading || isBusy}
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="h-11 shrink-0 rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {sendLabel}
           </button>
+          </div>
         </form>
         </div>
       </PageShell>

@@ -16,6 +16,13 @@ import { FixtureLotsSearchClient } from './fixture-lots-search.client';
 import { findBuyerFixtureLot, resolveBuyerFixtureLots } from './fixture-lots.pool';
 
 describe('BuyerP4FunctionExecutor', () => {
+  it('does not execute a price trend when P4 says it is not ready', async () => {
+    const presentation = { presentSearchResults: jest.fn(), presentPriceTrend: jest.fn() };
+    const executor = new BuyerP4FunctionExecutor({} as never, presentation, new BuyerCriteriaService(), {} as never);
+    const ai = { intentRoute: { functionName: 'getPriceTrend', readyForFunction: false }, readyForFunction: false } as P4AiGenerateResponse;
+    expect(await executor.execute(ai, { sessionId: 's1', language: 'en', criteriaComplete: false }, [])).toBe(false);
+    expect(presentation.presentPriceTrend).not.toHaveBeenCalled();
+  });
   const extract: P4AiGenerateResponse['extract'] = {
     provider: 'fixture', mode: 'fixture', content: '', summary: '',
     recommendation: '', nextAction: '', confidence: 'low',
@@ -128,7 +135,7 @@ describe('BuyerP4FunctionExecutor', () => {
     );
 
     expect(handled).toBe(true);
-    expect(updates.some((u) => u.speaker === 'result-group')).toBe(true);
+    expect(updates.some((u) => u.speaker === 'sale-history')).toBe(true);
   });
 
   it('runs getLotById and returns the selected canonical lot to the chat', async () => {

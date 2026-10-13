@@ -37,11 +37,7 @@ export class BatyaBuyerResultsPresentationService implements BuyerResultsPresent
     onUpdate({ type: 'loading' });
 
     const relayProgress = (progress: BuyerSearchProgress): void => {
-      if (progress.stage === 'searching') {
-        onUpdate({ type: 'loading' });
-      } else if (progress.stage === 'results-found') {
-        onUpdate({ type: 'progress', text: progressText(progress.count, criteria.language) });
-      } else if (progress.stage === 'error') {
+      if (progress.stage === 'error') {
         onUpdate({
           type: 'error',
           code: 'search_failed',
@@ -63,12 +59,21 @@ export class BatyaBuyerResultsPresentationService implements BuyerResultsPresent
       relayProgress,
     );
 
+    if (outcome.kind === 'insufficient-criteria') {
+      onUpdate({ type: 'error', code: 'insufficient_criteria', text: criteria.language === 'he' ? '\u05d7\u05e1\u05e8\u05d9\u05dd \u05e4\u05e8\u05d8\u05d9\u05dd \u05dc\u05d7\u05d9\u05e4\u05d5\u05e9.' : 'More search criteria are required.' });
+      return { groups: [], outcome };
+    }
     if (outcome.kind === 'unmatched') {
       onUpdate({ type: 'unmatched', text: UNMATCHED_TEXT[criteria.language] });
       return { groups: [], outcome };
     }
 
-    const groups = groupsFromResults(criteria, outcome.results.current, outcome.results.historical);
+    const groups = groupsFromResults(criteria, outcome.results.current, []);
+    if (groups.length === 0) {
+      onUpdate({ type: 'unmatched', text: UNMATCHED_TEXT[criteria.language] });
+      return { groups, outcome };
+    }
+    onUpdate({ type: 'progress', text: progressText(outcome.results.current.length, criteria.language) });
     onUpdate({ type: 'result_cards', groups });
     return { groups, outcome };
   }

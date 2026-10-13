@@ -1,11 +1,15 @@
 import type { HouseRanking, RankedHouse } from '@monabid/shared';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export const categoryLabels: Record<string, { en: string; he: string }> = {
   rare_books: { en: 'Rare books', he: 'ספרים וכתבי יד נדירים' },
   judaica: { en: 'Judaica', he: 'יודיאיקה' },
   paintings: { en: 'Paintings', he: 'ציורים' },
+  rings: { en: 'Rings', he: 'טבעות' },
+  jewelry: { en: 'Jewelry', he: 'תכשיטים' },
+  watches: { en: 'Watches', he: 'שעונים' },
+  furniture: { en: 'Furniture', he: 'רהיטים' },
 };
 
 export function selectableHouses(ranking: HouseRanking): RankedHouse[] {
@@ -70,28 +74,29 @@ export function HouseJourneyCard({
   row: RankedHouse;
   selectedId?: string;
   recommended?: boolean;
-  onSelect: (houseId: string) => void;
+  onSelect?: (houseId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('he') ? 'he' : 'en';
-  const inputId = `journey-house-${row.house.id}`;
+  const instanceId = useId();
+  const inputId = `${instanceId}-journey-house-${row.house.id}`;
   const selected = selectedId === row.house.id;
   const location = row.house.geography
-    ? row.house.geography === 'Israel'
+    ? row.house.geography.toLowerCase() === 'israel'
       ? t('houses.locationIsrael')
-      : t('houses.locationUs')
+      : ['united states', 'usa', 'us'].includes(row.house.geography.toLowerCase()) ? t('houses.locationUs') : row.house.geography
     : null;
 
   return (
     <label
-      htmlFor={inputId}
-      className={`relative flex cursor-pointer flex-col rounded-2xl border px-5 py-5 shadow-sm ${
+      htmlFor={onSelect ? inputId : undefined}
+      className={`relative flex ${onSelect ? 'cursor-pointer' : ''} flex-col rounded-2xl border px-5 py-5 shadow-sm ${
         recommended || selected
           ? 'border-[#c4a574] bg-[#f3ead8]'
           : 'border-stone-200 bg-white'
       }`}
     >
-      <input
+      {onSelect && <input
         id={inputId}
         type="radio"
         name="seller-house"
@@ -100,15 +105,15 @@ export function HouseJourneyCard({
         onChange={() => onSelect(row.house.id)}
         className="sr-only"
         aria-label={row.house.name}
-      />
+      />}
       {recommended ? (
         <span className="absolute start-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-[#e6d7b8] text-sm text-amber-900" aria-hidden>
           ★
         </span>
       ) : null}
-      <span className={`block text-lg font-semibold text-stone-950 ${recommended ? 'ps-8' : ''}`}>
+      <h3 className={`block text-lg font-semibold text-stone-950 ${recommended ? 'ps-8' : ''}`}>
         {row.house.name}
-      </span>
+      </h3>
       {location ? <span className="mt-1 text-sm text-stone-500">{location}</span> : null}
       <span className="mt-3 flex flex-wrap gap-2">
         {row.house.categories.map((category) => (

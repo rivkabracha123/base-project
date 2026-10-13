@@ -5,6 +5,17 @@ import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auction-lots'
 import { ResultCard } from './ResultCard';
 
 describe('ResultCard', () => {
+  it('reserves consistent house-name space and stretches the frame to the grid row', () => {
+    render(<ResultCard lot={{ ...soldLotFixture, auctionHouse: { ...soldLotFixture.auctionHouse, name: 'A long auction house name wrapping across two lines' } }} lang="en" onSelect={vi.fn()} />);
+    expect(screen.getByRole('article')).toHaveClass('h-full', 'flex', 'flex-col');
+    expect(screen.getByText('A long auction house name wrapping across two lines')).toHaveClass('min-h-10', 'line-clamp-2');
+  });
+  it('opens an item with the keyboard', () => {
+    const onSelect = vi.fn();
+    render(<ResultCard lot={soldLotFixture} lang="en" onSelect={onSelect} />);
+    fireEvent.keyDown(screen.getByRole('article'), { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith(soldLotFixture.id);
+  });
   it('shows a realized price only for a sold lot', () => {
     render(<ResultCard lot={soldLotFixture} lang="en" onSelect={vi.fn()} />);
 
@@ -87,7 +98,7 @@ describe('ResultCard', () => {
   it('centers the title and keeps Hebrew price labels', () => {
     render(<ResultCard lot={soldLotFixture} lang="he" onSelect={vi.fn()} />);
 
-    expect(screen.getByRole('heading', { name: soldLotFixture.title.en })).toHaveClass('text-center');
+    expect(screen.getByRole('heading', { name: soldLotFixture.title.he })).toHaveClass('text-center');
     expect(screen.getByText('הערכה')).toBeInTheDocument();
     expect(screen.getByText('נמכר תמורת')).toBeInTheDocument();
     expect(screen.getByText('צפה ברישום המקורי')).toBeInTheDocument();

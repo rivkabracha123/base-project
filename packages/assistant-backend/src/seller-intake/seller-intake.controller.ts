@@ -5,10 +5,14 @@ import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE_BYTES, type UploadedFile } from '..
 import { UploadsService } from '../uploads/uploads.service';
 import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider, type SellerIntakeAiResult } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
+import { requestedSellerComparison, type SellerComparisonAction } from '../seller-workflow/seller-comparison-action';
+import { sellerItemReady } from './seller-item-readiness';
 
 // Receives seller messages and returns their extracted draft information.
 @Controller('seller-intake')
 export class SellerIntakeController {
+  private readonly pendingValuations = new Set<string>();
+  private readonly pendingComparisons = new Map<string, SellerComparisonAction>();
   constructor(
     @Inject(SELLER_INTAKE_AI_PROVIDER) private readonly sellerIntakeAi: SellerIntakeAiProvider,
     private readonly drafts: SellerIntakeDraftsService,
@@ -38,6 +42,29 @@ export class SellerIntakeController {
     }
 
     const scopedSessionId = `${profileId}:${sessionId}`;
+    if (/\b(?:cancel|don't|do not)\b|בטל|לא\s+(?:רוצה|מעוניי?נ)/i.test(input)) this.pendingComparisons.delete(scopedSessionId);
+    const comparison = requestedSellerComparison(input);
+    if (comparison) this.pendingComparisons.set(scopedSessionId, comparison);
+    if (comparison) {
+      try {
+        const saved = await this.drafts.getDraft(String(profileId), String(sessionId));
+        const item = saved.draft.item;
+        if (sellerItemReady(item)) {
+          this.pendingComparisons.delete(scopedSessionId);
+          return { ...saved.draft, provider: 'fixture-mock', missingFields: saved.draft.missingFields ?? [], requiredMissingFields: [], nextQuestion: null, structuredAnswer: null,
+            ai: { provider: null, mode: null, isRelevant: true, error: null, aiMissingFields: [] },
+            functionCall: { functionToRun: comparison, object: { sessionId: String(sessionId) } } };
+        }
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) throw error;
+      }
+    }
+    const asksValuation = /valuation|apprais(?:al|e)|estimate(?:d)? (?:value|price)|\u05d4\u05e2\u05e8\u05db\u05ea?\s+\u05e9\u05d5\u05d5\u05d9|\u05db\u05de\u05d4\s+.*\u05e9\u05d5\u05d5\u05d4/i.test(input);
+    const declinesValuation = /\b(?:don't|do not|cancel)\b|\u05dc\u05d0\s+(?:\u05e8\u05d5\u05e6\u05d4|\u05de\u05e2\u05d5\u05e0\u05d9\u05d9\u05e0)|\u05d1\u05d8\u05dc/i.test(input);
+    if (asksValuation) {
+      if (declinesValuation) this.pendingValuations.delete(scopedSessionId);
+      else this.pendingValuations.add(scopedSessionId);
+    }
     if (this.sellerIntakeAi.restoreSession && !this.sellerIntakeAi.hasSession?.(scopedSessionId)) {
       try {
         const saved = await this.drafts.getDraft(String(profileId), String(sessionId));
@@ -58,6 +85,17 @@ export class SellerIntakeController {
       item: { ...analysis.item, id: `seller-item-${stableId}` },
     };
     await this.drafts.saveIntakeTurn(String(profileId), String(sessionId), persistedDraft);
+    const pendingComparison = this.pendingComparisons.get(scopedSessionId);
+    if (pendingComparison && analysis.requiredMissingFields?.length === 0) {
+      this.pendingComparisons.delete(scopedSessionId);
+      return { ...persistedDraft, structuredAnswer, ai, nextQuestion: null,
+        functionCall: { functionToRun: pendingComparison, object: { sessionId: String(sessionId) } } };
+    }
+    if (this.pendingValuations.has(scopedSessionId) && analysis.requiredMissingFields?.length === 0 && !functionCall?.functionToRun) {
+      this.pendingValuations.delete(scopedSessionId);
+      return { ...persistedDraft, structuredAnswer, ai, nextQuestion: null,
+        functionCall: { functionToRun: 'calculateSellerValuation', object: { sessionId: String(sessionId) } } };
+    }
     return { ...persistedDraft, structuredAnswer, functionCall, ai };
   }
 

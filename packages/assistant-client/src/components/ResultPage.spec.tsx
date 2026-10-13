@@ -9,17 +9,25 @@ import {
 import i18n from '../i18n';
 import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auction-lots';
 import { ResultsPage } from './ResultPage';
+import { resetBuyerChatFlowForTests } from '../buyer/buyer-chat-flow';
 
 function CurrentPath() {
   return <output data-testid="current-path">{useLocation().pathname}</output>;
 }
 
 describe('ResultsPage', () => {
+  it('does not show fixture inventory before a search has run', async () => {
+    resetBuyerChatFlowForTests();
+    await i18n.changeLanguage('en');
+    render(<MemoryRouter><ResultsPage /></MemoryRouter>);
+    expect(screen.getByRole('status')).toHaveTextContent('There are no search results');
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  });
   it('renders B3 fixture results and navigates to the selected lot', async () => {
     await i18n.changeLanguage('en');
     render(
       <MemoryRouter initialEntries={['/results']}>
-        <ResultsPage />
+        <ResultsPage outcome={resultsSearchOutcomeFixture} />
         <CurrentPath />
       </MemoryRouter>,
     );

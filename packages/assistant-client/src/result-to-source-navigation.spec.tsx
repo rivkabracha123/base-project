@@ -2,7 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { restoreBuyerChatFlowState, resetBuyerChatFlowForTests } from './buyer/buyer-chat-flow';
 import { auctionLotFixtureSchema } from '@monabid/shared';
 import { App } from './App';
 import { getCurrentProfile, getLotById } from './app/api';
@@ -38,7 +39,10 @@ const profile = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+beforeEach(() => restoreBuyerChatFlowState({ results: [lot] }));
+
 afterEach(() => {
+  resetBuyerChatFlowForTests();
   vi.clearAllMocks();
   vi.unstubAllEnvs();
 });

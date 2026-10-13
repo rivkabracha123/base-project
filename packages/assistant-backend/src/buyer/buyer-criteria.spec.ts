@@ -14,6 +14,29 @@ import {
 import { sampleAiExtractResponses, sampleClarificationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
+  it.each(['אני רוצה כתבי יד עתיקים', 'כתבי יד עתיק', 'כתב יד עתיק'])(
+    'recognizes manuscript category and keywords in %s',
+    (content) => {
+      const result = parseCriteriaFromAiResponse({
+        provider: 'fixture', mode: 'fixture', content,
+        summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+      });
+
+      expect(result.criteria.categories).toEqual(['rare_books']);
+      expect(result.criteria.keywords).toContain('manuscript');
+      expect(result.conversation.missing).not.toContain('category');
+    },
+  );
+
+  it('accepts plural Hebrew manuscripts during guided category collection', () => {
+    const initial = createGuidedFallbackCriteriaResponse('he');
+    const withoutBudget = skipCurrentQuestion(initial.criteria, initial.conversation);
+    const result = applyBuyerAnswer(withoutBudget.criteria, withoutBudget.conversation, 'כתבי יד עתיקים');
+
+    expect(result.criteria.categories).toEqual(['rare_books']);
+    expect(result.conversation.missing).not.toContain('category');
+  });
+
   it('extracts a basic structured request from a fixture response', () => {
     const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
 
@@ -148,7 +171,7 @@ describe('Week 3 focused questions', () => {
   it('extracts keywords from the first message so category is not required twice', () => {
     const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.manuscriptEn());
 
-    expect(result.criteria.categories).toEqual([]);
+    expect(result.criteria.categories).toEqual(['rare_books']);
     expect(result.criteria.keywords).toEqual(expect.arrayContaining(['rare', 'Hebrew', 'manuscript']));
     expect(result.conversation.missing).not.toContain('category');
     expect(result.conversation.missing[0]).toBe('creator');

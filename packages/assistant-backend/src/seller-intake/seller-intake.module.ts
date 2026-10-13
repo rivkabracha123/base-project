@@ -20,6 +20,6 @@ import { SellerIntakeService } from './seller-intake.service';
     { provide: SELLER_INTAKE_AI_PROVIDER, useExisting: SellerIntakeAiAdapter },
     SellerIntakeDraftsService,
   ],
-  exports: [SellerIntakeAiMock, SELLER_INTAKE_AI_PROVIDER, SellerIntakeService],
+  exports: [SellerIntakeAiMock, SELLER_INTAKE_AI_PROVIDER, SellerIntakeService, SellerIntakeDraftsService],
 })
 export class SellerIntakeModule {}

@@ -15,8 +15,7 @@ describe('BatyaBuyerResultsPresentationService', () => {
       } as unknown as LotsService,
     );
     const criteria = emptyBuyerCriteria('en');
-    criteria.categories = ['painting'];
-    criteria.keywords = ['blue'];
+    criteria.categories = ['rare_books'];
     const updates: BuyerFlowUpdate[] = [];
 
     const result = await service.presentSearchResults({
@@ -31,6 +30,8 @@ describe('BatyaBuyerResultsPresentationService', () => {
 
     expect(result.outcome.selectedLotId).toBe('selected-lot');
     expect(result.groups[0]?.items[0]?.matchReasons).toBeDefined();
+    expect(result.groups.flatMap((group) => group.items).every((entry) => entry.lot.status === 'upcoming')).toBe(true);
+    expect(result.outcome.results.historical.length).toBeGreaterThan(0);
     expect(updates.some((update) => update.type === 'loading')).toBe(true);
     expect(updates.some((update) => update.type === 'progress')).toBe(true);
     expect(updates.some((update) => update.type === 'result_cards')).toBe(true);

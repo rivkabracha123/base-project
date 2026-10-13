@@ -1,21 +1,35 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
-  resultsSearchOutcomeFixture,
   type BuyerSearchOutcomeFixture,
 } from '../app/buyer-search-outcome.fixture';
 import { ResultCard } from './ResultCard';
+import { getLatestBuyerResultLots, getBuyerChatFlowSnapshot, selectBuyerLot } from '../buyer/buyer-chat-flow';
 
 interface ResultsPageProps {
   outcome?: BuyerSearchOutcomeFixture;
 }
 
 /** Renders B3's already-grouped search result without changing its search outcome. */
-export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPageProps) {
+export function ResultsPage({ outcome: suppliedOutcome }: ResultsPageProps) {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const lang = i18n.language.startsWith('he') ? 'he' : 'en';
   const isRtl = lang === 'he';
+  const lots = getLatestBuyerResultLots();
+  const entries = lots.map(lot => ({ lot, matchReasons: [] }));
+  const outcome = suppliedOutcome ?? {
+    kind: 'results' as const,
+    results: { current: entries.filter(entry => entry.lot.status === 'upcoming'), historical: entries.filter(entry => entry.lot.status !== 'upcoming') },
+    approvedRefinements: [],
+    selectedLotId: getBuyerChatFlowSnapshot().context.selectedLot?.id,
+  };
+  if (!suppliedOutcome && !lots.length) {
+    return <div className="mx-auto max-w-5xl p-6" dir={isRtl ? 'rtl' : 'ltr'}>
+      <p role="status">{isRtl ? 'אין תוצאות חיפוש להצגה.' : 'There are no search results to display.'}</p>
+      <button type="button" onClick={() => navigate('/chat/buyer')} className="mt-4 underline">{isRtl ? 'חיפוש פריטים' : 'Find items'}</button>
+    </div>;
+  }
 
   if (outcome.kind === 'unmatched') {
     return (
@@ -43,7 +57,7 @@ export function ResultsPage({ outcome = resultsSearchOutcomeFixture }: ResultsPa
             lang={lang}
             matchReasons={entry.matchReasons}
             selected={entry.lot.id === outcome.selectedLotId}
-            onSelect={(id) => navigate(`/lots/${id}`)}
+            onSelect={(id) => { selectBuyerLot(entry.lot); navigate(`/lots/${encodeURIComponent(id)}`, { state: { returnTo: '/results' } }); }}
           />
         ))}
       </div>

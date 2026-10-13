@@ -10,6 +10,52 @@ import { SELLER_INTAKE_AI_PROVIDER } from './seller-intake-ai.provider';
 import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 import { UploadsService } from '../uploads/uploads.service';
 
+describe('Seller valuation routing', () => {
+  it('remembers a house request but waits for required intake facts', async () => {
+    const incomplete = { item: {}, seller: {}, requiredMissingFields: ['condition'], functionCall: null };
+    const provider = { analyze: jest.fn().mockResolvedValueOnce(incomplete).mockResolvedValue({ ...incomplete, requiredMissingFields: [] }) };
+    const drafts = { getDraft: jest.fn().mockRejectedValue(new NotFoundException()), saveIntakeTurn: jest.fn() };
+    const controller = new SellerIntakeController(provider as never, drafts as never, {} as never);
+    const scope = { profileId: 'house-profile', sessionId: 'house-session' };
+    expect((await controller.createDraft({ ...scope, input: 'Find an auction house for my item' })).functionCall).toBeNull();
+    expect((await controller.createDraft({ ...scope, input: 'Good condition' })).functionCall)
+      .toEqual({ functionToRun: 'getSellerHouseRecommendation', object: { sessionId: 'house-session' } });
+  });
+  it('remembers a requested valuation until required fields are filled, then runs only once', async () => {
+    const incomplete = { item: {}, seller: {}, requiredMissingFields: ['condition'], functionCall: null };
+    const complete = { ...incomplete, requiredMissingFields: [] };
+    const provider = { analyze: jest.fn().mockResolvedValueOnce(incomplete).mockResolvedValue(complete) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const scope = { profileId: 'profile-1', sessionId: 'session-1' };
+    await controller.createDraft({ ...scope, input: 'Please estimate value' });
+    expect((await controller.createDraft({ ...scope, input: 'Good condition' })).functionCall?.functionToRun).toBe('calculateSellerValuation');
+    expect((await controller.createDraft({ ...scope, input: 'Thanks' })).functionCall).toBeNull();
+  });
+
+  it('does not route an explicitly declined valuation', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {}, requiredMissingFields: [], functionCall: null }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    expect((await controller.createDraft({ profileId: 'profile-1', sessionId: 'session-1', input: 'Do not estimate value' })).functionCall).toBeNull();
+  });
+  it.each(['\u05d4\u05e2\u05e8\u05db\u05ea \u05e9\u05d5\u05d5\u05d9 \u05dc\u05de\u05d5\u05e6\u05e8', 'Please estimate value'])('routes an explicit request when mandatory facts are complete: %s', async (input) => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rings' }, seller: {}, requiredMissingFields: [], missingFields: ['provenance'], nextQuestion: null }) };
+    const drafts = { saveIntakeTurn: jest.fn() };
+    const controller = new SellerIntakeController(provider as never, drafts as never, {} as never);
+    const result = await controller.createDraft({ input, profileId: 'profile-1', sessionId: 'session-1' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 'session-1' } });
+    expect(drafts.saveIntakeTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues required questions rather than valuing an incomplete item', async () => {
+    const question = { field: 'condition', he: 'condition?', en: 'condition?' };
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {}, requiredMissingFields: ['condition'], nextQuestion: question, functionCall: null }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'Please estimate value', profileId: 'profile-1', sessionId: 'session-1' });
+    expect(result.functionCall).toBeNull();
+    expect(result.nextQuestion).toEqual(question);
+  });
+});
+
 // Tests for the Seller Intake Controller.
 // Verifies that the API accepts seller messages and returns a draft item,
 // and that invalid requests are rejected.
@@ -139,6 +185,8 @@ describe('SellerIntakeController', () => {
   it('restores a persisted item before routing a recommendation without an AI call', async () => {
     persistedDraft = { profileId: 'profile-restored', sessionId: 'session-restored',
       draft: app.get(SellerIntakeAiMock).analyze('oil painting') };
+    persistedDraft.draft.item.dimensions = { values: [{ label: 'width', value: 20, unit: 'cm' }] };
+    persistedDraft.draft.item.condition = 'Good';
     const response = await fetch(`${baseUrl}/seller-intake/draft`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ input: 'Which auction houses are recommended?',
@@ -146,7 +194,7 @@ describe('SellerIntakeController', () => {
     });
     expect(response.status).toBe(201);
     expect(await response.json()).toMatchObject({ nextQuestion: null,
-      functionCall: { functionToRun: 'rankSellerHouses', object: { category: 'paintings' } } });
+      functionCall: { functionToRun: 'getSellerHouseRecommendation', object: { sessionId: 'session-restored' } } });
     expect(aiGenerate).not.toHaveBeenCalled();
   });
 

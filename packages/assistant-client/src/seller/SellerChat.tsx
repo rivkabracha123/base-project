@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { evidenceUrl, getSellerConversation } from '../app/api';
 import { ChatScreen } from '../chat/ChatScreen';
@@ -7,6 +8,9 @@ import { useChatFlow } from '../chat/useChatFlow';
 import { connectSellerLevels } from './connect-seller-levels';
 import { connectSellerPhotos } from './connect-seller-photos';
 import { sellerMessageSchema, type SellerMessage } from './messages';
+import { SellerComparisonResults } from './SellerComparisonResults';
+import { SellerHouseCards } from './SellerHouseCards';
+import { SellerActionCard } from './SellerActionCard';
 
 // Photo limits checked in the browser before uploading (the server enforces them again).
 const allowedPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -65,6 +69,21 @@ export function SellerChat() {
 
   // Renders a single conversation message as a bubble: the photo (if any) above the text (if any).
   function renderMessage(message: SellerMessage) {
+    if (message.speaker === 'system' && message.action) return <li data-speaker="system" className="w-full min-w-0">
+      <SellerActionCard action={message.action} language={language} summary={message.text} />
+    </li>;
+    if (message.speaker === 'system' && message.houseRanking) {
+      return <li data-speaker="system" className="w-full min-w-0">
+        <h2 className="mb-3 text-lg font-semibold">{message.text}</h2>
+        <SellerHouseCards ranking={message.houseRanking} category={message.houseCategory} language={language} />
+      </li>;
+    }
+    if (message.speaker === 'system' && message.comparison) {
+      return <li data-speaker="system" className="w-full min-w-0">
+        <h2 className="mb-3 text-lg font-semibold">{message.text}</h2>
+        <SellerComparisonResults result={message.comparison} language={language} />
+      </li>;
+    }
     return (
       <MessageBubble speaker={message.speaker} isOwn={message.speaker === 'seller'}>
         {message.speaker === 'seller' &&
@@ -76,31 +95,19 @@ export function SellerChat() {
               className="max-h-60 rounded-lg"
             />
           ))}
-        {message.text}
+        {message.speaker === 'system'
+          ? message.text.replace(/^(?:ה[־-]?AI אינו זמין כרגע, אז נמשיך באיסוף פרטים מונחה\.\s*|AI is temporarily unavailable, so we will continue with guided questions\.\s*)/, '')
+          : message.text}
+        {message.speaker === 'system' && /בית המכירות המומלץ|Recommended auction house|המלצת בתי המכירות מוכנה/.test(message.text) && <Link to="/seller/houses" className="mt-2 block underline">{language === 'he' ? 'בתי מכירות' : 'Auction houses'}</Link>}
+        {message.speaker === 'system' && /פניות שמורות|saved enquiries|פרטי הפנייה/.test(message.text) && <Link to="/seller/enquiry" className="mt-2 block underline">{language === 'he' ? 'פניית מוכר' : 'Seller enquiry'}</Link>}
+        {message.speaker === 'system' && message.comparison && <SellerComparisonResults result={message.comparison} language={language} />}
       </MessageBubble>
     );
   }
 
   // לחצן צירוף תמונה: תווית שמפעילה שדה קובץ מוסתר, ואזהרה כשהקובץ שנבחר אינו תמונה תקינה.
   const attachPhoto = (
-    <div className="flex flex-col justify-center gap-1">
-      <select
-        aria-label={language === 'he' ? '\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea' : 'Actions'}
-        value=""
-        disabled={isLoading || isBusy || isUploading}
-        className="max-w-40 rounded border border-neutral-300 bg-transparent px-2 py-2 text-sm"
-        onChange={(event) => {
-          if (event.target.value) handleSend(event.target.value);
-        }}
-      >
-        <option value="">{language === 'he' ? '\u05e4\u05e2\u05d5\u05dc\u05d5\u05ea' : 'Actions'}</option>
-        <option value={language === 'he' ? '\u05d0\u05d9\u05dc\u05d5 \u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05de\u05d5\u05de\u05dc\u05e6\u05d9\u05dd \u05dc\u05e4\u05e8\u05d9\u05d8 \u05e9\u05dc\u05d9?' : 'Which auction houses are recommended for my item?'}>
-          {language === 'he' ? '\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea \u05de\u05d5\u05de\u05dc\u05e6\u05d9\u05dd' : 'Recommended auction houses'}
-        </option>
-        <option value={language === 'he' ? '\u05d4\u05e6\u05d2 \u05d0\u05ea \u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea \u05e9\u05dc\u05d9' : 'List my saved enquiries'}>
-          {language === 'he' ? '\u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05e9\u05dc\u05d9' : 'My enquiries'}
-        </option>
-      </select>
+    <div className="flex items-center gap-2">
       <label
         title={t('chat.attachPhoto')}
         className="flex cursor-pointer items-center rounded-xl border border-neutral-300 px-3 py-2 text-neutral-700 hover:bg-white/60"

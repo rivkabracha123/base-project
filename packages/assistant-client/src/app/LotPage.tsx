@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { EmptyState, ErrorState, LoadingState, PageShell } from '@monabid/ui';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { selectBuyerLot } from '../buyer/buyer-chat-flow';
 import { ItemDetail } from '../components/ItemDetail';
 import {
   localHistoryDemoLotId,
@@ -18,6 +19,9 @@ export function LotPage() {
   const { i18n, t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const origin = location.state?.returnTo;
+  const returnTo = ['/chat/buyer', '/chat/seller', '/results'].includes(origin) ? origin : '/results';
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
   // הדגמת ההיסטוריה מותרת רק עבור עטרת זקנים ורק כשמפעילים את הדגל המקומי במפורש.
   const isLocalHistoryDemo = import.meta.env.VITE_LOCAL_HISTORY_DEMO === 'true'
@@ -47,7 +51,9 @@ export function LotPage() {
           historyLots={historyLots}
           historyLoading={historyQuery.isPending && !isLocalHistoryDemo}
           historyError={historyQuery.isError}
-          onBack={() => navigate('/results')}
+          onBack={() => navigate(returnTo)}
+          backLabel={returnTo.startsWith('/chat/') ? (language === 'he' ? 'חזרה לשיחה' : 'Back to conversation') : undefined}
+          onOpenChat={() => { selectBuyerLot(lot); navigate('/chat/buyer'); }}
         />
       ) : null}
     </PageShell>

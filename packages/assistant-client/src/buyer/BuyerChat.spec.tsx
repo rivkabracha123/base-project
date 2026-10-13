@@ -8,6 +8,8 @@ import { BuyerChat } from './BuyerChat';
 import { connectLevels } from './connect-levels';
 import { mockConversation } from './mock-conversation';
 import i18n from '../i18n';
+import { soldLotFixture } from '../test/fixtures/auction-lots';
+import { houseRankingSchema } from '@monabid/shared';
 
 // חיבור רמות מזויף: הבדיקות שולטות במה שהוא שולח ל-callback ובמתי הוא מסיים.
 vi.mock('./connect-levels', () => ({ connectLevels: vi.fn() }));
@@ -49,6 +51,22 @@ function renderChatWithError() {
 
 // Tests for the buyer chat screen.
 describe('BuyerChat', () => {
+  it('renders specialist houses inline without seller selection controls', async () => {
+    const ranking = houseRankingSchema.parse({ recommendation: {
+      house: { id: 'house-specialist', name: 'Manuscript specialist', active: true, categories: ['rare_books'], languages: ['he', 'en'], geography: 'Israel', comparableSoldCountByCategory: { rare_books: 3 } },
+      score: 10, reasons: ['Category expertise'],
+    }, alternatives: [], excluded: [] });
+    renderChat([{ id: 'ranking-test', sessionId: 's1', speaker: 'house-ranking', category: 'rare_books', ranking }]);
+    expect(await screen.findByRole('heading', { name: 'Manuscript specialist' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Choose auction house' })).not.toBeInTheDocument();
+  });
+  it('shows a chronological sale timeline without upcoming auctions', async () => {
+    renderChat([{ id: 'history-test', sessionId: 's1', speaker: 'sale-history', title: 'Previous sales', lots: [soldLotFixture, { ...soldLotFixture, id: 'future-test', status: 'upcoming' }] }]);
+    expect(await screen.findByRole('heading', { name: 'Previous sales' })).toBeInTheDocument();
+    expect(screen.getByText('Test Auction House · 2025-01-23')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Sale details' })).toHaveLength(1);
+  });
   // Verifies the screen shows the text of the first buyer message in the conversation.
   it('shows the first buyer message', async () => {
     renderChat(mockConversation.en);

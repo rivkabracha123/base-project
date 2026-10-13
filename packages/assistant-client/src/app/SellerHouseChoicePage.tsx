@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState, PageShell } from '@monabid/ui';
 import { useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   createSellerLead,
@@ -16,7 +17,10 @@ import { HouseRankingPicker, JourneyBubble, selectableHouses } from './SellerJou
 export function SellerHouseChoicePage() {
   const { t } = useTranslation();
   // S5: which radio is selected. Undefined means “keep the S5 recommendation”.
-  const [selectedHouseId, setSelectedHouseId] = useState<string>();
+  const location = useLocation();
+  const [selectedHouseId, setSelectedHouseId] = useState<string | undefined>(
+    typeof location.state?.selectedHouseId === 'string' ? location.state.selectedHouseId : undefined,
+  );
 
   // Show ranking without storing a lead (P3 consent is only required when saving).
   const s1DraftQuery = useQuery({

@@ -20,9 +20,11 @@ import { BatyaBuyerResultsPresentationService } from './batya-buyer-results-pres
 import { BuyerSearchExecutionService } from './buyer-search-execution.service';
 
 import { UnmatchedDemandDbStore } from './unmatched-demand.db-store';
+import { SellerLeadsModule } from '../seller-leads/seller-leads.module';
+import { ComparablesModule } from '../comparables/comparables.module';
 
 @Module({
-  imports: [AiModule, TypeOrmModule.forFeature([BuyerUnmatchedDemandEntity]), LotsModule],
+  imports: [AiModule, TypeOrmModule.forFeature([BuyerUnmatchedDemandEntity]), LotsModule, SellerLeadsModule, ComparablesModule],
   controllers: [BuyerController],
   providers: [
     BuyerCriteriaService,

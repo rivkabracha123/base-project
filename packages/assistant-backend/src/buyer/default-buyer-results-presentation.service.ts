@@ -86,6 +86,10 @@ export class DefaultBuyerResultsPresentationService implements BuyerResultsPrese
       relayProgress,
     );
 
+    if (outcome.kind === 'insufficient-criteria') {
+      onUpdate({ type: 'error', code: 'insufficient_criteria', text: criteria.language === 'he' ? '\u05d7\u05e1\u05e8\u05d9\u05dd \u05e4\u05e8\u05d8\u05d9\u05dd \u05dc\u05d7\u05d9\u05e4\u05d5\u05e9.' : 'More search criteria are required.' });
+      return { groups: [], outcome };
+    }
     if (outcome.kind === 'unmatched') {
       const text = UNMATCHED_TEXT[criteria.language];
       onUpdate({ type: 'unmatched', text });

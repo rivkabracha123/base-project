@@ -5,13 +5,16 @@ import { SellerIntakeAiMock } from './seller-intake-ai.mock';
 import type { SellerIntakeAiProvider, SellerIntakeAiResult } from './seller-intake-ai.provider';
 import type { AiFunctionCall } from '../ai/ai.dto';
 import type { SellerItemDraft } from '@monabid/shared';
+import { requestedSellerComparison } from '../seller-workflow/seller-comparison-action';
+import { hasSellerCondition, sellerComparisonCategory } from './seller-item-readiness';
 
 function requestedReadAction(input: string, category: string, language: 'he' | 'en'): AiFunctionCall | null {
   if (/^(?:list my saved enquiries|\u05d4\u05e6\u05d2 \u05d0\u05ea \u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea \u05e9\u05dc\u05d9)[.!?\s]*$/i.test(input)) {
     return { functionToRun: 'listSellerLeads', object: {} };
   }
-  if (/auction houses?|\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea/i.test(input)
-    && /recommended|suitable|\u05de\u05d5\u05de\u05dc\u05e6|\u05de\u05ea\u05d0\u05d9\u05dd/i.test(input)
+  if (/auction houses?|(?:\u05d1\u05d9\u05ea|\u05d1\u05ea\u05d9)\s+\u05de\u05db\u05d9\u05e8\u05d5\u05ea/i.test(input)
+    && /recommend|suitable|find|show|which|where|difference|looking for|איפה|כדאי|הבדל|\u05de\u05d5\u05de\u05dc[\u05e6\u05e5]|\u05de\u05ea\u05d0\u05d9\u05dd|\u05e8\u05d5\u05e6\u05d4|\u05de\u05d7\u05e4\u05e9|\u05ea\u05de\u05e6\u05d0|\u05d4\u05e6\u05d2|\u05d0\u05d9\u05d6\u05d4/i.test(input)
+    && !/\u05dc\u05d0\s+(?:\u05e8\u05d5\u05e6\u05d4|\u05de\u05e2\u05d5\u05e0\u05d9\u05d9\u05e0)|\b(?:don't|do not)\s+(?:want|show|recommend|find)/i.test(input)
     && category !== 'unknown' && category.trim()) {
     return { functionToRun: 'rankSellerHouses', object: { category, language } };
   }
@@ -44,6 +47,21 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     private readonly p4: P4AiGenerateClient,
   ) {}
 
+  private applyRequiredFieldPolicy(result: SellerIntakeAiResult): SellerIntakeAiResult {
+    // Match seller-v1: category, dimensions and condition block intake; other details do not.
+    const requiredMissingFields: string[] = [];
+    if (!result.item.category.trim() || result.item.category === 'unknown') requiredMissingFields.push('category');
+    if (!result.item.dimensions.values.length) requiredMissingFields.push('dimensions');
+    if (!hasSellerCondition(result.item.condition)) requiredMissingFields.push('condition');
+    const functionCall = requiredMissingFields.length && result.functionCall?.functionToRun === 'rankSellerHouses'
+      ? null : result.functionCall;
+    return { ...result, requiredMissingFields, functionCall,
+      nextQuestion: functionCall?.functionToRun ? null
+        : requiredMissingFields.includes('category')
+          ? { field: 'category', he: '\u05d0\u05d9\u05d6\u05d4 \u05e1\u05d5\u05d2 \u05e4\u05e8\u05d9\u05d8 \u05d1\u05e8\u05e6\u05d5\u05e0\u05da \u05dc\u05de\u05db\u05d5\u05e8?', en: 'What type of item would you like to sell?' }
+          : this.intake.nextQuestionForAiFields(requiredMissingFields) };
+  }
+
   hasSession(sessionId: string): boolean {
     return this.sessions.has(sessionId);
   }
@@ -59,11 +77,11 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     const missingFields = ['dimensions', 'condition', 'marks', 'signatures', 'provenance'].filter(field =>
       field === 'dimensions' ? !item.dimensions.values.length
         : !facts[field === 'marks' ? 'markings' : field === 'signatures' ? 'signature' : field]);
-    const result: SellerIntakeAiResult = {
+    const result = this.applyRequiredFieldPolicy({
       ...draft, provider: 'fixture-mock', missingFields,
       nextQuestion: this.intake.nextQuestionForAiFields(missingFields), structuredAnswer: null,
       ai: { provider: null, mode: null, isRelevant: true, error: null, aiMissingFields: missingFields },
-    };
+    });
     this.sessions.set(sessionId, { input: item.description.he || item.description.en,
       dimensions: item.dimensions, facts, nextField: result.nextQuestion?.field, result });
   }
@@ -72,15 +90,19 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     const previous = sessionId ? this.sessions.get(sessionId) : undefined;
     const language = /[\u0590-\u05FF]/.test(input) ? 'he' : 'en';
     if (previous?.result) {
+      const comparison = requestedSellerComparison(input);
+      if (comparison) return this.applyRequiredFieldPolicy({ ...previous.result,
+        functionCall: comparison === 'getSellerHouseRecommendation'
+          ? requestedReadAction(input, previous.result.item.category, language) : null });
       const action = requestedReadAction(input, previous.result.item.category, language);
-      if (action) return { ...previous.result, nextQuestion: null, functionCall: action };
+      if (action) return this.applyRequiredFieldPolicy({ ...previous.result, functionCall: action });
     }
     const facts = { ...previous?.facts };
     const currentFacts: Record<string, string> = {};
     const field = previous?.nextField;
     const itemField = field === 'marks' ? 'markings' : field === 'signatures' ? 'signature' : field;
     const answer = input.trim();
-    const isActionRequest = /auction houses?|saved enquiries|\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea|\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea/i.test(answer);
+    const isActionRequest = !!requestedSellerComparison(answer) || /valuation|apprais(?:al|e)|estimate(?:d)? (?:value|price)|הערכת?\s+שווי|auction houses?|saved enquiries|\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea|\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea/i.test(answer);
     if (itemField && ['condition', 'markings', 'signature', 'provenance'].includes(itemField)
       && !isActionRequest
       && !/\b(?:condition|markings|signature|provenance)\b|\u05de\u05e6\u05d1|\u05e1\u05d9\u05de\u05d5\u05e0|\u05d7\u05ea\u05d9\u05de\u05d4|\u05de\u05e7\u05d5\u05e8/i.test(answer)
@@ -128,12 +150,15 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         const guided = this.intake.applyAiDimensions(
           this.intake.analyze(combinedInput), dimensions?.values,
         );
+        if (guided.item.category === 'unknown' && previous?.result?.item.category) {
+          guided.item.category = previous.result.item.category;
+        }
         Object.assign(guided.item, facts, facts.signature ? { signatures: facts.signature } : {});
         const remaining = (guided.missingFields ?? []).filter(missing =>
           !facts[missing === 'marks' ? 'markings' : missing === 'signatures' ? 'signature' : missing]);
         guided.missingFields = remaining;
         guided.nextQuestion = this.intake.nextQuestionForAiFields(remaining);
-        const result: SellerIntakeAiResult = {
+        const result = this.applyRequiredFieldPolicy({
           ...guided,
           functionCall: requestedReadAction(input, guided.item.category, language),
           ai: {
@@ -141,15 +166,18 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
             fallbackMode: 'guided',
             error: 'Real AI is temporarily unavailable; guided seller intake was used.',
           },
-        };
-        if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: guided.item.dimensions, nextField: guided.nextQuestion?.field, facts, result });
+        });
+        if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: result.item.dimensions, nextField: result.nextQuestion?.field, facts, result });
         return result;
       }
       throw error;
     }
     const structuredAnswer: SellerHandoffContract = response.structuredAnswer;
-    if (structuredAnswer.category === 'unknown' && previous?.result?.item.category !== 'unknown' && previous?.result?.item.category) {
-      structuredAnswer.category = previous.result.item.category;
+    structuredAnswer.category = sellerComparisonCategory(structuredAnswer.category, `${combinedInput}\n${structuredAnswer.item.title ?? ''}`);
+    if (structuredAnswer.category === 'unknown') {
+      const previousCategory = previous?.result?.item.category;
+      structuredAnswer.category = previousCategory && previousCategory !== 'unknown'
+        ? previousCategory : this.intake.analyze(combinedInput).item.category;
     }
     if (/no markings/i.test(contextualInput)) currentFacts.markings = 'No markings reported';
     if (/not signed/i.test(contextualInput)) currentFacts.signature = 'No signature reported';
@@ -177,13 +205,14 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       if (!item.provenance?.trim()) missingFields.push('provenance');
     }
     const draft = this.intake.createDraftFromAiExtraction(combinedInput, structuredAnswer);
-    const result: SellerIntakeAiResult = {
+    const result = this.applyRequiredFieldPolicy({
       ...draft,
       provider: 'fixture-mock' as const,
       missingFields,
       nextQuestion: this.intake.nextQuestionForAiFields(missingFields),
       structuredAnswer,
-      functionCall: requestedReadAction(input, structuredAnswer.category, language) ?? response.functionCall ?? null,
+      functionCall: requestedReadAction(input, structuredAnswer.category, language)
+        ?? (response.functionCall?.functionToRun === 'rankSellerHouses' ? null : response.functionCall ?? null),
       ai: {
         provider: response.provider,
         mode: response.mode,
@@ -193,7 +222,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         summary: response.summary,
         nextAction: response.nextAction,
       },
-    };
+    });
     if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: structuredAnswer.item.dimensions,
       nextField: result.nextQuestion?.field, facts, result });
     return result;

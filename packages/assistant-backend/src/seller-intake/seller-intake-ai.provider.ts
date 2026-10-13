@@ -9,6 +9,7 @@ export const SELLER_INTAKE_AI_PROVIDER = Symbol('SELLER_INTAKE_AI_PROVIDER');
 export type SellerIntakeResult = SellerItemDraft & {
   provider: 'fixture-mock';
   missingFields: string[];
+  requiredMissingFields?: string[];
   nextQuestion: MissingSellerQuestion | null;
   sessionId?: string;
   answerAccepted?: boolean;

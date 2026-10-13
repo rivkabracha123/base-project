@@ -7,6 +7,7 @@ import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
 import { UserProfileEntity } from '../database/user-profile.entity';
 import { AiHistoryEntity } from '../database/ai-history.entity';
+import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { ConfigModule } from '@nestjs/config';
 import type { BuyerCriteria } from './buyer-criteria';
 import { BuyerModule } from './buyer.module';
@@ -64,6 +65,8 @@ async function compileBuyerModule(lots: AuctionLot[]) {
     .overrideProvider(getRepositoryToken(UserProfileEntity))
     .useValue({})
     .overrideProvider(getRepositoryToken(AiHistoryEntity))
+    .useValue({})
+    .overrideProvider(getRepositoryToken(SellerLeadEntity))
     .useValue({})
     .overrideProvider(getRepositoryToken(AuctionLotEntity))
     .useValue(lotsRepository(lots))

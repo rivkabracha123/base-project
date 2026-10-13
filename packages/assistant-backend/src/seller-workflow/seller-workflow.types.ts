@@ -1,4 +1,13 @@
 export type SellerFunctionName =
+  | 'searchSellerComparables'
+  | 'getSellerComparableHistory'
+  | 'getSellerPriceTrend'
+  | 'getSellerItemDetails'
+  | 'getSellerCatalogDraft'
+  | 'getSellerEnquiryPreview'
+  | 'getSellerProvenanceAdvice'
+  | 'getSellerHouseRecommendation'
+  | 'calculateSellerValuation'
   | 'analyzeSellerIntake'
   | 'createSellerLeadDraft'
   | 'createSellerLead'

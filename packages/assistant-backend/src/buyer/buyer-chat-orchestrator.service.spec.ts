@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { BuyerChatOrchestratorService } from './buyer-chat-orchestrator.service';
 import type { BuyerLotsResolverService } from './buyer-lots-resolver.service';
@@ -13,6 +14,45 @@ import { FixtureLotsSearchClient } from './fixture-lots-search.client';
 import { findBuyerFixtureLot, resolveBuyerFixtureLots } from './fixture-lots.pool';
 
 describe('BuyerChatOrchestratorService', () => {
+  it('continues through a provider outage and searches only after all questions are answered or explicitly skipped', async () => {
+    const criteria = new BuyerCriteriaService();
+    const p4 = { generateBuyerExtract: jest.fn().mockRejectedValue(new ServiceUnavailableException()) };
+    const bridge = new BuyerP4BridgeService(p4 as never, criteria);
+    const executor = { execute: jest.fn().mockResolvedValue(false) };
+    const orchestrator = new BuyerChatOrchestratorService(bridge, criteria, executor as never);
+    const opened = await orchestrator.handleMessage({ message: 'I want a blue ring', language: 'en' });
+    expect(opened.updates.length).toBeGreaterThan(0);
+    const answered = await orchestrator.handleMessage({ sessionId: opened.sessionId, message: 'no' });
+    expect(answered.updates).toContainEqual({ speaker: 'system', text: 'Is there a specific artist or maker?' });
+    expect(criteria.getSessionResponse(opened.sessionId).conversation.skipped).toEqual(['budget']);
+    expect(executor.execute.mock.calls.some(call => call[1]?.criteriaComplete === true)).toBe(false);
+    for (let index = 0; index < 3; index++) {
+      await orchestrator.handleMessage({ sessionId: opened.sessionId, message: 'no' });
+    }
+    expect(executor.execute).toHaveBeenLastCalledWith(
+      expect.objectContaining({ intentRoute: expect.objectContaining({ functionName: 'searchLots', readyForFunction: true }) }),
+      expect.objectContaining({ criteriaComplete: true }), expect.any(Array),
+    );
+    expect(criteria.getCriteriaForSession(opened.sessionId).categories).toEqual(['rings']);
+    expect(criteria.getCriteriaForSession(opened.sessionId).creators).toEqual([]);
+    expect(criteria.getCriteriaForSession(opened.sessionId).periods).toEqual([]);
+    expect(criteria.getCriteriaForSession(opened.sessionId).geography).toEqual([]);
+    expect(criteria.getSessionResponse(opened.sessionId).conversation.skipped).toEqual(['budget', 'creator', 'period', 'location']);
+  });
+  it('treats no as a budget skip without classifying it as off-topic', async () => {
+    const criteria = new BuyerCriteriaService();
+    const chat = criteria.startCriteriaSessionFromAiResponse({ provider: 'real', mode: 'real', isRelevant: true,
+      content: 'ring', summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+      structuredAnswer: { role: 'buyer', language: 'he', intent: 'search', category: 'rings', hasContactDetails: false, hasImages: false } });
+    const bridge = { routeBuyerMessage: jest.fn(), evaluateSearchReadiness: jest.fn().mockResolvedValue({ functionName: 'searchLots', readyForFunction: true }) };
+    const executor = { execute: jest.fn() };
+    const orchestrator = new BuyerChatOrchestratorService(bridge as never, criteria, executor as never);
+    const result = await orchestrator.handleMessage({ sessionId: chat.sessionId, message: 'לא', language: 'he' });
+    expect(bridge.routeBuyerMessage).not.toHaveBeenCalled();
+    expect(criteria.getSessionResponse(chat.sessionId).conversation.skipped).toContain('budget');
+    expect(result.turn.buyer.message).toBe('לא');
+    expect(result.turn.buyer.skipped).toBe(true);
+  });
   function createOrchestrator() {
     const config = {
       get: (key: string) => (key === 'AI_PROVIDER_MODE' ? 'fixture' : undefined),

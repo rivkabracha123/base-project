@@ -13,6 +13,55 @@ const currentProfile = {
 };
 
 describe('connectSellerLevels', () => {
+  it('preserves structured catalog output instead of flattening it to a status line', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ functionCall: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 'session-1' } } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { title: 'Manuscript', he: 'טיוטה', en: 'Saved catalog facts' } }), { status: 200 })));
+    const callback = vi.fn();
+    await connectSellerLevels('Write a catalog description', callback);
+    expect(callback).toHaveBeenCalledWith(expect.objectContaining({ action: { kind: 'catalog', title: 'Manuscript', he: 'טיוטה', en: 'Saved catalog facts' } }));
+  });
+  it('does not replace a sale-history request with an auction-house offer', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ requiredMissingFields: [], nextQuestion: null,
+        functionCall: { functionToRun: 'getSellerComparableHistory', object: { sessionId: 'seller-session' } },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { criteria: { category: 'rings' }, lots: [] } }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const callback = vi.fn();
+    await connectSellerLevels('I want previous sales', callback);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'Past sales of similar items',
+      comparison: { mode: 'history', criteria: { category: 'rings' }, lots: [] } });
+  });
+  it('does not ask optional questions once required intake fields are complete', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ nextQuestion: null,
+        requiredMissingFields: [], missingFields: ['marks', 'signatures', 'provenance'],
+        ai: { nextAction: 'What is its provenance?' },
+      }), { status: 200 })));
+    const callback = vi.fn();
+    await connectSellerLevels('Good condition', callback);
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'Your item details are saved.' });
+  });
+  it('displays a requested function result without appending optional intake questions', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        requiredMissingFields: [], missingFields: ['provenance'],
+        nextQuestion: { field: 'provenance', en: 'Where did it come from?', he: 'Optional question' },
+        functionCall: { functionToRun: 'listEvidence', object: { itemId: 'item-1' } },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const callback = vi.fn();
+    await connectSellerLevels('List my images', callback);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: '0 saved images.' });
+  });
   it('does not repeat model questions after all intake details are collected', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
@@ -21,7 +70,7 @@ describe('connectSellerLevels', () => {
       }), { status: 200 })));
     const callback = vi.fn();
     await connectSellerLevels('No', callback);
-    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'Your item details are saved. Would you like recommended auction houses?' });
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'Your item details are saved.' });
   });
   it.each([
     { categories: ['paintings'], expected: 'Recommended auction house: Test House.' },
@@ -188,6 +237,22 @@ describe('connectSellerLevels', () => {
 });
 
 describe('sendSellerMessage', () => {
+  it.each([
+    [{ status: 'supported', valuationRange: { min: 100, max: 200, currency: 'USD' } }, 'Estimated value'],
+    [{ status: 'refusal', reason: 'insufficient_comparable_sales' }, 'insufficient credible sale evidence'],
+    [{ status: 'refusal', reason: 'missing_exchange_rate_data' }, 'Currency conversion data is missing'],
+    [{ status: 'refusal', reason: 'unusable_range_requires_expert_review' }, 'requires expert review'],
+  ])('displays a valuation result rather than the saved-details acknowledgment', async (result, expected) => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ functionCall: { functionToRun: 'calculateSellerValuation', object: { sessionId: 'session-1' } }, requiredMissingFields: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const callback = vi.fn();
+    await connectSellerLevels('Please estimate value', callback);
+    expect(callback).toHaveBeenCalledWith(expect.objectContaining({ speaker: 'system', text: expect.stringContaining(expected) }));
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
   it('displays system text through Tamar\'s callback and waits for it', async () => {
     let resolveUpdate: (() => void) | undefined;
     const callback = vi.fn(() => new Promise<void>((resolve) => {

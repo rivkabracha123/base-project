@@ -35,9 +35,6 @@ export function AppHeader() {
           <Link to="/chat/seller" className="text-sm font-medium text-slate-700 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             {t('navigation.seller')}
           </Link>
-          <Link to="/assistant" className="text-sm font-medium text-indigo-700 hover:text-indigo-900">
-            {t('navigation.assistant')}
-          </Link>
           <Link
             to="/staff-operations"
             className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
