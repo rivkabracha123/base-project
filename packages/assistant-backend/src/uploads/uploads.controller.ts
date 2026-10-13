@@ -1,17 +1,20 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFiles, UseInterceptors} from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Res, UploadedFiles, UseGuards, UseInterceptors} from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE_BYTES, UploadedFile } from "./evidence.types";
+import { ProfileOwnershipGuard } from "./profile-ownership.guard";
 import { UploadsService } from "./uploads.service";
 
 @Controller("evidence")
+// Protect every evidence route in this controller with the same ownership check.
+@UseGuards(ProfileOwnershipGuard)
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
   @Post(":profileId")
   @UseInterceptors(
-    // Multer defaults to memory storage when no destination or storage engine
-    // is configured, so UploadsService remains in full control of persistence.
+    // Multer uses memory storage here, so the ownership guard runs before
+    // uploaded files are passed to the controller or persisted by the service.
     FilesInterceptor("files", MAX_FILES_PER_UPLOAD, {
       limits: { fileSize: MAX_FILE_SIZE_BYTES },
     }),

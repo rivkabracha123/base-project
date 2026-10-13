@@ -34,14 +34,23 @@ export function AppHeader() {
             {t('appName')}
           </Link>
         </nav>
-        <Button
-          // Save the user's choice before changing the visible interface.
-          onPress={() => languageMutation.mutate(nextLanguage)}
-          isDisabled={languageMutation.isPending}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          {t('language')}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Entry point to the personal area (profile update and deletion) */}
+          <Link
+            to="/account"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {t('navigation.account')}
+          </Link>
+          <Button
+            // Save the user's choice before changing the visible interface.
+            onPress={() => languageMutation.mutate(nextLanguage)}
+            isDisabled={languageMutation.isPending}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {t('language')}
+          </Button>
+        </div>
       </div>
     </header>
   );

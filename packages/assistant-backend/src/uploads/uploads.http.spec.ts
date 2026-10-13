@@ -1,10 +1,12 @@
 import { INestApplication } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HttpExceptionFilter } from "../common/http-exception.filter";
+import { UserProfileEntity } from "../database/user-profile.entity";
 import { createMockProfileId } from "../profile/mock-profile";
 import { UploadsModule } from "./uploads.module";
 
@@ -16,6 +18,9 @@ describe("UploadsModule (HTTP)", () => {
   let app: INestApplication;
   let root: string;
   let baseUrl: string;
+
+  // The test repository recognizes exactly one session as the owner of each profile.
+  const sessionFor = (profileId: string) => `session-${profileId}`;
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), "monabid-uploads-http-"));
@@ -29,7 +34,21 @@ describe("UploadsModule (HTTP)", () => {
         }),
         UploadsModule,
       ],
-    }).compile();
+    })
+      // Keep the real ProfilesService and Guard, but replace the database repository.
+      .overrideProvider(getRepositoryToken(UserProfileEntity))
+      .useValue({
+        findOneBy: jest.fn(
+          async ({ id, sessionId }: { id: string; sessionId: string }) => {
+            if (sessionId !== sessionFor(id)) {
+              return null;
+            }
+
+            return { id, sessionId };
+          },
+        ),
+      })
+      .compile();
 
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new HttpExceptionFilter());
@@ -42,6 +61,34 @@ describe("UploadsModule (HTTP)", () => {
     }
 
     baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  // Send every test request with the session that owns the requested profile,
+  // unless a test explicitly supplies another session to verify denial.
+  function evidenceRequest(
+    profileId: string,
+    path = "",
+    init: RequestInit = {},
+    sessionId = sessionFor(profileId),
+  ): Promise<Response> {
+    const headers = new Headers(init.headers);
+    headers.set("x-anonymous-session-id", sessionId);
+    return fetch(`${baseUrl}/evidence/${profileId}${path}`, {
+      ...init,
+      headers,
+    });
+  }
+
+  it("rejects an evidence request without an anonymous session ID", async () => {
+    const profileId = createMockProfileId();
+
+    // Deliberately bypass evidenceRequest so this request has no session header.
+    const response = await fetch(`${baseUrl}/evidence/${profileId}`);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      message: "Anonymous session ID is required",
+    });
   });
 
   afterEach(async () => {
@@ -64,7 +111,7 @@ describe("UploadsModule (HTTP)", () => {
       "back.png",
     );
 
-    const uploadResponse = await fetch(`${baseUrl}/evidence/${profileId}`, {
+    const uploadResponse = await evidenceRequest(profileId, "", {
       method: "POST",
       body: formData,
     });
@@ -79,7 +126,7 @@ describe("UploadsModule (HTTP)", () => {
       mimeType: "image/jpeg",
     });
 
-    const listResponse = await fetch(`${baseUrl}/evidence/${profileId}`);
+    const listResponse = await evidenceRequest(profileId);
 
     expect(listResponse.status).toBe(200);
 
@@ -89,9 +136,7 @@ describe("UploadsModule (HTTP)", () => {
 
     const fileId = listBody[0].fileId as string;
 
-    const previewResponse = await fetch(
-      `${baseUrl}/evidence/${profileId}/${fileId}`,
-    );
+    const previewResponse = await evidenceRequest(profileId, `/${fileId}`);
 
     expect(previewResponse.status).toBe(200);
     expect(previewResponse.headers.get("content-type")).toContain("image/jpeg");
@@ -108,7 +153,7 @@ describe("UploadsModule (HTTP)", () => {
       "private.jpg",
     );
 
-    const uploadResponse = await fetch(`${baseUrl}/evidence/${profileA}`, {
+    const uploadResponse = await evidenceRequest(profileA, "", {
       method: "POST",
       body: formData,
     });
@@ -118,16 +163,13 @@ describe("UploadsModule (HTTP)", () => {
     const uploadBody = await uploadResponse.json();
     const fileId = uploadBody[0].fileId as string;
 
-    const previewResponse = await fetch(
-      `${baseUrl}/evidence/${profileB}/${fileId}`,
-    );
+    const previewResponse = await evidenceRequest(profileB, `/${fileId}`, {}, sessionFor(profileA));
 
     expect(previewResponse.status).toBe(404);
 
-    const listResponse = await fetch(`${baseUrl}/evidence/${profileB}`);
+    const listResponse = await evidenceRequest(profileB, "", {}, sessionFor(profileA));
 
-    expect(listResponse.status).toBe(200);
-    expect(await listResponse.json()).toEqual([]);
+    expect(listResponse.status).toBe(404);
   });
 
   it("reports an unsupported file type as an explicit client error, not a generic failure", async () => {
@@ -140,7 +182,7 @@ describe("UploadsModule (HTTP)", () => {
       "notes.pdf",
     );
 
-    const response = await fetch(`${baseUrl}/evidence/${profileId}`, {
+    const response = await evidenceRequest(profileId, "", {
       method: "POST",
       body: formData,
     });
@@ -163,7 +205,7 @@ describe("UploadsModule (HTTP)", () => {
       "huge.jpg",
     );
 
-    const response = await fetch(`${baseUrl}/evidence/${profileId}`, {
+    const response = await evidenceRequest(profileId, "", {
       method: "POST",
       body: formData,
     });
@@ -198,7 +240,7 @@ describe("UploadsModule (HTTP)", () => {
       "C.jpg",
     );
 
-    const uploadResponse = await fetch(`${baseUrl}/evidence/${profileId}`, {
+    const uploadResponse = await evidenceRequest(profileId, "", {
       method: "POST",
       body: formData,
     });
@@ -213,18 +255,15 @@ describe("UploadsModule (HTTP)", () => {
     const b = uploaded[1] as { fileId: string };
     const c = uploaded[2] as { fileId: string };
 
-    const reorderResponse = await fetch(
-      `${baseUrl}/evidence/${profileId}/order`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileIds: [c.fileId, a.fileId, b.fileId],
-        }),
+    const reorderResponse = await evidenceRequest(profileId, "/order", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        fileIds: [c.fileId, a.fileId, b.fileId],
+      }),
+    });
 
     expect(reorderResponse.status).toBe(200);
 
@@ -238,19 +277,16 @@ describe("UploadsModule (HTTP)", () => {
       ),
     ).toEqual(["C.jpg", "A.jpg", "B.jpg"]);
 
-    const deleteResponse = await fetch(
-      `${baseUrl}/evidence/${profileId}/${a.fileId}`,
-      {
-        method: "DELETE",
-      },
-    );
+    const deleteResponse = await evidenceRequest(profileId, `/${a.fileId}`, {
+      method: "DELETE",
+    });
 
     expect(deleteResponse.status).toBe(200);
     expect(await deleteResponse.json()).toEqual({
       success: true,
     });
 
-    const listResponse = await fetch(`${baseUrl}/evidence/${profileId}`);
+    const listResponse = await evidenceRequest(profileId);
 
     expect(listResponse.status).toBe(200);
 
@@ -274,7 +310,7 @@ describe("UploadsModule (HTTP)", () => {
       "private.jpg",
     );
 
-    const uploadResponse = await fetch(`${baseUrl}/evidence/${profileA}`, {
+    const uploadResponse = await evidenceRequest(profileA, "", {
       method: "POST",
       body: formData,
     });
@@ -284,32 +320,30 @@ describe("UploadsModule (HTTP)", () => {
     const uploaded = await uploadResponse.json();
     const fileId = uploaded[0].fileId as string;
 
-    const deleteResponse = await fetch(
-      `${baseUrl}/evidence/${profileB}/${fileId}`,
-      {
-        method: "DELETE",
-      },
+    const deleteResponse = await evidenceRequest(
+      profileB,
+      `/${fileId}`,
+      { method: "DELETE" },
+      sessionFor(profileA),
     );
 
     expect(deleteResponse.status).toBe(404);
 
-    const listResponse = await fetch(`${baseUrl}/evidence/${profileA}`);
+    const listResponse = await evidenceRequest(profileA);
 
     expect(await listResponse.json()).toHaveLength(1);
   });
   it("reports invalid reorder input as an explicit client error", async () => {
-    const response = await fetch(
-      `${baseUrl}/evidence/mock-profile-week3-normal/order`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileIds: "not-an-array",
-        }),
+    const profileId = "mock-profile-week3-normal";
+    const response = await evidenceRequest(profileId, "/order", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        fileIds: "not-an-array",
+      }),
+    });
 
     expect(response.status).toBe(400);
 
@@ -327,7 +361,7 @@ describe("UploadsModule (HTTP)", () => {
       "photo..jpg",
     );
 
-    const response = await fetch(`${baseUrl}/evidence/${profileId}`, {
+    const response = await evidenceRequest(profileId, "", {
       method: "POST",
       body: formData,
     });
@@ -340,12 +374,10 @@ describe("UploadsModule (HTTP)", () => {
   });
 
   it("returns not found when deleting an unknown evidence id", async () => {
-    const response = await fetch(
-      `${baseUrl}/evidence/mock-profile-week3-normal/unknown-file-id`,
-      {
-        method: "DELETE",
-      },
-    );
+    const profileId = "mock-profile-week3-normal";
+    const response = await evidenceRequest(profileId, "/unknown-file-id", {
+      method: "DELETE",
+    });
 
     expect(response.status).toBe(404);
 
@@ -366,7 +398,7 @@ describe("UploadsModule (HTTP)", () => {
       "private.jpg",
     );
 
-    const uploadResponse = await fetch(`${baseUrl}/evidence/${profileA}`, {
+    const uploadResponse = await evidenceRequest(profileA, "", {
       method: "POST",
       body: formData,
     });
@@ -384,28 +416,22 @@ describe("UploadsModule (HTTP)", () => {
       "profile-b.jpg",
     );
 
-    const profileBUploadResponse = await fetch(
-      `${baseUrl}/evidence/${profileB}`,
-      {
-        method: "POST",
-        body: profileBFormData,
-      },
-    );
+    const profileBUploadResponse = await evidenceRequest(profileB, "", {
+      method: "POST",
+      body: profileBFormData,
+    });
 
     expect(profileBUploadResponse.status).toBe(201);
 
-    const reorderResponse = await fetch(
-      `${baseUrl}/evidence/${profileB}/order`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileIds: [foreignFileId],
-        }),
+    const reorderResponse = await evidenceRequest(profileB, "/order", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        fileIds: [foreignFileId],
+      }),
+    });
 
     expect(reorderResponse.status).toBe(404);
 

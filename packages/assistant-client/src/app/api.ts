@@ -110,6 +110,12 @@ export async function deleteCurrentProfile(): Promise<void> {
   if (!response.ok) throw new Error(`Profile deletion failed with status ${response.status}`);
 }
 
+// Forget this browser's anonymous identifier after the profile was deleted,
+// so the next visit starts clean instead of re-creating a profile under the old id.
+export function resetAnonymousSession(): void {
+  localStorage.removeItem(anonymousSessionStorageKey);
+}
+
 // Keep dashboard data limited to the fields required for manual review.
 const staffLeadListSchema = z.array(z.object({
   id: z.string().min(1),
@@ -340,10 +346,13 @@ export async function getConversation(language: string, signal?: AbortSignal): P
 
 /** S5 Week 2: create an internal draft lead. Uses the prepared P3-shaped contact fixture. */
 export async function createSellerLead(signal?: AbortSignal): Promise<string> {
+  // The profile ID comes from the server (GET /profiles/me), not from a fixture:
+  // the backend only accepts a profile that belongs to this browser's session.
+  const profile = await getCurrentProfile(signal);
   const response = await fetch(`${apiBaseUrl}/seller-leads`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(draftEnquiryFixture.request),
+    headers: { ...profileHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...draftEnquiryFixture.request, profileId: profile.id }),
     signal,
   });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
@@ -356,7 +365,7 @@ export async function createSellerLead(signal?: AbortSignal): Promise<string> {
 export async function rankHousesForLead(leadId: string, signal?: AbortSignal): Promise<HouseRanking> {
   const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/house-rankings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...profileHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(sellerRankingItem),
     signal,
   });
@@ -375,7 +384,7 @@ export async function saveSellerHouseChoice(
 ): Promise<SellerChoice> {
   const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/choice`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...profileHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ houseId }),
     signal,
   });

@@ -1,6 +1,7 @@
-import type { LoggerService } from '@nestjs/common';
+﻿import { NotFoundException, type LoggerService } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import type { SellerLeadEntity } from '../database/seller-lead.entity';
+import type { ProfilesService } from '../profiles/profiles.service';
 import type { CreateSellerLeadDto } from './create-seller-lead.dto';
 import { SellerLeadsService } from './seller-leads.service';
 
@@ -33,14 +34,40 @@ function createHarness() {
     findOneBy: jest.fn(async (where: { id: string }) => stored.find((lead) => lead.id === where.id) ?? null),
   } as unknown as Repository<SellerLeadEntity>;
 
-  return { logged, saved, stored, repository, service: new SellerLeadsService(repository, logger) };
+  // Fake ProfilesService: only profile 'profile-synthetic-1' belongs to 'session-1'.
+  const profiles = {
+    getOwnedProfileEntity: jest.fn(async (sessionId: string, profileId: string) => {
+      if (sessionId === 'session-1' && profileId === 'profile-synthetic-1') return { id: profileId, sessionId };
+      throw new NotFoundException('Profile not found');
+    }),
+  } as unknown as ProfilesService;
+
+  return { logged, saved, stored, repository, profiles, service: new SellerLeadsService(repository, profiles, logger) };
 }
+
+describe('SellerLeadsService ownership', () => {
+  it('rejects a lead for a profile that does not belong to the session and saves nothing', async () => {
+    const { service, repository } = createHarness();
+
+    await expect(service.draft('session-other', enquiry)).rejects.toThrow(NotFoundException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('does not let another session rank or choose on an existing lead', async () => {
+    const { service, stored, repository } = createHarness();
+    stored.push({ id: 'lead-1', profileId: 'profile-synthetic-1', recommendation: null, sellerChoice: null } as SellerLeadEntity);
+
+    await expect(service.attachRanking('session-other', 'lead-1', {} as never)).rejects.toThrow(NotFoundException);
+    await expect(service.saveSellerChoice('session-other', 'lead-1', 'house-kedem')).rejects.toThrow(NotFoundException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+});
 
 describe('SellerLeadsService', () => {
   it('does not write the preferred name, email, or phone to the log', async () => {
     const { service, logged } = createHarness();
 
-    await service.draft(enquiry);
+    await service.draft('session-1', enquiry);
 
     expect(logged.length).toBeGreaterThan(0);
     const output = JSON.stringify(logged);
@@ -52,7 +79,7 @@ describe('SellerLeadsService', () => {
   it('does not persist service consent with the draft enquiry', async () => {
     const { service, saved } = createHarness();
 
-    await service.draft(enquiry);
+    await service.draft('session-1', enquiry);
 
     expect(saved).toHaveLength(1);
     expect(Object.keys(saved[0] ?? {})).not.toContain('serviceConsent');
@@ -62,7 +89,7 @@ describe('SellerLeadsService', () => {
   it('saves the draft enquiry once with the captured contact', async () => {
     const { service, saved, repository } = createHarness();
 
-    await service.draft(enquiry);
+    await service.draft('session-1', enquiry);
 
     expect(repository.save).toHaveBeenCalledTimes(1);
     expect(saved[0]).toMatchObject({
@@ -139,7 +166,7 @@ describe('SellerLeadsService', () => {
     });
 
     const ranking = service.rankHouses({ category: 'rare_books' });
-    await service.attachRanking('lead-1', ranking);
+    await service.attachRanking('session-1', 'lead-1', ranking);
 
     expect(saved.at(-1)).toMatchObject({
       id: 'lead-1',
@@ -166,7 +193,7 @@ describe('SellerLeadsService', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
-    const updated = await service.saveSellerChoice('lead-1', 'house-kedem');
+    const updated = await service.saveSellerChoice('session-1', 'lead-1', 'house-kedem');
 
     expect(updated.recommendation?.recommendation?.house.id).toBe('house-kestenbaum');
     expect(updated.sellerChoice).toEqual({
@@ -195,7 +222,7 @@ describe('SellerLeadsService', () => {
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
-    await expect(service.saveSellerChoice('lead-1', 'house-inactive-demo')).rejects.toThrow(
+    await expect(service.saveSellerChoice('session-1', 'lead-1', 'house-inactive-demo')).rejects.toThrow(
       'Seller choice must be an active ranked house',
     );
   });
@@ -204,8 +231,9 @@ describe('SellerLeadsService', () => {
     const { service } = createHarness();
     const ranking = service.rankHouses({ category: 'rare_books' });
 
-    await expect(service.attachRanking('missing-lead', ranking)).rejects.toThrow(
+    await expect(service.attachRanking('session-1', 'missing-lead', ranking)).rejects.toThrow(
       'Seller lead missing-lead was not found',
     );
   });
 });
+

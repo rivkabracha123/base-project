@@ -20,8 +20,17 @@ describe('SellerLeadsController', () => {
     });
     const controller = new SellerLeadsController({ draft } as unknown as SellerLeadsService);
 
-    await expect(controller.create(enquiry)).resolves.toEqual({ id: 'lead-1' });
-    expect(draft).toHaveBeenCalledWith(enquiry);
+    await expect(controller.create('session-1', enquiry)).resolves.toEqual({ id: 'lead-1' });
+    expect(draft).toHaveBeenCalledWith('session-1', enquiry);
+  });
+
+  it('rejects lead creation without a session header', async () => {
+    const draft = jest.fn();
+    const controller = new SellerLeadsController({ draft } as unknown as SellerLeadsService);
+
+    await expect(controller.create(undefined, enquiry)).rejects.toThrow('Anonymous session ID is required');
+    await expect(controller.create('  ', enquiry)).rejects.toThrow('Anonymous session ID is required');
+    expect(draft).not.toHaveBeenCalled();
   });
 
   it('exposes the draft enquiry route under the seller-leads path', () => {

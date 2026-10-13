@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProfileLanguageLoader } from './app/ProfileLanguageLoader';
+import { AccountPage } from './app/AccountPage';
 import { LotPage } from './app/LotPage';
 import { SampleLotPage } from './app/SampleLotPage';
 import { BuyerChat } from './buyer/BuyerChat';
@@ -19,6 +20,8 @@ export function App() {
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/lots/:id" element={<LotPage />} />
         <Route path="/chat" element={<BuyerChat />} />
+        {/* Personal area: review, update, and delete the current profile */}
+        <Route path="/account" element={<AccountPage />} />
         <Route path="*" element={<Navigate to="/results" replace />} />
   {/* S5 Week 4: recommendation, alternatives, and seller-choice screen */}
         <Route path="/seller/houses" element={<SellerHouseChoicePage />} />
