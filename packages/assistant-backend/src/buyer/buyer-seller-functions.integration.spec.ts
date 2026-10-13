@@ -11,9 +11,9 @@ describe('buyer reuse of seller functions', () => {
   const criteria = { getCriteriaForSession: jest.fn(() => ({ categories: ['paintings', 'rings'] })) };
   const executor = new BuyerP4FunctionExecutor({} as never, {} as never, criteria as never, resolver as never, ranking as never, comparisons as never);
   const context = { sessionId: 'buyer-session', language: 'en' as const, criteriaComplete: false };
-  const response = (functionName: string, readyForFunction = true, intent?: string): P4AiGenerateResponse => ({
+  const response = (functionName: string, readyForFunction = true, intent?: string, args: Record<string, unknown> = { category: 'rings' }): P4AiGenerateResponse => ({
     extract: {} as never, readyForFunction, functionParameters: null,
-    intentRoute: { functionName, readyForFunction, intent, arguments: { category: 'rings' } },
+    intentRoute: { functionName, readyForFunction, intent, arguments: args },
   });
   beforeEach(() => jest.clearAllMocks());
 
@@ -22,7 +22,9 @@ describe('buyer reuse of seller functions', () => {
     const updates: BuyerChatUpdate[] = [];
     expect(await executor.execute(response('rankSellerHouses'), context, updates)).toBe(true);
     expect(ranking.rankHouses).toHaveBeenCalledWith({ category: 'rings', preferredLanguage: 'en' });
-    expect(updates).toEqual([{ speaker: 'system', text: 'Specialist auction houses: Ring expert' }]);
+    expect(updates).toEqual([{ speaker: 'house-ranking', category: 'rings', ranking: {
+      recommendation: house('Ring expert', ['rings']), alternatives: [],
+    } }]);
   });
   it('reports no specialist rather than returning a wrong-category house', async () => {
     ranking.rankHouses.mockReturnValue({ recommendation: house('Wrong category', ['paintings']), alternatives: [] });
@@ -46,7 +48,7 @@ describe('buyer reuse of seller functions', () => {
       { lot: { ...anchor, id: 'other', category: 'rings' }, score: 0 },
     ] });
     const updates: BuyerChatUpdate[] = [];
-    await executor.execute(response('searchLots', true, 'search_similar_lots'), { ...context, p4Context: { selectedLot: { id: anchor.id } } }, updates);
+    await executor.execute(response('searchLots', true, 'search_similar_lots', {}), { ...context, p4Context: { selectedLot: { id: anchor.id } } }, updates);
     expect(comparisons.findComparables).toHaveBeenCalledWith({ category: anchor.category });
     expect(updates).toEqual([{ speaker: 'result-group', title: 'Similar items by category', lots: [similar] }]);
   });
