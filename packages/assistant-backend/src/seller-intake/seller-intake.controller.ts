@@ -42,6 +42,8 @@ export class SellerIntakeController {
     }
 
     const scopedSessionId = `${profileId}:${sessionId}`;
+    const previousComparison = this.pendingComparisons.get(scopedSessionId);
+    const previousValuation = this.pendingValuations.has(scopedSessionId);
     if (/\b(?:cancel|don't|do not)\b|בטל|לא\s+(?:רוצה|מעוניי?נ)/i.test(input)) this.pendingComparisons.delete(scopedSessionId);
     const comparison = requestedSellerComparison(input);
     if (comparison) this.pendingComparisons.set(scopedSessionId, comparison);
@@ -77,6 +79,13 @@ export class SellerIntakeController {
       input,
       scopedSessionId,
     );
+    if (ai?.isRelevant === false) {
+      if (previousComparison) this.pendingComparisons.set(scopedSessionId, previousComparison);
+      else this.pendingComparisons.delete(scopedSessionId);
+      if (previousValuation) this.pendingValuations.add(scopedSessionId);
+      else this.pendingValuations.delete(scopedSessionId);
+      return { ...analysis, structuredAnswer, ai, functionCall: null, nextQuestion: null };
+    }
     const stableId = createHash('sha256').update(scopedSessionId).digest('hex').slice(0, 24);
     const persistedDraft = {
       ...analysis,

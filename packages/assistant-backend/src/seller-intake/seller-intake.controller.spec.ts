@@ -11,6 +11,16 @@ import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 import { UploadsService } from '../uploads/uploads.service';
 
 describe('Seller valuation routing', () => {
+  it('does not persist unrelated input or dispatch a function from it', async () => {
+    const drafts = { saveIntakeTurn: jest.fn() };
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {}, ai: { isRelevant: false }, requiredMissingFields: [],
+      functionCall: { functionToRun: 'rankSellerHouses', object: {} } }) };
+    const controller = new SellerIntakeController(provider as never, drafts as never, {} as never);
+    const result = await controller.createDraft({ profileId: 'off-topic-profile', sessionId: 'off-topic-session', input: 'a cake recipe' });
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+    expect(result.functionCall).toBeNull();
+    expect(result.nextQuestion).toBeNull();
+  });
   it('remembers a house request but waits for required intake facts', async () => {
     const incomplete = { item: {}, seller: {}, requiredMissingFields: ['condition'], functionCall: null };
     const provider = { analyze: jest.fn().mockResolvedValueOnce(incomplete).mockResolvedValue({ ...incomplete, requiredMissingFields: [] }) };

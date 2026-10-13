@@ -2,6 +2,19 @@ import { ConfigService } from '@nestjs/config';
 import { P4AiGenerateClient } from './p4-ai-generate.client';
 
 describe('P4AiGenerateClient', () => {
+  it('reports the seller upstream fixture provider instead of labeling it real', async () => {
+    const config = { get: (key: string) => key === 'AI_PROVIDER_MODE' ? 'real' : 'http://localhost/ai' } as ConfigService;
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({
+      provider: 'fixture', mode: 'fixture', isRelevant: false,
+      structuredAnswer: { role: 'seller', language: 'en', intent: 'unrelated', category: 'unknown', item: {},
+        missingFacts: [], confirmedFacts: [], uncertainFacts: [], sellerConfirmation: { required: true, status: 'pending' },
+        hasContactDetails: false, hasImages: false },
+    }) } as Response);
+    try {
+      const result = await new P4AiGenerateClient(config).generateSellerExtract({ prompt: 'a cake recipe', language: 'en' });
+      expect(result).toMatchObject({ provider: 'fixture', mode: 'fixture', isRelevant: false });
+    } finally { fetchMock.mockRestore(); }
+  });
   it('preserves an explicit route block over a top-level ready flag', async () => {
     const config = { get: (key: string) => key === 'AI_PROVIDER_MODE' ? 'real' : 'http://localhost/ai' } as ConfigService;
     const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({

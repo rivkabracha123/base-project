@@ -172,6 +172,19 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       }
       throw error;
     }
+    if (response.isRelevant === false) {
+      const preserved = previous?.result ?? this.intake.analyze('');
+      return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
+        ai: { provider: response.provider, mode: response.mode, isRelevant: false, error: response.error,
+          aiMissingFields: [],
+          summary: language === 'he'
+            ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.'
+            : 'I can help with buying or selling items at auction.',
+          nextAction: language === 'he'
+            ? 'אפשר להמשיך מהפרטים שכבר מסרת, או לתאר פריט אחר שברצונך לקנות או למכור.'
+            : 'Continue with the details you already shared, or describe another item you want to buy or sell.',
+        } };
+    }
     const structuredAnswer: SellerHandoffContract = response.structuredAnswer;
     structuredAnswer.category = sellerComparisonCategory(structuredAnswer.category, `${combinedInput}\n${structuredAnswer.item.title ?? ''}`);
     if (structuredAnswer.category === 'unknown') {

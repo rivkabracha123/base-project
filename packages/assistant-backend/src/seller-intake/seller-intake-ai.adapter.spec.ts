@@ -20,6 +20,22 @@ const handoff: SellerHandoffContract = {
 
 describe('SellerIntakeAiAdapter', () => {
   const intake = new SellerIntakeAiMock(new SellerIntakeService());
+  it('redirects an unrelated request without replacing saved facts or the active question', async () => {
+    const generate = jest.fn()
+      .mockResolvedValueOnce({ provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff })
+      .mockResolvedValueOnce({ provider: 'real', mode: 'real', isRelevant: false, error: null, structuredAnswer: handoff })
+      .mockResolvedValue({ provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff });
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    const first = await adapter.analyze('I have a painting', 'off-topic-session');
+    const unrelated = await adapter.analyze('I want a coconut cake recipe', 'off-topic-session');
+    expect(unrelated.ai.isRelevant).toBe(false);
+    expect(unrelated.ai.summary).toContain('auction');
+    expect(unrelated.nextQuestion).toBeNull();
+    expect(unrelated.functionCall).toBeNull();
+    expect(unrelated.item).toEqual(first.item);
+    await adapter.analyze('60x80 cm', 'off-topic-session');
+    expect(generate.mock.calls[2]?.[0].prompt).not.toContain('coconut');
+  });
   it('does not store a valuation request as the missing condition during an outage', async () => {
     const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: jest.fn().mockRejectedValue(new ServiceUnavailableException()) } as never);
     const first = await adapter.analyze('I want to sell a blue ring size 8', 'valuation-not-condition');

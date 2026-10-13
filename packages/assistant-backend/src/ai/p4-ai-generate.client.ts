@@ -233,8 +233,8 @@ export class P4AiGenerateClient {
     }
 
     return {
-      provider: 'real',
-      mode: 'real',
+      provider: body.provider === 'fixture' ? 'fixture' : 'real',
+      mode: body.mode === 'fixture' ? 'fixture' : 'real',
       isRelevant: body.isRelevant !== false,
       error: typeof body.error === 'string' ? body.error : null,
       content: typeof body.content === 'string' ? body.content : '',

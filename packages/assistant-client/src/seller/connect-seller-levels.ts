@@ -6,7 +6,7 @@ import { houseRankingSchema } from '@monabid/shared';
 import { sellerActionResultSchema } from './seller-action-result';
 
 interface SellerIntakeResponse {
-  ai?: { fallbackMode?: 'guided'; summary?: string; nextAction?: string };
+  ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; summary?: string; nextAction?: string };
   missingFields?: string[];
   requiredMissingFields?: string[];
   nextQuestion?: { field: string; he: string; en: string } | null;
@@ -42,6 +42,10 @@ export async function sendSellerMessage(
 // Selects the next question or system summary in the application's active language.
 function getSystemText(response: SellerIntakeResponse): string {
   const language = getBrowserLanguage(i18n.language);
+  if (response.ai?.isRelevant === false) {
+    return [response.ai.summary, response.ai.nextAction].filter(text => text?.trim()).join('\n')
+      || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
+  }
   const nextQuestion = response.nextQuestion;
   if (nextQuestion) return nextQuestion[language];
 
@@ -176,6 +180,10 @@ export async function connectSellerLevels(
 
     const body = await response.json() as SellerIntakeResponse;
     const language = getBrowserLanguage(i18n.language);
+    if (body.ai?.isRelevant === false) {
+      await sendSellerMessage(getSystemText(body), onUpdate);
+      return;
+    }
     const functionCall = body.functionCall;
     if (functionCall?.functionToRun) {
       const workflowResponse = await fetch(`${API_BASE_URL}/seller-workflow/callback`, {

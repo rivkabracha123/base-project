@@ -13,6 +13,19 @@ const currentProfile = {
 };
 
 describe('connectSellerLevels', () => {
+  it('redirects unrelated input before questions or function execution', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ai: { isRelevant: false, summary: 'I can help with buying or selling items at auction.' },
+        nextQuestion: { field: 'dimensions', he: 'מידות?', en: 'Dimensions?' },
+        functionCall: { functionToRun: 'rankSellerHouses', object: {} },
+      }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const callback = vi.fn();
+    await connectSellerLevels('I want a cake recipe', callback);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'I can help with buying or selling items at auction.' });
+  });
   it('preserves structured catalog output instead of flattening it to a status line', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
