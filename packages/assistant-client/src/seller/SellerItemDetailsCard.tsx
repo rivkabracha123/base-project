@@ -1,0 +1,174 @@
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { SellerItemDraft } from '@monabid/shared';
+import {
+  correctSellerDraftField,
+  type SellerDraftCorrectionValue,
+} from './connect-seller-correction';
+
+type Item = SellerItemDraft['item'];
+type EditableField = 'title' | 'category' | 'description' | 'materials' | 'dimensions' | 'condition' | 'marks' | 'signatures' | 'provenance';
+type EditValues = Record<EditableField, string>;
+
+const editableFields: EditableField[] = [
+  'title', 'category', 'description', 'materials', 'dimensions', 'condition', 'marks', 'signatures', 'provenance',
+];
+
+function dimensionsText(item: Item): string {
+  if (item.dimensions.values.length) {
+    return item.dimensions.values.map(({ label, value, unit }) => `${label}: ${value} ${unit}`).join('\n');
+  }
+  if (item.dimensions.widthCm !== undefined && item.dimensions.heightCm !== undefined) {
+    return `width: ${item.dimensions.widthCm} cm\nheight: ${item.dimensions.heightCm} cm`;
+  }
+  return '';
+}
+
+function valuesForItem(item: Item, language: 'he' | 'en'): EditValues {
+  return {
+    title: item.titleTranslations?.[language] ?? item.title,
+    category: item.category,
+    description: item.description[language],
+    materials: item.materials.join(', '),
+    dimensions: dimensionsText(item),
+    condition: item.condition ?? '',
+    marks: item.markings ?? '',
+    signatures: item.signatures ?? '',
+    provenance: item.provenance ?? '',
+  };
+}
+
+function parseDimensions(value: string): { label: string; value: number; unit: string }[] | null {
+  if (!value.trim()) return [];
+  const measurements = value.split(/\r?\n/).map((line) => {
+    const match = line.trim().match(/^([^:]+):\s*(\d+(?:\.\d+)?)\s+(\S+)$/);
+    return match ? { label: match[1]!.trim(), value: Number(match[2]), unit: match[3]! } : null;
+  });
+  return measurements.every((measurement) => measurement !== null) ? measurements : null;
+}
+
+function correctionValue(field: EditableField, value: string, language: 'he' | 'en'): SellerDraftCorrectionValue {
+  if (field === 'title' || field === 'description') return { [language]: value };
+  if (field === 'materials') return value.split(',').map((material) => material.trim()).filter(Boolean);
+  if (field === 'dimensions') return parseDimensions(value) ?? [];
+  if (field === 'marks') return value;
+  return value;
+}
+
+export function SellerItemDetailsCard({ item: initialItem, language }: { item: Item; language: 'he' | 'en' }) {
+  const { t } = useTranslation();
+  const [item, setItem] = useState(initialItem);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [values, setValues] = useState(() => valuesForItem(initialItem, language));
+  const [savedValues, setSavedValues] = useState(() => valuesForItem(initialItem, language));
+  const displayFields = ([
+    ['category', item.category],
+    ['description', item.description[language]],
+    ['materials', item.materials.join(', ')],
+    ['dimensions', dimensionsText(item)],
+    ['condition', item.condition],
+    ['marks', item.markings],
+    ['signatures', item.signatures],
+    ['provenance', item.provenance],
+  ] as [EditableField, string | undefined][]).filter(([, value]) => value);
+
+  useEffect(() => {
+    const nextValues = valuesForItem(item, language);
+    setValues(nextValues);
+    setSavedValues(nextValues);
+  }, [item, language]);
+
+  async function saveChanges() {
+    if (!values.title.trim() || !values.category.trim() || !values.description.trim()) {
+      setError(t('chat.itemEdit.required'));
+      return;
+    }
+    if (parseDimensions(values.dimensions) === null) {
+      setError(t('chat.itemEdit.invalidDimensions'));
+      return;
+    }
+    setIsSaving(true);
+    setError('');
+    try {
+      let updatedItem = item;
+      for (const field of editableFields) {
+        if (values[field] === savedValues[field]) continue;
+        const draft = await correctSellerDraftField(
+          field,
+          correctionValue(field, values[field], language),
+        );
+        updatedItem = draft.item;
+        setItem(updatedItem);
+        setSavedValues((previous) => ({ ...previous, [field]: values[field] }));
+      }
+      setValues(valuesForItem(updatedItem, language));
+      setIsEditing(false);
+    } catch {
+      setError(t('chat.itemEdit.saveError'));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <section className="mt-4 w-full rounded-xl border border-neutral-300 bg-white p-4 text-start text-neutral-900">
+      <h2 className="mb-3 text-lg font-semibold">{t('chat.itemEdit.title')}</h2>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <h3 className="text-base font-semibold">{item.titleTranslations?.[language] ?? item.title}</h3>
+        {!isEditing && (
+          <button type="button" className="rounded-lg border border-neutral-400 px-3 py-1 text-sm" onClick={() => setIsEditing(true)}>
+            {t('chat.itemEdit.edit')}
+          </button>
+        )}
+      </div>
+      {isEditing ? (
+        <div className="space-y-3">
+          {editableFields.map((field) => (
+            <label key={field} className="block text-sm font-medium">
+              {t(`chat.itemEdit.fields.${field}`)}
+              {field === 'dimensions' ? (
+                <textarea
+                  className="mt-1 block w-full rounded-lg border border-neutral-300 p-2"
+                  rows={3}
+                  value={values[field]}
+                  onChange={(event) => setValues((previous) => ({ ...previous, [field]: event.target.value }))}
+                  placeholder={t('chat.itemEdit.dimensionsHint')}
+                />
+              ) : (
+                <input
+                  className="mt-1 block w-full rounded-lg border border-neutral-300 p-2"
+                  value={values[field]}
+                  onChange={(event) => setValues((previous) => ({ ...previous, [field]: event.target.value }))}
+                />
+              )}
+            </label>
+          ))}
+          {error && <p role="alert" className="text-sm text-red-800">{error}</p>}
+          <div className="flex gap-2">
+            <button type="button" disabled={isSaving} className="rounded-lg bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50" onClick={() => void saveChanges()}>
+              {isSaving ? t('chat.itemEdit.saving') : t('chat.itemEdit.save')}
+            </button>
+            <button type="button" disabled={isSaving} className="rounded-lg border border-neutral-400 px-3 py-2 text-sm" onClick={() => {
+              setValues(savedValues);
+              setError('');
+              setIsEditing(false);
+            }}>
+              {t('chat.itemEdit.cancel')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          {displayFields.map(([field, value]) => (
+            <div key={field}>
+              <dt className="font-medium">{t(`chat.itemEdit.fields.${field}`)}</dt>
+              <dd className="whitespace-pre-line">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
+}

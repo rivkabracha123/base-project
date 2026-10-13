@@ -1,12 +1,15 @@
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { evidenceUrl, getSellerConversation } from '../app/api';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
-import { connectSellerLevels } from './connect-seller-levels';
+import { connectSellerLevels, isSellerDraftReady } from './connect-seller-levels';
 import { connectSellerPhotos } from './connect-seller-photos';
+import type { SellerItemDraft } from '@monabid/shared';
+import { getCurrentSellerDraft } from './connect-seller-correction';
+import { SellerItemDetailsCard } from './SellerItemDetailsCard';
 import { sellerMessageSchema, type SellerMessage } from './messages';
 import { SellerComparisonResults } from './SellerComparisonResults';
 import { SellerHouseCards } from './SellerHouseCards';
@@ -26,6 +29,21 @@ export function SellerChat() {
   const [photoError, setPhotoError] = useState('');
   // true בזמן שתמונה מועלית; בזמן הזה אי אפשר לבחור תמונה נוספת.
   const [isUploading, setIsUploading] = useState(false);
+  const [itemDraft, setItemDraft] = useState<SellerItemDraft | null>(null);
+  const [draftLoadError, setDraftLoadError] = useState('');
+
+  useEffect(() => {
+    if (!isSellerDraftReady()) return;
+    let isCurrent = true;
+    void getCurrentSellerDraft().then((draft) => {
+      if (isCurrent && draft?.missingFields?.length === 0) setItemDraft(draft);
+    }).catch(() => {
+      if (isCurrent) setDraftLoadError(t('chat.itemEdit.loadError'));
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [t]);
 
   // הלוגיקה המשותפת לקונה ולמוכר: טעינת שיחה, callback להצגה, נעילה בזמן עבודה ושגיאות.
   // כאן מוגדר רק מה שייחודי למוכר: הסכמה, צורת הודעת המוכר והחיבור לשכבה שמנהלת את התהליך.
@@ -36,7 +54,7 @@ export function SellerChat() {
       fetch: (signal) => getSellerConversation(language, signal),
     },
     userMessage: (text) => ({ speaker: 'seller', text }),
-    connect: connectSellerLevels,
+    connect: (message, onUpdate) => connectSellerLevels(message, onUpdate, setItemDraft),
     errorText: t('chat.sendError'),
   });
 
@@ -101,6 +119,9 @@ export function SellerChat() {
         {message.speaker === 'system' && /בית המכירות המומלץ|Recommended auction house|המלצת בתי המכירות מוכנה/.test(message.text) && <Link to="/seller/houses" className="mt-2 block underline">{language === 'he' ? 'בתי מכירות' : 'Auction houses'}</Link>}
         {message.speaker === 'system' && /פניות שמורות|saved enquiries|פרטי הפנייה/.test(message.text) && <Link to="/seller/enquiry" className="mt-2 block underline">{language === 'he' ? 'פניית מוכר' : 'Seller enquiry'}</Link>}
         {message.speaker === 'system' && message.comparison && <SellerComparisonResults result={message.comparison} language={language} />}
+        {message.speaker === 'system' && message.id === messages.at(-1)?.id && itemDraft && (
+          <SellerItemDetailsCard item={itemDraft.item} language={language} />
+        )}
       </MessageBubble>
     );
   }
@@ -141,6 +162,11 @@ export function SellerChat() {
       {photoError && (
         <p role="alert" className="text-xs text-red-900">
           {photoError}
+        </p>
+      )}
+      {draftLoadError && (
+        <p role="alert" className="text-xs text-red-900">
+          {draftLoadError}
         </p>
       )}
     </div>

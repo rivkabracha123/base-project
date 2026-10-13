@@ -4,6 +4,8 @@ import { getSellerMessageIds } from './seller-ids';
 import { sellerComparisonModes, sellerComparisonResultSchema } from './seller-comparison-result';
 import { houseRankingSchema } from '@monabid/shared';
 import { sellerActionResultSchema } from './seller-action-result';
+import type { SellerItemDraft } from '@monabid/shared';
+import { getCurrentSellerDraft } from './connect-seller-correction';
 
 interface SellerIntakeResponse {
   ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; summary?: string; nextAction?: string };
@@ -16,6 +18,7 @@ interface SellerIntakeResponse {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const PENDING_UPLOAD_ITEM_KEY = 'monabid.seller.pendingEvidenceItemId';
+const DRAFT_READY_STORAGE_KEY = 'monabid.seller.itemDraftReady';
 
 export function getPendingSellerEvidenceItemId(): string | undefined {
   return typeof sessionStorage === 'undefined'
@@ -162,6 +165,7 @@ function getFunctionResultText(functionName: string, result: unknown, language: 
 export async function connectSellerLevels(
   message: string,
   onUpdate: (update: SellerUpdate) => void | Promise<void>,
+  onDraftReady?: (draft: SellerItemDraft) => void,
 ): Promise<void> {
   try {
     const input = message.trim();
@@ -248,9 +252,11 @@ export async function connectSellerLevels(
         getFunctionResultText(functionCall.functionToRun, workflowResult.result, language, functionCall.object?.category),
         onUpdate,
       );
+      await publishCompletedDraft(body, onDraftReady);
       return;
     }
     await sendSellerMessage(getSystemText(body), onUpdate);
+    await publishCompletedDraft(body, onDraftReady);
   } catch (error) {
     const update: SellerUpdate = {
       speaker: 'error',
@@ -260,4 +266,20 @@ export async function connectSellerLevels(
     await onUpdate(update);
     throw error;
   }
+}
+
+async function publishCompletedDraft(
+  response: SellerIntakeResponse,
+  onDraftReady?: (draft: SellerItemDraft) => void,
+): Promise<void> {
+  if (!onDraftReady || response.nextQuestion || response.missingFields?.length !== 0) return;
+  const draft = await getCurrentSellerDraft();
+  if (draft?.missingFields?.length === 0) {
+    sessionStorage.setItem(DRAFT_READY_STORAGE_KEY, 'true');
+    onDraftReady(draft);
+  }
+}
+
+export function isSellerDraftReady(): boolean {
+  return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(DRAFT_READY_STORAGE_KEY) === 'true';
 }

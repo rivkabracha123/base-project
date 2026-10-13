@@ -15,6 +15,7 @@ vi.mock('./connect-seller-levels', () => ({
   clearPendingSellerEvidenceItemId: vi.fn(),
   connectSellerLevels: vi.fn(),
   getPendingSellerEvidenceItemId: vi.fn(() => undefined),
+  isSellerDraftReady: vi.fn(() => false),
 }));
 
 // חיבור התמונות של S1 מזויף: ההעלאה בפועל באחריות S1, והבדיקות כאן בודקות רק מה שהצ'אט מוסר ומציג.
