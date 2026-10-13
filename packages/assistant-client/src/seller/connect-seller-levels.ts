@@ -1,6 +1,8 @@
 import i18n, { getBrowserLanguage } from '../i18n';
-import { getCurrentProfile } from '../app/api';
 import type { SellerUpdate } from '../chat/chat-types';
+import type { SellerItemDraft } from '@monabid/shared';
+import { getCurrentSellerDraft } from './connect-seller-correction';
+import { getSellerMessageIds } from './seller-ids';
 
 interface SellerIntakeResponse {
   ai?: { fallbackMode?: 'guided' };
@@ -11,8 +13,8 @@ interface SellerIntakeResponse {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
-const SESSION_STORAGE_KEY = 'monabid.seller.sessionId';
 const PENDING_UPLOAD_ITEM_KEY = 'monabid.seller.pendingEvidenceItemId';
+const DRAFT_READY_STORAGE_KEY = 'monabid.seller.itemDraftReady';
 
 export function getPendingSellerEvidenceItemId(): string | undefined {
   return typeof sessionStorage === 'undefined'
@@ -33,31 +35,6 @@ export async function sendSellerMessage(
   onUpdate: (update: SellerUpdate) => void | Promise<void>,
 ): Promise<void> {
   await onUpdate({ speaker: 'system', text });
-}
-
-// מחזירה מזהה קיים מהאחסון או יוצרת ושומרת מזהה חדש.
-// Returns an existing stored identifier or creates and stores a new one.
-function getOrCreateId(storage: Storage, key: string): string {
-  const existingId = storage.getItem(key);
-  if (existingId) return existingId;
-
-  const id = crypto.randomUUID();
-  storage.setItem(key, id);
-  return id;
-}
-
-// מנהלת מזהי פרופיל ושיחה פנימיים הנדרשים ל־API, בלי להוסיף אותם לעדכוני הממשק.
-// Manages internal profile and session IDs required by the API without adding them to UI updates.
-async function getSellerMessageIds(): Promise<{ profileId: string; sessionId: string }> {
-  if (typeof sessionStorage === 'undefined') {
-    throw new Error('Seller chat requires browser storage');
-  }
-
-  const profile = await getCurrentProfile();
-  return {
-    profileId: profile.id,
-    sessionId: getOrCreateId(sessionStorage, SESSION_STORAGE_KEY),
-  };
 }
 
 // בוחרת את השאלה הבאה או סיכום המערכת בשפה הפעילה של האפליקציה.
@@ -145,6 +122,7 @@ function getFunctionResultText(functionName: string, result: unknown, language: 
 export async function connectSellerLevels(
   message: string,
   onUpdate: (update: SellerUpdate) => void | Promise<void>,
+  onDraftReady?: (draft: SellerItemDraft) => void,
 ): Promise<void> {
   try {
     const input = message.trim();
@@ -181,9 +159,11 @@ export async function connectSellerLevels(
         `${getSystemText(body)} ${getFunctionResultText(functionCall.functionToRun, workflowResult.result, language)}`.trim(),
         onUpdate,
       );
+      await publishCompletedDraft(body, onDraftReady);
       return;
     }
     await sendSellerMessage(getSystemText(body), onUpdate);
+    await publishCompletedDraft(body, onDraftReady);
   } catch (error) {
     const update: SellerUpdate = {
       speaker: 'error',
@@ -193,4 +173,20 @@ export async function connectSellerLevels(
     await onUpdate(update);
     throw error;
   }
+}
+
+async function publishCompletedDraft(
+  response: SellerIntakeResponse,
+  onDraftReady?: (draft: SellerItemDraft) => void,
+): Promise<void> {
+  if (!onDraftReady || response.nextQuestion || response.missingFields?.length !== 0) return;
+  const draft = await getCurrentSellerDraft();
+  if (draft?.missingFields?.length === 0) {
+    sessionStorage.setItem(DRAFT_READY_STORAGE_KEY, 'true');
+    onDraftReady(draft);
+  }
+}
+
+export function isSellerDraftReady(): boolean {
+  return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(DRAFT_READY_STORAGE_KEY) === 'true';
 }

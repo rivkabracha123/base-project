@@ -14,6 +14,7 @@ vi.mock('./connect-seller-levels', () => ({
   clearPendingSellerEvidenceItemId: vi.fn(),
   connectSellerLevels: vi.fn(),
   getPendingSellerEvidenceItemId: vi.fn(() => undefined),
+  isSellerDraftReady: vi.fn(() => false),
 }));
 
 afterEach(async () => {

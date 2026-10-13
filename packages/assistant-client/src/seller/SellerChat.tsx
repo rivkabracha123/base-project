@@ -1,10 +1,13 @@
-import { useState, type ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { SellerItemDraft } from '@monabid/shared';
 import { evidenceUrl, getCurrentProfile, getSellerConversation, uploadItemEvidence } from '../app/api';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
-import { clearPendingSellerEvidenceItemId, connectSellerLevels, getPendingSellerEvidenceItemId } from './connect-seller-levels';
+import { clearPendingSellerEvidenceItemId, connectSellerLevels, getPendingSellerEvidenceItemId, isSellerDraftReady } from './connect-seller-levels';
+import { getCurrentSellerDraft } from './connect-seller-correction';
+import { SellerItemDetailsCard } from './SellerItemDetailsCard';
 import { sellerMessageSchema, type SellerMessage } from './messages';
 
 // Photo limits checked in the browser before uploading (the server enforces them again).
@@ -21,6 +24,21 @@ export function SellerChat() {
   const [photoError, setPhotoError] = useState('');
   // true בזמן שתמונה מועלית; בזמן הזה אי אפשר לבחור תמונה נוספת.
   const [isUploading, setIsUploading] = useState(false);
+  const [itemDraft, setItemDraft] = useState<SellerItemDraft | null>(null);
+  const [draftLoadError, setDraftLoadError] = useState('');
+
+  useEffect(() => {
+    if (!isSellerDraftReady()) return;
+    let isCurrent = true;
+    void getCurrentSellerDraft().then((draft) => {
+      if (isCurrent && draft?.missingFields?.length === 0) setItemDraft(draft);
+    }).catch(() => {
+      if (isCurrent) setDraftLoadError(t('chat.itemEdit.loadError'));
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [t]);
 
   // הלוגיקה המשותפת לקונה ולמוכר: טעינת שיחה, callback להצגה, נעילה בזמן עבודה ושגיאות.
   // כאן מוגדר רק מה שייחודי למוכר: הסכמה, צורת הודעת המוכר והחיבור לשכבה שמנהלת את התהליך.
@@ -31,7 +49,7 @@ export function SellerChat() {
       fetch: (signal) => getSellerConversation(language, signal),
     },
     userMessage: (text) => ({ speaker: 'seller', text }),
-    connect: connectSellerLevels,
+    connect: (message, onUpdate) => connectSellerLevels(message, onUpdate, setItemDraft),
     errorText: t('chat.sendError'),
   });
 
@@ -68,6 +86,9 @@ export function SellerChat() {
 
   // Renders a single conversation message as a bubble: the photo (if any) above the text (if any).
   function renderMessage(message: SellerMessage) {
+    const shouldShowItemDraft = message.speaker === 'system'
+      && message.id === messages.at(-1)?.id
+      && itemDraft !== null;
     return (
       <MessageBubble speaker={message.speaker} isOwn={message.speaker === 'seller'}>
         {message.speaker === 'seller' && message.image && (
@@ -78,6 +99,9 @@ export function SellerChat() {
           />
         )}
         {message.text}
+        {shouldShowItemDraft && itemDraft && (
+          <SellerItemDetailsCard item={itemDraft.item} language={language} />
+        )}
       </MessageBubble>
     );
   }
@@ -117,6 +141,11 @@ export function SellerChat() {
       {photoError && (
         <p role="alert" className="text-xs text-red-900">
           {photoError}
+        </p>
+      )}
+      {draftLoadError && (
+        <p role="alert" className="text-xs text-red-900">
+          {draftLoadError}
         </p>
       )}
     </div>

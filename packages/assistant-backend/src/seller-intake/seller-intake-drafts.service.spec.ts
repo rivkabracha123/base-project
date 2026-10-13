@@ -94,4 +94,34 @@ describe('SellerIntakeDraftsService', () => {
     await expect(service.confirmFacts('profile-a', 'session-1', ['provenance']))
       .rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('corrects localized title and description without marking them as confirmed facts', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const title = await service.correctDraft('profile-a', 'session-1', 'title', { he: 'ציור עתיק' });
+    const description = await service.correctDraft('profile-a', 'session-1', 'description', { en: 'An oil painting' });
+
+    expect(title.draft.item.title).toBe('ציור עתיק');
+    expect(title.draft.item.titleTranslations).toEqual({ he: 'ציור עתיק' });
+    expect(description.draft.item.description).toEqual({ he: '', en: 'An oil painting' });
+    expect(description.draft.confirmedFacts).not.toHaveProperty('title');
+    expect(description.draft.confirmedFacts).not.toHaveProperty('description');
+  });
+
+  it('accepts arbitrary measurements and lets sellers clear optional facts', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const dimensions = await service.correctDraft('profile-a', 'session-1', 'dimensions', [
+      { label: 'ring size', value: 8, unit: 'ring_size' },
+    ]);
+    const materials = await service.correctDraft('profile-a', 'session-1', 'materials', []);
+    const condition = await service.correctDraft('profile-a', 'session-1', 'condition', '');
+
+    expect(dimensions.draft.item.dimensions.values).toEqual([
+      { label: 'ring size', value: 8, unit: 'ring_size' },
+    ]);
+    expect(materials.draft.item.materials).toEqual([]);
+    expect(condition.draft.item.condition).toBeUndefined();
+    expect(condition.draft.missingFields).toContain('condition');
+  });
 });

@@ -40,7 +40,9 @@ export type MissingSellerQuestion = {
 };
 
 type SellerDraftCorrectionField =
+  | 'title'
   | 'category'
+  | 'description'
   | 'materials'
   | 'dimensions'
   | 'condition'
@@ -48,7 +50,8 @@ type SellerDraftCorrectionField =
   | 'signatures'
   | 'provenance';
 
-type SellerDraftCorrectionValue = string | string[] | { widthCm: number; heightCm: number };
+type SellerDraftCorrectionValue = string | string[] | { he?: string; en?: string }
+  | { widthCm: number; heightCm: number } | SellerDimensionMeasurement[];
 
 @Injectable()
 export class SellerIntakeService {
@@ -456,9 +459,32 @@ export class SellerIntakeService {
     field: SellerDraftCorrectionField,
     value: SellerDraftCorrectionValue,
   ): SellerItemDraft {
+    if (field === 'title' || field === 'description') {
+      const localized = value as { he?: string; en?: string };
+      const item = field === 'title'
+        ? {
+            ...draft.item,
+            title: localized.he ?? localized.en ?? draft.item.title,
+            titleTranslations: { ...draft.item.titleTranslations, ...localized },
+          }
+        : {
+            ...draft.item,
+            description: { ...draft.item.description, ...localized },
+          };
+      const revision = this.appendRevisionEntry('seller', `Seller corrected ${field}`, [field]);
+      return {
+        ...draft,
+        item,
+        recalculationRequired: true,
+        revisionHistory: [...draft.revisionHistory, revision],
+      };
+    }
     const itemField = field === 'marks' ? 'markings' : field;
-    const confirmedValue = field === 'dimensions' && typeof value === 'object' && !Array.isArray(value)
-      ? {
+    const confirmedValue = field === 'dimensions'
+      ? Array.isArray(value)
+        ? { values: value as SellerDimensionMeasurement[] }
+        : typeof value === 'object' && value !== null && 'widthCm' in value
+          ? {
           values: [
             { label: 'width', value: value.widthCm, unit: 'cm' },
             { label: 'height', value: value.heightCm, unit: 'cm' },
@@ -467,6 +493,9 @@ export class SellerIntakeService {
           heightCm: value.heightCm,
           unit: 'cm',
         }
+          : { values: [] }
+      : field === 'materials' && Array.isArray(value) ? value
+      : typeof value === 'string' && value === '' ? undefined
       : value;
     const nextItem = {
       ...draft.item,
@@ -476,7 +505,12 @@ export class SellerIntakeService {
       ...draft.confirmedFacts,
       [itemField]: confirmedValue,
     };
-    const remainingMissingFields = (draft.missingFields ?? []).filter((item) => item !== field);
+    const remainingMissingFields = new Set((draft.missingFields ?? []).filter((item) => item !== field));
+    const requiredFieldCleared = field === 'dimensions'
+      ? (confirmedValue as SellerItemDraft['item']['dimensions']).values.length === 0
+      : ['condition', 'marks', 'signatures', 'provenance'].includes(field)
+        && confirmedValue === undefined;
+    if (requiredFieldCleared) remainingMissingFields.add(field);
     const revision = this.appendRevisionEntry('seller', `Seller corrected ${field}`, [field]);
 
     return {
@@ -486,7 +520,7 @@ export class SellerIntakeService {
         catalogDraft: this.buildCatalogDraft(nextConfirmedFacts),
       },
       confirmedFacts: nextConfirmedFacts,
-      missingFields: remainingMissingFields,
+      missingFields: [...remainingMissingFields],
       recalculationRequired: true,
       revisionHistory: [...draft.revisionHistory, revision],
       sellerConfirmation: {
@@ -510,7 +544,10 @@ export class SellerIntakeService {
     const availableValues: Partial<Record<SellerDraftCorrectionField, unknown>> = {
       category: item.category !== 'unknown' ? item.category : undefined,
       materials: item.materials.length > 0 ? item.materials : undefined,
-      dimensions: item.dimensions.values.length > 0 ? item.dimensions : undefined,
+      dimensions: item.dimensions.values.length > 0
+        || (item.dimensions.widthCm !== undefined && item.dimensions.heightCm !== undefined)
+        ? item.dimensions
+        : undefined,
       condition: item.condition,
       marks: item.markings,
       signatures: item.signatures,
