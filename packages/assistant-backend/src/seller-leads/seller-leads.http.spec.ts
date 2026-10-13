@@ -5,6 +5,7 @@ import { houseRankingSchema, sellerChoiceSchema, sellerLeadSummarySchema } from 
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { UserProfileEntity } from '../database/user-profile.entity';
+import { LocalFileStorage } from '../storage/local-file-storage.service';
 import { SellerLeadsModule } from './seller-leads.module';
 
 describe('SellerLeadsController house ranking (contract)', () => {
@@ -37,12 +38,27 @@ describe('SellerLeadsController house ranking (contract)', () => {
           return saved;
         }),
       })
+      // Only profile-synthetic-seller-1 belongs to session-1; any other pair is not found.
       .overrideProvider(getRepositoryToken(UserProfileEntity))
       .useValue({
-        findOneBy: jest.fn(async () => null),
-        create: jest.fn((row: Partial<UserProfileEntity>) => Object.assign(new UserProfileEntity(), row)),
-        save: jest.fn(async (row: UserProfileEntity) => row),
+        findOneBy: jest.fn(async (where: { id?: string; sessionId: string }) =>
+          where.sessionId === 'session-1' && (where.id === undefined || where.id === 'profile-synthetic-seller-1')
+            ? Object.assign(new UserProfileEntity(), {
+                id: 'profile-synthetic-seller-1',
+                sessionId: 'session-1',
+                language: 'en',
+                preferredName: 'Synthetic Seller',
+                email: 'synthetic.seller@example.test',
+                serviceConsent: { granted: true },
+                marketingConsent: {},
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              })
+            : null,
+        ),
       })
+      .overrideProvider(LocalFileStorage)
+      .useValue({ deleteProfile: jest.fn() })
       .overrideProvider(getRepositoryToken(AuctionLotEntity))
       .useValue({ find: jest.fn(async () => []) })
       .compile();
@@ -61,10 +77,10 @@ describe('SellerLeadsController house ranking (contract)', () => {
     await app.close();
   });
 
-  async function postRanking(path: string, body: unknown) {
+  async function postRanking(path: string, body: unknown, sessionId = 'session-1') {
     const response = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-anonymous-session-id': sessionId },
       body: JSON.stringify(body),
     });
     const text = await response.text();
@@ -179,6 +195,23 @@ describe('SellerLeadsController house ranking (contract)', () => {
     expect(houseRankingSchema.parse(rows[0]?.recommendation).recommendation?.house.id).toBe(
       'house-kestenbaum',
     );
+  });
+
+  it('returns 404 when another session tries to rank or choose on the lead', async () => {
+    stored.length = 0;
+    stored.push({
+      id: 'lead-1',
+      profileId: 'profile-synthetic-seller-1',
+      contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
+      recommendation: null,
+      sellerChoice: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    } as SellerLeadEntity);
+    const item = { category: 'rare_books', geography: 'United States', preferredLanguage: 'en' };
+
+    expect((await postRanking('/api/seller-leads/lead-1/house-rankings', item, 'session-other')).status).toBe(404);
+    expect((await postRanking('/api/seller-leads/lead-1/choice', { houseId: 'house-kedem' }, 'session-other')).status).toBe(404);
+    expect(stored[0]?.recommendation).toBeNull();
   });
 
   it('submits a catalog draft as the final internal lead for the dashboard', async () => {

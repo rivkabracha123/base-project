@@ -20,8 +20,17 @@ describe('SellerLeadsController', () => {
     });
     const controller = new SellerLeadsController({ draft } as unknown as SellerLeadsService);
 
-    await expect(controller.create(enquiry)).resolves.toEqual({ id: 'lead-1' });
-    expect(draft).toHaveBeenCalledWith(enquiry, undefined);
+    await expect(controller.create('session-1', enquiry)).resolves.toEqual({ id: 'lead-1' });
+    expect(draft).toHaveBeenCalledWith('session-1', enquiry);
+  });
+
+  it('rejects lead creation without a session header', async () => {
+    const draft = jest.fn();
+    const controller = new SellerLeadsController({ draft } as unknown as SellerLeadsService);
+
+    await expect(controller.create(undefined, enquiry)).rejects.toThrow('Anonymous session ID is required');
+    await expect(controller.create('  ', enquiry)).rejects.toThrow('Anonymous session ID is required');
+    expect(draft).not.toHaveBeenCalled();
   });
 
   it('exposes the draft enquiry route under the seller-leads path', () => {
@@ -101,7 +110,7 @@ describe('SellerLeadsController', () => {
       contact: enquiry.contact,
       recommendation: null,
       sellerChoice: null,
-      catalogDraft: { he: 'טיוטה', en: 'draft' },
+      catalogDraft: { he: '׳˜׳™׳•׳˜׳”', en: 'draft' },
       item: { id: 'item-001', category: 'paintings', title: 'Abstract landscape study', evidenceIds: ['evidence-001'] },
       evidence: [{ id: 'evidence-001', type: 'seller_statement' }],
       comparables: [{ id: 'comp-001', source: 'prepared-fixture' }],

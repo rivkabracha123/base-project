@@ -160,7 +160,7 @@ export class SellerWorkflowService {
         if (!preferredName || (!email && !phone) || action.object.serviceConsent !== true) {
           throw new BadRequestException('createSellerLeadDraft requires contact details and serviceConsent: true');
         }
-        return this.sellerLeads.draft({
+        return this.sellerLeads.draft({ profileId }, {
           profileId,
           contact: { preferredName, ...(email ? { email } : {}), ...(phone ? { phone } : {}) },
           serviceConsent: true,
@@ -185,14 +185,14 @@ export class SellerWorkflowService {
             ? { preferredLanguage: optionalString(action.object, 'preferredLanguage') ?? optionalString(action.object, 'language') }
             : {}),
         });
-        await this.sellerLeads.attachRanking(leadId, ranking);
+        await this.sellerLeads.attachRanking({ profileId }, leadId, ranking);
         return ranking;
       }
       case 'chooseSellerHouse':
       case 'saveSellerHouseChoice': {
         const leadId = requiredString(action.object, 'leadId');
         await this.requireOwnedLead(leadId, profileId);
-        return this.sellerLeads.saveSellerChoice(leadId, requiredString(action.object, 'houseId'));
+        return this.sellerLeads.saveSellerChoice({ profileId }, leadId, requiredString(action.object, 'houseId'));
       }
       case 'submitFinalSellerLead': {
         const leadId = requiredString(action.object, 'leadId');

@@ -98,7 +98,7 @@ describe('SellerWorkflowService', () => {
     }
 
     for (const [, handler] of calls) expect(handler).toHaveBeenCalled();
-    expect(leads.attachRanking).toHaveBeenCalledWith('lead-1', expect.any(Object));
+    expect(leads.attachRanking).toHaveBeenCalledWith({ profileId }, 'lead-1', expect.any(Object));
   });
 
   it('returns null without dispatch when no function is requested', async () => {
@@ -166,7 +166,7 @@ describe('SellerWorkflowService', () => {
     });
 
     expect(draft.functionToRun).toBe('createSellerLeadDraft');
-    expect(leads.draft).toHaveBeenCalledWith({
+    expect(leads.draft).toHaveBeenCalledWith({ profileId }, {
       profileId,
       contact: { preferredName: 'Seller', phone: '555' },
       serviceConsent: true,
@@ -202,8 +202,8 @@ describe('SellerWorkflowService', () => {
       } } },
     });
 
-    expect(leads.attachRanking).toHaveBeenCalledWith('lead-1', expect.any(Object));
-    expect(leads.saveSellerChoice).toHaveBeenCalledWith('lead-1', 'house-1');
+    expect(leads.attachRanking).toHaveBeenCalledWith({ profileId }, 'lead-1', expect.any(Object));
+    expect(leads.saveSellerChoice).toHaveBeenCalledWith({ profileId }, 'lead-1', 'house-1');
     expect(leads.submitFinal).toHaveBeenCalledWith('lead-1', expect.objectContaining({ item: { id: 'item-001', category: 'paintings', title: 'Abstract landscape study', evidenceIds: ['evidence-001'] } }));
     await expect(service.execute({
       profileId,

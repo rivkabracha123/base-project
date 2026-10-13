@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -61,7 +62,7 @@ function demandRepository() {
 // Keep the production module graph; fake all repositories and supply its config dependency.
 async function compileBuyerModule(lots: AuctionLot[]) {
   const demand = demandRepository();
-  const moduleRef = await Test.createTestingModule({ imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), BuyerModule] })
+  const moduleRef = await Test.createTestingModule({ imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => ({ LOCAL_STORAGE_PATH: tmpdir() })] }), BuyerModule] })
     .overrideProvider(getRepositoryToken(UserProfileEntity))
     .useValue({})
     .overrideProvider(getRepositoryToken(AiHistoryEntity))

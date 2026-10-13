@@ -1,9 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { UserProfile } from '@monabid/shared';
+import {
+  toProfileContactSnapshot,
+  type ProfileContactSnapshot,
+  type UserProfile,
+} from '@monabid/shared';
 import { randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { UserProfileEntity } from '../database/user-profile.entity';
+import { LocalFileStorage } from '../storage/local-file-storage.service';
 import type { UpdateCurrentProfileDto } from './update-current-profile.dto';
 
 export type UpdateCurrentProfileInput = UpdateCurrentProfileDto;
@@ -13,6 +18,7 @@ export class ProfilesService {
   constructor(
     @InjectRepository(UserProfileEntity)
     private readonly profiles: Repository<UserProfileEntity>,
+    private readonly storage: LocalFileStorage,
   ) {}
 
   // Private helper to find or create a profile entity for the session (prevents code duplication).
@@ -27,6 +33,22 @@ export class ProfilesService {
       throw new BadRequestException('Profile could not be created');
     }
 
+    return profile;
+  }
+
+  /**
+   * Ownership check used by other modules (e.g. seller leads).
+   * A profile ID sent by the client is only a claim, never proof of ownership.
+   * We look the profile up by BOTH its id AND the caller's session ID, so a profile
+   * that belongs to a different session can never be returned.
+   * Throws 404 (not 403) on mismatch so we do not reveal that the profile exists.
+   * Never creates a profile: an unknown profile is simply "not found".
+   */
+  async getOwnedProfileEntity(sessionId: string, profileId: string): Promise<UserProfileEntity> {
+    const profile = await this.profiles.findOneBy({ id: profileId, sessionId });
+    if (!profile) {
+      throw new NotFoundException('Profile not found');
+    }
     return profile;
   }
 
@@ -57,6 +79,18 @@ export class ProfilesService {
       throw error;
     }
   }
+
+  /**
+   * Return the minimum privacy-safe contact contract for downstream consumers
+   * such as B4 buyer help and P5 staff views.
+   */
+  async getContactSnapshotBySessionId(
+    sessionId: string,
+  ): Promise<ProfileContactSnapshot> {
+    const profile = await this.getOrCreateBySessionId(sessionId);
+    return toProfileContactSnapshot(profile);
+  }
+
   async updateLanguage(sessionId: string, language: string): Promise<UserProfile> {
     // The reduced-cycle product supports Hebrew and English only.
     if (language !== 'he' && language !== 'en') {
@@ -93,6 +127,16 @@ export class ProfilesService {
     }
     if (update.phone !== undefined && update.phone.trim().length === 0) {
       throw new BadRequestException('Phone must not be empty');
+    }
+    // A phone is a "+" followed by digits (spaces, dashes, dots, and brackets allowed)
+    // with 7-15 digits in total, so values like "123" or "abc" are rejected.
+    if (
+      update.phone !== undefined &&
+      (!/^\+?[\d\s\-().]+$/.test(update.phone.trim()) ||
+        update.phone.replace(/\D/g, '').length < 7 ||
+        update.phone.replace(/\D/g, '').length > 15)
+    ) {
+      throw new BadRequestException('Phone must be a valid phone number');
     }
     // Helper function to validate consent evidence when consent is granted.
     const validateConsentEvidence = (
@@ -201,7 +245,14 @@ export class ProfilesService {
   }
   // Week 5: delete by sessionId, not by internal id, so a session can only ever delete its own profile.
   async deleteBySessionId(sessionId: string): Promise<void> {
-    // delete() never throws when nothing matches, keeping the operation idempotent.
+    const profile = await this.profiles.findOneBy({ sessionId });
+    if (!profile) {
+      return;
+    }
+
+    // Remove local evidence before the profile row so storage failures are visible
+    // and do not report a completed profile deletion.
+    await this.storage.deleteProfile(profile.id);
     await this.profiles.delete({ sessionId });
   }
 }

@@ -1,6 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { UserProfileEntity } from '../database/user-profile.entity';
+import type { LocalFileStorage } from '../storage/local-file-storage.service';
 import { ProfilesService } from './profiles.service';
 
 describe('ProfilesService', () => {
@@ -12,6 +13,7 @@ describe('ProfilesService', () => {
     save: jest.Mock;
     delete: jest.Mock;
   };
+  let storage: { deleteProfile: jest.Mock };
   let service: ProfilesService;
 
   const createFakeProfile = (
@@ -53,12 +55,27 @@ describe('ProfilesService', () => {
       save: jest.fn(),
       delete: jest.fn(),
     };
+    storage = {
+      deleteProfile: jest.fn().mockResolvedValue(undefined),
+    };
 
     // The service does not exist yet. This line is intentional in TDD:
     // the test should fail until the service is implemented.
     service = new ProfilesService(
       repository as unknown as Repository<UserProfileEntity>,
+      storage as unknown as LocalFileStorage,
     );
+  });
+
+  // Ownership: the lookup must use BOTH profile id and session id; no match means 404.
+  it('returns an owned profile and throws NotFound for a profile of another session', async () => {
+    const profile = createFakeProfile('profile-1', 'session-1', 'he');
+    repository.findOneBy.mockResolvedValueOnce(profile);
+    await expect(service.getOwnedProfileEntity('session-1', 'profile-1')).resolves.toBe(profile);
+    expect(repository.findOneBy).toHaveBeenCalledWith({ id: 'profile-1', sessionId: 'session-1' });
+
+    repository.findOneBy.mockResolvedValueOnce(null);
+    await expect(service.getOwnedProfileEntity('session-2', 'profile-1')).rejects.toThrow(NotFoundException);
   });
 
   // Test 1: A new anonymous browser session receives a new profile.
@@ -77,6 +94,28 @@ describe('ProfilesService', () => {
     expect(result.sessionId).toBe('new-session');
     expect(repository.create).toHaveBeenCalled();
     expect(repository.save).toHaveBeenCalledWith(newProfile);
+  });
+
+  it('propagates a profile creation failure instead of returning success', async () => {
+    repository.findOneBy.mockResolvedValue(null);
+    repository.create.mockReturnValue(
+      createFakeProfile('profile-1', 'fixture-session', 'he'),
+    );
+    repository.save.mockRejectedValueOnce(new Error('database unavailable'));
+
+    await expect(
+      service.getOrCreateBySessionId('fixture-session'),
+    ).rejects.toThrow('database unavailable');
+  });
+
+  it('propagates a profile update failure', async () => {
+    const profile = createFakeProfile('profile-1', 'session-1', 'he');
+    repository.findOneBy.mockResolvedValue(profile);
+    repository.save.mockRejectedValueOnce(new Error('database unavailable'));
+
+    await expect(
+      service.updateCurrentProfile('session-1', { preferredName: 'Dana' }),
+    ).rejects.toThrow('database unavailable');
   });
 
   // Test 2: Every new anonymous profile starts with Hebrew as its language.
@@ -111,6 +150,48 @@ describe('ProfilesService', () => {
     expect(result.id).toBe('profile-existing');
     expect(repository.create).not.toHaveBeenCalled();
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('returns a privacy-safe contact snapshot without service consent', async () => {
+    const profile = createFakeProfile('profile-1', 'session-1', 'he', {
+      preferredName: 'Synthetic Buyer',
+      email: 'buyer@example.test',
+      phone: '+972500000000',
+      serviceConsent: { granted: false },
+      marketingConsent: { granted: true },
+    });
+    repository.findOneBy.mockResolvedValue(profile);
+
+    await expect(
+      service.getContactSnapshotBySessionId('session-1'),
+    ).resolves.toEqual({
+      preferredName: 'Synthetic Buyer',
+      email: null,
+      phone: null,
+      serviceConsentGranted: false,
+    });
+  });
+
+  it('returns contact details only when service consent is granted', async () => {
+    const profile = createFakeProfile('profile-1', 'session-1', 'he', {
+      preferredName: 'Synthetic Buyer',
+      email: 'buyer@example.test',
+      serviceConsent: { granted: true },
+      marketingConsent: { granted: false },
+    });
+    repository.findOneBy.mockResolvedValue(profile);
+
+    const snapshot = await service.getContactSnapshotBySessionId('session-1');
+
+    expect(snapshot).toEqual({
+      preferredName: 'Synthetic Buyer',
+      email: 'buyer@example.test',
+      phone: null,
+      serviceConsentGranted: true,
+    });
+    expect(snapshot).not.toHaveProperty('sessionId');
+    expect(snapshot).not.toHaveProperty('profileId');
+    expect(snapshot).not.toHaveProperty('marketingConsent');
   });
 
   // Test 5: A user can change the saved language from Hebrew to English.
@@ -298,6 +379,10 @@ describe('ProfilesService', () => {
     { phone: '+972-50-1234567', shouldSucceed: true },
     { phone: '', shouldSucceed: false },
     { phone: '   ', shouldSucceed: false },
+    // Too short, too long, and non-numeric values must be rejected.
+    { phone: '123', shouldSucceed: false },
+    { phone: '1234567890123456', shouldSucceed: false },
+    { phone: '050-abc-4567', shouldSucceed: false },
   ])('validates phone "%s"', async ({ phone, shouldSucceed }) => {
     const profile = createFakeProfile('profile-1', 'session-1', 'he', {
       phone: '+972-50-0000000',
@@ -429,10 +514,14 @@ describe('ProfilesService', () => {
 
   // Week 5, Test 1: Delete is scoped to the requesting session only.
   it('deletes only the profile scoped to the given session', async () => {
+    repository.findOneBy.mockResolvedValue(
+      createFakeProfile('profile-1', 'session-1', 'he'),
+    );
     repository.delete.mockResolvedValue({ affected: 1 });
 
     await service.deleteBySessionId('session-1');
 
+    expect(storage.deleteProfile).toHaveBeenCalledWith('profile-1');
     expect(repository.delete).toHaveBeenCalledWith({ sessionId: 'session-1' });
   });
 
@@ -441,5 +530,18 @@ describe('ProfilesService', () => {
     repository.delete.mockResolvedValue({ affected: 0 });
 
     await expect(service.deleteBySessionId('session-without-profile')).resolves.toBeUndefined();
+  });
+
+  it('propagates a profile deletion failure', async () => {
+    repository.findOneBy.mockResolvedValue(
+      createFakeProfile('profile-1', 'session-1', 'he'),
+    );
+    storage.deleteProfile.mockRejectedValueOnce(new Error('storage unavailable'));
+
+    await expect(
+      service.deleteBySessionId('session-1'),
+    ).rejects.toThrow('storage unavailable');
+
+    expect(repository.delete).not.toHaveBeenCalled();
   });
 });
