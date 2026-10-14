@@ -8,6 +8,10 @@ import {
   type LotsSearchClient,
 } from './buyer-search.orchestrator';
 import { LotsServiceSearchClient } from './lots-service-search.client';
+import {
+  BUYER_RESULTS_PRESENTATION_PORT,
+  type BuyerResultsPresentationPort,
+} from './buyer-results-presentation.port';
 
 export type BuyerSessionSearchGroup = {
   title: string;
@@ -18,6 +22,7 @@ export type BuyerSessionSearchGroup = {
 
 export type BuyerSessionSearchResponse =
   | { kind: 'results'; groups: BuyerSessionSearchGroup[] }
+  | { kind: 'insufficient-criteria'; message: string }
   | { kind: 'unmatched'; message: string };
 
 /** Reply to the "similar items in other categories" follow-up. */
@@ -66,7 +71,11 @@ export class BuyerSessionSearchService {
 
   // An interface does not exist at runtime, so Nest cannot inject it by type; inject by the class token instead
   // while keeping the interface type so tests can pass any LotsSearchClient.
-  constructor(@Inject(LotsServiceSearchClient) lotsSearch: LotsSearchClient) {
+  constructor(
+    @Inject(BUYER_RESULTS_PRESENTATION_PORT)
+    private readonly presentation: BuyerResultsPresentationPort,
+    @Inject(LotsServiceSearchClient) lotsSearch: LotsSearchClient,
+  ) {
     this.orchestrator = new BuyerSearchOrchestrator(lotsSearch);
   }
 
@@ -76,54 +85,34 @@ export class BuyerSessionSearchService {
       throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);
     }
 
-    const criteria = session.criteria;
-    const searchedAt = new Date().toISOString();
-    const outcome = await this.orchestrator.search({
-      criteria,
-      language: criteria.language,
-      leadId: sessionId,
-      status: 'new',
-      createdAt: searchedAt,
-      searchedAt,
+    const { groups, outcome } = await this.presentation.presentSearchResults({
+      searchContextId: sessionId,
+      criteria: session.criteria,
+      onUpdate: () => {},
     });
 
+    if (outcome.kind === 'insufficient-criteria') {
+      return { kind: 'insufficient-criteria', message: session.criteria.language === 'he'
+        ? '\u05d0\u05d9\u05dc\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d1\u05e8\u05e6\u05d5\u05e0\u05da \u05dc\u05d7\u05e4\u05e9?'
+        : 'What items would you like to search for?' };
+    }
     if (outcome.kind === 'unmatched') {
       return {
         kind: 'unmatched',
         message:
-          criteria.language === 'he'
+          session.criteria.language === 'he'
             ? 'לא מצאנו פריטים שמתאימים לבקשה, בלי לרפות את המסננים.'
             : 'No lots matched this request without relaxing your filters.',
       };
     }
 
-    // Nothing searchable yet: no search ran, so ask for details rather than report an empty result.
-    if (outcome.kind === 'insufficient-criteria') {
-      return {
-        kind: 'unmatched',
-        message:
-          criteria.language === 'he'
-            ? 'צריך עוד כמה פרטים כדי לחפש. ספרו לנו מה אתם מחפשים.'
-            : 'We need a few more details before searching. Tell us what you are looking for.',
-      };
-    }
-
-    const { current, historical } = outcome.results;
-    const groups: BuyerSessionSearchGroup[] = [];
-    if (current.length > 0) {
-      groups.push({
-        title: criteria.language === 'he' ? 'מכירות קרובות' : 'Upcoming lots',
-        lots: current.map((entry) => entry.lot),
-      });
-    }
-    if (historical.length > 0) {
-      groups.push({
-        title: criteria.language === 'he' ? 'מכירות קודמות' : 'Past sales',
-        lots: historical.map((entry) => entry.lot),
-      });
-    }
-
-    return { kind: 'results', groups };
+    return {
+      kind: 'results',
+      groups: groups.map((group) => ({
+        title: group.title,
+        lots: group.items.map((item) => item.lot),
+      })),
+    };
   }
 
   // Follow-up "similar items in other categories": hands the session's full criteria, category included, to the

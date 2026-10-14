@@ -1,12 +1,28 @@
 import type { AiExtractResponse } from '../buyer/buyer-criteria';
+import type { SellerHandoffContract } from './seller-handoff';
+import type { AiFunctionCall } from './ai.dto';
 
 /** Body Shilat expects on POST /ai/generate (same shape B2 forwards in real mode). */
 export type ShilatAiGenerateRequest = {
   prompt: string;
   language: 'he' | 'en';
   sessionId?: string;
-  selectedLot?: { id: string } | null;
+  selectedLot?: { id: string; itemKey?: string } | null;
   lots?: { id: string }[];
+};
+
+export type ShilatSellerGenerateResponse = {
+  provider: 'fixture' | 'real';
+  mode: 'fixture' | 'real';
+  isRelevant: boolean;
+  error: string | null;
+  content: string;
+  summary: string;
+  recommendation: string;
+  nextAction: string;
+  confidence: 'low' | 'medium';
+  structuredAnswer: SellerHandoffContract;
+  functionCall?: AiFunctionCall | null;
 };
 
 /** @deprecated alias — use ShilatAiGenerateRequest */
@@ -15,7 +31,7 @@ export type P4AiGenerateRequest = ShilatAiGenerateRequest;
 /** Safe buyer context from Tamar — flattened into ShilatAiGenerateRequest. */
 export type P4BuyerAiContext = {
   sessionId?: string;
-  selectedLot?: { id: string } | null;
+  selectedLot?: { id: string; itemKey?: string } | null;
   lots?: { id: string }[];
 };
 
@@ -30,6 +46,7 @@ export type P4IntentRoute = {
 
 /** Normalized P4 reply — routing + extract for B2 criteria and search. */
 export type P4AiGenerateResponse = {
+  generalInformation?: boolean;
   extract: AiExtractResponse;
   readyForFunction: boolean;
   intentRoute: P4IntentRoute;

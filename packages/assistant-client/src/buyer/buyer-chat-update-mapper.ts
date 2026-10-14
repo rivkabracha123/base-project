@@ -17,6 +17,12 @@ export function buyerChatUpdateToMessage(update: BuyerChatUpdate, sessionId = LO
     case 'error':
       return { speaker: 'error', id, sessionId, code: update.code, text: update.text };
     case 'result-group':
-      return { speaker: 'result-group', id, sessionId, title: update.title, lots: update.lots };
+      return { ...update, id, sessionId };
+    case 'house-ranking':
+      return { ...update, id, sessionId };
+    case 'sale-history':
+      return { ...update, id, sessionId };
+    case 'price-trend':
+      return { speaker: 'price-trend', id, sessionId, title: update.title, lots: update.lots, points: update.points };
   }
 }

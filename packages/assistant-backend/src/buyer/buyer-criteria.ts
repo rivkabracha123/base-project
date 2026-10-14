@@ -96,43 +96,152 @@ export function isStructuredAiExtract(value: unknown): value is StructuredAiExtr
 const appendUnique = (values: string[], ...additions: Array<string | null | undefined>): string[] =>
   [...new Set([...values, ...additions.filter((value): value is string => Boolean(value?.trim()))])];
 
-const toNumber = (value: string): number | undefined => {
-  const normalized = value.replace(/[$,\s]/g, '').replace(/k/i, '000');
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
+const CALENDAR_YEAR = /^(18|19|20)\d{2}$/;
+const ORDINAL_SUFFIX = /\d+(st|nd|rd|th)\b/i;
+const HAS_MONEY_HINT = /[$]|(?:\d\s*)?(?:k|m|mil|million|thousand|אלף|מיליון)\b/i;
 
-function extractCorrectionPrice(text: string): BuyerPriceRange | undefined {
-  const match = text.match(/\$\s*([\d,]+)/);
-  const digits = match?.[1];
-  if (!digits) {
-    return undefined;
+function applyMoneyMultiplier(base: number, suffix: string | undefined): number {
+  if (!suffix) {
+    return base;
   }
-  const value = Number(digits.replace(/,/g, ''));
-  if (!Number.isFinite(value)) {
-    return undefined;
+  const normalized = suffix.toLowerCase();
+  if (normalized === 'k' || normalized === 'thousand' || normalized === 'אלף') {
+    return base * 1_000;
   }
-  return { min: value, max: value, currency: 'USD' };
+  if (normalized === 'm' || normalized === 'mil' || normalized === 'million' || normalized === 'מיליון') {
+    return base * 1_000_000;
+  }
+  return base;
 }
 
-const extractPrice = (text: string): BuyerPriceRange | undefined => {
-  const matches = [...text.matchAll(/\$?\d[\d,]*(?:k)?/gi)]
-    .map((match) => match[0])
-    .filter((value) => {
-      const lower = value.toLowerCase();
-      return !/\d+(st|nd|rd|th)\b/i.test(value) && !/^\d{4}$/.test(value.replace(/[$,]/g, '')) &&
-        (lower.includes('$') || lower.includes('k') || value.length > 3);
-    });
-  const values = matches.map(toNumber).filter((value): value is number => value !== undefined);
+function parseMoneyFragment(fragment: string): number | undefined {
+  const trimmed = fragment.trim();
+  if (!trimmed || ORDINAL_SUFFIX.test(trimmed)) {
+    return undefined;
+  }
 
-  return values.length > 0
-    ? { min: Math.min(...values), max: Math.max(...values), currency: 'USD' }
-    : undefined;
-};
+  const hebrewMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(אלף|מיליון)$/i);
+  if (hebrewMatch) {
+    const base = Number(hebrewMatch[1]);
+    return Number.isFinite(base) ? applyMoneyMultiplier(base, hebrewMatch[2]) : undefined;
+  }
+
+  const normalized = trimmed.replace(/\$/g, '').replace(/,/g, '').trim();
+  const englishMatch = normalized.match(/^(\d+(?:\.\d+)?)\s*(k|m|mil|million|thousand)?$/i);
+  if (!englishMatch) {
+    return undefined;
+  }
+
+  const base = Number(englishMatch[1]);
+  if (!Number.isFinite(base)) {
+    return undefined;
+  }
+
+  return applyMoneyMultiplier(base, englishMatch[2]);
+}
+
+function isLikelyCalendarYear(fragment: string): boolean {
+  const digits = fragment.replace(/\D/g, '');
+  return CALENDAR_YEAR.test(digits) && !HAS_MONEY_HINT.test(fragment);
+}
+
+function normalizeBudgetAnswer(text: string): string {
+  return text
+    .replace(/\bbudget\b|תקציב/gi, ' ')
+    .replace(/\b(around|about|up to|max|maximum|under|below|roughly|approximately)\b/gi, ' ')
+    .replace(/(בערך|בסביבות|עד|מקסימום|מתחת)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function collectMoneyValues(text: string, options?: { lenientPlainNumbers?: boolean }): number[] {
+  const values: number[] = [];
+
+  const consider = (fragment: string) => {
+    if (isLikelyCalendarYear(fragment) && !options?.lenientPlainNumbers) {
+      return;
+    }
+    const digitsOnly = fragment.replace(/\D/g, '');
+    if (
+      !options?.lenientPlainNumbers &&
+      !HAS_MONEY_HINT.test(fragment) &&
+      digitsOnly.length <= 3
+    ) {
+      return;
+    }
+    if (options?.lenientPlainNumbers && isLikelyCalendarYear(fragment) && !HAS_MONEY_HINT.test(fragment)) {
+      return;
+    }
+    const amount = parseMoneyFragment(fragment);
+    if (amount != null) {
+      values.push(amount);
+    }
+  };
+
+  for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*(?:אלף|מיליון)/gi)) {
+    consider(match[0]);
+  }
+
+  for (const match of text.matchAll(
+    /\$?\s*\d{1,3}(?:,\d{3})+(?:\.\d+)?(?:\s*(?:k|m|mil|million|thousand))?|\$?\s*\d+(?:\.\d+)?\s*(?:k|m|mil|million|thousand)?/gi,
+  )) {
+    const start = match.index ?? 0;
+    const afterMatch = text.slice(start + match[0].length).trimStart();
+    if (/^(?:st|nd|rd|th)\b/i.test(afterMatch)) continue;
+    if (/^(?:אלף|מיליון)/i.test(afterMatch)) {
+      continue;
+    }
+    consider(match[0].trim());
+  }
+
+  if (options?.lenientPlainNumbers && values.length === 0) {
+    const normalized = normalizeBudgetAnswer(text);
+    const rangeMatch = normalized.match(/^(.+?)\s*(?:-|–|to|and|ו)\s*(.+)$/i);
+    if (rangeMatch?.[1] && rangeMatch[2]) {
+      const low = parseMoneyFragment(rangeMatch[1].trim());
+      const high = parseMoneyFragment(rangeMatch[2].trim());
+      if (low != null && high != null) {
+        return [low, high];
+      }
+    }
+    const single = parseMoneyFragment(normalized);
+    if (single != null) {
+      values.push(single);
+    }
+  }
+
+  return values;
+}
+
+function toPriceRange(values: number[]): BuyerPriceRange | undefined {
+  if (values.length === 0) {
+    return undefined;
+  }
+  return values.length === 1
+    ? { max: values[0], currency: 'USD' }
+    : { min: Math.min(...values), max: Math.max(...values), currency: 'USD' };
+}
+
+function extractCorrectionPrice(text: string): BuyerPriceRange | undefined {
+  return toPriceRange(collectMoneyValues(text, { lenientPlainNumbers: true }));
+}
+
+const extractPrice = (text: string, options?: { lenientPlainNumbers?: boolean }): BuyerPriceRange | undefined =>
+  toPriceRange(collectMoneyValues(text, { ...options, lenientPlainNumbers: options?.lenientPlainNumbers || /תקציב|דולר|dollars?|USD|budget/i.test(text) }));
+
+export function isBudgetAnswer(text: string): boolean {
+  return extractPrice(text, { lenientPlainNumbers: true }) !== undefined;
+}
 
 const parseCategory = (text: string): string | null => {
   const lower = text.toLowerCase();
-  if (lower.includes('painting') || lower.includes('ציור') || lower.includes('תמונה')) return 'painting';
+  if (/\brings?\b|\u05d8\u05d1\u05e2(?:\u05ea|\u05d5\u05ea)/i.test(lower)) return 'rings';
+  if (/\b(?:manuscripts?|rare books?)\b|\u05db\u05ea\u05d1\u05d9?\s+\u05d9\u05d3|\u05e1\u05e4\u05e8(?:\u05d9\u05dd)?\s+\u05e0\u05d3\u05d9\u05e8/i.test(lower)) return 'rare_books';
+  if (/\bjewelry\b|\u05ea\u05db\u05e9\u05d9\u05d8/i.test(lower)) return 'jewelry';
+  if (/\bjudaica\b|\u05d9\u05d5\u05d3\u05d0\u05d9\u05e7\u05d4/i.test(lower)) return 'judaica';
+  if (/\bwatches?\b|\u05e9\u05e2\u05d5\u05df|\u05e9\u05e2\u05d5\u05e0\u05d9\u05dd/i.test(lower)) return 'watches';
+  if (/\bfurniture\b|\u05e8\u05d4\u05d9\u05d8/i.test(lower)) return 'furniture';
+  if (lower.includes('painting') || lower.includes('ציור') || lower.includes('תמונה') || lower.includes('אמנות') || lower.includes('אומנות')) return 'painting';
   if (lower.includes('sculpture') || lower.includes('פסל')) return 'sculpture';
   return null;
 };
@@ -150,7 +259,7 @@ const KEYWORD_HINTS: Array<{ pattern: RegExp; keyword: string }> = [
   { pattern: /\bgreen\b|ירוק/i, keyword: 'green' },
   { pattern: /\brare\b|נדיר/i, keyword: 'rare' },
   { pattern: /\bhebrew\b|עברי/i, keyword: 'Hebrew' },
-  { pattern: /\bmanuscript\b|כתב יד/i, keyword: 'manuscript' },
+  { pattern: /\bmanuscripts?\b|כתבי?\s+יד/i, keyword: 'manuscript' },
 ];
 
 export function extractKeywords(text: string): string[] {
@@ -436,7 +545,7 @@ export function applyCriteriaCorrection(
 ): BuyerCriteriaResponse {
   const trimmed = message.trim();
   const criteriaUpdate: Partial<BuyerCriteria> = {};
-  if (/\bbudget\b|תקציב|\$/i.test(trimmed)) {
+  if (/\bbudget\b|תקציב|\$|דולר|dollars?|USD/i.test(trimmed)) {
     const price = extractCorrectionPrice(trimmed) ?? extractPrice(trimmed);
     if (price) {
       criteriaUpdate.price = price;
@@ -489,7 +598,7 @@ export function mergeBuyerCriteria(
     price:
       'price' in update
         ? update.price
-          ? { ...existing.price, ...update.price }
+          ? { ...update.price }
           : undefined
         : existing.price,
     hardConstraints: update.hardConstraints ?? existing.hardConstraints,
@@ -526,7 +635,7 @@ export function applyBuyerAnswer(
   const criteriaUpdate: Partial<BuyerCriteria> = {};
   switch (field) {
     case 'budget': {
-      const price = extractPrice(trimmed);
+      const price = extractPrice(trimmed, { lenientPlainNumbers: true });
       if (price) criteriaUpdate.price = price;
       break;
     }
@@ -579,7 +688,8 @@ export function applyClarificationTurn(state: ClarificationTurnInput): BuyerCrit
   if (isCriteriaRemovalMessage(message)) {
     return applyCriteriaRemoval(state.criteria, state.conversation, message);
   }
-  if (isCriteriaCorrectionMessage(message)) {
+  if (isCriteriaCorrectionMessage(message)
+    || (/תקציב|\bbudget\b|\$|דולר|dollars?|USD/i.test(message) && extractPrice(message))) {
     return applyCriteriaCorrection(state.criteria, state.conversation, message);
   }
   return applyBuyerAnswer(state.criteria, state.conversation, message);

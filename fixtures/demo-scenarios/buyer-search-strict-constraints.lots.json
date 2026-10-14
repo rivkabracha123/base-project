@@ -1,0 +1,95 @@
+[
+  {
+    "id": "lot-kestenbaum-54554-121421",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kestenbaum-54554-121421",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
+      "retrievedAt": "2025-08-21T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
+    "lotNumber": "1",
+    "title": {
+      "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+      "he": "עטרת זקנים מאת יצחק אברבנאל"
+    },
+    "description": {
+      "en": "A rare Hebrew printed philosophy volume.",
+      "he": "ספר פילוסופיה עברי נדיר."
+    },
+    "category": "rare_books",
+    "saleDate": "2025-01-23",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 800, "currency": "USD" },
+      "high": { "amount": 1200, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 1200, "currency": "USD" }
+  },
+  {
+    "id": "lot-kedem-61201-88421",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kedem-61201-88421",
+      "url": "https://www.kedem-auctions.com/en/item/rare-hebrew-book",
+      "retrievedAt": "2025-08-21T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "18",
+    "title": {
+      "en": "Sefer Hasidim, early printed Hebrew book",
+      "he": "ספר חסידים, דפוס עברי מוקדם"
+    },
+    "description": {
+      "en": "A rare Hebrew printed religious volume.",
+      "he": "ספר דפוס עברי נדיר."
+    },
+    "category": "rare_books",
+    "saleDate": "2024-11-12",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 700, "currency": "USD" },
+      "high": { "amount": 1100, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 950, "currency": "USD" }
+  },
+  {
+    "id": "lot-kestenbaum-54554-121488",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kestenbaum-54554-121488",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
+      "retrievedAt": "2025-08-21T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
+    "lotNumber": "24",
+    "title": {
+      "en": "Hebrew manuscript commentary on the Torah",
+      "he": "כתב יד עברי, פירוש על התורה"
+    },
+    "description": {
+      "en": "A rare Hebrew manuscript volume.",
+      "he": "כתב יד עברי נדיר."
+    },
+    "category": "rare_books",
+    "saleDate": "2024-06-18",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 1000, "currency": "USD" },
+      "high": { "amount": 1800, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 1500, "currency": "USD" }
+  }
+]

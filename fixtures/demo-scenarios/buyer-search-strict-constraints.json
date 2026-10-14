@@ -1,7 +1,7 @@
 {
   "id": "buyer-search-strict-constraints",
   "description": "Strict constraints, no results, invalid input and approved refinement for the buyer search, measured against the real LotsService over the three committed lots in fixtures/auction-data/lots.json (only the database repository is faked; it returns lots in the lots search's documented order: newest sale first, then lot id). Each scenario's `criteria` is merged over emptyBuyerCriteria(language). `expected.request` is exactly what the buyer search sends to the lots search (null when nothing is sent); `expected.kind` is the buyer search outcome; `expected.lotIds` is the measured result order handed to the result cards; `expected.invalidFields` names the fields the lots search DTO rejected. Budgets are compared against realized price as-is (all three lots are USD). Known limitation, documented not hidden: no committed lot carries a creator, so a creator filter returns nothing until the auction data populates it.",
-  "lotsSource": "fixtures/auction-data/lots.json",
+  "lotsSource": "fixtures/demo-scenarios/buyer-search-strict-constraints.lots.json",
   "namedLotId": "lot-kestenbaum-54554-121421",
   "scenarios": [
     {

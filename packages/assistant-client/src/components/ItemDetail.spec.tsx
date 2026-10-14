@@ -39,8 +39,9 @@ describe('ItemDetail', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'Price History' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Sale source' })).toHaveLength(2);
+    expect(screen.getByRole('heading', { level: 2, name: 'Price History' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View sale record' })).toHaveAttribute('href', 'https://fixtures.monabid.test/lots/sold-002');
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
   });
 
   it('shows an honest price-history empty state when no history is supplied', () => {
@@ -49,5 +50,12 @@ describe('ItemDetail', () => {
     expect(screen.getByRole('heading', { name: 'Price History' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('There are not enough verified past sales');
     expect(screen.queryByRole('img', { name: 'Price history chart' })).not.toBeInTheDocument();
+  });
+
+  it('uses right-to-left direction and Hebrew back text for Hebrew', () => {
+    render(<ItemDetail lot={soldLotFixture} lang="he" onBack={vi.fn()} />);
+
+    const backButton = screen.getByRole('button', { name: 'חזרה לתוצאות החיפוש' });
+    expect(backButton.closest('div[dir]')).toHaveAttribute('dir', 'rtl');
   });
 });

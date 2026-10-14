@@ -1,6 +1,42 @@
 import { MAX_PROVIDER_PROMPT_LENGTH, RealProviderService, sanitizePrompt } from './real-provider.service';
 //test real provider service
 describe('RealProviderService', () => {
+  it('requires structured seller output from OpenAI without unsupported reasoning options', async () => {
+    const envelope = { isRelevant: true, error: null, summary: 'Auction information', recommendation: 'Verify the sale record',
+      nextAction: 'Ask about auction history', confidence: 'low', functionCall: { functionToRun: null, argumentsJson: null },
+      structuredAnswer: { role: 'seller', language: 'en', intent: 'general_information', category: 'unknown', item: {},
+        missingFacts: [], confirmedFacts: [], uncertainFacts: [], sellerConfirmation: { required: true, status: 'pending' },
+        hasContactDetails: false, hasImages: false } };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(envelope) } }] }) });
+    await new RealProviderService().generate({ prompt: 'What is the auction record?', role: 'seller',
+      baseUrl: 'https://api.openai.com/v1', modelName: 'gpt-4.1-mini', apiKey: 'test', fetchImpl: fetchMock });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.response_format.type).toBe('json_schema');
+    expect(body.response_format.json_schema.schema.properties.structuredAnswer.properties.role.enum).toEqual(['seller']);
+    expect(body.reasoning_effort).toBeUndefined();
+  });
+  it.each([null, { values: [{ label: 'ring_size', value: 8, unit: 'size' }] }])('accepts strict seller measurements %j', async dimensions => {
+    const structuredAnswer = {
+      role: 'seller', language: 'en', intent: 'Sell a ring', category: 'rings',
+      item: { title: 'Blue ring', dimensions, condition: null, markings: null, signature: null, provenance: null, notes: null },
+      missingFacts: ['condition'], confirmedFacts: [], uncertainFacts: [],
+      sellerConfirmation: { required: true, status: 'pending' }, hasContactDetails: false, hasImages: false,
+    };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({
+      isRelevant: true, error: null, summary: 'A blue ring.', recommendation: 'Collect item details.',
+      nextAction: 'What is its condition?', confidence: 'low', structuredAnswer,
+      functionCall: { functionToRun: 'rankSellerHouses', argumentsJson: JSON.stringify({ category: 'rings' }) },
+    }) } }] }) });
+    const result = await new RealProviderService().generate({ prompt: 'Blue ring', role: 'seller',
+      baseUrl: 'https://api.groq.com/openai/v1', modelName: 'openai/gpt-oss-120b', apiKey: 'test', fetchImpl: fetchMock });
+    expect(result.provider).toBe('real');
+    expect(result.functionCall).toEqual({ functionToRun: 'rankSellerHouses', object: { category: 'rings' } });
+    expect((result.structuredAnswer as { item: unknown }).item).toEqual({ title: 'Blue ring', ...(dimensions ? { dimensions } : {}) });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.response_format.json_schema.name).toBe('seller_response');
+    expect(body.response_format.json_schema.strict).toBe(true);
+    expect(body.response_format.json_schema.schema.required).toContain('functionCall');
+  });
   it('calls the OpenAI-compatible endpoint and returns the model content', async () => {
     const modelResponse = {
       isRelevant: true,
@@ -37,12 +73,19 @@ describe('RealProviderService', () => {
       modelName: 'gpt-4o-mini',
       apiKey: 'test-key',
       fetchImpl: fetchMock as typeof fetch,
+      history: [{ prompt: 'I want a ring buyer@example.com', answer: 'What is your budget?' }],
     });
 //make sure that the result equals the expected output
     expect(result.provider).toBe('real');
     expect(result.mode).toBe('real');
     expect(result.content).toBe(JSON.stringify(modelResponse));
     expect(result.structuredAnswer).toEqual(modelResponse.structuredAnswer);
+    const sentMessages = JSON.parse(fetchMock.mock.calls[0][1].body).messages;
+    expect(sentMessages.slice(1, 3)).toEqual([
+      { role: 'user', content: 'I want a ring [contact removed]' },
+      { role: 'assistant', content: 'What is your budget?' },
+    ]);
+    expect(sentMessages[3].role).toBe('user');
     expect(fetchMock).toHaveBeenCalledWith(
       'https://example.com/v1/chat/completions',
       expect.objectContaining({

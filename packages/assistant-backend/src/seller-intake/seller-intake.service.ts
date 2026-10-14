@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { SellerEvidenceReference, SellerItemDraft } from '@monabid/shared';
+import type { SellerDimensionMeasurement, SellerEvidenceReference, SellerItemDraft } from '@monabid/shared';
+import type { SellerHandoffContract } from '../ai/seller-handoff';
 
 const REQUIRED_SELLER_DETAILS = [
   'dimensions',
@@ -11,8 +12,8 @@ const REQUIRED_SELLER_DETAILS = [
 
 const MISSING_SELLER_QUESTION_COPY = {
   dimensions: {
-    he: 'מהן מידות הפריט, כולל רוחב וגובה בסנטימטרים?',
-    en: 'What are the item dimensions, including width and height in centimeters?',
+    he: 'מהן מידות הפריט?',
+    en: 'What are the item dimensions?',
   },
   condition: {
     he: 'מה מצב הפריט? אנא תארו פגמים, תיקונים או סימני בלאי.',
@@ -33,13 +34,15 @@ const MISSING_SELLER_QUESTION_COPY = {
 } as const;
 
 export type MissingSellerQuestion = {
-  field: (typeof REQUIRED_SELLER_DETAILS)[number];
+  field: (typeof REQUIRED_SELLER_DETAILS)[number] | 'category';
   he: string;
   en: string;
 };
 
 type SellerDraftCorrectionField =
+  | 'title'
   | 'category'
+  | 'description'
   | 'materials'
   | 'dimensions'
   | 'condition'
@@ -47,12 +50,59 @@ type SellerDraftCorrectionField =
   | 'signatures'
   | 'provenance';
 
-type SellerDraftCorrectionValue = string | string[] | { widthCm: number; heightCm: number };
+type SellerDraftCorrectionValue = string | string[] | { he?: string; en?: string }
+  | { widthCm: number; heightCm: number } | SellerDimensionMeasurement[];
 
 @Injectable()
 export class SellerIntakeService {
+  createDraftFromAiExtraction(
+    fixture: SellerItemDraft,
+    input: string,
+    extraction: SellerHandoffContract,
+  ): SellerItemDraft {
+    const dimensions = extraction.item.dimensions?.values ?? [];
+    const confirmedFacts: SellerItemDraft['confirmedFacts'] = {};
+    const item = {
+      ...fixture.item,
+      title: extraction.item.title ?? `${extraction.category} from seller intake`,
+      category: extraction.category,
+      dimensions: { values: dimensions },
+      condition: extraction.item.condition,
+      markings: extraction.item.markings,
+      signatures: extraction.item.signature,
+      provenance: extraction.item.provenance,
+    };
+
+    return this.createDraftSellerItem({
+      ...fixture,
+      item: {
+        ...item,
+        description: { he: input.trim(), en: input.trim() },
+        catalogDraft: this.buildCatalogDraft({
+          ...(dimensions.length ? { dimensions: { values: dimensions } } : {}),
+          ...(extraction.item.condition ? { condition: extraction.item.condition } : {}),
+          ...(extraction.item.markings ? { markings: extraction.item.markings } : {}),
+          ...(extraction.item.signature ? { signatures: extraction.item.signature } : {}),
+          ...(extraction.item.provenance ? { provenance: extraction.item.provenance } : {}),
+        }),
+      },
+      missingFields: extraction.missingFacts,
+      confirmedFacts,
+      sellerConfirmation: {
+        ...fixture.sellerConfirmation,
+        status: 'pending',
+        lastConfirmedAt: undefined,
+        notes: 'Fields extracted by P4 require seller confirmation before downstream use.',
+      },
+      handoff: {
+        ...fixture.handoff,
+        notes: 'Only seller-confirmed facts are trusted downstream.',
+      },
+    });
+  }
+
   // Build a review state from the seller's initial intake text.
-  buildReviewState(input: string): {
+  buildReviewState(input: string, hasAiDimensions = false): {
     category: string;
     materials: string[];
     dimensions: { widthCm: number; heightCm: number };
@@ -67,7 +117,7 @@ export class SellerIntakeService {
     const missingFields: string[] = [];
     const uncertainFields: string[] = [];
 
-    if (extracted.dimensions.widthCm === 0 && extracted.dimensions.heightCm === 0) {
+    if (!hasAiDimensions) {
       missingFields.push('dimensions');
     }
     if (!extracted.markings || extracted.markings === 'Not yet confirmed') {
@@ -120,20 +170,13 @@ export class SellerIntakeService {
   }
 
   // Build an API draft without treating fixture facts as seller-confirmed.
-  createDraftFromSellerInput(fixture: SellerItemDraft, input: string): SellerItemDraft {
-    const reviewState = this.buildReviewState(input);
-    const extractedDimensions =
-      reviewState.dimensions.widthCm && reviewState.dimensions.heightCm
-        ? {
-            values: [
-              { label: 'width', value: reviewState.dimensions.widthCm, unit: 'cm' },
-              { label: 'height', value: reviewState.dimensions.heightCm, unit: 'cm' },
-            ],
-            widthCm: reviewState.dimensions.widthCm,
-            heightCm: reviewState.dimensions.heightCm,
-            unit: 'cm',
-          }
-        : undefined;
+  createDraftFromSellerInput(
+    fixture: SellerItemDraft,
+    input: string,
+    aiDimensions: SellerDimensionMeasurement[] = [],
+  ): SellerItemDraft {
+    const reviewState = this.buildReviewState(input, aiDimensions.length > 0);
+    const extractedDimensions = aiDimensions.length ? { values: aiDimensions } : undefined;
     const extractedCatalogFacts: SellerItemDraft['confirmedFacts'] = {
       ...(reviewState.category !== 'unknown' ? { category: reviewState.category } : {}),
       ...(reviewState.materials.length ? { materials: reviewState.materials } : {}),
@@ -149,10 +192,7 @@ export class SellerIntakeService {
       category: reviewState.category,
       materials: reviewState.materials,
       dimensions: {
-        ...fixture.item.dimensions,
-        widthCm: reviewState.dimensions.widthCm || undefined,
-        heightCm: reviewState.dimensions.heightCm || undefined,
-        values: extractedDimensions?.values ?? [],
+        values: aiDimensions,
       },
       condition: reviewState.condition === 'Not yet confirmed' ? undefined : reviewState.condition,
       markings: reviewState.markings === 'Not yet confirmed' ? undefined : reviewState.markings,
@@ -254,7 +294,6 @@ export class SellerIntakeService {
   provenance?: string;
 } {
     const text = input.toLowerCase();
-    const hebrewDimensions = input.match(/(\d+)\s*על\s*(\d+)/);
     const hebrewMaterials = [
       ...(text.includes('שמן') ? ['oil'] : []),
       ...(text.includes('בד') ? ['canvas'] : []),
@@ -269,17 +308,12 @@ export class SellerIntakeService {
         || input.includes('ספר')
         || input.includes('כתב יד')
         ? 'rare_books'
-        : 'unknown';
+        : /\bring\b|\u05d8\u05d1\u05e2\u05ea/.test(text) ? 'rings' : 'unknown';
     const materials = [] as string[];
     if (text.includes('oil') || text.includes('שמן')) materials.push('oil');
     if (text.includes('canvas') || text.includes('בד')) materials.push('canvas');
 
-    const widthMatch = input.match(/(\d+)\s*(?:x|על|by)\s*(\d+)/i);
-    const dimensions = widthMatch
-      ? { widthCm: Number(widthMatch[1]), heightCm: Number(widthMatch[2]) }
-      : { widthCm: 0, heightCm: 0 };
-
-    const markings =
+    const markings = /no markings/i.test(input) ? 'No markings reported' :
       text.includes('mark') ||
       text.includes('stamp') ||
       text.includes('inscription') ||
@@ -293,7 +327,7 @@ export class SellerIntakeService {
       ? 'Good condition'
       : 'Not yet confirmed';
 
-  const signatures =
+  const signatures = /not signed/i.test(input) ? 'No signature reported' :
     text.includes('signed') || text.includes('חתום')
       ? 'Signed'
       : 'Not yet confirmed';
@@ -302,9 +336,7 @@ export class SellerIntakeService {
     return {
       category: text.includes('ציור') ? 'paintings' : category,
       materials: [...new Set([...materials, ...hebrewMaterials])],
-      dimensions: hebrewDimensions
-        ? { widthCm: Number(hebrewDimensions[1]), heightCm: Number(hebrewDimensions[2]) }
-        : dimensions,
+      dimensions: { widthCm: 0, heightCm: 0 },
       markings,
       condition,
       signatures,
@@ -318,9 +350,10 @@ export class SellerIntakeService {
   // Turn the extracted facts into a seller-facing summary for review.
   summarizeDraftItem(input: string): { he: string; en: string } {
     const guessed = this.parseSellerInput(input);
+    const dimensionsNotYetIdentified = guessed.dimensions.widthCm === 0 && guessed.dimensions.heightCm === 0;
     return {
-      he: `אני מבינה שהפריט הוא ${guessed.category === 'paintings' ? 'ציור' : 'פריט'} עם מידות ${guessed.dimensions.widthCm}x${guessed.dimensions.heightCm} ס"מ, ${guessed.markings.toLowerCase()}.`,
-      en: `I understand this is a ${guessed.category === 'paintings' ? 'painting' : 'item'} with approximate dimensions of ${guessed.dimensions.widthCm}x${guessed.dimensions.heightCm} cm and ${guessed.markings.toLowerCase()}.`,
+      he: `אני מבינה שהפריט הוא ${guessed.category === 'paintings' ? 'ציור' : 'פריט'}${dimensionsNotYetIdentified ? ', והמידות עדיין לא זוהו' : ` עם מידות ${guessed.dimensions.widthCm}x${guessed.dimensions.heightCm} ס"מ`}, ${guessed.markings.toLowerCase()}.`,
+      en: `I understand this is a ${guessed.category === 'paintings' ? 'painting' : 'item'}${dimensionsNotYetIdentified ? ', and its dimensions have not been identified yet' : ` with approximate dimensions of ${guessed.dimensions.widthCm}x${guessed.dimensions.heightCm} cm`}, ${guessed.markings.toLowerCase()}.`,
     };
   }
 
@@ -339,7 +372,7 @@ export class SellerIntakeService {
   ): MissingSellerQuestion[] {
     return this.askMissingSellerDetails(reviewState).map((field) => ({
       field: field as MissingSellerQuestion['field'],
-      ...MISSING_SELLER_QUESTION_COPY[field as MissingSellerQuestion['field']],
+      ...MISSING_SELLER_QUESTION_COPY[field as keyof typeof MISSING_SELLER_QUESTION_COPY],
     }));
   }
 
@@ -348,6 +381,13 @@ export class SellerIntakeService {
     reviewState?: ReturnType<SellerIntakeService['buildReviewState']>,
   ): MissingSellerQuestion | null {
     return this.askMissingSellerQuestions(reviewState)[0] ?? null;
+  }
+
+  askNextSellerQuestionForFields(fields: string[]): MissingSellerQuestion | null {
+    const field = REQUIRED_SELLER_DETAILS.find((candidate) => fields.includes(candidate));
+    return field
+      ? { field, ...MISSING_SELLER_QUESTION_COPY[field] }
+      : null;
   }
 
   // Apply a seller approval or correction to one specific field.
@@ -419,9 +459,32 @@ export class SellerIntakeService {
     field: SellerDraftCorrectionField,
     value: SellerDraftCorrectionValue,
   ): SellerItemDraft {
+    if (field === 'title' || field === 'description') {
+      const localized = value as { he?: string; en?: string };
+      const item = field === 'title'
+        ? {
+            ...draft.item,
+            title: localized.he ?? localized.en ?? draft.item.title,
+            titleTranslations: { ...draft.item.titleTranslations, ...localized },
+          }
+        : {
+            ...draft.item,
+            description: { ...draft.item.description, ...localized },
+          };
+      const revision = this.appendRevisionEntry('seller', `Seller corrected ${field}`, [field]);
+      return {
+        ...draft,
+        item,
+        recalculationRequired: true,
+        revisionHistory: [...draft.revisionHistory, revision],
+      };
+    }
     const itemField = field === 'marks' ? 'markings' : field;
-    const confirmedValue = field === 'dimensions' && typeof value === 'object' && !Array.isArray(value)
-      ? {
+    const confirmedValue = field === 'dimensions'
+      ? Array.isArray(value)
+        ? { values: value as SellerDimensionMeasurement[] }
+        : typeof value === 'object' && value !== null && 'widthCm' in value
+          ? {
           values: [
             { label: 'width', value: value.widthCm, unit: 'cm' },
             { label: 'height', value: value.heightCm, unit: 'cm' },
@@ -430,6 +493,9 @@ export class SellerIntakeService {
           heightCm: value.heightCm,
           unit: 'cm',
         }
+          : { values: [] }
+      : field === 'materials' && Array.isArray(value) ? value
+      : typeof value === 'string' && value === '' ? undefined
       : value;
     const nextItem = {
       ...draft.item,
@@ -439,7 +505,12 @@ export class SellerIntakeService {
       ...draft.confirmedFacts,
       [itemField]: confirmedValue,
     };
-    const remainingMissingFields = (draft.missingFields ?? []).filter((item) => item !== field);
+    const remainingMissingFields = new Set((draft.missingFields ?? []).filter((item) => item !== field));
+    const requiredFieldCleared = field === 'dimensions'
+      ? (confirmedValue as SellerItemDraft['item']['dimensions']).values.length === 0
+      : ['condition', 'marks', 'signatures', 'provenance'].includes(field)
+        && confirmedValue === undefined;
+    if (requiredFieldCleared) remainingMissingFields.add(field);
     const revision = this.appendRevisionEntry('seller', `Seller corrected ${field}`, [field]);
 
     return {
@@ -449,7 +520,7 @@ export class SellerIntakeService {
         catalogDraft: this.buildCatalogDraft(nextConfirmedFacts),
       },
       confirmedFacts: nextConfirmedFacts,
-      missingFields: remainingMissingFields,
+      missingFields: [...remainingMissingFields],
       recalculationRequired: true,
       revisionHistory: [...draft.revisionHistory, revision],
       sellerConfirmation: {
@@ -470,12 +541,19 @@ export class SellerIntakeService {
 
     const confirmedValues: SellerItemDraft['confirmedFacts'] = {};
     const item = draft.item;
+    // Older persisted drafts use widthCm/heightCm instead of measurement values.
+    const dimensions = item.dimensions.values.length > 0 ? item.dimensions
+      : typeof item.dimensions.widthCm === 'number' && Number.isFinite(item.dimensions.widthCm) && item.dimensions.widthCm > 0
+        && typeof item.dimensions.heightCm === 'number' && Number.isFinite(item.dimensions.heightCm) && item.dimensions.heightCm > 0
+        ? { ...item.dimensions, values: [
+            { label: 'width', value: item.dimensions.widthCm, unit: 'cm' },
+            { label: 'height', value: item.dimensions.heightCm, unit: 'cm' },
+          ] }
+        : undefined;
     const availableValues: Partial<Record<SellerDraftCorrectionField, unknown>> = {
       category: item.category !== 'unknown' ? item.category : undefined,
       materials: item.materials.length > 0 ? item.materials : undefined,
-      dimensions: item.dimensions.widthCm !== undefined && item.dimensions.heightCm !== undefined
-        ? item.dimensions
-        : undefined,
+      dimensions,
       condition: item.condition,
       marks: item.markings,
       signatures: item.signatures,
@@ -570,9 +648,11 @@ export class SellerIntakeService {
   draftTitleFromInput(
     input: string,
     category: string,
-    dimensions?: { widthCm: number; heightCm: number },
+    dimensions?: SellerItemDraft['item']['dimensions'],
   ): string {
-    const size = dimensions ? `${dimensions.widthCm}x${dimensions.heightCm} cm` : null;
+    const size = dimensions?.values.length
+      ? dimensions.values.map(({ label, value, unit }) => `${label} ${value} ${unit}`).join(', ')
+      : null;
     if (category === 'paintings' && size) return `Painting ${size}`;
     if (category === 'paintings') return 'Painting from seller intake';
     if (category === 'rare_books') return 'Rare Hebrew book from seller intake';
@@ -585,9 +665,11 @@ export class SellerIntakeService {
   buildCatalogDraft(confirmedFacts: SellerItemDraft['confirmedFacts']): { he: string; en: string } {
     const category = confirmedFacts.category ?? 'category not confirmed';
     const materials = confirmedFacts.materials?.join(', ') ?? 'materials not confirmed';
-    const dimensions = confirmedFacts.dimensions
-      ? `${confirmedFacts.dimensions.widthCm ?? '?'}x${confirmedFacts.dimensions.heightCm ?? '?'} cm`
-      : 'dimensions not confirmed';
+    const dimensions = confirmedFacts.dimensions?.values.length
+      ? confirmedFacts.dimensions.values.map(({ label, value, unit }) => `${label} ${value} ${unit}`).join(', ')
+      : confirmedFacts.dimensions
+        ? `${confirmedFacts.dimensions.widthCm ?? '?'}x${confirmedFacts.dimensions.heightCm ?? '?'} cm`
+        : 'dimensions not confirmed';
     const condition = confirmedFacts.condition ?? 'condition not confirmed';
     const markings = confirmedFacts.markings ?? 'markings not confirmed';
     const signatures = confirmedFacts.signatures ?? 'signature not confirmed';
@@ -649,6 +731,7 @@ export class SellerIntakeService {
       },
     };
   }
+
 
   // Prepare the downstream payload with only safe confirmed item facts.
   buildHandoffPayload(

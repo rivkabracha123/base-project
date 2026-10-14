@@ -1,3 +1,5 @@
+
+
 import type { AiRole } from './ai.dto';
 import type { BuyerExtraction } from './buyer-handoff';
 import { buildCompletionState, type FieldCompletion } from './completion-state';
@@ -48,6 +50,7 @@ function extractFixtureBudget(prompt: string): BuyerExtraction['price'] {
 
 export type FixtureProviderRequest = {
   prompt: string;
+  history?: Array<{ prompt: string; answer: string }>;
   role?: AiRole;
   language?: 'he' | 'en';
   fallbackMode?: 'guided';
@@ -85,7 +88,7 @@ export type FixtureProviderResponse = {
     completionState?: ReturnType<typeof buildCompletionState>;
     item?: {
       title?: string;
-      dimensions?: string;
+      dimensions?: { values: Array<{ label: string; value: number; unit: string }> };
       condition?: string;
       markings?: string;
       signature?: string;
@@ -99,7 +102,7 @@ export type FixtureProviderResponse = {
 
 export class FixtureProviderService {
   async generate(input: FixtureProviderRequest): Promise<FixtureProviderResponse> {
-    const prompt = input.prompt ?? '';
+    const prompt = [...(input.history ?? []).map(turn => turn.prompt), input.prompt ?? ''].join('\n');
     const normalizedPrompt = prompt.toLowerCase();
     const language = input.language ?? 'he';
     const role = input.role ?? 'buyer';
@@ -123,7 +126,7 @@ export class FixtureProviderService {
     // Seller fact detection so missingFacts/confirmedFacts reflect this specific prompt instead of a fixed list.
     const hasCondition = /מצב\s*(?:שימור|כללי|ה?פריט)?\s*(?:טוב|טובה|בינוני|בינונית|רע|רעה|מצוין|מצוינת|תקין|תקינה|ירוד|ירודה)|(?:good|fair|poor|excellent|mint)\s*condition/i.test(prompt);
     const hasSignature = /חתימה|חתום|חתומה|\bsigned\b|\bsignature\b/i.test(normalizedPrompt);
-    const hasDimensions = /מידות|\d+\s*[×x]\s*\d+|\bcm\b|ס["׳]?מ|\binch(?:es)?\b/i.test(prompt);
+    const hasDimensions = false;
     const hasProvenance = /מקור|תיעוד|\bprovenance\b|history of ownership/i.test(normalizedPrompt);
     const error = isRelevant
       ? null
@@ -179,7 +182,6 @@ export class FixtureProviderService {
             category: hasPainting ? 'paintings' : 'general',
             item: {
               title: hasPainting ? (language === 'he' ? 'ציור כחול' : 'Blue item') : undefined,
-              ...(hasDimensions ? { dimensions: 'provided' } : {}),
               ...(hasCondition ? { condition: 'provided' } : {}),
               ...(hasSignature ? { signature: 'present' } : {}),
               ...(hasProvenance ? { provenance: 'provided' } : {}),
@@ -213,6 +215,15 @@ export class FixtureProviderService {
           }),
         };
 
+    const sellerQuestions = [
+      ...(!hasDimensions ? [language === 'he' ? 'מה מידות הפריט?' : 'What are the item dimensions?'] : []),
+      ...(!hasCondition ? [language === 'he' ? 'מה מצב הפריט?' : 'What is the condition of the item?'] : []),
+      ...(!hasProvenance ? [language === 'he' ? 'מה ידוע על מקור הפריט?' : 'What is known about the item provenance?'] : []),
+    ];
+    const sellerNextAction = sellerQuestions[0] ?? (language === 'he'
+      ? 'אפשר לבדוק ולאשר את פרטי הפריט שנמסרו.'
+      : 'Review and confirm the supplied item details.');
+
     if (language === 'en') {
       return {
         provider: 'fixture',
@@ -228,7 +239,7 @@ export class FixtureProviderService {
           ? `Search for matching ${englishItem} listings using the supplied criteria.`
           : 'Review and confirm the item details before comparing sales.',
         nextAction: role === 'seller'
-          ? 'Provide dimensions, condition, and provenance for the item.'
+          ? sellerNextAction
           : isRelevant ? buyerNextAction : 'Describe the item you would like to buy.',
         confidence,
         structuredAnswer: {
@@ -251,7 +262,7 @@ export class FixtureProviderService {
       content: `תוצאה קבועה (fixture): ${itemName} משנת ${year}. זו תשובה דטרמיניסטית לשימוש בבדיקות ובמקרה של כשל במפרסם האמיתי.`,
       summary: role === 'buyer' && isRelevant ? `הבקשה שלך היא למצוא ${hebrewItem}${hasYear ? ` משנת ${year}` : ''}.` : summary,
       recommendation: role === 'buyer' && isRelevant ? 'נשתמש בפרטי הפריט ובהעדפות שלך כדי למקד את החיפוש.' : recommendation,
-      nextAction: role === 'buyer' ? (isRelevant ? buyerNextAction : 'איזה פריט ברצונך לחפש?') : nextAction,
+      nextAction: role === 'buyer' ? (isRelevant ? buyerNextAction : 'איזה פריט ברצונך לחפש?') : sellerNextAction,
       confidence,
       structuredAnswer: {
         ...structuredAnswer,

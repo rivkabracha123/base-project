@@ -45,7 +45,12 @@ describe('BuyerP4BridgeService', () => {
       });
     }
 
+    const generate = jest.spyOn(p4, 'generateBuyerExtract');
     const readiness = await bridge.evaluateSearchReadiness(opened.chat.sessionId);
+    const request = generate.mock.calls[0]?.[0];
+    expect(request?.sessionId).toBe(opened.chat.sessionId);
+    expect(request?.prompt).toContain(JSON.stringify(criteria.getCriteriaForSession(opened.chat.sessionId)));
+    expect(request?.prompt).toContain('skippedFields');
     expect(readiness.readyForFunction).toBe(true);
     expect(readiness.functionName).toBe('searchLots');
   });

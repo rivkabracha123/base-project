@@ -5,18 +5,20 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { createHttpLogger } from './common/http-logger';
+import { corsOrigins } from './config/cors-origins';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService);
 
   app.use(createHttpLogger(config.get<string>('LOG_LEVEL', 'info')));
-  const configuredOrigin = config.getOrThrow<string>('CORS_ORIGIN');
-  const corsOrigins =
-    config.get<string>('NODE_ENV') === 'development'
-      ? Array.from(new Set([configuredOrigin, 'http://127.0.0.1:5173', 'http://localhost:5173']))
-      : configuredOrigin;
-  app.enableCors({ origin: corsOrigins, credentials: true });
+  app.enableCors({
+    origin: corsOrigins(
+      config.getOrThrow<string>('CORS_ORIGIN'),
+      config.get<string>('NODE_ENV', 'development') === 'development',
+    ),
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());

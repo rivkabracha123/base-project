@@ -13,6 +13,25 @@ const ORDINAL_CENTURY = /^(\d{1,2})(?:st|nd|rd|th)(?: century)?$/i;
 const YEAR = /^\d{4}$/;
 const ENGLISH_TERM = /^[a-z0-9][a-z0-9\s-]*$/i;
 
+function keywordSynonyms(keyword: string): string[] {
+  const value = keyword.trim();
+  if (!value) return [];
+
+  const synonyms: string[] = [];
+  if (/\bmanuscripts?\b|\u05db\u05ea\u05d1(?:\u05d9)?\s+\u05d9\u05d3/i.test(value)) synonyms.push('manuscript');
+  if (/\bantique\b|\u05e2\u05ea\u05d9\u05e7/i.test(value)) synonyms.push('antique');
+  if (/\bhebrew\b|\u05e2\u05d1\u05e8\u05d9/i.test(value)) synonyms.push('Hebrew');
+  if (/\brare\b|\u05e0\u05d3\u05d9\u05e8/i.test(value)) synonyms.push('rare');
+
+  if (synonyms.length > 0) return synonyms;
+  return [value];
+}
+
+function searchKeywords(criteria: BuyerCriteria): string[] {
+  const values = criteria.keywords.flatMap(keywordSynonyms);
+  return [...new Set(values.filter((value) => value.trim().length > 0))];
+}
+
 // English ordinal suffix for a century number (1st, 2nd, 3rd, 11th, 21st).
 function ordinal(century: number): string {
   const lastTwo = century % 100;
@@ -76,8 +95,7 @@ export function criteriaToSearchRequest(
   criteria: BuyerCriteria,
   language: SearchRequest['language'],
 ): SearchRequest {
-  const query = criteria.keywords
-    .filter((part): part is string => Boolean(part?.trim()))
+  const query = searchKeywords(criteria)
     .join(' ');
   const filters = buildFilters(criteria);
 

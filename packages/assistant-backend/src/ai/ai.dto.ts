@@ -47,6 +47,10 @@ export class GenerateAiRequestDto {
 //shape buyer answer that the AI get
 
 export type StructuredAnswer = BuyerHandoffContract | SellerHandoffContract;
+export type AiFunctionCall = {
+  functionToRun: string | null;
+  object: Record<string, unknown> | null;
+};
 
 //shape of the response that AI return
 export class GenerateAiResponseDto {
@@ -73,6 +77,8 @@ export class GenerateAiResponseDto {
   structuredAnswer!: StructuredAnswer;
 
   intentRoute?: IntentRoute;
+
+  functionCall?: AiFunctionCall | null;
 }
 
 //check if the response is valid and has the correct shape
@@ -126,6 +132,16 @@ export function isGenerateAiResponseDto(value: unknown, expectedRole?: AiRole): 
   if (response.intentRoute !== undefined && !isIntentRoute(response.intentRoute)) {
     return false;
   }
+  if (response.functionCall !== undefined && response.functionCall !== null) {
+    if (typeof response.functionCall !== 'object' || Array.isArray(response.functionCall)) return false;
+    const functionCall = response.functionCall as Record<string, unknown>;
+    if (functionCall.functionToRun !== null && typeof functionCall.functionToRun !== 'string') return false;
+    if (functionCall.functionToRun === null) {
+      if (functionCall.object !== null) return false;
+    } else if (!functionCall.object || typeof functionCall.object !== 'object' || Array.isArray(functionCall.object)) {
+      return false;
+    }
+  }
   const structuredAnswer = response.structuredAnswer;
   if (
     expectedRole &&
@@ -140,8 +156,9 @@ export function isGenerateAiResponseDto(value: unknown, expectedRole?: AiRole): 
 function isIntentRoute(value: unknown): value is IntentRoute {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const route = value as Record<string, unknown>;
-  const intents = ['get_lot_details', 'same_item_sale_history', 'search_similar_lots', 'search_auction_lots', 'unknown'];
-  const functions = ['getLotById', 'getComparableSaleHistory'];
+  const intents = ['get_lot_details', 'same_item_sale_history', 'price_trend', 'search_similar_lots', 'search_auction_lots', 'unknown'];
+  intents.push('buyer_house_ranking');
+  const functions = ['getLotById', 'getComparableSaleHistory', 'getPriceTrend', 'rankSellerHouses', 'searchLots'];
   return intents.includes(String(route.intent)) &&
     (route.functionName === null || (typeof route.functionName === 'string' && functions.includes(route.functionName))) &&
     typeof route.readyForFunction === 'boolean' &&

@@ -5,15 +5,17 @@ import type { P4AiGenerateResponse, P4IntentRoute, P4BuyerAiContext } from './p4
 export const SHILAT_INTENT_SEARCH_AUCTION_LOTS = 'search_auction_lots';
 export const SHILAT_INTENT_SEARCH_SIMILAR_LOTS = 'search_similar_lots';
 export const SHILAT_INTENT_SAME_ITEM_SALE_HISTORY = 'same_item_sale_history';
+export const SHILAT_INTENT_PRICE_TREND = 'price_trend';
 
 export const SHILAT_FUNCTION_COMPARABLE_SALE_HISTORY = 'getComparableSaleHistory';
 export const SHILAT_FUNCTION_GET_LOT_BY_ID = 'getLotById';
+export const SHILAT_FUNCTION_PRICE_TREND = 'getPriceTrend';
 
 /** P4 registry gaps — B2 may still run search when only these are missing. */
 export const SHILAT_MISSING_SEARCH_FUNCTION = 'searchAuctionLotsFunction';
 export const SHILAT_MISSING_SIMILAR_FUNCTION = 'similarLotsFunction';
 
-/** B2 execution name (until Shilat adds this to IntentRoute.functionName). */
+/** Search handler implemented by B2. */
 export const B2_SEARCH_LOTS_FUNCTION = 'searchLots';
 
 export type ResolvedBuyerAction =
@@ -21,6 +23,7 @@ export type ResolvedBuyerAction =
   | { kind: 'similarLots' }
   | { kind: 'getComparableSaleHistory' }
   | { kind: 'getLotById' }
+  | { kind: 'priceTrend' }
   | { kind: 'none' };
 
 function structuredReadyForFunctions(extract: AiExtractResponse): boolean {
@@ -43,8 +46,8 @@ function onlyP4RegistryMissing(missingFields: string[] | undefined, allowed: str
 export function p4AllowsBuyerLotSearch(ai: P4AiGenerateResponse): boolean {
   const route = ai.intentRoute;
 
-  if (route.functionName === B2_SEARCH_LOTS_FUNCTION && route.readyForFunction) {
-    return true;
+  if (route.functionName === B2_SEARCH_LOTS_FUNCTION) {
+    return route.readyForFunction && !route.missingFields?.length;
   }
 
   if (route.intent !== SHILAT_INTENT_SEARCH_AUCTION_LOTS) {
@@ -71,6 +74,9 @@ export function resolveBuyerActionFromP4(ai: P4AiGenerateResponse): ResolvedBuye
   if (route.functionName === SHILAT_FUNCTION_GET_LOT_BY_ID && route.readyForFunction) {
     return { kind: 'getLotById' };
   }
+  if (route.functionName === SHILAT_FUNCTION_PRICE_TREND && route.readyForFunction) {
+    return { kind: 'priceTrend' };
+  }
 
   if (p4AllowsBuyerLotSearch(ai)) {
     return { kind: 'searchLots' };
@@ -78,6 +84,9 @@ export function resolveBuyerActionFromP4(ai: P4AiGenerateResponse): ResolvedBuye
 
   if (route.intent === SHILAT_INTENT_SEARCH_SIMILAR_LOTS) {
     return { kind: 'similarLots' };
+  }
+  if (route.intent === SHILAT_INTENT_PRICE_TREND && route.readyForFunction) {
+    return { kind: 'priceTrend' };
   }
 
   return { kind: 'none' };
@@ -108,6 +117,9 @@ export function toSearchReadinessRoute(ai: P4AiGenerateResponse): P4IntentRoute 
   }
   if (action.kind === 'getLotById') {
     return { ...ai.intentRoute, functionName: 'getLotById', readyForFunction: true };
+  }
+  if (action.kind === 'priceTrend') {
+    return { ...ai.intentRoute, functionName: SHILAT_FUNCTION_PRICE_TREND, readyForFunction: true };
   }
   return ai.intentRoute;
 }

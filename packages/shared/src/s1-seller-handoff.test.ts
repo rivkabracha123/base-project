@@ -89,5 +89,9 @@ describe('confirmed item draft consumer for seller enquiry', () => {
     expect(itemVersionFromS1Draft({ ...efratDraft, updatedAt: '2026-09-01T10:00:00.000Z' })).toBe(
       '2026-09-01T10:00:00.000Z',
     );
+    expect(itemVersionFromS1Draft({
+      ...efratDraft,
+      revisionHistory: [{ revisionId: 'revision-1' }, { revisionId: 'revision-2' }],
+    })).toBe('revision-2');
   });
 });

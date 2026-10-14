@@ -22,6 +22,8 @@
       "he": "ספר פילוסופיה עברי נדיר."
     },
     "category": "rare_books",
+    "itemKey": "atereth_zekeinim_example",
+    "creator": "yitzhak_abrabanel",
     "saleDate": "2025-01-23",
     "status": "sold",
     "estimate": {
@@ -31,12 +33,114 @@
     "realizedPrice": { "amount": 1200, "currency": "USD" }
   },
   {
-    "id": "lot-kedem-61201-88421",
+    "id": "lot-history-atereth-kestenbaum-2016",
     "source": {
       "provider": "bidspirit-snapshot",
-      "recordId": "kedem-61201-88421",
-      "url": "https://www.kedem-auctions.com/en/item/rare-hebrew-book",
+      "recordId": "atereth-kestenbaum-2016",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/2016-atereth",
       "retrievedAt": "2025-08-21T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Fine Judaica: Printed Books and Manuscripts",
+    "lotNumber": "42",
+    "title": {
+      "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+      "he": "עטרת זקנים מאת יצחק אברבנאל"
+    },
+    "description": {
+      "en": "Earlier verified sale of the same Abrabanel volume.",
+      "he": "מכירה מאומתת קודמת של אותו כרך אברבנאל."
+    },
+    "category": "rare_books",
+    "itemKey": "atereth_zekeinim_example",
+    "creator": "yitzhak_abrabanel",
+    "saleDate": "2016-06-08",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 120000, "currency": "USD" },
+      "high": { "amount": 160000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 152000, "currency": "USD" },
+    "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-history-atereth-tiroche-2020",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "atereth-tiroche-2020",
+      "url": "https://www.tiroche.co.il/en/item/atereth-zekeinim-2020",
+      "retrievedAt": "2025-08-21T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-tiroche",
+      "name": "Tiroche Auction House"
+    },
+    "auctionTitle": "Judaica and Hebrew Books",
+    "lotNumber": "18",
+    "title": {
+      "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+      "he": "עטרת זקנים מאת יצחק אברבנאל"
+    },
+    "description": {
+      "en": "Verified 2020 sale of the same Abrabanel volume.",
+      "he": "מכירה מאומתת משנת 2020 של אותו כרך אברבנאל."
+    },
+    "category": "rare_books",
+    "itemKey": "atereth_zekeinim_example",
+    "creator": "yitzhak_abrabanel",
+    "saleDate": "2020-04-12",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 220000, "currency": "USD" },
+      "high": { "amount": 280000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 258400, "currency": "USD" },
+    "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-history-atereth-kedem-2026",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "atereth-kedem-2026",
+      "url": "https://www.kedem-auctions.com/en/item/atereth-zekeinim-2026",
+      "retrievedAt": "2026-03-20T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "7",
+    "title": {
+      "en": "Atereth Zekeinim by Yitzhak Abrabanel",
+      "he": "עטרת זקנים מאת יצחק אברבנאל"
+    },
+    "description": {
+      "en": "Most recent verified archive sale of the same volume.",
+      "he": "המכירה האחרונה המאומתת בארכיון של אותו כרך."
+    },
+    "category": "rare_books",
+    "itemKey": "atereth_zekeinim_example",
+    "creator": "yitzhak_abrabanel",
+    "saleDate": "2026-03-14",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 320000, "currency": "USD" },
+      "high": { "amount": 400000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 380000, "currency": "USD" },
+    "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-kedem-sefer-hasidim-2026",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kedem-sefer-hasidim-2026",
+      "url": "https://www.kedem-auctions.com/en/item/sefer-hasidim",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
     },
     "auctionHouse": {
       "id": "house-kedem",
@@ -49,47 +153,371 @@
       "he": "ספר חסידים, דפוס עברי מוקדם"
     },
     "description": {
-      "en": "A rare Hebrew printed religious volume.",
-      "he": "ספר דפוס עברי נדיר."
+      "en": "An early printed Hebrew ethical work coming to auction.",
+      "he": "חיבור מוסר עברי בדפוס מוקדם העומד למכירה."
     },
     "category": "rare_books",
-    "saleDate": "2024-11-12",
-    "status": "sold",
+    "itemKey": "sefer_hasidim_example",
+    "saleDate": "2026-11-12",
+    "status": "upcoming",
     "estimate": {
-      "low": { "amount": 700, "currency": "USD" },
-      "high": { "amount": 1100, "currency": "USD" }
-    },
-    "realizedPrice": { "amount": 950, "currency": "USD" }
+      "low": { "amount": 55000, "currency": "USD" },
+      "high": { "amount": 75000, "currency": "USD" }
+    }
   },
   {
-    "id": "lot-kestenbaum-54554-121488",
+    "id": "lot-history-hasidim-kestenbaum-2018",
     "source": {
       "provider": "bidspirit-snapshot",
-      "recordId": "kestenbaum-54554-121488",
-      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
-      "retrievedAt": "2025-08-21T00:00:00.000Z"
+      "recordId": "hasidim-kestenbaum-2018",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/2018-hasidim",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
     },
     "auctionHouse": {
       "id": "house-kestenbaum",
       "name": "Kestenbaum & Company"
     },
-    "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
-    "lotNumber": "24",
+    "auctionTitle": "Fine Judaica",
+    "lotNumber": "31",
     "title": {
-      "en": "Hebrew manuscript commentary on the Torah",
-      "he": "כתב יד עברי, פירוש על התורה"
+      "en": "Sefer Hasidim, early printed Hebrew book",
+      "he": "ספר חסידים, דפוס עברי מוקדם"
     },
     "description": {
-      "en": "A rare Hebrew manuscript volume.",
-      "he": "כתב יד עברי נדיר."
+      "en": "Verified earlier sale of the same Sefer Hasidim copy.",
+      "he": "מכירה מאומתת קודמת של אותו עותק ספר חסידים."
     },
     "category": "rare_books",
-    "saleDate": "2024-06-18",
+    "itemKey": "sefer_hasidim_example",
+    "saleDate": "2018-05-16",
     "status": "sold",
     "estimate": {
-      "low": { "amount": 1000, "currency": "USD" },
-      "high": { "amount": 1800, "currency": "USD" }
+      "low": { "amount": 35000, "currency": "USD" },
+      "high": { "amount": 48000, "currency": "USD" }
     },
-    "realizedPrice": { "amount": 1500, "currency": "USD" }
+    "realizedPrice": { "amount": 42000, "currency": "USD" },
+    "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-history-hasidim-tiroche-2022",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "hasidim-tiroche-2022",
+      "url": "https://www.tiroche.co.il/en/item/sefer-hasidim-2022",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-tiroche",
+      "name": "Tiroche Auction House"
+    },
+    "auctionTitle": "Hebrew Books and Manuscripts",
+    "lotNumber": "9",
+    "title": {
+      "en": "Sefer Hasidim, early printed Hebrew book",
+      "he": "ספר חסידים, דפוס עברי מוקדם"
+    },
+    "description": {
+      "en": "Verified 2022 sale of the same Sefer Hasidim copy.",
+      "he": "מכירה מאומתת משנת 2022 של אותו עותק ספר חסידים."
+    },
+    "category": "rare_books",
+    "itemKey": "sefer_hasidim_example",
+    "saleDate": "2022-09-08",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 50000, "currency": "USD" },
+      "high": { "amount": 68000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 61000, "currency": "USD" },
+    "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-kestenbaum-2026-spring-12",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kestenbaum-2026-spring-12",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/60001?lang=en",
+      "retrievedAt": "2026-02-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+    "lotNumber": "12",
+    "title": {
+      "en": "Commentary on the Latter Prophets by Yitzhak Abrabanel",
+      "he": "פירוש על נביאים אחרונים מאת יצחק אברבנאל"
+    },
+    "description": {
+      "en": "A rare Hebrew printed volume with later manuscript annotations.",
+      "he": "כרך עברי נדיר עם הגהות בכתב יד מאוחר."
+    },
+    "category": "rare_books",
+    "itemKey": "latter_prophets_commentary_example",
+    "creator": "yitzhak_abrabanel",
+    "saleDate": "2026-05-14",
+    "status": "upcoming",
+    "estimate": {
+      "low": { "amount": 1500, "currency": "USD" },
+      "high": { "amount": 2500, "currency": "USD" }
+    }
+  },
+  {
+    "id": "lot-history-prophets-kedem-2019",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "prophets-kedem-2019",
+      "url": "https://www.kedem-auctions.com/en/item/latter-prophets-2019",
+      "retrievedAt": "2026-02-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "22",
+    "title": {
+      "en": "Commentary on the Latter Prophets by Yitzhak Abrabanel",
+      "he": "פירוש על נביאים אחרונים מאת יצחק אברבנאל"
+    },
+    "description": {
+      "en": "Verified earlier sale of the same commentary volume.",
+      "he": "מכירה מאומתת קודמת של אותו כרך פירוש."
+    },
+    "category": "rare_books",
+    "itemKey": "latter_prophets_commentary_example",
+    "creator": "yitzhak_abrabanel",
+    "saleDate": "2019-11-03",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 1400, "currency": "USD" },
+      "high": { "amount": 2000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 1800, "currency": "USD" },
+    "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-history-prophets-tiroche-2024",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "prophets-tiroche-2024",
+      "url": "https://www.tiroche.co.il/en/item/latter-prophets-2024",
+      "retrievedAt": "2026-02-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-tiroche",
+      "name": "Tiroche Auction House"
+    },
+    "auctionTitle": "Judaica and Hebrew Books",
+    "lotNumber": "4",
+    "title": {
+      "en": "Commentary on the Latter Prophets by Yitzhak Abrabanel",
+      "he": "פירוש על נביאים אחרונים מאת יצחק אברבנאל"
+    },
+    "description": {
+      "en": "Verified 2024 sale of the same commentary volume.",
+      "he": "מכירה מאומתת משנת 2024 של אותו כרך פירוש."
+    },
+    "category": "rare_books",
+    "itemKey": "latter_prophets_commentary_example",
+    "creator": "yitzhak_abrabanel",
+    "saleDate": "2024-06-21",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 2000, "currency": "USD" },
+      "high": { "amount": 2800, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 2400, "currency": "USD" },
+    "imageUrl": "https://fixtures.monabid.test/images/history-lot.jpg"
+  },
+  {
+    "id": "lot-kedem-esther-scroll-2026",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kedem-esther-scroll-2026",
+      "url": "https://www.kedem-auctions.com/en/item/esther-scroll-2026",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "41",
+    "title": {
+      "en": "Early and Important Esther Scroll – Italy, First Half of the 18th Century",
+      "he": "מגילת אסתר חשובה – איטליה, מחצית ראשונה של המאה ה־18"
+    },
+    "description": {
+      "en": "An Italian Esther scroll coming to auction.",
+      "he": "מגילת אסתר איטלקית העומדת למכירה."
+    },
+    "category": "rare_books",
+    "itemKey": "esther_scroll_italy",
+    "saleDate": "2026-12-03",
+    "status": "upcoming",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    }
+  },
+  {
+    "id": "lot-kedem-bechinat-olam-2026",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kedem-bechinat-olam-2026",
+      "url": "https://www.kedem-auctions.com/en/item/bechinat-olam-2026",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "56",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Bechinat Olam",
+      "he": "כתב יד קלף מעוטר – בחינת עולם"
+    },
+    "description": {
+      "en": "A decorated parchment manuscript of Bechinat Olam.",
+      "he": "כתב יד קלף מעוטר של בחינת עולם."
+    },
+    "category": "rare_books",
+    "itemKey": "bechinat_olam_parchment",
+    "saleDate": "2026-12-10",
+    "status": "upcoming",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    }
+  },
+  {
+    "id": "lot-kestenbaum-ashkenazic-parchment-2027",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "kestenbaum-ashkenazic-parchment-2027",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/ashkenazic-2027",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+    "lotNumber": "8",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Ashkenazic Script",
+      "he": "כתב יד קלף מעוטר – כתב אשכנזי"
+    },
+    "description": {
+      "en": "A decorated Ashkenazic parchment manuscript coming to auction.",
+      "he": "כתב יד קלף אשכנזי מעוטר העומד למכירה."
+    },
+    "category": "rare_books",
+    "itemKey": "ashkenazic_decorated_parchment",
+    "saleDate": "2027-01-15",
+    "status": "upcoming",
+    "estimate": {
+      "low": { "amount": 300000, "currency": "USD" },
+      "high": { "amount": 500000, "currency": "USD" }
+    }
+  },
+  {
+    "id": "lot-history-esther-kedem-2024",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "esther-kedem-2024",
+      "url": "https://www.kedem-auctions.com/en/item/esther-scroll-2024",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "40",
+    "title": {
+      "en": "Early and Important Esther Scroll – Italy, First Half of the 18th Century",
+      "he": "מגילת אסתר חשובה – איטליה, מחצית ראשונה של המאה ה־18"
+    },
+    "description": {
+      "en": "Verified 2024 sale of the same Italian Esther scroll.",
+      "he": "מכירה מאומתת משנת 2024 של אותה מגילת אסתר איטלקית."
+    },
+    "category": "rare_books",
+    "itemKey": "esther_scroll_italy",
+    "saleDate": "2024-02-18",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 75000, "currency": "USD" }
+  },
+  {
+    "id": "lot-history-bechinat-kedem-2023",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "bechinat-kedem-2023",
+      "url": "https://www.kedem-auctions.com/en/item/bechinat-olam-2023",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kedem",
+      "name": "Kedem Auction House"
+    },
+    "auctionTitle": "Rare Books, Manuscripts, Judaica",
+    "lotNumber": "55",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Bechinat Olam",
+      "he": "כתב יד קלף מעוטר – בחינת עולם"
+    },
+    "description": {
+      "en": "Verified 2023 sale of the same Bechinat Olam manuscript.",
+      "he": "מכירה מאומתת משנת 2023 של אותו כתב יד בחינת עולם."
+    },
+    "category": "rare_books",
+    "itemKey": "bechinat_olam_parchment",
+    "saleDate": "2023-02-09",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 80000, "currency": "USD" },
+      "high": { "amount": 100000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 80000, "currency": "USD" }
+  },
+  {
+    "id": "lot-history-ashkenazic-kestenbaum-2025",
+    "source": {
+      "provider": "bidspirit-snapshot",
+      "recordId": "ashkenazic-kestenbaum-2025",
+      "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/ashkenazic-2025",
+      "retrievedAt": "2026-04-01T00:00:00.000Z"
+    },
+    "auctionHouse": {
+      "id": "house-kestenbaum",
+      "name": "Kestenbaum & Company"
+    },
+    "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+    "lotNumber": "6",
+    "title": {
+      "en": "Decorated Parchment Manuscript – Ashkenazic Script",
+      "he": "כתב יד קלף מעוטר – כתב אשכנזי"
+    },
+    "description": {
+      "en": "Verified 2025 sale of the same Ashkenazic parchment manuscript.",
+      "he": "מכירה מאומתת משנת 2025 של אותו כתב יד אשכנזי."
+    },
+    "category": "rare_books",
+    "itemKey": "ashkenazic_decorated_parchment",
+    "saleDate": "2025-02-12",
+    "status": "sold",
+    "estimate": {
+      "low": { "amount": 300000, "currency": "USD" },
+      "high": { "amount": 500000, "currency": "USD" }
+    },
+    "realizedPrice": { "amount": 380000, "currency": "USD" }
   }
 ]

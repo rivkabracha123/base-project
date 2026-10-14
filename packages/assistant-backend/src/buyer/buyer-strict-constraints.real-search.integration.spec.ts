@@ -260,7 +260,8 @@ describe('Buyer search repeated refinement', () => {
     const first = criteriaOf(contract.scenarios[0]!);
     expect(handedLotIds(await turn(first))).toEqual(['lot-kestenbaum-54554-121421', 'lot-kedem-61201-88421']);
 
-    const second = mergeBuyerCriteria(first, { price: { max: 1000 } });
+    // A budget answer replaces the previous budget whole, so the tightened range is sent in full.
+    const second = mergeBuyerCriteria(first, { price: tightened });
     expect(second.price).toEqual(tightened);
     expect(handedLotIds(await turn(second))).toEqual(['lot-kedem-61201-88421']);
 

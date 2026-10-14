@@ -31,6 +31,18 @@ describe('seller lead schema', () => {
     expect(AppDataSource.options.migrations).toContain(CreateUserProfiles1730000000000);
   });
 
+  it('does not create a duplicate legacy seller_leads table in the Team1 bootstrap migration', async () => {
+    const { CreateTeamTables1710000000001 } = await import('./1710000000001-create-team-tables');
+    const queries: string[] = [];
+    const queryRunner = { query: async (sql: string) => { queries.push(sql); } } as unknown as QueryRunner;
+
+    await new CreateTeamTables1710000000001().up(queryRunner);
+
+    expect(queries.join('\n')).toContain('CREATE TABLE "anonymous_profiles"');
+    expect(queries.join('\n')).toContain('CREATE TABLE "ai_provider_configs"');
+    expect(queries.join('\n')).not.toContain('CREATE TABLE "seller_leads"');
+  });
+
   it('registers the seller lead entity and migration with the migration CLI data source', async () => {
     const { default: AppDataSource } = await import('./data-source');
     const { SellerLeadEntity } = await import('./seller-lead.entity');
@@ -129,12 +141,13 @@ describe('seller lead schema', () => {
     const migration = new AddSellerLeadFinal1788220800003();
     await migration.up(queryRunner);
     expect(queries[0]).toContain('ADD COLUMN "catalog_draft" jsonb');
-    expect(queries[0]).toContain('ADD COLUMN "status" varchar NOT NULL DEFAULT \'draft\'');
+    expect(queries[0]).toContain('ADD COLUMN IF NOT EXISTS "status" varchar NOT NULL DEFAULT \'draft\'');
     expect(queries[0]).toContain('ADD COLUMN "history" jsonb');
 
     queries.length = 0;
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP COLUMN "catalog_draft"');
+    expect(queries[0]).not.toContain('DROP COLUMN "status"');
   });
 
   it('registers the dashboard-detail column migration', async () => {
@@ -164,11 +177,12 @@ describe('seller lead schema', () => {
     await migration.up(queryRunner);
     expect(queries[0]).toContain('ADD COLUMN "comparables" jsonb');
     expect(queries[0]).toContain('ADD COLUMN "service_consent" boolean NOT NULL DEFAULT true');
-    expect(queries[0]).toContain('ADD COLUMN "updated_at" timestamptz');
+    expect(queries[0]).toContain('ADD COLUMN IF NOT EXISTS "updated_at" timestamptz');
 
     queries.length = 0;
     await migration.down(queryRunner);
-    expect(queries[0]).toContain('DROP COLUMN "updated_at"');
+    expect(queries[0]).toContain('DROP COLUMN "comparables"');
+    expect(queries[0]).not.toContain('DROP COLUMN "updated_at"');
   });
 
   it('registers the S1 intake draft entity and persistence migration in both data sources', async () => {
@@ -190,7 +204,7 @@ describe('seller lead schema', () => {
     const migration = new CreateSellerIntakeDrafts1788220800005();
 
     await migration.up(queryRunner);
-    expect(queries[0]).toContain('CREATE TABLE "seller_intake_drafts"');
+    expect(queries[0]).toContain('CREATE TABLE IF NOT EXISTS "seller_intake_drafts"');
     expect(queries[0]).toContain('"profile_id"');
     expect(queries[0]).toContain('"session_id"');
     expect(queries[0]).toContain('"draft" jsonb');
@@ -200,4 +214,5 @@ describe('seller lead schema', () => {
     await migration.down(queryRunner);
     expect(queries[0]).toContain('DROP TABLE "seller_intake_drafts"');
   });
+
 });

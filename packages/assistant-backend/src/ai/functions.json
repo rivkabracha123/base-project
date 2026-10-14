@@ -2,6 +2,130 @@
   "version": "1.1",
   "functions": [
     {
+      "name": "getSellerHouseRecommendation",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Recommends houses for the saved seller item when asked where to sell.",
+      "inputs": { "sessionId": "string" },
+      "returns": "HouseRanking",
+      "rules": ["Require category, dimensions and condition", "Do not promise a higher price in one country", "Do not contact any auction house"]
+    },
+    {
+      "name": "getSellerCatalogDraft",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Shows the saved catalog draft without inventing item facts.",
+      "inputs": { "sessionId": "string" },
+      "returns": "{ title, he, en }",
+      "rules": ["Require category, dimensions and condition", "Copy the saved catalog draft only; unconfirmed facts remain explicitly unconfirmed"]
+    },
+    {
+      "name": "getSellerEnquiryPreview",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Prepares an enquiry preview for explicit review and consent.",
+      "inputs": { "sessionId": "string" },
+      "returns": "{ draft, ranking }",
+      "rules": ["Require category, dimensions and condition", "Use the current profile's saved draft", "Do not create a lead, grant consent or contact an auction house"]
+    },
+    {
+      "name": "getSellerProvenanceAdvice",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Explains why provenance needs verification without promising a price premium.",
+      "inputs": { "sessionId": "string" },
+      "returns": "{ text: { he, en } }",
+      "rules": ["Do not infer authenticity from an upload", "Do not promise a multiplier or change the valuation"]
+    },
+    {
+      "name": "searchSellerComparables",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Finds similar lots using the seller's saved category and confirmed materials.",
+      "inputs": { "sessionId": "string" },
+      "returns": "{ criteria, lots: AuctionLot[] }",
+      "rules": ["Run only on request after category, dimensions and condition are filled", "Read the current profile's saved draft; never accept invented lots or prices", "Similarity currently uses category and confirmed materials, not dimensions or condition"]
+    },
+    {
+      "name": "getSellerComparableHistory",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Shows recorded completed sales of similar items, not the seller item's own history.",
+      "inputs": { "sessionId": "string" },
+      "returns": "{ criteria, lots: AuctionLot[] }",
+      "rules": ["Run only on request when required intake fields are complete", "Use S3 included comparable evidence only; do not treat estimates as realized prices"]
+    },
+    {
+      "name": "getSellerPriceTrend",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Displays a chronological chart of recorded sale prices of similar items.",
+      "inputs": { "sessionId": "string" },
+      "returns": "{ criteria, lots: AuctionLot[] }",
+      "rules": ["Run only on request when required intake fields are complete", "Plot completed comparable sales separately per currency", "At least two sales per currency are needed; this is not a valuation", "Label synthetic development data as DEMO"]
+    },
+    {
+      "name": "getSellerItemDetails",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "simpleDescription": "Shows the seller's saved item facts; result links open additional details for comparable lots.",
+      "inputs": { "sessionId": "string" },
+      "returns": "{ item: SellerItemDraft.item }",
+      "rules": ["Use the current profile and session only", "Do not infer missing optional facts"]
+    },
+    {
+      "name": "getLotSaleHistory",
+      "simpleDescription": "Loads verified sold records for an item from the database.",
+      "role": "buyer",
+      "method": "GET",
+      "endpoint": "/api/lots/history/:itemKey",
+      "whenToUse": ["The item details screen displays verified sale history"],
+      "inputs": { "itemKey": "string" },
+      "returns": "AuctionLot[]",
+      "rules": ["Use the selected lot's real itemKey", "For AI routing use getComparableSaleHistory, not this direct screen helper", "Do not invent itemKey or historical prices"]
+    },
+    {
+      "name": "searchLots",
+      "simpleDescription": "Searches auction lots using the buyer's saved criteria.",
+      "role": "buyer",
+      "type": "intent-route",
+      "description": "For normal search B2 dispatches saved criteria to B4/B3. With intent search_similar_lots B2 reuses S3 comparisons using the selected database lot or the latest saved category.",
+      "whenToUse": ["The buyer requests a lot search and required search criteria are complete"],
+      "inputs": {},
+      "returns": "BuyerChatUpdate[]",
+      "rules": ["Return intentRoute.functionName=searchLots with readyForFunction=true", "B2 reads saved criteria; do not send or invent lots"]
+    },
+    {
+      "name": "getPriceTrend",
+      "simpleDescription": "Shows price evidence for the latest buyer search results.",
+      "role": "buyer",
+      "type": "intent-route",
+      "description": "B2 supplies the previous B3 result IDs to Batya's presentation service, which loads verified lot prices.",
+      "whenToUse": ["The buyer requests a price trend for the latest search results"],
+      "inputs": {},
+      "returns": "PriceTrendPoint[] with resolved lots via chat callback",
+      "rules": ["Require previous search result IDs in conversation context", "Return intentRoute.functionName=getPriceTrend with readyForFunction=true and arguments={}", "Use sold lots with realized prices in the same currency; do not invent prices or run a new search"]
+    },
+    {
+      "name": "calculateSellerValuation",
+      "simpleDescription": "Calculates a seller item valuation from comparable sale evidence.",
+      "role": "seller",
+      "method": "POST",
+      "endpoint": "/api/seller-workflow/callback",
+      "whenToUse": ["The seller explicitly requests a valuation after category, dimensions and condition are provided"],
+      "inputs": { "sessionId": "string" },
+      "returns": "Supported valuation report or an explicit refusal reason",
+      "rules": ["Send functionToRun=calculateSellerValuation and object={sessionId} inside structuredAnswer", "The workflow loads the saved draft for the current profile", "Do not invent item identifiers, sale evidence or prices"]
+    },
+    {
       "name": "createSellerLeadDraft",
       "simpleDescription": "Creates a seller request draft for internal use.",
       "role": "seller",
@@ -31,9 +155,10 @@
     },
     {
       "name": "rankSellerHouses",
-      "simpleDescription": "Ranks the provided auction houses for a seller.",
+      "simpleDescription": "Ranks auction houses for sellers and buyers.",
       "role": "seller",
-      "description": "Ranks auction houses without storing the ranking on a lead.",
+      "supportedRoles": ["seller", "buyer"],
+      "description": "Ranks auction houses without storing a lead. Buyer routing invokes the same service and displays only active category specialists.",
       "method": "POST",
       "endpoint": "/api/seller-leads/house-rankings",
       "whenToUse": [
@@ -267,18 +392,21 @@
       "simpleDescription": "Finds earlier sales of the same item.",
       "role": "buyer",
       "description": "Returns previous sold records for the exact same physical item, identified by itemKey, in the same currency and sorted by sale date.",
-      "type": "local-function",
+      "type": "intent-route",
       "whenToUse": [
         "The buyer asks for previous sales of the selected item",
         "The buyer asks for sale history"
       ],
       "inputs": {
-        "selectedLot": "ItemHistoryLot",
-        "lots": "ItemHistoryLot[]"
+        "selectedLot": "{ id: string, itemKey?: string } | optional when supplied by conversation context"
+      },
+      "optionalInputs": {
+        "lots": "{ id: string }[] | B2 can load verified history from the database"
       },
       "returns": "HistoricalSale[]",
       "rules": [
-        "selectedLot.itemKey must exist",
+        "Return intentRoute.functionName=getComparableSaleHistory with readyForFunction=true",
+        "A selected lot id must exist; B2 resolves its itemKey from verified data",
         "A preferred currency must be available",
         "Exclude the selected lot itself",
         "Use only lots with the same itemKey",

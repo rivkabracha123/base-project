@@ -86,11 +86,10 @@ export function itemVersionFromS1Draft(payload: unknown): string {
     revisionHistory?: Array<{ revisionId?: unknown }>;
   };
   if (typeof draft.updatedAt === 'string' && draft.updatedAt.trim()) return draft.updatedAt.trim();
-  const revisionId = draft.revisionHistory?.[0]?.revisionId;
+  const revisionId = draft.revisionHistory?.at(-1)?.revisionId;
   if (typeof revisionId === 'string' && revisionId.trim()) return revisionId.trim();
   return 'confirmed';
 }
-
 export function rankingItemFromS1Draft(
   draft: ConfirmedItemDraft | null | undefined,
   fallback: RankingItem = defaultRankingItem,

@@ -1,10 +1,14 @@
-import { ItemCard, type ItemCardLabels } from '@monabid/ui';
+import { type ItemCardLabels } from '@monabid/ui';
+import { Link, useNavigate } from 'react-router-dom';
+import { SellerComparisonResults } from '../seller/SellerComparisonResults';
+import { ResultCard } from '../components/ResultCard';
+import { HouseJourneyCard, selectableHouses } from '../app/SellerJourneyChrome';
 import { useTranslation } from 'react-i18next';
 import { getConversation } from '../app/api';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
-import { getBuyerChatFlowSnapshot } from './buyer-chat-flow';
+import { getBuyerChatFlowSnapshot, selectBuyerLot, getBuyerHouseCategory } from './buyer-chat-flow';
 import { BuyerLotCard, type BuyerLotCardLabels } from './BuyerLotCard';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
@@ -13,8 +17,8 @@ import { buyerMessageSchema, type BuyerMessage } from './messages';
 export function BuyerChat() {
   const { i18n, t } = useTranslation();
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
-  const locale = language === 'he' ? 'he-IL' : 'en-US';
   const dir = language === 'he' ? 'rtl' : 'ltr';
+  const locale = language === 'he' ? 'he-IL' : 'en-US';
   const cardLabels: ItemCardLabels = {
     estimate: t('card.estimate'),
     realized: t('card.realized'),
@@ -46,6 +50,7 @@ export function BuyerChat() {
     return t(`buyerCard.categories.${category}`, { defaultValue: category.replace(/[_-]+/g, ' ') });
   }
 
+  const navigate = useNavigate();
   // הלוגיקה המשותפת לקונה ולמוכר: טעינת שיחה, callback להצגה, נעילה בזמן עבודה ושגיאות.
   // כאן מוגדר רק מה שייחודי לקונה: הסכמה, צורת הודעת הקונה והחיבור לשכבה שמנהלת את התהליך.
   const { messages, isLoading, isError, refetch, isBusy, handleSend } = useChatFlow<BuyerMessage>({
@@ -88,16 +93,45 @@ export function BuyerChat() {
         </li>
       );
     }
+    if (message.speaker === 'house-ranking') {
+      return <li data-speaker={message.speaker} className="w-full min-w-0">
+        <h2 className="mb-3 text-lg font-semibold">{language === 'he' ? 'בתי מכירות מתמחים' : 'Specialist auction houses'}</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {selectableHouses(message.ranking).filter(row => row.house.categories.includes(message.category)).map(row =>
+            <HouseJourneyCard key={row.house.id} row={row} recommended={row.house.id === message.ranking.recommendation?.house.id} />)}
+        </div>
+      </li>;
+    }
+    if (message.speaker === 'sale-history') {
+      return <li data-speaker={message.speaker} className="w-full min-w-0 rounded-lg border border-stone-300 p-5">
+        <h2 className="mb-4 text-lg font-semibold">{message.title}</h2>
+        <ol className="space-y-4">
+          {message.lots.filter(lot => lot.status === 'sold').slice().sort((a, b) => a.saleDate.localeCompare(b.saleDate)).map(lot =>
+            <li key={lot.id} className="flex flex-wrap items-center justify-between gap-3 border-s-2 border-[#a58147] ps-4">
+              <span>{lot.auctionHouse.name} · {lot.saleDate}</span>
+              {lot.realizedPrice && <span dir="ltr" className="font-semibold text-[#a58147]">{new Intl.NumberFormat(language, { style: 'currency', currency: lot.realizedPrice.currency }).format(lot.realizedPrice.amount)}</span>}
+              <Link className="underline" to={`/lots/${encodeURIComponent(lot.id)}`} state={{ returnTo: '/chat/buyer' }}>{language === 'he' ? 'פרטי המכירה' : 'Sale details'}</Link>
+            </li>)}
+        </ol>
+      </li>;
+    }
+    if (message.speaker === 'price-trend') {
+      return <li data-speaker={message.speaker} className="w-full min-w-0">
+        <h2 className="mb-3 text-lg font-semibold">{message.title}</h2>
+        <SellerComparisonResults language={language} result={{
+          mode: 'trend', criteria: { category: message.lots[0]?.category ?? '' }, lots: message.lots,
+        }} />
+      </li>;
+    }
 
     if (message.speaker === 'result-group') {
       return (
         <li data-speaker={message.speaker} className="flex flex-col gap-4">
           {message.title && <h2 className="text-lg font-semibold text-neutral-900">{message.title}</h2>}
-          {/* שורת כרטיסים אחת שנגללת אופקית; לכל כרטיס רוחב קבוע (w-72) כדי שלא יימעך. */}
-          <ul className="flex gap-4 overflow-x-auto pb-2">
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {message.lots.map((lot) => (
-              <li key={lot.id} className="w-72 shrink-0">
-                <ItemCard lot={lot} locale={locale} labels={cardLabels} />
+              <li key={lot.id} className="min-w-0">
+                <ResultCard lot={lot} lang={language} onSelect={(id) => { selectBuyerLot(lot); navigate(`/lots/${encodeURIComponent(id)}`, { state: { returnTo: '/chat/buyer' } }); }} />
               </li>
             ))}
           </ul>
@@ -108,6 +142,7 @@ export function BuyerChat() {
     return (
       <MessageBubble speaker={message.speaker} isOwn={message.speaker === 'buyer'}>
         {message.text}
+        {message.speaker === 'system' && /בתי מכירות מתמחים|Specialist auction houses/.test(message.text) && getBuyerHouseCategory() && <Link className="mt-2 block underline" to={`/buyer/houses?category=${encodeURIComponent(getBuyerHouseCategory()!)}`}>{language === 'he' ? 'בתי מכירות' : 'Auction houses'}</Link>}
       </MessageBubble>
     );
   }

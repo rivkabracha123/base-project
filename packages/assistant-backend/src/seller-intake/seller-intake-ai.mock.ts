@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { SellerItemDraft } from '@monabid/shared';
+import type { SellerDimensionMeasurement, SellerItemDraft } from '@monabid/shared';
+import type { SellerHandoffContract } from '../ai/seller-handoff';
 import { SellerIntakeService } from './seller-intake.service';
 import type { MissingSellerQuestion } from './seller-intake.service';
 import type { SellerIntakeAiProvider, SellerIntakeAiResult } from './seller-intake-ai.provider';
 
-const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
+export const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
   id: 'seller-item-draft-001',
   feature: 'seller-conversation',
   developer: 's1',
@@ -119,15 +120,44 @@ const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
 // Simulates Shilat Ben Gigi — AI connection: deterministic seller-intake output without external JSON files.
 @Injectable()
 export class SellerIntakeAiMock implements SellerIntakeAiProvider {
-  private readonly sessions = new Map<string, { input: string }>();
+  private readonly sessions = new Map<string, { input: string; dimensions?: SellerDimensionMeasurement[] }>();
 
   constructor(private readonly sellerIntakeService: SellerIntakeService) {}
+
+  createDraftFromAiExtraction(input: string, extraction: SellerHandoffContract): SellerItemDraft {
+    return this.sellerIntakeService.createDraftFromAiExtraction(
+      createDeterministicSellerItemDraft(),
+      input,
+      extraction,
+    );
+  }
+
+  nextQuestionForAiFields(fields: string[]): MissingSellerQuestion | null {
+    return this.sellerIntakeService.askNextSellerQuestionForFields(fields);
+  }
+
+  applyAiDimensions(
+    result: SellerIntakeAiResult,
+    dimensions: SellerDimensionMeasurement[] | undefined,
+  ): SellerIntakeAiResult {
+    if (!dimensions?.length) return result;
+
+    const input = result.item.description.he;
+    const reviewState = this.sellerIntakeService.buildReviewState(input, true);
+    if (result.sessionId) this.sessions.set(result.sessionId, { input, dimensions });
+    return {
+      ...result,
+      ...this.sellerIntakeService.createDraftFromSellerInput(result, input, dimensions),
+      missingFields: this.sellerIntakeService.askMissingSellerDetails(reviewState),
+      nextQuestion: this.sellerIntakeService.askNextSellerQuestion(reviewState),
+    };
+  }
 
   analyze(input: string, sessionId?: string): SellerIntakeAiResult {
     const fixture = createDeterministicSellerItemDraft();
     const previous = sessionId ? this.sessions.get(sessionId) : undefined;
     const previousState = previous
-      ? this.sellerIntakeService.buildReviewState(previous.input)
+      ? this.sellerIntakeService.buildReviewState(previous.input, Boolean(previous.dimensions?.length))
       : undefined;
     const expectedQuestion = previousState
       ? this.sellerIntakeService.askNextSellerQuestion(previousState)
@@ -144,10 +174,13 @@ export class SellerIntakeAiMock implements SellerIntakeAiProvider {
       this.sessions.set(sessionId, { input: combinedInput });
     }
 
-    const reviewState = this.sellerIntakeService.buildReviewState(combinedInput);
+    const reviewState = this.sellerIntakeService.buildReviewState(
+      combinedInput,
+      Boolean(previous?.dimensions?.length),
+    );
 
     return {
-      ...this.sellerIntakeService.createDraftFromSellerInput(fixture, combinedInput),
+      ...this.sellerIntakeService.createDraftFromSellerInput(fixture, combinedInput, previous?.dimensions),
       missingFields: this.sellerIntakeService.askMissingSellerDetails(reviewState),
       nextQuestion: this.sellerIntakeService.askNextSellerQuestion(reviewState),
       provider: 'fixture-mock' as const,
@@ -168,7 +201,9 @@ export class SellerIntakeAiMock implements SellerIntakeAiProvider {
   private answerMatchesField(field: MissingSellerQuestion['field'], input: string): boolean {
     const text = input.toLowerCase();
 
-    if (field === 'dimensions') return /\d+\s*(?:x|על|by)\s*\d+/i.test(input);
+    if (field === 'dimensions') {
+      return /\d+\s*(?:x|על|by)\s*\d+|(?:length|width|height|depth|diameter|אורך|רוחב|גובה|עומק|קוטר)/i.test(input);
+    }
     if (field === 'condition') return text.includes('condition') || text.includes('מצב') || text.includes('repair') || text.includes('damag');
     if (field === 'marks') return text.includes('mark') || text.includes('stamp') || text.includes('inscription') || input.includes('סימן') || input.includes('חותמת') || input.includes('כיתוב');
     if (field === 'signatures') return text.includes('signed') || text.includes('signature') || text.includes('חתום') || text.includes('חתימה');

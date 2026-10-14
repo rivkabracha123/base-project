@@ -2,7 +2,12 @@ import type { AuctionLot } from '@monabid/shared';
 import type { LotsService } from '../lots/lots.service';
 import { deriveHardConstraints, emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { createBuyerCriteriaSession, resetBuyerCriteriaSessions } from './buyer-criteria-session.store';
+import { BuyerCriteriaService } from './buyer-criteria.service';
+import { sampleAiExtractResponses } from './buyer-criteria.fixtures';
+import type { BuyerResultsPresentationPort } from './buyer-results-presentation.port';
+import { BuyerSearchExecutionService } from './buyer-search-execution.service';
 import { BuyerSessionSearchService } from './buyer-session-search.service';
+import { DefaultBuyerResultsPresentationService } from './default-buyer-results-presentation.service';
 import { LotsServiceSearchClient } from './lots-service-search.client';
 import type { LotSearchResult } from '../lots/lot-match';
 
@@ -57,8 +62,10 @@ describe('BuyerSessionSearchService', () => {
   it('sends the session criteria, category included, through the adapter to LotsService.search', async () => {
     // Real Buyer adapter (LotsServiceSearchClient) over a mocked LotsService.search.
     const lotsService = { search: jest.fn().mockResolvedValue(page([syntheticLot])) };
+    const lotsSearch = new LotsServiceSearchClient(lotsService as unknown as LotsService);
     const service = new BuyerSessionSearchService(
-      new LotsServiceSearchClient(lotsService as unknown as LotsService),
+      new DefaultBuyerResultsPresentationService(new BuyerSearchExecutionService(lotsSearch)),
+      lotsSearch,
     );
     const { sessionId } = createBuyerCriteriaSession({
       criteria: fullCriteria(),
@@ -87,8 +94,10 @@ describe('BuyerSessionSearchService', () => {
   it('runs the other-categories follow-up through the real orchestrator without the category filter', async () => {
     // The only lot returned is in the buyer's own category, so the orchestrator drops it.
     const lotsService = { search: jest.fn().mockResolvedValue(page([syntheticLot])) };
+    const lotsSearch = new LotsServiceSearchClient(lotsService as unknown as LotsService);
     const service = new BuyerSessionSearchService(
-      new LotsServiceSearchClient(lotsService as unknown as LotsService),
+      new DefaultBuyerResultsPresentationService(new BuyerSearchExecutionService(lotsSearch)),
+      lotsSearch,
     );
     const { sessionId } = createBuyerCriteriaSession({
       criteria: fullCriteria(),
@@ -100,5 +109,25 @@ describe('BuyerSessionSearchService', () => {
     expect(lotsService.search).toHaveBeenCalledTimes(1);
     expect(lotsService.search.mock.calls[0][0].filters.categories).toBeUndefined();
     expect(response.kind).toBe('unmatched');
+  });
+
+  it('preserves insufficient criteria instead of claiming the search found no matches', async () => {
+    const criteria = new BuyerCriteriaService();
+    const opened = criteria.startCriteriaSessionFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const presentation = { presentSearchResults: jest.fn().mockResolvedValue({ groups: [], outcome: {
+      kind: 'insufficient-criteria', searchRequest: { language: 'en',
+        criteria: criteria.getCriteriaForSession(opened.sessionId), hardConstraints: [] },
+    } }) };
+    try {
+      const service = new BuyerSessionSearchService(
+        presentation as unknown as BuyerResultsPresentationPort,
+        { search: jest.fn() },
+      );
+      expect(await service.searchForSession(opened.sessionId)).toEqual({
+        kind: 'insufficient-criteria', message: 'What items would you like to search for?',
+      });
+    } finally {
+      criteria.resetSessionsForTests();
+    }
   });
 });

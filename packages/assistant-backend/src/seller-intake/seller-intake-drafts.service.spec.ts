@@ -80,11 +80,75 @@ describe('SellerIntakeDraftsService', () => {
     expect(loaded.draft.item.catalogDraft.en).toContain('provenance: Family archive');
     expect(loaded.draft.revisionHistory).toHaveLength(2);
     expect(loaded.draft.recalculationRequired).toBe(true);
+    expect(loaded.draft.confirmedFacts.dimensions?.values).toEqual([
+      { label: 'width', value: 40, unit: 'cm' },
+      { label: 'height', value: 30, unit: 'cm' },
+    ]);
   });
+
+  it('confirms generic measurements without requiring legacy rectangular dimensions', async () => {
+    fixture.item.dimensions = { values: [{ label: 'ring_size', value: 8, unit: 'size' }] };
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const confirmed = await service.confirmFacts('profile-a', 'session-1', ['dimensions']);
+    expect(confirmed.draft.confirmedFacts.dimensions).toEqual(fixture.item.dimensions);
+  });
+
+  it.each([{ values: [] }, { values: [], widthCm: 0, heightCm: 30 }, { values: [], widthCm: 40 }])(
+    'rejects missing or incomplete dimensions %j', async dimensions => {
+      fixture.item.dimensions = dimensions;
+      await service.saveDraft('profile-a', 'session-1', fixture);
+      await expect(service.confirmFacts('profile-a', 'session-1', ['dimensions']))
+        .rejects.toBeInstanceOf(BadRequestException);
+    },
+  );
 
   it('does not allow one profile to read another profile session', async () => {
     await service.saveDraft('profile-a', 'session-1', fixture);
     await expect(service.getDraft('profile-b', 'session-1')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  // תמונות שהמוכרת העלתה מצורפות לטיוטה השמורה של אותו פרופיל ושיחה, בלי לאשר שום עובדה.
+  it('attaches uploaded photo references to the saved draft without confirming any fact', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const reference = {
+      fileId: 'file-1',
+      profileId: 'profile-a',
+      itemId: 'chat-1',
+      originalName: 'front.jpg',
+      mimeType: 'image/jpeg' as const,
+      size: 2048,
+      previewUri: '/api/evidence/profile-a/file-1',
+      downloadUri: '/api/evidence/profile-a/file-1/download',
+    };
+
+    const attached = await service.attachEvidence('profile-a', 'session-1', [reference]);
+    const loaded = await service.getDraft('profile-a', 'session-1');
+
+    expect(attached?.version).toBe(2);
+    expect(loaded.draft.item.evidenceIds).toContain('file-1');
+    expect(loaded.draft.evidence).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'file-1', originalName: 'front.jpg' })]),
+    );
+    expect(loaded.draft.confirmedFacts).toEqual({});
+  });
+
+  // כשעדיין אין טיוטה לפרופיל ולשיחה, אין למה לצרף: מחזירים null ולא נכשלים.
+  it('returns null instead of failing when there is no draft to attach photos to yet', async () => {
+    const attached = await service.attachEvidence('profile-a', 'session-1', []);
+    expect(attached).toBeNull();
+  });
+
+  it('stores a photo uploaded before the first text without inventing item facts', async () => {
+    await service.attachEvidence('profile-a', 'session-1', [{ fileId: 'photo-first', profileId: 'profile-a', originalName: 'front.jpg', mimeType: 'image/jpeg', size: 100, previewUri: '/api/evidence/profile-a/photo-first' }]);
+    const saved = await service.getDraft('profile-a', 'session-1');
+    expect(saved.draft.item.category).toBe('unknown');
+    expect(saved.draft.confirmedFacts).toEqual({});
+    expect(saved.draft.item.evidenceIds).toEqual(['photo-first']);
+    expect(saved.draft.evidence).toHaveLength(1);
+    const removed = await service.detachEvidence('profile-a', 'session-1', 'photo-first');
+    expect(removed.draft.evidence).toEqual([]);
+    expect(removed.draft.item.evidenceIds).toEqual([]);
+    await expect(service.detachEvidence('profile-b', 'session-1', 'photo-first')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects corrections with malformed values and attempts to confirm missing facts', async () => {
@@ -93,5 +157,35 @@ describe('SellerIntakeDraftsService', () => {
       .rejects.toBeInstanceOf(BadRequestException);
     await expect(service.confirmFacts('profile-a', 'session-1', ['provenance']))
       .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('corrects localized title and description without marking them as confirmed facts', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const title = await service.correctDraft('profile-a', 'session-1', 'title', { he: 'ציור עתיק' });
+    const description = await service.correctDraft('profile-a', 'session-1', 'description', { en: 'An oil painting' });
+
+    expect(title.draft.item.title).toBe('ציור עתיק');
+    expect(title.draft.item.titleTranslations).toEqual({ he: 'ציור עתיק' });
+    expect(description.draft.item.description).toEqual({ he: '', en: 'An oil painting' });
+    expect(description.draft.confirmedFacts).not.toHaveProperty('title');
+    expect(description.draft.confirmedFacts).not.toHaveProperty('description');
+  });
+
+  it('accepts arbitrary measurements and lets sellers clear optional facts', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const dimensions = await service.correctDraft('profile-a', 'session-1', 'dimensions', [
+      { label: 'ring size', value: 8, unit: 'ring_size' },
+    ]);
+    const materials = await service.correctDraft('profile-a', 'session-1', 'materials', []);
+    const condition = await service.correctDraft('profile-a', 'session-1', 'condition', '');
+
+    expect(dimensions.draft.item.dimensions.values).toEqual([
+      { label: 'ring size', value: 8, unit: 'ring_size' },
+    ]);
+    expect(materials.draft.item.materials).toEqual([]);
+    expect(condition.draft.item.condition).toBeUndefined();
+    expect(condition.draft.missingFields).toContain('condition');
   });
 });

@@ -55,21 +55,29 @@ describe('seller parseConversation', () => {
   };
 
   // Positive: a seller message that carries only a photo (no text) is kept as-is.
-  it('keeps a seller message that has only an image', () => {
-    const input = [{ speaker: 'seller', id: 'm9', sessionId: 's1', image: photo }];
+  it('keeps a seller message that has only images', () => {
+    const input = [{ speaker: 'seller', id: 'm9', sessionId: 's1', images: [photo] }];
     expect(parseConversation(input)).toEqual(input);
   });
 
-  // Positive: a seller message may carry both a photo and a text caption.
-  it('keeps a seller message that has an image and text', () => {
-    const input = [{ speaker: 'seller', id: 'm10', sessionId: 's1', text: 'הנה האגרטל', image: photo }];
+  // Positive: one upload can carry several photos in a single seller message.
+  it('keeps a seller message that has several images', () => {
+    const input = [
+      { speaker: 'seller', id: 'm13', sessionId: 's1', images: [photo, { ...photo, fileId: 'f2', originalName: 'back.jpg' }] },
+    ];
+    expect(parseConversation(input)).toEqual(input);
+  });
+
+  // Positive: a seller message may carry both photos and a text caption.
+  it('keeps a seller message that has images and text', () => {
+    const input = [{ speaker: 'seller', id: 'm10', sessionId: 's1', text: 'הנה האגרטל', images: [photo] }];
     expect(parseConversation(input)).toEqual(input);
   });
 
   // Negative: an image whose file type is not an allowed photo type is dropped.
   it('drops a seller message whose image has an unsupported file type', () => {
     const input = [
-      { speaker: 'seller', id: 'm11', sessionId: 's1', image: { ...photo, mimeType: 'application/pdf' } },
+      { speaker: 'seller', id: 'm11', sessionId: 's1', images: [{ ...photo, mimeType: 'application/pdf' }] },
     ];
     expect(parseConversation(input)).toEqual([]);
   });
@@ -77,7 +85,13 @@ describe('seller parseConversation', () => {
   // Negative: an image reference missing its file id cannot be displayed, so the message is dropped.
   it('drops a seller message whose image is missing its file id', () => {
     const { fileId: _fileId, ...imageWithoutFileId } = photo;
-    const input = [{ speaker: 'seller', id: 'm12', sessionId: 's1', image: imageWithoutFileId }];
+    const input = [{ speaker: 'seller', id: 'm12', sessionId: 's1', images: [imageWithoutFileId] }];
+    expect(parseConversation(input)).toEqual([]);
+  });
+
+  // Negative: an empty image list carries nothing to show, so a message with only that is dropped.
+  it('drops a seller message whose image list is empty and has no text', () => {
+    const input = [{ speaker: 'seller', id: 'm14', sessionId: 's1', images: [] }];
     expect(parseConversation(input)).toEqual([]);
   });
 

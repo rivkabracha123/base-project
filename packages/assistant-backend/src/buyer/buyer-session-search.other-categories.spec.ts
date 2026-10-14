@@ -5,6 +5,7 @@ import {
   getBuyerCriteriaSession,
   resetBuyerCriteriaSessions,
 } from './buyer-criteria-session.store';
+import type { BuyerResultsPresentationPort } from './buyer-results-presentation.port';
 import type { BuyerSearchInput, LotsSearchClient } from './buyer-search.orchestrator';
 import { BuyerSessionSearchService, type OtherCategoriesSearchOutcome } from './buyer-session-search.service';
 import { buildDemandSummary } from './explained-results';
@@ -127,7 +128,7 @@ describe('BuyerSessionSearchService.searchOtherCategoriesForSession', () => {
     resetBuyerCriteriaSessions();
     mockSearchOtherCategories.mockReset();
     mockSearchOtherCategories.mockResolvedValue(resultsOutcome());
-    service = new BuyerSessionSearchService(lotsSearch);
+    service = new BuyerSessionSearchService({} as BuyerResultsPresentationPort, lotsSearch);
   });
 
   describe('input handed to BuyerSearchOrchestrator.searchOtherCategories', () => {

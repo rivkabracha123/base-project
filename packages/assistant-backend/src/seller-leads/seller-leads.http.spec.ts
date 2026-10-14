@@ -297,11 +297,6 @@ describe('SellerLeadsController house ranking (contract)', () => {
         reportId: 'valuation-refusal-001',
         reason: 'insufficient_evidence',
         comparableCount: 0,
-        confidence: {
-          level: 'low',
-          explanation:
-            'Confidence is uncalibrated; low is a conservative default pending expert review, not a probability.',
-        },
         limitations: ['Insufficient sold comparables for a supported range.'],
         comparables: [],
         excludedComparables: [],

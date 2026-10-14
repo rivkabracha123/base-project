@@ -1,29 +1,37 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ErrorState, LoadingState, PageShell } from '@monabid/ui';
 import { useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   createSellerLead,
-  getS1SellerDraft,
   grantP3ServiceConsent,
   rankHouses,
   rankHousesForLead,
-  rankingItemFromS1Draft,
+  sellerRankingItem,
   saveSellerHouseChoice,
 } from './api';
 import { HouseRankingPicker, JourneyBubble, selectableHouses } from './SellerJourneyChrome';
+import { getCurrentSellerDraft } from '../seller/connect-seller-correction';
 
 export function SellerHouseChoicePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // S5: which radio is selected. Undefined means “keep the S5 recommendation”.
-  const [selectedHouseId, setSelectedHouseId] = useState<string>();
+  const location = useLocation();
+  const [selectedHouseId, setSelectedHouseId] = useState<string | undefined>(
+    typeof location.state?.selectedHouseId === 'string' ? location.state.selectedHouseId : undefined,
+  );
 
   // Show ranking without storing a lead (P3 consent is only required when saving).
   const s1DraftQuery = useQuery({
     queryKey: ['s1-seller-draft'],
-    queryFn: ({ signal }) => getS1SellerDraft(signal),
+    queryFn: () => getCurrentSellerDraft(),
   });
-  const rankingItem = useMemo(() => rankingItemFromS1Draft(s1DraftQuery.data), [s1DraftQuery.data]);
+  const rankingItem = useMemo(() => {
+    const category = s1DraftQuery.data?.item.category;
+    return category ? { category: ['manuscript', 'manuscripts'].includes(category) ? 'rare_books' : category,
+      preferredLanguage: i18n.language.startsWith('he') ? 'he' : 'en' } : sellerRankingItem;
+  }, [s1DraftQuery.data, i18n.language]);
   const rankingQuery = useQuery({
     queryKey: ['seller-house-ranking', rankingItem],
     enabled: s1DraftQuery.isFetched,
@@ -41,7 +49,7 @@ export function SellerHouseChoicePage() {
     },
   });
 
-  const ranking = rankingQuery.data;
+      const ranking = rankingQuery.data;
   const options = ranking ? selectableHouses(ranking) : [];
   const houseId = selectedHouseId ?? ranking?.recommendation?.house.id;
 
@@ -84,7 +92,6 @@ export function SellerHouseChoicePage() {
               </button>
             </form>
           ) : null}
-
           {choiceMutation.isSuccess ? (
             <p role="status" className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
               {t('houses.saved', { house: choiceMutation.data.houseName })}

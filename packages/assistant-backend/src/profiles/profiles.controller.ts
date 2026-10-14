@@ -42,6 +42,14 @@ export class ProfilesController {
     );
   }
 
+  @Patch('me/contact')
+  updateContact(
+    @Headers('x-anonymous-session-id') sessionId: string,
+    @Body() body: UpdateContactDto,
+  ): Promise<UserProfile> {
+    return this.profilesService.updateContact(this.requireSessionId(sessionId), body);
+  }
+
   // Week 5: delete the current session's profile. 204 even if none existed - idempotent for the caller.
   @Delete('me')
   @HttpCode(204)
@@ -51,14 +59,6 @@ export class ProfilesController {
     return this.profilesService.deleteBySessionId(
       this.requireSessionId(sessionId),
     );
-  }
-
-  @Patch('me/contact')
-  updateContact(
-    @Headers('x-anonymous-session-id') sessionId: string,
-    @Body() body: UpdateContactDto,
-  ): Promise<UserProfile> {
-    return this.profilesService.updateContact(this.requireSessionId(sessionId), body);
   }
 
   // Reject requests that cannot be tied to one anonymous browser session.

@@ -1,12 +1,15 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { SellerItemDraft } from '@monabid/shared';
+import type { SellerEvidenceReference, SellerItemDraft } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { SellerIntakeDraftEntity } from '../database/seller-intake-draft.entity';
 import { SellerIntakeService } from './seller-intake.service';
+import { createDeterministicSellerItemDraft } from './seller-intake-ai.mock';
 
 const CORRECTABLE_FIELDS = [
+  'title',
   'category',
+  'description',
   'materials',
   'dimensions',
   'condition',
@@ -16,7 +19,8 @@ const CORRECTABLE_FIELDS = [
 ] as const;
 
 type CorrectableField = (typeof CORRECTABLE_FIELDS)[number];
-type CorrectionValue = string | string[] | { widthCm: number; heightCm: number };
+type CorrectionValue = string | string[] | { he?: string; en?: string } | { widthCm: number; heightCm: number }
+  | { label: string; value: number; unit: string }[];
 
 @Injectable()
 export class SellerIntakeDraftsService {
@@ -53,6 +57,34 @@ export class SellerIntakeDraftsService {
     const record = await this.drafts.findOneBy({ profileId, sessionId });
     if (!record) throw new NotFoundException('Seller intake draft was not found');
     return record;
+  }
+
+  // מצרף הפניות לתמונות ש-S2 שמרה לטיוטה של אותו פרופיל ושיחה, בלי לאשר שום עובדה.
+  // מחזיר null כשעדיין אין טיוטה: התמונות כבר שמורות אצל S2 ואין למה לצרף.
+  // Attaches the photo references S2 stored to the draft of the same profile and session, without confirming any fact.
+  // Returns null when there is no draft yet: the photos are already stored by S2, so there is nothing to attach to.
+  async attachEvidence(
+    profileId: string,
+    sessionId: string,
+    references: SellerEvidenceReference[],
+  ): Promise<SellerIntakeDraftEntity | null> {
+    const current = await this.drafts.findOneBy({ profileId, sessionId });
+    if (!current && references.length === 0) return null;
+    const empty = this.sellerIntake.createDraftFromSellerInput(createDeterministicSellerItemDraft(), '');
+    empty.seller = { anonymousProfileId: profileId, name: 'Anonymous seller', preferredName: 'Anonymous seller' };
+    empty.evidence = [];
+    empty.item.evidenceIds = [];
+    empty.uncertainFacts = [];
+    empty.revisionHistory = [];
+    const draft = this.sellerIntake.attachEvidenceReferences(current?.draft ?? empty, references);
+    return this.saveDraft(profileId, sessionId, draft);
+  }
+
+  async detachEvidence(profileId: string, sessionId: string, fileId: string): Promise<SellerIntakeDraftEntity> {
+    const current = await this.getDraft(profileId, sessionId);
+    const draft = { ...current.draft, evidence: current.draft.evidence.filter(entry => entry.id !== fileId),
+      item: { ...current.draft.item, evidenceIds: current.draft.item.evidenceIds.filter(id => id !== fileId) } };
+    return this.saveDraft(profileId, sessionId, draft);
   }
 
   // מאמת תיקון של שדה, מעדכן את הטיוטה ושומר את הגרסה החדשה.
@@ -100,9 +132,36 @@ export class SellerIntakeDraftsService {
   // בודק ומנרמל ערכי תיקון לפי סוג השדה לפני עדכון הטיוטה.
   // Validates and normalizes correction values according to the field before updating the draft.
   private validateCorrection(field: CorrectableField, value: unknown): CorrectionValue {
-    if (field === 'dimensions') {
+    if (field === 'title' || field === 'description') {
       if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-        throw new BadRequestException('dimensions correction requires widthCm and heightCm');
+        throw new BadRequestException(`${field} correction requires at least one localized value`);
+      }
+      const localized = value as Record<string, unknown>;
+      const localizedValues: { he?: string; en?: string } = {};
+      for (const locale of Object.keys(localized)) {
+        const text = localized[locale];
+        if (!['he', 'en'].includes(locale) || typeof text !== 'string' || !text.trim()) {
+          throw new BadRequestException(`${field} correction requires non-empty Hebrew or English text`);
+        }
+        localizedValues[locale as 'he' | 'en'] = text.trim();
+      }
+      if (Object.keys(localizedValues).length === 0) {
+        throw new BadRequestException(`${field} correction requires non-empty Hebrew or English text`);
+      }
+      return localizedValues;
+    }
+    if (field === 'dimensions') {
+      if (Array.isArray(value)) {
+        if (!value.every((measurement) => measurement && typeof measurement === 'object'
+          && typeof measurement.label === 'string' && measurement.label.trim()
+          && typeof measurement.value === 'number' && Number.isFinite(measurement.value) && measurement.value > 0
+          && typeof measurement.unit === 'string' && measurement.unit.trim())) {
+          throw new BadRequestException('dimensions must contain measurements with a label, positive value and unit');
+        }
+        return value as { label: string; value: number; unit: string }[];
+      }
+      if (typeof value !== 'object' || value === null) {
+        throw new BadRequestException('dimensions correction requires measurements');
       }
       const dimensions = value as Record<string, unknown>;
       if (typeof dimensions.widthCm !== 'number' || !Number.isFinite(dimensions.widthCm) || dimensions.widthCm <= 0
@@ -112,14 +171,14 @@ export class SellerIntakeDraftsService {
       return { widthCm: dimensions.widthCm, heightCm: dimensions.heightCm };
     }
     if (field === 'materials') {
-      if (!Array.isArray(value) || value.length === 0
+      if (!Array.isArray(value)
         || !value.every((material) => typeof material === 'string' && material.trim())) {
-        throw new BadRequestException('materials correction requires non-empty strings');
+        throw new BadRequestException('materials correction requires strings');
       }
-      return value;
+      return value.map((material) => (material as string).trim());
     }
-    if (typeof value !== 'string' || !value.trim()) {
-      throw new BadRequestException(`${field} correction requires a non-empty string`);
+    if (typeof value !== 'string' || (field === 'category' && !value.trim())) {
+      throw new BadRequestException(`${field} correction requires a string`);
     }
     return value.trim();
   }

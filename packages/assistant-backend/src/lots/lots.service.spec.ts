@@ -139,6 +139,29 @@ describe('LotsService', () => {
     await expect(new LotsService(repository).findOne('missing')).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('returns chronological verified sale history for one itemKey', async () => {
+    const olderSale = { ...payload, id: 'sale-older', itemKey: 'abrabanel_commentary', saleDate: '2023-04-12' };
+    const newerSale = { ...payload, id: 'sale-newer', itemKey: 'abrabanel_commentary', saleDate: '2024-11-14' };
+    const queryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([{ payload: olderSale }, { payload: newerSale }]),
+    };
+    const repository = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    } as unknown as Repository<AuctionLotEntity>;
+
+    await expect(new LotsService(repository).findSaleHistoryByItemKey('abrabanel_commentary'))
+      .resolves.toEqual([olderSale, newerSale]);
+    expect(queryBuilder.where).toHaveBeenCalledWith("lot.payload->>'itemKey' = :itemKey", {
+      itemKey: 'abrabanel_commentary',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith("lot.payload->>'status' = :status", { status: 'sold' });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith("lot.payload->'realizedPrice' IS NOT NULL");
+    expect(queryBuilder.orderBy).toHaveBeenCalledWith("(lot.payload->>'saleDate')::date", 'ASC');
+  });
+
   describe('full-text search (title/description)', () => {
     it('adds a PostgreSQL full-text match clause alongside the partial-text LIKE clause', async () => {
       const queryBuilder = createMockQueryBuilder([{ payload }], 1);

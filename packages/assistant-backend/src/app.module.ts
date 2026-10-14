@@ -6,6 +6,8 @@ import { AuctionLotEntity } from './database/auction-lot.entity';
 import { UserProfileEntity } from './database/user-profile.entity';
 import { StaffOperationEntity } from './database/staff-operation.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
+import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
+import { ChatModule } from './chat/chat.module';
 import { BuyerChatModule } from './buyer-chat/buyer-chat.module';
 import { SellerChatModule } from './seller-chat/seller-chat.module';
 import { CreateStaffOperations1725000000000 } from './database/1725000000000-create-staff-operations';
@@ -31,7 +33,6 @@ import { ProfilesModule } from './profiles/profiles.module';
 import { StorageModule } from './storage/storage.module';
 
 import { StaffOperationsModule } from './staff-operations/staff-operations.module';
-import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
 import { SellerIntakeDraftEntity } from './database/seller-intake-draft.entity';
 import { CreateSellerLeads1788220800000 } from './database/1788220800000-create-seller-leads';
 import { ValuationCalculationModule } from './valuation-calculation/valuation-calculation.module';
@@ -88,6 +89,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       AddSellerLeadFinal1788220800003,
       AddSellerLeadDashboard1788220800004,
       CreateSellerIntakeDrafts1788220800005,
+      AlignLegacySellerLeads1788220800006,
     ],
     synchronize: false,
   };
@@ -103,6 +105,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
     AiModule,
     ProfilesModule,
     BuyerModule,
+    ChatModule,
     HealthModule,
     LotsModule,
     BuyerChatModule,
@@ -118,3 +121,4 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
   ],
 })
 export class AppModule {}
+import { AlignLegacySellerLeads1788220800006 } from './database/1788220800006-align-legacy-seller-leads';

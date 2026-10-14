@@ -23,9 +23,9 @@ export function SampleLotPage() {
 
   return (
     <PageShell>
-      <p className="text-sm font-semibold uppercase tracking-wide text-indigo-700">{t('sample.eyebrow')}</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{t('sample.title')}</h1>
-      <p className="mb-8 mt-3 max-w-2xl text-slate-600">{t('sample.intro')}</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-[#b08948]">{t('sample.eyebrow')}</p>
+      <h1 className="mt-2 text-3xl font-bold tracking-tight text-stone-950">{t('sample.title')}</h1>
+      <p className="mb-8 mt-3 max-w-2xl text-stone-600">{t('sample.intro')}</p>
 
       {query.isPending ? <LoadingState label={t('sample.loading')} /> : null}
       {query.isError ? <ErrorState title={t('sample.error')} retryLabel={t('sample.retry')} onRetry={() => void query.refetch()} /> : null}

@@ -4,6 +4,8 @@ import { detectBuyerLanguage, type AiExtractResponse } from '../buyer/buyer-crit
 import { B2_SEARCH_LOTS_FUNCTION } from './p4-buyer-routing';
 import { buildFixtureAiExtract } from './fixture-ai-extract';
 import type { P4AiGenerateResponse, P4IntentRoute, ShilatAiGenerateRequest } from './p4-ai.types';
+import type { ShilatSellerGenerateResponse } from './p4-ai.types';
+import { isSellerHandoffContract } from './seller-handoff';
 import { P4_SEARCH_READINESS_PROBE_MESSAGE } from './p4-ai.types';
 
 function fixtureExtract(request: ShilatAiGenerateRequest): AiExtractResponse {
@@ -27,7 +29,9 @@ function readIntentRoute(record: Record<string, unknown>): P4IntentRoute {
           : null;
 
   const intent = typeof raw.intent === 'string' ? raw.intent : null;
-  const readyForFunction = raw.readyForFunction === true || record.readyForFunction === true || record.ready === true;
+  const readyForFunction = typeof raw.readyForFunction === 'boolean'
+    ? raw.readyForFunction
+    : record.readyForFunction === true || record.ready === true;
   const missingFields = Array.isArray(raw.missingFields)
     ? raw.missingFields.filter((f): f is string => typeof f === 'string')
     : undefined;
@@ -98,7 +102,7 @@ function normalizeP4Response(body: unknown, fallbackExtract: AiExtractResponse):
   const record = body as Record<string, unknown>;
   const intentRoute = readIntentRoute(record);
   const extract = normalizeExtract(record, fallbackExtract);
-  const readyForFunction = intentRoute.readyForFunction || record.readyForFunction === true;
+  const readyForFunction = intentRoute.readyForFunction;
 
   return {
     extract,
@@ -117,7 +121,8 @@ export class P4AiGenerateClient {
     const fallback = fixtureExtract(request);
 
     if (mode !== 'real') {
-      const readinessProbe = request.prompt === P4_SEARCH_READINESS_PROBE_MESSAGE;
+      const readinessProbe = request.prompt === P4_SEARCH_READINESS_PROBE_MESSAGE ||
+        request.prompt.startsWith(`${P4_SEARCH_READINESS_PROBE_MESSAGE}\n`);
       return {
         extract: fallback,
         readyForFunction: readinessProbe,
@@ -175,5 +180,70 @@ export class P4AiGenerateClient {
 
     const body: unknown = await response.json();
     return normalizeP4Response(body, fallback);
+  }
+
+  async generateSellerExtract(request: ShilatAiGenerateRequest): Promise<ShilatSellerGenerateResponse> {
+    const mode = this.config.get<string>('AI_PROVIDER_MODE') ?? 'fixture';
+    if (mode !== 'real') {
+      throw new ServiceUnavailableException(
+        'Seller extraction requires the real P4 AI provider.',
+      );
+    }
+
+    const url = this.config.get<string>('AI_GENERATE_URL');
+    if (!url) {
+      throw new ServiceUnavailableException(
+        'AI_PROVIDER_MODE is real but AI_GENERATE_URL is not configured.',
+      );
+    }
+
+    const anonymousSessionId =
+      request.sessionId?.trim() ||
+      this.config.get<string>('AI_ANONYMOUS_SESSION_ID') ||
+      'seller-dev-session';
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-anonymous-session-id': anonymousSessionId,
+    };
+    const apiKey = this.config.get<string>('AI_GENERATE_API_KEY');
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        role: 'seller',
+        prompt: request.prompt,
+        language: request.language,
+        sessionId: request.sessionId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new ServiceUnavailableException(`Seller AI extraction failed with status ${response.status}.`);
+    }
+
+    const body = await response.json() as Record<string, unknown>;
+    const nestedExtract = body.extract && typeof body.extract === 'object'
+      ? body.extract as Record<string, unknown>
+      : undefined;
+    const structuredAnswer = body.structuredAnswer ?? nestedExtract?.structuredAnswer;
+    if (!isSellerHandoffContract(structuredAnswer)) {
+      throw new ServiceUnavailableException('Seller AI returned an invalid handoff contract.');
+    }
+
+    return {
+      provider: body.provider === 'fixture' ? 'fixture' : 'real',
+      mode: body.mode === 'fixture' ? 'fixture' : 'real',
+      isRelevant: body.isRelevant !== false,
+      error: typeof body.error === 'string' ? body.error : null,
+      content: typeof body.content === 'string' ? body.content : '',
+      summary: typeof body.summary === 'string' ? body.summary : '',
+      recommendation: typeof body.recommendation === 'string' ? body.recommendation : '',
+      nextAction: typeof body.nextAction === 'string' ? body.nextAction : '',
+      confidence: body.confidence === 'medium' ? 'medium' : 'low',
+      structuredAnswer,
+      ...(body.functionCall !== undefined ? { functionCall: body.functionCall as ShilatSellerGenerateResponse['functionCall'] } : {}),
+    };
   }
 }

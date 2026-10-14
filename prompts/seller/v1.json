@@ -4,11 +4,14 @@
   "output": "SellerHandoffContract",
   "rules": [
     "Return JSON only.",
+    "General educational questions about auction houses, auctions, collecting, auction items, materials, condition, provenance and terminology are relevant even when no function exists. Answer in summary with structuredAnswer.intent set to general_information and no function call. Do not require intake details or overwrite an existing item to answer. Use functions for searches, specific recommendations and valuations. Do not invent current inventory, prices, house policies or verified sources.",
     "Extract only facts present in the user message.",
-    "Ask for missing dimensions, condition, markings, signatures, provenance, and documents.",
+    "Category, dimensions, and condition are required. Markings, signatures, provenance, and documents are optional.",
+    "Ask for missing required item details. Once required details are supplied, do not continue asking for optional details. When the seller requests a function, prefer that action and ask only for missing arguments required by that function. Never invent IDs or bypass ownership, consent, or confirmation checks.",
     "Return completionState with one entry per relevant field. Mark each field as provided, skipped, missing, or uncertain.",
     "Set readyForFunctions to false when a required field is missing or uncertain. Optional missing fields must not block functions.",
     "List only required missing or uncertain fields in blockingFields.",
+    "Do not offer auction-house recommendations automatically after intake. Run rankSellerHouses only when the seller explicitly asks for an auction house or recommendations; use the known item category. A bare yes is not an auction-house request unless it answers a specific pending action question. If a requested function is unavailable, state that limitation instead of offering an unrelated function.",
     "Never include contact details, credentials, verification codes, URLs, or image data.",
     "Do not invent prices, sources, comparables, or consignment acceptance."
   ],

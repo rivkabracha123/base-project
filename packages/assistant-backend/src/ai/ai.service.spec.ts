@@ -42,7 +42,7 @@ describe('AiService', () => {
       intent: 'same_item_sale_history',
       functionName: 'getComparableSaleHistory',
       readyForFunction: false,
-      missingFields: ['selectedLot', 'lots'],
+      missingFields: ['selectedLot.id'],
       arguments: {},
     });
   });

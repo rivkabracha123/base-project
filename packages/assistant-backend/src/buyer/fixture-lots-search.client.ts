@@ -9,10 +9,9 @@ const fixtureLots = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),
 ) as AuctionLot[];
 
-function page(lots: AuctionLot[]): LotSearchResult {
-  const data = lots.map((lot) => ({ lot, matchReasons: [] }));
+function page(data: AuctionLot[]): LotSearchResult {
   return {
-    data,
+    data: data.map(lot => ({ lot, matchReasons: [] })),
     total: data.length,
     page: 1,
     limit: data.length || 10,

@@ -1,7 +1,9 @@
 import { auctionLotSchema } from '@monabid/shared';
 import type { ItemHistoryLot } from '../components/price-history';
+import { resultsSearchOutcomeFixture } from './buyer-search-outcome.fixture';
 
 const itemKey = 'abrabanel_commentary_example';
+const historyImageUrl = 'https://fixtures.monabid.test/images/history-lot.jpg';
 
 export const upcomingLotWithHistoryFixture: ItemHistoryLot = {
   ...auctionLotSchema.parse({
@@ -42,6 +44,7 @@ const firstHistoricalSale: ItemHistoryLot = {
     saleDate: '2023-04-12',
     status: 'sold',
     realizedPrice: { amount: 900, currency: 'USD' },
+    imageUrl: historyImageUrl,
   }),
   itemKey,
 };
@@ -60,6 +63,7 @@ const secondHistoricalSale: ItemHistoryLot = {
     saleDate: '2024-11-14',
     status: 'sold',
     realizedPrice: { amount: 1100, currency: 'USD' },
+    imageUrl: historyImageUrl,
   }),
   itemKey,
 };
@@ -68,4 +72,87 @@ export const itemHistoryLotFixtures = [
   upcomingLotWithHistoryFixture,
   secondHistoricalSale,
   firstHistoricalSale,
+];
+
+const localDemoItemKey = 'atereth_zekeinim_example';
+
+export const localHistoryDemoLotId = 'lot-kestenbaum-54554-121421';
+
+const originalAterethLot = [
+  ...resultsSearchOutcomeFixture.results.current,
+  ...resultsSearchOutcomeFixture.results.historical,
+].map((entry) => entry.lot).find((lot) => lot.id === localHistoryDemoLotId);
+
+if (!originalAterethLot) {
+  throw new Error(`Local history demo requires B3 result ${localHistoryDemoLotId}`);
+}
+
+// The selected lot stays exactly the B3/P1 fixture; itemKey exists only in local demo data.
+export const localHistoryDemoSelectedLot: ItemHistoryLot = {
+  ...originalAterethLot,
+  itemKey: localDemoItemKey,
+};
+
+const firstAterethHistoricalSale: ItemHistoryLot = {
+  ...auctionLotSchema.parse({
+    ...localHistoryDemoSelectedLot,
+    id: 'lot-history-atereth-sold-001',
+    auctionHouse: { id: 'house-tiroche', name: 'Tiroche Auction House' },
+    source: {
+      provider: 'b4-history-fixture',
+      recordId: 'atereth-sold-001',
+      url: 'https://fixtures.monabid.test/lots/atereth-sold-001',
+      retrievedAt: '2026-09-09T00:00:00.000Z',
+    },
+    saleDate: '2020-04-12',
+    status: 'sold',
+    realizedPrice: { amount: 258400, currency: 'USD' },
+    imageUrl: historyImageUrl,
+  }),
+  itemKey: localDemoItemKey,
+};
+
+const secondAterethHistoricalSale: ItemHistoryLot = {
+  ...auctionLotSchema.parse({
+    ...localHistoryDemoSelectedLot,
+    id: 'lot-history-atereth-sold-002',
+    auctionHouse: { id: 'house-kedem', name: 'Kedem Auction House' },
+    source: {
+      provider: 'b4-history-fixture',
+      recordId: 'atereth-sold-002',
+      url: 'https://fixtures.monabid.test/lots/atereth-sold-002',
+      retrievedAt: '2026-09-09T00:00:00.000Z',
+    },
+    saleDate: '2026-03-14',
+    status: 'sold',
+    realizedPrice: { amount: 380000, currency: 'USD' },
+    imageUrl: historyImageUrl,
+  }),
+  itemKey: localDemoItemKey,
+};
+
+const thirdAterethHistoricalSale: ItemHistoryLot = {
+  ...auctionLotSchema.parse({
+    ...localHistoryDemoSelectedLot,
+    id: 'lot-history-atereth-sold-003',
+    auctionHouse: { id: 'house-kestenbaum-history', name: 'Kestenbaum & Company' },
+    source: {
+      provider: 'b4-history-fixture',
+      recordId: 'atereth-sold-003',
+      url: 'https://fixtures.monabid.test/lots/atereth-sold-003',
+      retrievedAt: '2026-09-09T00:00:00.000Z',
+    },
+    saleDate: '2016-06-08',
+    status: 'sold',
+    realizedPrice: { amount: 152000, currency: 'USD' },
+    imageUrl: historyImageUrl,
+  }),
+  itemKey: localDemoItemKey,
+};
+
+export const localHistoryDemoLots = [
+  localHistoryDemoSelectedLot,
+  thirdAterethHistoricalSale,
+  firstAterethHistoricalSale,
+  secondAterethHistoricalSale,
 ];

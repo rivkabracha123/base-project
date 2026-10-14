@@ -34,6 +34,7 @@ export const sellerDimensionMeasurementSchema = z.object({
   value: z.number().nonnegative(),
   unit: z.string().min(1),
 });
+export type SellerDimensionMeasurement = z.infer<typeof sellerDimensionMeasurementSchema>;
 
 export const sellerDimensionsSchema = z.object({
   values: z.array(sellerDimensionMeasurementSchema).default([]),
@@ -70,6 +71,7 @@ export const sellerItemDraftSchema = z.object({
     id: z.string().min(1),
     category: z.string().min(1),
     title: z.string().min(1),
+    titleTranslations: z.object({ he: z.string().optional(), en: z.string().optional() }).optional(),
     description: z.object({ he: z.string(), en: z.string() }),
     materials: z.array(z.string()).default([]),
     dimensions: sellerDimensionsSchema,

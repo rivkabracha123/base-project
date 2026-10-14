@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { baseMessageFields, errorMessageSchema, systemMessageSchema } from '@monabid/shared';
+import { baseMessageFields, errorMessageSchema, systemMessageSchema, houseRankingSchema } from '@monabid/shared';
 import { parseConversationWith } from '../chat/parse-conversation';
+import { sellerComparisonResultSchema } from './seller-comparison-result';
+import { sellerActionResultSchema } from './seller-action-result';
 
 // A photo the seller attached, by reference — the same shape the evidence API returns (EvidenceReference in app/api.ts).
 // The message stores the reference, not the picture; the picture URL is built from previewUri when displayed.
@@ -15,6 +17,9 @@ const sellerImageSchema = z.object({
   downloadUri: z.string().min(1),
 });
 
+// The photos of one upload (one item). The 10-photo limit is enforced by the upload service, not here.
+export const sellerImagesSchema = z.array(sellerImageSchema).min(1);
+
 // Schema: defines which message kinds the seller chat can display, matched on the speaker field.
 // 'system' and 'error' are the shared shapes from @monabid/shared; 'seller' is seller-only.
 // Seller-specific message kinds (fact review, photo requests, etc.) are added here as the
@@ -24,14 +29,14 @@ export const sellerMessageSchema = z.discriminatedUnion('speaker', [
     speaker: z.literal('seller'),
     ...baseMessageFields,
     text: z.string().min(1).optional(),
-    image: sellerImageSchema.optional(),
+    images: sellerImagesSchema.optional(),
   }),
-  systemMessageSchema,
+  systemMessageSchema.extend({ comparison: sellerComparisonResultSchema.optional(), houseRanking: houseRankingSchema.optional(), houseCategory: z.string().optional(), action: sellerActionResultSchema.optional() }),
   errorMessageSchema,
 ]).refine(
   // A seller message must carry text, a photo, or both; system and error messages always have text.
-  (message) => message.speaker !== 'seller' || message.text !== undefined || message.image !== undefined,
-  { message: 'A seller message needs text or an image' },
+  (message) => message.speaker !== 'seller' || message.text !== undefined || message.images !== undefined,
+  { message: 'A seller message needs text or images' },
 );
 
 // SellerMessage type — inferred automatically from the schema, for use by TypeScript while writing code.

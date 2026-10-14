@@ -6,6 +6,11 @@ import type { SellerItemDraft } from '@monabid/shared';
 import { SellerIntakeAiMock } from './seller-intake-ai.mock';
 import { SellerIntakeService } from './seller-intake.service';
 
+const aiDimensions = [
+  { label: 'width', value: 60, unit: 'cm' },
+  { label: 'height', value: 80, unit: 'cm' },
+];
+
 describe('SellerIntakeService', () => {
   let service: SellerIntakeService;
 
@@ -152,10 +157,7 @@ describe('SellerIntakeService', () => {
     );
 
     expect(result.category).toBe('paintings');
-    expect(result.dimensions).toEqual({
-      widthCm: 40,
-      heightCm: 30,
-    });
+    expect(result.dimensions).toEqual({ widthCm: 0, heightCm: 0 });
     expect(result.markings).toBe('Not yet confirmed');
     expect(result.provenance).toBeUndefined();
 
@@ -180,10 +182,7 @@ describe('SellerIntakeService', () => {
 
     expect(result.extractedFacts.category).toBe('paintings');
 
-    expect(result.extractedFacts.dimensions).toEqual({
-      widthCm: 60,
-      heightCm: 80,
-    });
+    expect(result.extractedFacts.dimensions).toEqual({ widthCm: 0, heightCm: 0 });
 
     expect(result.extractedFacts.markings).toBe('Not yet confirmed');
 
@@ -228,7 +227,7 @@ describe('SellerIntakeService', () => {
     expect(result.provider).toBe('fixture-mock');
     expect(result.status).toBe('draft');
     expect(result.handoff.to).toEqual(['s3', 's4', 's5']);
-    expect(result.missingFields).toEqual(['condition', 'marks', 'provenance']);
+    expect(result.missingFields).toEqual(['dimensions', 'condition', 'marks', 'provenance']);
   });
 
   it('keeps a session and rejects an answer that does not match the current question', () => {
@@ -242,21 +241,30 @@ describe('SellerIntakeService', () => {
     expect(invalid.answerError).toContain('dimensions');
     expect(invalid.nextQuestion?.field).toBe('dimensions');
 
-    const accepted = aiMock.analyze('60 x 80 cm', 'session-w5');
+    const accepted = aiMock.analyze('האורך 80 ס"מ והרוחב 60 ס"מ', 'session-w5');
     expect(accepted.answerAccepted).toBe(true);
-    expect(accepted.nextQuestion?.field).toBe('condition');
+    const enriched = aiMock.applyAiDimensions(accepted, [
+      { label: 'length', value: 80, unit: 'cm' },
+      { label: 'width', value: 60, unit: 'cm' },
+    ]);
+    expect(enriched.item.dimensions.values).toEqual([
+      { label: 'length', value: 80, unit: 'cm' },
+      { label: 'width', value: 60, unit: 'cm' },
+    ]);
+    expect(enriched.nextQuestion?.field).toBe('condition');
   });
 
   it('separates missing and uncertain information', () => {
     const reviewState = service.buildReviewState(
-      'I have a painting. It is 60 x 80 cm and signed. I think it was made in the 1980s.'
+      'I have a painting. It is 60 x 80 cm and signed. I think it was made in the 1980s.',
+      true,
     );
 
     expect(reviewState.category).toBe('paintings');
 
     expect(reviewState.dimensions).toEqual({
-      widthCm: 60,
-      heightCm: 80,
+      widthCm: 0,
+      heightCm: 0,
     });
 
     expect(reviewState.missingFields).toContain('provenance');
@@ -270,7 +278,8 @@ describe('SellerIntakeService', () => {
     it('identifies missing seller details and recognizes provided details', () => {
       // Check that condition and signatures are detected as missing.
       const missingDetails = service.buildReviewState(
-        'I have a painting, 60 x 80 cm.'
+        'I have a painting, 60 x 80 cm.',
+        true,
       );
 
       expect(missingDetails.missingFields).toContain('condition');
@@ -278,7 +287,8 @@ describe('SellerIntakeService', () => {
 
       // Check that provided condition and signatures are not marked as missing.
       const providedDetails = service.buildReviewState(
-        'I have a painting, 60 x 80 cm, good condition, signed.'
+        'I have a painting, 60 x 80 cm, good condition, signed.',
+        true,
       );
 
       expect(providedDetails.missingFields).not.toContain('condition');
@@ -302,6 +312,7 @@ describe('SellerIntakeService', () => {
   it('keeps marks missing when the seller only reports a signature', () => {
     const reviewState = service.buildReviewState(
       'I have a painting, 60 x 80 cm, signed.',
+      true,
     );
 
     expect(reviewState.signatures).toBe('Signed');
@@ -313,6 +324,7 @@ describe('SellerIntakeService', () => {
   it('asks only for required details missing from the seller message', () => {
     const reviewState = service.buildReviewState(
       'I have a painting, 60 x 80 cm, good condition, signed.',
+      true,
     );
 
     expect(service.askMissingSellerDetails(reviewState)).toEqual(['marks', 'provenance']);
@@ -321,6 +333,7 @@ describe('SellerIntakeService', () => {
   it('creates bilingual questions only for missing seller details', () => {
     const reviewState = service.buildReviewState(
       'I have a painting, 60 x 80 cm, good condition, signed.',
+      true,
     );
 
     expect(service.askMissingSellerQuestions(reviewState)).toEqual([
@@ -342,8 +355,8 @@ describe('SellerIntakeService', () => {
 
     expect(service.askNextSellerQuestion(reviewState)).toEqual({
       field: 'dimensions',
-      he: 'מהן מידות הפריט, כולל רוחב וגובה בסנטימטרים?',
-      en: 'What are the item dimensions, including width and height in centimeters?',
+      he: 'מהן מידות הפריט?',
+      en: 'What are the item dimensions?',
     });
   });
 
@@ -400,6 +413,7 @@ it('updates seller corrections and fact confirmation status', () => {
     const draft = service.createDraftFromSellerInput(
       fixture,
       'I have a painting, 60 x 80 cm, signed.',
+      aiDimensions,
     );
 
     const correctedDraft = service.applySellerDraftCorrection(
@@ -426,11 +440,12 @@ it('updates seller corrections and fact confirmation status', () => {
     const draft = service.createDraftFromSellerInput(
       fixture,
       'I have a painting, 60 x 80 cm, signed.',
+      aiDimensions,
     );
 
-    expect(draft.item.title).toBe('Painting 60x80 cm');
+    expect(draft.item.title).toBe('Painting width 60 cm, height 80 cm');
     expect(draft.item.catalogDraft.en).toContain('paintings');
-    expect(draft.item.catalogDraft.en).toContain('60x80');
+    expect(draft.item.catalogDraft.en).toContain('width 60 cm, height 80 cm');
     expect(draft.confirmedFacts).toEqual({});
     expect(draft.item.provenance).toBeUndefined();
     expect(draft.item.condition).toBeUndefined();
@@ -438,10 +453,13 @@ it('updates seller corrections and fact confirmation status', () => {
   });
 
   it('changes the draft title and catalog when the seller message changes', () => {
-    const painting = service.createDraftFromSellerInput(fixture, 'I have a painting, 40 x 50 cm, signed.');
+    const painting = service.createDraftFromSellerInput(fixture, 'I have a painting, 40 x 50 cm, signed.', [
+      { label: 'width', value: 40, unit: 'cm' },
+      { label: 'height', value: 50, unit: 'cm' },
+    ]);
     const other = service.createDraftFromSellerInput(fixture, 'Bronze figurine from a family archive.');
 
-    expect(painting.item.title).toBe('Painting 40x50 cm');
+    expect(painting.item.title).toBe('Painting width 40 cm, height 50 cm');
     expect(other.item.title).toContain('Bronze figurine');
     expect(painting.item.catalogDraft.en).not.toBe(other.item.catalogDraft.en);
   });
@@ -450,12 +468,13 @@ it('updates seller corrections and fact confirmation status', () => {
     const draft = service.createDraftFromSellerInput(
       fixture,
       'I have a painting, 60 x 80 cm, signed.',
+      aiDimensions,
     );
 
     const confirmed = service.confirmSellerFacts(draft, ['category', 'dimensions']);
 
     expect(confirmed.confirmedFacts.category).toBe('paintings');
-    expect(confirmed.confirmedFacts.dimensions?.widthCm).toBe(60);
+    expect(confirmed.confirmedFacts.dimensions?.values).toEqual(aiDimensions);
     expect(confirmed.confirmedFacts.condition).toBeUndefined();
     expect(confirmed.recalculationRequired).toBe(true);
     expect(confirmed.revisionHistory.at(-1)).toEqual(expect.objectContaining({
@@ -471,6 +490,7 @@ it('updates seller corrections and fact confirmation status', () => {
     let draft = service.createDraftFromSellerInput(
       fixture,
       'I have a painting, 60 x 80 cm, good condition, marked, signed, from a family archive.',
+      aiDimensions,
     );
     draft = service.confirmSellerFacts(draft, ['dimensions', 'condition', 'marks', 'signatures', 'provenance']);
 

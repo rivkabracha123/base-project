@@ -63,7 +63,6 @@ function toDashboardValuation(valuation: SellerLeadEntity['valuation']): Dashboa
     status: 'refusal',
     ...base,
     reason: valuation.reason,
-    ...(valuation.confidence ? { confidence: valuation.confidence } : {}),
   };
 }
 

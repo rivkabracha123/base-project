@@ -48,10 +48,11 @@ describe('connectLevels', () => {
     expect(received).toEqual([{ speaker: 'system', text: 'he: I am looking for a watch' }]);
   });
 
-  // Verifies a failing server makes the connection fail, so the screen can show its error message and unlock.
-  it('fails when the server fails', async () => {
+  it('reports a handled server failure through the callback without a second screen error', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('server error', { status: 500 })));
-
-    await expect(connectLevels('I am looking for a watch', () => {}, 'en')).rejects.toThrow();
+    const onUpdate = vi.fn();
+    await expect(connectLevels('I am looking for a watch', onUpdate, 'en')).resolves.toBeUndefined();
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith({ speaker: 'error', code: 'buyer_chat_flow_failed', text: 'We could not send your message. Please try again.' });
   });
 });

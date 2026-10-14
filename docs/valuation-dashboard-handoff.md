@@ -93,9 +93,10 @@ copied from the replies she received.
 
 ## Week 5: recalculation and scenario comparison (S4)
 
-- **Who stores reports:** S4 stores nothing. Each `calculateFromItem` call (S1 supplies `itemId` and a new
-  `itemVersion` after a correction) returns a new immutable report with a new `reportId`; earlier
-  reports are never changed. S1 keeps the revisions in browser storage.
+- **Report persistence:** S4 does not persist valuation reports. Each `calculateFromItem` call
+  (S1 supplies `itemId` and a new `itemVersion` after a correction) returns a new immutable report
+  with a new `reportId`; earlier reports are never changed. Shared browser-storage helpers exist,
+  but production integration with S1 is not established yet.
 - **Storage helpers (client side):** `@monabid/shared` exports `saveValuationSnapshot`,
   `loadValuationHistory` and `findPreviousSnapshot` (they take the storage object, so S1 passes
   `localStorage`). Storage is untrusted: entries are validated and invalid ones ignored. S1 must call
@@ -107,9 +108,8 @@ copied from the replies she received.
   when both are supported, else `supported_to_refusal` / `refusal_to_supported` / `both_refusal` with
   no invented numbers), `incompatible` for different items, or `invalid_input` naming which side is invalid.
   Report ids, versions and refusal reasons are projected for privacy.
-- **Open decisions:** S1 provenance of `itemVersion`; who calls the comparison; whether S4 is required to
-  store reports (the week description lists "persistence"); the recalculation route
-  (`calculateFromItem`) is not exposed over HTTP because that needs AppModule wiring.
+- **Open decisions:** S1 provenance of `itemVersion`; who calls the comparison; whether the
+  recalculation route (`calculateFromItem`) should be exposed over HTTP, which needs AppModule wiring.
 
 ## Validation
 
