@@ -27,7 +27,7 @@ describe('Criteria refinement across chat and search', () => {
       const criteria = service.getCriteriaForSession(response.sessionId);
 
       expect(criteria.categories).toEqual(['painting']);
-      expect(criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+      expect(criteria.price).toEqual({ max: 10000, currency: 'USD' });
     });
   });
 
@@ -44,7 +44,7 @@ describe('Criteria refinement across chat and search', () => {
       });
       const afterBudget = service.getCriteriaForSession(first.sessionId);
 
-      expect(afterBudget.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+      expect(afterBudget.price).toEqual({ max: 10000, currency: 'USD' });
       expect(afterBudget.hardConstraints).toEqual(
         expect.arrayContaining([expect.objectContaining({ field: 'price', operator: 'range' })]),
       );
