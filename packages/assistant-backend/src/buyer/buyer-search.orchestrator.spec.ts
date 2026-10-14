@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import { deriveHardConstraints, emptyBuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
+import { UnmatchedDemandStore } from './unmatched-demand.store';
 import type { LotSearchResult } from '../lots/lot-match';
 
 const fixture = JSON.parse(
@@ -309,6 +310,61 @@ describe('BuyerSearchOrchestrator', () => {
     const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, {
       record: jest.fn().mockRejectedValue(failure),
+      resolve: jest.fn(),
+    });
+    const progress: unknown[] = [];
+
+    await expect(
+      orchestrator.search(
+        { criteria: searchableCriteria(), language: 'en', ...baseLead },
+        (update) => progress.push(update),
+      ),
+    ).rejects.toBe(failure);
+
+    expect(progress).toEqual([{ stage: 'searching' }, { stage: 'error' }]);
+  });
+
+  it('closes the earlier no-result demand once a changed budget finds results', async () => {
+    const lotsSearch = {
+      search: jest.fn().mockResolvedValueOnce(page([])).mockResolvedValueOnce(page([makeLot({ id: 'lot-1' })])),
+    };
+    const demandStore = new UnmatchedDemandStore();
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, demandStore);
+    const lowBudget = { ...searchableCriteria(), price: { max: 500, currency: 'USD' } };
+    const raisedBudget = { ...searchableCriteria(), price: { max: 5000, currency: 'USD' } };
+
+    await orchestrator.search({ criteria: lowBudget, language: 'en', ...baseLead });
+    expect(demandStore.get('lead-1')?.unmatchedDemand.searchRequest.criteria.price).toEqual(lowBudget.price);
+
+    const outcome = await orchestrator.search({ criteria: raisedBudget, language: 'en', ...baseLead });
+
+    expect(outcome.kind).toBe('results');
+    expect(demandStore.get('lead-1')).toBeUndefined();
+  });
+
+  it('keeps the latest budget on the recorded demand when a changed budget still finds nothing', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
+    const demandStore = new UnmatchedDemandStore();
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, demandStore);
+    const raisedBudget = { ...searchableCriteria(), price: { max: 5000, currency: 'USD' } };
+
+    await orchestrator.search({
+      criteria: { ...searchableCriteria(), price: { max: 500, currency: 'USD' } },
+      language: 'en',
+      ...baseLead,
+    });
+    await orchestrator.search({ criteria: raisedBudget, language: 'en', ...baseLead });
+
+    expect(demandStore.list()).toHaveLength(1);
+    expect(demandStore.get('lead-1')?.unmatchedDemand.searchRequest.criteria.price).toEqual(raisedBudget.price);
+  });
+
+  it('reports an error, not results, when closing the earlier demand fails, and rethrows', async () => {
+    const failure = new Error('demand store unavailable');
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-1' })])) };
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, {
+      record: jest.fn(),
+      resolve: jest.fn().mockRejectedValue(failure),
     });
     const progress: unknown[] = [];
 
@@ -325,7 +381,7 @@ describe('BuyerSearchOrchestrator', () => {
   it('treats a malformed lots search response as a failure and records no false demand', async () => {
     const lotsSearch = { search: jest.fn().mockResolvedValue({ total: 0 }) };
     const record = jest.fn();
-    const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record });
+    const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record, resolve: jest.fn() });
     const progress: unknown[] = [];
 
     await expect(
@@ -410,7 +466,7 @@ describe('BuyerSearchOrchestrator', () => {
     it('returns unmatched without recording demand when only the requested category came back', async () => {
       const lotsSearch = { search: jest.fn().mockResolvedValue(page([makeLot({ id: 'lot-book' })])) };
       const record = jest.fn();
-      const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record });
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record, resolve: jest.fn() });
       const progress: unknown[] = [];
 
       const outcome = await orchestrator.searchOtherCategories(
@@ -423,6 +479,21 @@ describe('BuyerSearchOrchestrator', () => {
       expect(outcome.relaxationOptions.map((option) => option.field)).not.toContain('categories');
       expect(record).not.toHaveBeenCalled();
       expect(progress).toEqual([{ stage: 'searching' }, { stage: 'no-results' }]);
+    });
+
+    it('leaves the recorded demand open when only other categories have results', async () => {
+      const lotsSearch = {
+        search: jest.fn().mockResolvedValueOnce(page([])).mockResolvedValueOnce(page([makeLot({ id: 'lot-j', category: 'judaica' })])),
+      };
+      const demandStore = new UnmatchedDemandStore();
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, demandStore);
+      const input = { criteria: otherCategoriesCriteria(), language: 'he' as const, ...baseLead };
+
+      await orchestrator.search(input);
+      const outcome = await orchestrator.searchOtherCategories(input);
+
+      expect(outcome.kind).toBe('results');
+      expect(demandStore.get('lead-1')).toBeDefined();
     });
 
     it('reports insufficient criteria when the buyer asked for a category only', async () => {
@@ -442,7 +513,7 @@ describe('BuyerSearchOrchestrator', () => {
     it('still records demand for a regular search after an other-categories search', async () => {
       const lotsSearch = { search: jest.fn().mockResolvedValue(page([])) };
       const record = jest.fn();
-      const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record });
+      const orchestrator = new BuyerSearchOrchestrator(lotsSearch, undefined, { record, resolve: jest.fn() });
       const input = { criteria: otherCategoriesCriteria(), language: 'he' as const, ...baseLead };
 
       await orchestrator.searchOtherCategories(input);

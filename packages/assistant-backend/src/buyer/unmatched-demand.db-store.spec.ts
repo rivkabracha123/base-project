@@ -14,6 +14,10 @@ function fakeRepository() {
       rows.set(row.leadId, JSON.parse(JSON.stringify(row)));
       return row;
     }),
+    delete: jest.fn(async ({ leadId }: { leadId: string }) => {
+      rows.delete(leadId);
+      return { affected: 1, raw: [] };
+    }),
     findOneBy: jest.fn(async ({ leadId }: { leadId: string }) => rows.get(leadId) ?? null),
     find: jest.fn(async () =>
       [...rows.values()].sort((a, b) => String(b.searchedAt).localeCompare(String(a.searchedAt))),
@@ -49,6 +53,18 @@ describe('UnmatchedDemandDbStore', () => {
     expect((await store.get('lead-a'))?.unmatchedDemand.searchedAt).toBe('2026-10-07T09:03:00.000Z');
     expect((await store.list()).map((view) => view.id)).toEqual(['lead-a', 'lead-b']);
     expect(await store.get('lead-missing')).toBeUndefined();
+  });
+
+  it('removes the demand of the resolved lead only from the database', async () => {
+    const { repository } = fakeRepository();
+    const store = new UnmatchedDemandDbStore(repository);
+    await store.record(viewFor('lead-a', '2026-10-07T09:01:00.000Z'));
+    await store.record(viewFor('lead-b', '2026-10-07T09:02:00.000Z'));
+
+    await store.resolve('lead-a');
+
+    expect(await store.get('lead-a')).toBeUndefined();
+    expect((await store.list()).map((view) => view.id)).toEqual(['lead-b']);
   });
 
   it('reads back the same view it saved, budget included, and stores no contact data', async () => {

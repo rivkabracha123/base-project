@@ -24,6 +24,11 @@ export class UnmatchedDemandDbStore implements UnmatchedDemandRecorder {
     });
   }
 
+  // Removes the lead's recorded demand, if any.
+  async resolve(leadId: string): Promise<void> {
+    await this.repository.delete({ leadId });
+  }
+
   // Returns the recorded demand for one lead, if any.
   async get(leadId: string): Promise<BuyerUnmatchedDemandDashboardView | undefined> {
     const row = await this.repository.findOneBy({ leadId });

@@ -3,6 +3,8 @@ import type { BuyerUnmatchedDemandDashboardView } from './unmatched-demand-dashb
 /** Where the orchestrator records no-result buyer demand so staff can read it later. */
 export interface UnmatchedDemandRecorder {
   record(view: BuyerUnmatchedDemandDashboardView): void | Promise<void>;
+  // Removes the lead's recorded demand once a later search for it finds results.
+  resolve(leadId: string): void | Promise<void>;
 }
 
 /** In-memory unmatched-demand store keyed by lead id; the latest no-result search per lead wins. */
@@ -12,6 +14,11 @@ export class UnmatchedDemandStore implements UnmatchedDemandRecorder {
   // Saves the no-result view for its lead, replacing an earlier one for the same lead.
   record(view: BuyerUnmatchedDemandDashboardView): void {
     this.views.set(view.id, view);
+  }
+
+  // Removes the lead's recorded demand, if any.
+  resolve(leadId: string): void {
+    this.views.delete(leadId);
   }
 
   // Returns the recorded demand for one lead, if any.

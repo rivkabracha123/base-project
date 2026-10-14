@@ -54,6 +54,10 @@ function demandRepository() {
       rows.set(row.leadId, JSON.parse(JSON.stringify(row)));
       return row;
     }),
+    delete: jest.fn(async ({ leadId }: { leadId: string }) => {
+      rows.delete(leadId);
+      return { affected: 1, raw: [] };
+    }),
     findOneBy: jest.fn(async ({ leadId }: { leadId: string }) => rows.get(leadId) ?? null),
     find: jest.fn(async () => [...rows.values()]),
   };
@@ -117,6 +121,7 @@ describe('BuyerModule search wiring', () => {
     const ids = [...outcome.results.current, ...outcome.results.historical].map((entry) => entry.lot.id);
     expect(ids).toEqual([namedLot.id]);
     expect(demand.save).not.toHaveBeenCalled();
+    expect(demand.delete).toHaveBeenCalledWith({ leadId: input.leadId });
   });
 
   it('rejects input the lots search rules forbid before any query, and records no demand', async () => {

@@ -27,4 +27,15 @@ describe('UnmatchedDemandStore', () => {
     expect(store.list().map((view) => view.id)).toEqual(['lead-a', 'lead-b']);
     expect(store.get('lead-missing')).toBeUndefined();
   });
+
+  it('removes the demand of the resolved lead only', () => {
+    const store = new UnmatchedDemandStore();
+    store.record(viewFor('lead-a', '2026-10-06T09:01:00.000Z'));
+    store.record(viewFor('lead-b', '2026-10-06T09:02:00.000Z'));
+
+    store.resolve('lead-a');
+    store.resolve('lead-missing');
+
+    expect(store.list().map((view) => view.id)).toEqual(['lead-b']);
+  });
 });
