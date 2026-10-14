@@ -3,15 +3,19 @@ import { useTranslation } from 'react-i18next';
 import type { SellerItemDraft } from '@monabid/shared';
 import {
   correctSellerDraftField,
+  getCurrentSellerDraft,
+  removeSellerPhoto,
   type SellerDraftCorrectionValue,
 } from './connect-seller-correction';
+import { connectSellerPhotos } from './connect-seller-photos';
+import { evidenceUrl } from '../app/api';
 
 type Item = SellerItemDraft['item'];
 type EditableField = 'title' | 'category' | 'description' | 'materials' | 'dimensions' | 'condition' | 'marks' | 'signatures' | 'provenance';
 type EditValues = Record<EditableField, string>;
 
 const editableFields: EditableField[] = [
-  'title', 'category', 'description', 'materials', 'dimensions', 'condition', 'marks', 'signatures', 'provenance',
+  'title', 'category', 'materials', 'dimensions', 'condition', 'marks', 'signatures', 'provenance',
 ];
 
 function dimensionsText(item: Item): string {
@@ -55,17 +59,43 @@ function correctionValue(field: EditableField, value: string, language: 'he' | '
   return value;
 }
 
-export function SellerItemDetailsCard({ item: initialItem, language }: { item: Item; language: 'he' | 'en' }) {
+export function SellerItemDetailsCard({ item: initialItem, language, evidence = [] }: { item: Item; language: 'he' | 'en'; evidence?: SellerItemDraft['evidence'] }) {
   const { t } = useTranslation();
   const [item, setItem] = useState(initialItem);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [photos, setPhotos] = useState(evidence.filter(entry => entry.type === 'photo'));
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  function applyPhotoDraft(draft: SellerItemDraft) {
+    setPhotos(draft.evidence.filter(entry => entry.type === 'photo'));
+  }
+
+  async function addPhotos(files: File[]) {
+    if (!files.length) return;
+    setPhotoBusy(true);
+    setError('');
+    try {
+      if (files.some(file => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024)) throw new Error('Invalid photo');
+      await connectSellerPhotos(files, () => undefined);
+      const draft = await getCurrentSellerDraft();
+      if (draft) applyPhotoDraft(draft);
+    } catch { setError(language === 'he' ? 'לא ניתן להוסיף תמונה. יש לבחור JPG, PNG או WebP עד 10MB.' : 'Could not add photos. Choose JPG, PNG or WebP up to 10MB.'); }
+    finally { setPhotoBusy(false); }
+  }
+
+  async function removePhoto(id: string) {
+    setPhotoBusy(true);
+    setError('');
+    try { applyPhotoDraft(await removeSellerPhoto(id)); }
+    catch { setError(language === 'he' ? 'לא ניתן להסיר את התמונה.' : 'Could not remove the photo.'); }
+    finally { setPhotoBusy(false); }
+  }
   const [values, setValues] = useState(() => valuesForItem(initialItem, language));
   const [savedValues, setSavedValues] = useState(() => valuesForItem(initialItem, language));
   const displayFields = ([
     ['category', item.category],
-    ['description', item.description[language]],
     ['materials', item.materials.join(', ')],
     ['dimensions', dimensionsText(item)],
     ['condition', item.condition],
@@ -81,7 +111,7 @@ export function SellerItemDetailsCard({ item: initialItem, language }: { item: I
   }, [item, language]);
 
   async function saveChanges() {
-    if (!values.title.trim() || !values.category.trim() || !values.description.trim()) {
+    if (!values.title.trim() || !values.category.trim()) {
       setError(t('chat.itemEdit.required'));
       return;
     }
@@ -123,6 +153,22 @@ export function SellerItemDetailsCard({ item: initialItem, language }: { item: I
           </button>
         )}
       </div>
+      <div className="mb-4 space-y-3">
+        <ul className="flex flex-wrap gap-3">
+          {photos.map(photo => <li key={photo.id}>
+            <img src={evidenceUrl(photo.previewUri ?? photo.uri ?? '')} alt={photo.originalName ?? (language === 'he' ? 'תמונת הפריט' : 'Item photo')} className="h-32 w-32 rounded-lg object-contain" />
+            {isEditing && <button type="button" disabled={photoBusy || isSaving} onClick={() => void removePhoto(photo.id)} className="mt-1 block text-sm underline">{language === 'he' ? 'הסרת תמונה' : 'Remove photo'}</button>}
+          </li>)}
+        </ul>
+        {isEditing && <label className="block text-sm">
+          {language === 'he' ? 'הוספת תמונות' : 'Add photos'}
+          <input type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={photoBusy || isSaving} onChange={event => {
+            const files = Array.from(event.currentTarget.files ?? []);
+            event.currentTarget.value = '';
+            void addPhotos(files);
+          }} />
+        </label>}
+      </div>
       {isEditing ? (
         <div className="space-y-3">
           {editableFields.map((field) => (
@@ -147,7 +193,7 @@ export function SellerItemDetailsCard({ item: initialItem, language }: { item: I
           ))}
           {error && <p role="alert" className="text-sm text-red-800">{error}</p>}
           <div className="flex gap-2">
-            <button type="button" disabled={isSaving} className="rounded-lg bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50" onClick={() => void saveChanges()}>
+            <button type="button" disabled={isSaving || photoBusy} className="rounded-lg bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50" onClick={() => void saveChanges()}>
               {isSaving ? t('chat.itemEdit.saving') : t('chat.itemEdit.save')}
             </button>
             <button type="button" disabled={isSaving} className="rounded-lg border border-neutral-400 px-3 py-2 text-sm" onClick={() => {

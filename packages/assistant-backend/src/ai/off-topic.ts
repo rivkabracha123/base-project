@@ -15,3 +15,7 @@ export function offTopicCopy(language: 'he' | 'en') {
       recommendation: 'This request is outside the buying or selling process.',
       nextAction: 'We can continue with the details you already provided, or discuss another item you want to buy or sell.' };
 }
+export function isGeneralAuctionQuestion(input: string): boolean {
+  return /auction|מכירות|מכירה|בית מכירות|בתי מכירות/i.test(input)
+    && /הכי (?:יקר|גבוה)|הגבוה ביותר|most expensive|highest (?:price|amount)|auction record|שיא.*(?:מכירה|מחיר)|מה זה|מהי|what is|how do auctions|מפורסם.*(?:מכר|מכירה)|(?:celebrity|famous).*(?:sold|auction)/i.test(input);
+}

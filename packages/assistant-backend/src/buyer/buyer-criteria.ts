@@ -187,6 +187,7 @@ function collectMoneyValues(text: string, options?: { lenientPlainNumbers?: bool
   )) {
     const start = match.index ?? 0;
     const afterMatch = text.slice(start + match[0].length).trimStart();
+    if (/^(?:st|nd|rd|th)\b/i.test(afterMatch)) continue;
     if (/^(?:אלף|מיליון)/i.test(afterMatch)) {
       continue;
     }
@@ -216,7 +217,9 @@ function toPriceRange(values: number[]): BuyerPriceRange | undefined {
   if (values.length === 0) {
     return undefined;
   }
-  return { min: Math.min(...values), max: Math.max(...values), currency: 'USD' };
+  return values.length === 1
+    ? { max: values[0], currency: 'USD' }
+    : { min: Math.min(...values), max: Math.max(...values), currency: 'USD' };
 }
 
 function extractCorrectionPrice(text: string): BuyerPriceRange | undefined {
@@ -224,7 +227,11 @@ function extractCorrectionPrice(text: string): BuyerPriceRange | undefined {
 }
 
 const extractPrice = (text: string, options?: { lenientPlainNumbers?: boolean }): BuyerPriceRange | undefined =>
-  toPriceRange(collectMoneyValues(text, options));
+  toPriceRange(collectMoneyValues(text, { ...options, lenientPlainNumbers: options?.lenientPlainNumbers || /תקציב|דולר|dollars?|USD|budget/i.test(text) }));
+
+export function isBudgetAnswer(text: string): boolean {
+  return extractPrice(text, { lenientPlainNumbers: true }) !== undefined;
+}
 
 const parseCategory = (text: string): string | null => {
   const lower = text.toLowerCase();
@@ -538,7 +545,7 @@ export function applyCriteriaCorrection(
 ): BuyerCriteriaResponse {
   const trimmed = message.trim();
   const criteriaUpdate: Partial<BuyerCriteria> = {};
-  if (/\bbudget\b|תקציב|\$/i.test(trimmed)) {
+  if (/\bbudget\b|תקציב|\$|דולר|dollars?|USD/i.test(trimmed)) {
     const price = extractCorrectionPrice(trimmed) ?? extractPrice(trimmed);
     if (price) {
       criteriaUpdate.price = price;
@@ -591,7 +598,7 @@ export function mergeBuyerCriteria(
     price:
       'price' in update
         ? update.price
-          ? { ...existing.price, ...update.price }
+          ? { ...update.price }
           : undefined
         : existing.price,
     hardConstraints: update.hardConstraints ?? existing.hardConstraints,
@@ -681,7 +688,8 @@ export function applyClarificationTurn(state: ClarificationTurnInput): BuyerCrit
   if (isCriteriaRemovalMessage(message)) {
     return applyCriteriaRemoval(state.criteria, state.conversation, message);
   }
-  if (isCriteriaCorrectionMessage(message)) {
+  if (isCriteriaCorrectionMessage(message)
+    || (/תקציב|\bbudget\b|\$|דולר|dollars?|USD/i.test(message) && extractPrice(message))) {
     return applyCriteriaCorrection(state.criteria, state.conversation, message);
   }
   return applyBuyerAnswer(state.criteria, state.conversation, message);

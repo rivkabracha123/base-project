@@ -39,6 +39,13 @@ export async function getCurrentSellerDraft(): Promise<SellerItemDraft | null> {
   return parseDraftResponse(await response.json());
 }
 
+export async function removeSellerPhoto(fileId: string): Promise<SellerItemDraft> {
+  const { profileId, sessionId } = await getSellerMessageIds();
+  const response = await fetch(`${API_BASE_URL}/seller-intake/draft/${encodeURIComponent(profileId)}/${encodeURIComponent(sessionId)}/photos/${encodeURIComponent(fileId)}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not remove the photo');
+  return parseDraftResponse(await response.json());
+}
+
 export async function correctSellerDraftField(
   field: SellerDraftCorrectionField,
   value: SellerDraftCorrectionValue,

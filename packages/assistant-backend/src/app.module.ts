@@ -89,6 +89,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       AddSellerLeadFinal1788220800003,
       AddSellerLeadDashboard1788220800004,
       CreateSellerIntakeDrafts1788220800005,
+      AlignLegacySellerLeads1788220800006,
     ],
     synchronize: false,
   };
@@ -120,3 +121,4 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
   ],
 })
 export class AppModule {}
+import { AlignLegacySellerLeads1788220800006 } from './database/1788220800006-align-legacy-seller-leads';

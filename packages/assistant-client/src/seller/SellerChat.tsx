@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { evidenceUrl, getSellerConversation } from '../app/api';
@@ -29,14 +29,14 @@ export function SellerChat() {
   const [photoError, setPhotoError] = useState('');
   // true בזמן שתמונה מועלית; בזמן הזה אי אפשר לבחור תמונה נוספת.
   const [isUploading, setIsUploading] = useState(false);
-  const [itemDraft, setItemDraft] = useState<SellerItemDraft | null>(null);
   const [draftLoadError, setDraftLoadError] = useState('');
+  const draftShown = useRef(false);
 
   useEffect(() => {
     if (!isSellerDraftReady()) return;
     let isCurrent = true;
     void getCurrentSellerDraft().then((draft) => {
-      if (isCurrent && draft?.missingFields?.length === 0) setItemDraft(draft);
+      if (isCurrent && draft) showItemDraft(draft);
     }).catch(() => {
       if (isCurrent) setDraftLoadError(t('chat.itemEdit.loadError'));
     });
@@ -54,9 +54,15 @@ export function SellerChat() {
       fetch: (signal) => getSellerConversation(language, signal),
     },
     userMessage: (text) => ({ speaker: 'seller', text }),
-    connect: (message, onUpdate) => connectSellerLevels(message, onUpdate, setItemDraft),
+    connect: (message, onUpdate) => connectSellerLevels(message, onUpdate, showItemDraft, draftShown.current),
     errorText: t('chat.sendError'),
   });
+
+  function showItemDraft(draft: SellerItemDraft) {
+    draftShown.current = true;
+    addMessage({ speaker: 'system', text: language === 'he' ? 'פרטי הפריט שלי' : 'My item details',
+      comparison: { mode: 'details', item: draft.item, evidence: draft.evidence } });
+  }
 
   // Handles one or several photos chosen from the computer: checks each one, hands them all together to S1
   // (one upload = one item), and shows what S1 returns in the conversation as a seller message.
@@ -78,6 +84,10 @@ export function SellerChat() {
     setIsUploading(true);
     try {
       await connectSellerPhotos(files, addMessage);
+      if (draftShown.current) {
+        const draft = await getCurrentSellerDraft();
+        if (draft) showItemDraft(draft);
+      }
     } catch {
       showError('photo-upload-failed');
     } finally {
@@ -86,7 +96,7 @@ export function SellerChat() {
   }
 
   // Renders a single conversation message as a bubble: the photo (if any) above the text (if any).
-  function renderMessage(message: SellerMessage) {
+  function renderMessageContent(message: SellerMessage) {
     if (message.speaker === 'system' && message.action) return <li data-speaker="system" className="w-full min-w-0">
       <SellerActionCard action={message.action} language={language} summary={message.text} />
     </li>;
@@ -99,7 +109,9 @@ export function SellerChat() {
     if (message.speaker === 'system' && message.comparison) {
       return <li data-speaker="system" className="w-full min-w-0">
         <h2 className="mb-3 text-lg font-semibold">{message.text}</h2>
-        <SellerComparisonResults result={message.comparison} language={language} />
+        {message.comparison.mode === 'details'
+          ? <SellerItemDetailsCard item={message.comparison.item} evidence={message.comparison.evidence} language={language} />
+          : <SellerComparisonResults result={message.comparison} language={language} />}
       </li>;
     }
     return (
@@ -119,11 +131,12 @@ export function SellerChat() {
         {message.speaker === 'system' && /בית המכירות המומלץ|Recommended auction house|המלצת בתי המכירות מוכנה/.test(message.text) && <Link to="/seller/houses" className="mt-2 block underline">{language === 'he' ? 'בתי מכירות' : 'Auction houses'}</Link>}
         {message.speaker === 'system' && /פניות שמורות|saved enquiries|פרטי הפנייה/.test(message.text) && <Link to="/seller/enquiry" className="mt-2 block underline">{language === 'he' ? 'פניית מוכר' : 'Seller enquiry'}</Link>}
         {message.speaker === 'system' && message.comparison && <SellerComparisonResults result={message.comparison} language={language} />}
-        {message.speaker === 'system' && message.id === messages.at(-1)?.id && itemDraft && (
-          <SellerItemDetailsCard item={itemDraft.item} language={language} />
-        )}
       </MessageBubble>
     );
+  }
+
+  function renderMessage(message: SellerMessage) {
+    return renderMessageContent(message);
   }
 
   // לחצן צירוף תמונה: תווית שמפעילה שדה קובץ מוסתר, ואזהרה כשהקובץ שנבחר אינו תמונה תקינה.

@@ -5,6 +5,7 @@
   "output": "BuyerHandoffContract",
   "rules": [
     "Return JSON only.",
+    "General questions about auctions, auction houses, collecting, historical records, famous sellers and auction items are relevant without a search function. Answer directly in summary, add useful explanation in recommendation, and set intent to general_information. Do not ask for a budget or alter saved search criteria for these questions. Never invent live inventory, prices or sources.",
     "Extract only facts present in the user message.",
     "Return completionState with one entry per relevant field. Mark each field as provided, skipped, missing, or uncertain.",
     "Set readyForFunctions to false only when a required field is missing or uncertain. Optional missing fields must not block functions.",

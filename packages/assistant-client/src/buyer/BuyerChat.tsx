@@ -62,11 +62,6 @@ export function BuyerChat() {
         <SellerComparisonResults language={language} result={{
           mode: 'trend', criteria: { category: message.lots[0]?.category ?? '' }, lots: message.lots,
         }} />
-        <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {message.lots.filter(lot => lot.status === 'sold').map(lot => <li key={lot.id} className="min-w-0">
-            <ResultCard lot={lot} lang={language} onSelect={() => { selectBuyerLot(lot); navigate(`/lots/${encodeURIComponent(lot.id)}`, { state: { returnTo: '/chat/buyer' } }); }} />
-          </li>)}
-        </ul>
       </li>;
     }
 

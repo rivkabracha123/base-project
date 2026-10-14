@@ -3,10 +3,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SellerItemDraft } from '@monabid/shared';
 import i18n from '../i18n';
 import { SellerItemDetailsCard } from './SellerItemDetailsCard';
-import { correctSellerDraftField } from './connect-seller-correction';
+import { correctSellerDraftField, getCurrentSellerDraft, removeSellerPhoto } from './connect-seller-correction';
+import { connectSellerPhotos } from './connect-seller-photos';
+
+vi.mock('./connect-seller-photos', () => ({ connectSellerPhotos: vi.fn() }));
 
 vi.mock('./connect-seller-correction', () => ({
   correctSellerDraftField: vi.fn(),
+  getCurrentSellerDraft: vi.fn(),
+  removeSellerPhoto: vi.fn(),
 }));
 
 const item: SellerItemDraft['item'] = {
@@ -61,16 +66,40 @@ afterEach(async () => {
 });
 
 describe('SellerItemDetailsCard', () => {
+  it('uploads an optional photo from the editor and displays the saved draft photo', async () => {
+    const photo = { id: 'new-photo', type: 'photo' as const, source: 'seller' as const, value: 'new.jpg', confidence: 'high' as const, originalName: 'new.jpg', previewUri: '/api/evidence/profile-a/new-photo' };
+    vi.mocked(connectSellerPhotos).mockResolvedValue(undefined);
+    vi.mocked(getCurrentSellerDraft).mockResolvedValue({ ...draft, evidence: [photo] });
+    render(<SellerItemDetailsCard item={item} language="en" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit item' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Unsaved title' } });
+    const file = new File(['photo'], 'new.jpg', { type: 'image/jpeg' });
+    fireEvent.change(screen.getByLabelText('Add photos'), { target: { files: [file] } });
+    expect(await screen.findByRole('img', { name: 'new.jpg' })).toBeInTheDocument();
+    expect(connectSellerPhotos).toHaveBeenCalledWith([file], expect.any(Function));
+    expect(screen.getByLabelText('Title')).toHaveValue('Unsaved title');
+  });
+  it('shows uploaded item photos and removes them through the draft API', async () => {
+    const photo = { id: 'photo-1', type: 'photo' as const, source: 'seller' as const, value: 'front.jpg', confidence: 'high' as const, originalName: 'front.jpg', previewUri: '/api/evidence/profile-a/photo-1' };
+    vi.mocked(removeSellerPhoto).mockResolvedValue(draft);
+    render(<SellerItemDetailsCard item={item} language="en" evidence={[photo]} />);
+    expect(screen.getByRole('img', { name: 'front.jpg' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit item' }));
+    expect(screen.getByLabelText('Add photos')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove photo' }));
+    await waitFor(() => expect(screen.queryByRole('img')).not.toBeInTheDocument());
+    expect(removeSellerPhoto).toHaveBeenCalledWith('photo-1');
+  });
   it('shows the item summary and an editor in the active language', async () => {
     await i18n.changeLanguage('en');
     render(<SellerItemDetailsCard item={item} language="en" />);
 
     expect(screen.getByRole('heading', { name: 'Blue ring' })).toBeInTheDocument();
-    expect(screen.getByText('English description')).toBeInTheDocument();
+    expect(screen.queryByText('English description')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit item' }));
 
     expect(screen.getByLabelText('Title')).toHaveValue('Blue ring');
-    expect(screen.getByLabelText('Description')).toHaveValue('English description');
+    expect(screen.queryByLabelText('Description')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Dimensions')).toHaveValue('ring size: 8 ring_size');
     expect(screen.queryByLabelText('כותרת')).not.toBeInTheDocument();
   });
@@ -83,7 +112,7 @@ describe('SellerItemDetailsCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'עריכת פריט' }));
 
     expect(screen.getByLabelText('כותרת')).toHaveValue('טבעת כחולה');
-    expect(screen.getByLabelText('תיאור')).toHaveValue('תיאור בעברית');
+    expect(screen.queryByLabelText('תיאור')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
   });
 

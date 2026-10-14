@@ -17,6 +17,7 @@ import {
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
+import type { AuctionLot, BuyerPriceRange } from '@monabid/shared';
 
 export type P4FunctionExecutionContext = {
   sessionId: string;
@@ -25,6 +26,21 @@ export type P4FunctionExecutionContext = {
   /** B2 criteria + conversation have no missing search facts. */
   criteriaComplete: boolean;
 };
+
+function lotMatchesPrice(lot: AuctionLot, price: BuyerPriceRange | undefined): boolean {
+  if (!price || (price.min == null && price.max == null)) return true;
+
+  if (lot.realizedPrice) {
+    const amount = lot.realizedPrice.amount;
+    return (price.min == null || amount >= price.min) && (price.max == null || amount <= price.max);
+  }
+
+  if (lot.estimate) {
+    return (price.min == null || lot.estimate.high.amount >= price.min) && (price.max == null || lot.estimate.low.amount <= price.max);
+  }
+
+  return false;
+}
 
 /**
  * Maps Shilat intentRoute.functionName → B2 handlers (search, sale history, lot detail).
@@ -82,10 +98,12 @@ export class BuyerP4FunctionExecutor {
       const category = typeof args.category === 'string' && args.category.trim() ? args.category.trim()
         : anchor?.category ?? this.criteriaService.getCriteriaForSession(ctx.sessionId).categories.map((value) => value.trim()).filter(Boolean).at(-1);
       if (!category || ['unknown', 'general'].includes(category)) return false;
+      const criteria = this.criteriaService.getCriteriaForSession(ctx.sessionId);
       const evidence = await this.comparables.findComparables({ category });
       const status = args.status === 'sold' ? 'sold' : 'upcoming';
       const lots = [...evidence.included, ...evidence.excluded]
         .filter((entry) => entry.lot.status === status && entry.lot.category === category && entry.score >= 0.8 && entry.lot.id !== anchor?.id)
+        .filter((entry) => lotMatchesPrice(entry.lot, criteria.price))
         .map((entry) => entry.lot);
       updates.push(lots.length ? { speaker: 'result-group', title: ctx.language === 'he' ? '\u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd \u05dc\u05e4\u05d9 \u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4' : 'Similar items by category', lots }
         : { speaker: 'no-results', text: ctx.language === 'he' ? '\u05dc\u05d0 \u05e0\u05de\u05e6\u05d0\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd.' : 'No similar items were found.' });
@@ -230,13 +248,30 @@ export class BuyerP4FunctionExecutor {
       return true;
     }
 
+    const criteria = this.criteriaService.getCriteriaForSession(ctx.sessionId);
+    const trendLots = criteria.price
+      ? (await Promise.all(lots.map(async (lot) => {
+          const resolved = await this.lotsResolver.findLot(lot.id);
+          return resolved && lotMatchesPrice(resolved, criteria.price) ? { id: lot.id } : null;
+        }))).filter((lot): lot is { id: string } => lot !== null)
+      : lots;
+    if (!trendLots.length) {
+      updates.push({
+        speaker: 'no-results',
+        text: ctx.language === 'he'
+          ? 'לא נמצאו פריטים בתקציב להצגת מגמת מחירים.'
+          : 'No in-budget lots were found for a price trend.',
+      });
+      return true;
+    }
+
     if (!this.resultsPresentation.presentPriceTrend) {
       updates.push({ speaker: 'error', code: 'price_trend_unavailable', text: 'Price trend is unavailable.' });
       return true;
     }
 
     await this.resultsPresentation.presentPriceTrend({
-      lots,
+      lots: trendLots,
       language: ctx.language,
       onUpdate: (flowUpdate) => {
         updates.push(...buyerFlowUpdatesToChatUpdates(flowUpdate, ctx.language));

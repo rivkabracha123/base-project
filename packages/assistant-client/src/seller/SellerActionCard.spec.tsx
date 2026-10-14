@@ -3,8 +3,16 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { SellerActionCard } from './SellerActionCard';
 import { sellerActionResultSchema } from './seller-action-result';
+import { upcomingLotWithHistoryFixture } from '../app/local-history-demo.fixture';
 
 describe('seller action cards', () => {
+  it('shows the valuation report without product cards even when comparables are supplied', () => {
+    render(<MemoryRouter><SellerActionCard language="en" action={{ kind: 'valuation', status: 'refusal', comparableCount: 1,
+      lots: [{ ...upcomingLotWithHistoryFixture, status: 'sold' }] }} /></MemoryRouter>);
+    expect(screen.getByRole('heading', { name: 'Estimated value' })).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  });
   it('shows the saved catalog copy without inventing missing facts', () => {
     render(<MemoryRouter><SellerActionCard language="en" action={{ kind: 'catalog', title: 'Seller manuscript', he: '', en: 'Origin not confirmed.' }} /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: 'Catalog description draft' })).toBeInTheDocument();

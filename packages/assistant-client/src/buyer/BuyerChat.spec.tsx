@@ -67,6 +67,14 @@ describe('BuyerChat', () => {
     expect(screen.getByText('Test Auction House · 2025-01-23')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Sale details' })).toHaveLength(1);
   });
+  it('shows the price trend chart without repeating its sales as item cards', async () => {
+    renderChat([{ id: 'trend-test', sessionId: 's1', speaker: 'price-trend', title: 'Price trend',
+      lots: [soldLotFixture, { ...soldLotFixture, id: 'second-sale', saleDate: '2026-01-23' }],
+      points: [] }]);
+    expect(await screen.findByRole('img', { name: /Similar-item sale prices/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: soldLotFixture.title.en })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View original listing' })).not.toBeInTheDocument();
+  });
   // Verifies the screen shows the text of the first buyer message in the conversation.
   it('shows the first buyer message', async () => {
     renderChat(mockConversation.en);

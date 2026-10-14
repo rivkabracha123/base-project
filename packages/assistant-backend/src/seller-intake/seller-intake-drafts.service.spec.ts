@@ -138,6 +138,19 @@ describe('SellerIntakeDraftsService', () => {
     expect(attached).toBeNull();
   });
 
+  it('stores a photo uploaded before the first text without inventing item facts', async () => {
+    await service.attachEvidence('profile-a', 'session-1', [{ fileId: 'photo-first', profileId: 'profile-a', originalName: 'front.jpg', mimeType: 'image/jpeg', size: 100, previewUri: '/api/evidence/profile-a/photo-first' }]);
+    const saved = await service.getDraft('profile-a', 'session-1');
+    expect(saved.draft.item.category).toBe('unknown');
+    expect(saved.draft.confirmedFacts).toEqual({});
+    expect(saved.draft.item.evidenceIds).toEqual(['photo-first']);
+    expect(saved.draft.evidence).toHaveLength(1);
+    const removed = await service.detachEvidence('profile-a', 'session-1', 'photo-first');
+    expect(removed.draft.evidence).toEqual([]);
+    expect(removed.draft.item.evidenceIds).toEqual([]);
+    await expect(service.detachEvidence('profile-b', 'session-1', 'photo-first')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('rejects corrections with malformed values and attempts to confirm missing facts', async () => {
     await service.saveDraft('profile-a', 'session-1', fixture);
     await expect(service.correctDraft('profile-a', 'session-1', 'dimensions', { widthCm: 0, heightCm: 30 }))

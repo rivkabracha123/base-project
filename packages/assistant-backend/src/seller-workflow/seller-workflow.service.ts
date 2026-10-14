@@ -101,7 +101,7 @@ export class SellerWorkflowService {
         if (!sellerItemReady(item)) {
           throw new BadRequestException('Seller actions require category, dimensions and condition');
         }
-        if (action.functionToRun === 'getSellerItemDetails') return { item };
+        if (action.functionToRun === 'getSellerItemDetails') return { item, evidence: saved.draft.evidence };
         if (!this.comparables) throw new BadRequestException('Seller comparison service is unavailable');
         const category = sellerComparisonCategory(item.category, `${item.title}\n${item.description?.he ?? ''}\n${item.description?.en ?? ''}`);
         const criteria = { category, ...(saved.draft.confirmedFacts.materials?.length ? { materials: saved.draft.confirmedFacts.materials } : {}) };
@@ -119,7 +119,8 @@ export class SellerWorkflowService {
         if (!this.drafts) throw new BadRequestException('Seller draft service is unavailable');
         const saved = await this.drafts.getDraft(profileId, requiredString(action.object, 'sessionId'));
         if (!sellerItemReady(saved.draft.item)) throw new BadRequestException('Seller actions require category, dimensions and condition');
-        if (action.functionToRun === 'getSellerHouseRecommendation') return { ...this.sellerLeads.rankHouses({ category: saved.draft.item.category }), category: saved.draft.item.category };
+        const category = sellerComparisonCategory(saved.draft.item.category, saved.draft.item.title);
+        if (action.functionToRun === 'getSellerHouseRecommendation') return { ...this.sellerLeads.rankHouses({ category }), category };
         if (action.functionToRun === 'getSellerProvenanceAdvice') return { text: {
           he: 'תיעוד אמין של מקור הפריט עשוי לסייע בבדיקת הזיהוי והאותנטיות. אי אפשר לקבוע בכמה ישתנה השווי בלי לבדוק את התיעוד ואת הפריט. ההערכה הקיימת אינה כוללת תוספת שווי משוערת עבור תיעוד שלא נבדק.',
           en: 'Reliable provenance can help verify identity and authenticity. Its effect on value requires reviewing the documents and the item. The current valuation does not add an assumed premium for unverified provenance.',
@@ -168,7 +169,7 @@ export class SellerWorkflowService {
       }
       case 'rankSellerHouses':
         return this.sellerLeads.rankHouses({
-          category: requiredString(action.object, 'category'),
+          category: sellerComparisonCategory(requiredString(action.object, 'category'), ''),
           ...(optionalString(action.object, 'geography') ? { geography: optionalString(action.object, 'geography') } : {}),
           ...(optionalString(action.object, 'preferredLanguage') || optionalString(action.object, 'language')
             ? { preferredLanguage: optionalString(action.object, 'preferredLanguage') ?? optionalString(action.object, 'language') }

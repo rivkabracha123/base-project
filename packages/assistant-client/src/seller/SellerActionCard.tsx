@@ -1,9 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { ResultCard } from '../components/ResultCard';
+import { Link } from 'react-router-dom';
 import type { SellerActionResult } from './seller-action-result';
 
 export function SellerActionCard({ action, language, summary }: { action: SellerActionResult; language: 'he' | 'en'; summary?: string }) {
-  const navigate = useNavigate();
   const he = language === 'he';
   if (action.kind === 'catalog') return <article className="rounded-lg border border-stone-300 p-5">
     <h2 className="mb-4 text-lg font-semibold">{he ? 'טיוטת תיאור לקטלוג' : 'Catalog description draft'}</h2>
@@ -31,10 +29,5 @@ export function SellerActionCard({ action, language, summary }: { action: Seller
     <p className="my-3">{action.status === 'supported'
       ? he ? `מבוסס על ${action.comparableCount} מכירות השוואה. נדרשת בדיקת מומחה לפריט.` : `Based on ${action.comparableCount} comparable sales. Expert review of the item is required.`
       : summary ?? (he ? 'אין מספיק ראיות להערכת שווי מבוססת. לא יוצג מחיר משוער.' : 'There is insufficient evidence for a reliable valuation. No estimated price is shown.')}</p>
-    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {action.lots.filter(lot => lot.status === 'sold').map(lot => <li key={lot.id} className="min-w-0">
-        <ResultCard lot={lot} lang={language} onSelect={id => navigate(`/lots/${encodeURIComponent(id)}`, { state: { returnTo: '/chat/seller' } })} />
-      </li>)}
-    </ul>
   </section>;
 }

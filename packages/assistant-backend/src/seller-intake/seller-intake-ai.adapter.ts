@@ -7,8 +7,11 @@ import type { AiFunctionCall } from '../ai/ai.dto';
 import type { SellerItemDraft } from '@monabid/shared';
 import { requestedSellerComparison } from '../seller-workflow/seller-comparison-action';
 import { hasSellerCondition, sellerComparisonCategory } from './seller-item-readiness';
+import { guidedDimensions } from './guided-dimensions';
+import { isGeneralAuctionQuestion } from '../ai/off-topic';
 
 function requestedReadAction(input: string, category: string, language: 'he' | 'en'): AiFunctionCall | null {
+  if (isGeneralAuctionQuestion(input)) return null;
   if (/^(?:list my saved enquiries|\u05d4\u05e6\u05d2 \u05d0\u05ea \u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea \u05e9\u05dc\u05d9)[.!?\s]*$/i.test(input)) {
     return { functionToRun: 'listSellerLeads', object: {} };
   }
@@ -136,6 +139,16 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       // from sharing basic item details. Keep the response explicitly marked as
       // fixture/guided so downstream code never treats it as real AI extraction.
       if (error instanceof HttpException && error.getStatus() === 503) {
+        if (isGeneralAuctionQuestion(input)) {
+          const preserved = previous?.result ?? this.intake.analyze('');
+          return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
+            ai: { provider: 'fixture', mode: 'fixture', fallbackMode: 'guided', isRelevant: true,
+              generalInformation: true, aiMissingFields: preserved.missingFields ?? [],
+              error: 'General auction information is unavailable because the AI provider failed.',
+              summary: language === 'he' ? 'זו שאלה על מכירות פומביות, אבל שירות ה־AI אינו זמין כרגע. לא אוכל לענות עליה באופן אמין כרגע.' : 'This is an auction question, but the AI service is unavailable. I cannot answer it reliably right now.' } };
+        }
+        const parsedDimensions = isActionRequest ? undefined : guidedDimensions(combinedInput);
+        if (parsedDimensions?.values.length) dimensions = { values: parsedDimensions.values };
         if (!isActionRequest) {
           const fieldPatterns: Record<string, RegExp> = {
             condition: /\bcondition\b|\u05de\u05e6\u05d1/i,
@@ -167,6 +180,13 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
             error: 'Real AI is temporarily unavailable; guided seller intake was used.',
           },
         });
+        if (parsedDimensions?.needsUnit && result.nextQuestion?.field === 'dimensions') {
+          result.nextQuestion = {
+            field: 'dimensions',
+            he: 'באיזו יחידה המידות שציינת — ס״מ, מ״מ או אינץ׳?',
+            en: 'What unit are those measurements in — cm, mm, or inches?',
+          };
+        }
         if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: result.item.dimensions, nextField: result.nextQuestion?.field, facts, result });
         return result;
       }
@@ -186,6 +206,13 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         } };
     }
     const structuredAnswer: SellerHandoffContract = response.structuredAnswer;
+    if (structuredAnswer.intent === 'general_information' || isGeneralAuctionQuestion(input)) {
+      const preserved = previous?.result ?? this.intake.analyze('');
+      return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
+        ai: { provider: response.provider, mode: response.mode, isRelevant: true, error: response.error,
+          generalInformation: true, aiMissingFields: preserved.missingFields ?? [],
+          summary: response.summary, recommendation: response.recommendation, nextAction: response.nextAction } };
+    }
     structuredAnswer.category = sellerComparisonCategory(structuredAnswer.category, `${combinedInput}\n${structuredAnswer.item.title ?? ''}`);
     if (structuredAnswer.category === 'unknown') {
       const previousCategory = previous?.result?.item.category;

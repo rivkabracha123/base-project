@@ -4,6 +4,7 @@ import type { SellerEvidenceReference, SellerItemDraft } from '@monabid/shared';
 import { Repository } from 'typeorm';
 import { SellerIntakeDraftEntity } from '../database/seller-intake-draft.entity';
 import { SellerIntakeService } from './seller-intake.service';
+import { createDeterministicSellerItemDraft } from './seller-intake-ai.mock';
 
 const CORRECTABLE_FIELDS = [
   'title',
@@ -68,8 +69,21 @@ export class SellerIntakeDraftsService {
     references: SellerEvidenceReference[],
   ): Promise<SellerIntakeDraftEntity | null> {
     const current = await this.drafts.findOneBy({ profileId, sessionId });
-    if (!current) return null;
-    const draft = this.sellerIntake.attachEvidenceReferences(current.draft, references);
+    if (!current && references.length === 0) return null;
+    const empty = this.sellerIntake.createDraftFromSellerInput(createDeterministicSellerItemDraft(), '');
+    empty.seller = { anonymousProfileId: profileId, name: 'Anonymous seller', preferredName: 'Anonymous seller' };
+    empty.evidence = [];
+    empty.item.evidenceIds = [];
+    empty.uncertainFacts = [];
+    empty.revisionHistory = [];
+    const draft = this.sellerIntake.attachEvidenceReferences(current?.draft ?? empty, references);
+    return this.saveDraft(profileId, sessionId, draft);
+  }
+
+  async detachEvidence(profileId: string, sessionId: string, fileId: string): Promise<SellerIntakeDraftEntity> {
+    const current = await this.getDraft(profileId, sessionId);
+    const draft = { ...current.draft, evidence: current.draft.evidence.filter(entry => entry.id !== fileId),
+      item: { ...current.draft.item, evidenceIds: current.draft.item.evidenceIds.filter(id => id !== fileId) } };
     return this.saveDraft(profileId, sessionId, draft);
   }
 

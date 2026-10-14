@@ -53,6 +53,38 @@ function renderChatWithError() {
 }
 
 describe('SellerChat', () => {
+  it('automatically shows the editable draft after answering the final required question', async () => {
+    await i18n.changeLanguage('en');
+    vi.mocked(connectSellerLevels).mockImplementation(async (_input, update, ready) => {
+      ready?.({ item: { id: 'item-1', title: 'My manuscript', category: 'rare_books',
+        description: { he: '', en: 'Old manuscript' }, materials: [],
+        dimensions: { values: [{ label: 'width', value: 70, unit: 'cm' }] }, condition: 'Good',
+        source: 'seller-intake', evidenceIds: [], catalogDraft: { he: '', en: '' },
+      } } as never);
+      await update({ speaker: 'system', text: 'Your item details are saved.' });
+    });
+    renderChat([]);
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Good condition' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    expect(await screen.findByRole('button', { name: /edit/i })).toBeInTheDocument();
+    expect(screen.getByText('My manuscript')).toBeInTheDocument();
+  });
+  it('opens the item editor from a details result in the conversation', async () => {
+    await i18n.changeLanguage('en');
+    renderChat([{ speaker: 'system', id: 'details', sessionId: 's', text: 'Your item details',
+      comparison: { mode: 'details', item: {
+        id: 'item-1', title: 'My manuscript', category: 'rare_books',
+        description: { he: '', en: 'An old manuscript' }, materials: [],
+        dimensions: { values: [{ label: 'width', value: 70, unit: 'cm' }] }, condition: 'Good',
+        source: 'seller-intake', evidenceIds: [], catalogDraft: { he: '', en: '' },
+      } },
+    }]);
+    const edit = await screen.findByRole('button', { name: /edit/i });
+    fireEvent.click(edit);
+    expect(screen.getByDisplayValue('My manuscript')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+  });
   it('shows the first seller message', async () => {
     renderChat(mockConversation.en);
     expect(await screen.findByText('I have an antique watch I want to sell')).toBeInTheDocument();

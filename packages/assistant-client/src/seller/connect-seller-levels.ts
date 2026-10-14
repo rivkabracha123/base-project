@@ -8,7 +8,7 @@ import type { SellerItemDraft } from '@monabid/shared';
 import { getCurrentSellerDraft } from './connect-seller-correction';
 
 interface SellerIntakeResponse {
-  ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; summary?: string; nextAction?: string };
+  ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; generalInformation?: boolean; summary?: string; recommendation?: string; nextAction?: string };
   missingFields?: string[];
   requiredMissingFields?: string[];
   nextQuestion?: { field: string; he: string; en: string } | null;
@@ -45,8 +45,8 @@ export async function sendSellerMessage(
 // Selects the next question or system summary in the application's active language.
 function getSystemText(response: SellerIntakeResponse): string {
   const language = getBrowserLanguage(i18n.language);
-  if (response.ai?.isRelevant === false) {
-    return [response.ai.summary, response.ai.nextAction].filter(text => text?.trim()).join('\n')
+  if (response.ai?.isRelevant === false || response.ai?.generalInformation) {
+    return [response.ai.summary, response.ai.generalInformation ? response.ai.recommendation : undefined, response.ai.nextAction].filter(text => text?.trim()).join('\n')
       || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
   }
   const nextQuestion = response.nextQuestion;
@@ -166,12 +166,20 @@ export async function connectSellerLevels(
   message: string,
   onUpdate: (update: SellerUpdate) => void | Promise<void>,
   onDraftReady?: (draft: SellerItemDraft) => void,
+  draftAlreadyShown = false,
 ): Promise<void> {
   try {
     const input = message.trim();
     if (!input) throw new Error('יש להזין הודעה לפני השליחה.');
 
     const { profileId, sessionId } = await getSellerMessageIds();
+    if (onDraftReady && /item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט/i.test(input)) {
+      const draft = await getCurrentSellerDraft();
+      if (!draft) throw new Error(i18n.language.startsWith('he') ? 'עדיין אין פריט שמור בשיחה הזו.' : 'There is no saved item in this conversation yet.');
+      await sendSellerMessage(i18n.language.startsWith('he') ? 'פרטי הפריט שלך:' : 'Your item details:', onUpdate);
+      onDraftReady(draft);
+      return;
+    }
     const response = await fetch(`${API_BASE_URL}/seller-intake/draft`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -184,19 +192,27 @@ export async function connectSellerLevels(
 
     const body = await response.json() as SellerIntakeResponse;
     const language = getBrowserLanguage(i18n.language);
-    if (body.ai?.isRelevant === false) {
+    if (body.ai?.isRelevant === false || body.ai?.generalInformation) {
       await sendSellerMessage(getSystemText(body), onUpdate);
       return;
     }
+    await publishCompletedDraft(body, onDraftReady, draftAlreadyShown);
     const functionCall = body.functionCall;
     if (functionCall?.functionToRun) {
+      const sessionActions = ['calculateSellerValuation', 'searchSellerComparables', 'getSellerComparableHistory',
+        'getSellerPriceTrend', 'getSellerItemDetails', 'getSellerCatalogDraft', 'getSellerEnquiryPreview',
+        'getSellerProvenanceAdvice', 'getSellerHouseRecommendation'];
+      const workflowCall = sessionActions.includes(functionCall.functionToRun)
+        ? { functionToRun: functionCall.functionToRun, object: { sessionId } } : functionCall;
       const workflowResponse = await fetch(`${API_BASE_URL}/seller-workflow/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId, structuredAnswer: functionCall }),
+        body: JSON.stringify({ profileId, structuredAnswer: workflowCall }),
       });
       if (!workflowResponse.ok) {
-        throw new Error(`Seller workflow request failed (${workflowResponse.status})`);
+        const failure = await workflowResponse.json().catch(() => null) as { message?: string | string[] } | null;
+        const detail = Array.isArray(failure?.message) ? failure.message.join('; ') : failure?.message;
+        throw new Error(detail || `Seller workflow request failed (${workflowResponse.status})`);
       }
       const workflowResult = await workflowResponse.json() as { result?: unknown };
       const kinds: Record<string, 'catalog' | 'enquiry' | 'valuation'> = {
@@ -252,11 +268,9 @@ export async function connectSellerLevels(
         getFunctionResultText(functionCall.functionToRun, workflowResult.result, language, functionCall.object?.category),
         onUpdate,
       );
-      await publishCompletedDraft(body, onDraftReady);
       return;
     }
     await sendSellerMessage(getSystemText(body), onUpdate);
-    await publishCompletedDraft(body, onDraftReady);
   } catch (error) {
     const update: SellerUpdate = {
       speaker: 'error',
@@ -271,10 +285,13 @@ export async function connectSellerLevels(
 async function publishCompletedDraft(
   response: SellerIntakeResponse,
   onDraftReady?: (draft: SellerItemDraft) => void,
+  draftAlreadyShown = false,
 ): Promise<void> {
-  if (!onDraftReady || response.nextQuestion || response.missingFields?.length !== 0) return;
+  if (!onDraftReady
+    || draftAlreadyShown
+    || (response.requiredMissingFields ?? response.missingFields)?.length !== 0) return;
   const draft = await getCurrentSellerDraft();
-  if (draft?.missingFields?.length === 0) {
+  if (draft) {
     sessionStorage.setItem(DRAFT_READY_STORAGE_KEY, 'true');
     onDraftReady(draft);
   }

@@ -1,6 +1,20 @@
 import { MAX_PROVIDER_PROMPT_LENGTH, RealProviderService, sanitizePrompt } from './real-provider.service';
 //test real provider service
 describe('RealProviderService', () => {
+  it('requires structured seller output from OpenAI without unsupported reasoning options', async () => {
+    const envelope = { isRelevant: true, error: null, summary: 'Auction information', recommendation: 'Verify the sale record',
+      nextAction: 'Ask about auction history', confidence: 'low', functionCall: { functionToRun: null, argumentsJson: null },
+      structuredAnswer: { role: 'seller', language: 'en', intent: 'general_information', category: 'unknown', item: {},
+        missingFacts: [], confirmedFacts: [], uncertainFacts: [], sellerConfirmation: { required: true, status: 'pending' },
+        hasContactDetails: false, hasImages: false } };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(envelope) } }] }) });
+    await new RealProviderService().generate({ prompt: 'What is the auction record?', role: 'seller',
+      baseUrl: 'https://api.openai.com/v1', modelName: 'gpt-4.1-mini', apiKey: 'test', fetchImpl: fetchMock });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.response_format.type).toBe('json_schema');
+    expect(body.response_format.json_schema.schema.properties.structuredAnswer.properties.role.enum).toEqual(['seller']);
+    expect(body.reasoning_effort).toBeUndefined();
+  });
   it.each([null, { values: [{ label: 'ring_size', value: 8, unit: 'size' }] }])('accepts strict seller measurements %j', async dimensions => {
     const structuredAnswer = {
       role: 'seller', language: 'en', intent: 'Sell a ring', category: 'rings',
