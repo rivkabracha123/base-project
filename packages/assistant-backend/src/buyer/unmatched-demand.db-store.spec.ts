@@ -26,9 +26,9 @@ function fakeRepository() {
   return { rows, repository: repository as unknown as Repository<BuyerUnmatchedDemandEntity> };
 }
 
-// Builds a no-result view for one lead at one search time.
-const viewFor = (id: string, searchedAt: string) => {
-  const criteria = { ...emptyBuyerCriteria('en'), categories: ['rare_books'], price: { max: 800, currency: 'USD' } };
+// Builds a no-result view for one lead at one search time, with a budget cap of 800 USD unless given.
+const viewFor = (id: string, searchedAt: string, max = 800) => {
+  const criteria = { ...emptyBuyerCriteria('en'), categories: ['rare_books'], price: { max, currency: 'USD' } };
   return createUnmatchedDemandDashboardView({
     id,
     status: 'new',
@@ -40,31 +40,39 @@ const viewFor = (id: string, searchedAt: string) => {
 };
 
 describe('UnmatchedDemandDbStore', () => {
-  it('keeps the latest no-result demand per lead in the database, most recent search first', async () => {
+  it('keeps the original request per lead with a changed later search, most recent search first', async () => {
     const { rows, repository } = fakeRepository();
     const store = new UnmatchedDemandDbStore(repository);
 
     await store.record(viewFor('lead-a', '2026-10-07T09:01:00.000Z'));
     await store.record(viewFor('lead-b', '2026-10-07T09:02:00.000Z'));
-    await store.record(viewFor('lead-a', '2026-10-07T09:03:00.000Z'));
+    await store.record(viewFor('lead-a', '2026-10-07T09:03:00.000Z', 1500));
 
     expect(rows.size).toBe(2);
     expect(rows.get('lead-a')).toMatchObject({ leadId: 'lead-a', status: 'new' });
-    expect((await store.get('lead-a'))?.unmatchedDemand.searchedAt).toBe('2026-10-07T09:03:00.000Z');
+    const demand = (await store.get('lead-a'))?.unmatchedDemand;
+    expect(demand?.searchedAt).toBe('2026-10-07T09:01:00.000Z');
+    expect(demand?.searchRequest.criteria.price).toEqual({ max: 800, currency: 'USD' });
+    expect(demand?.expansion).toMatchObject({ changedFields: ['price'], searchedAt: '2026-10-07T09:03:00.000Z' });
     expect((await store.list()).map((view) => view.id)).toEqual(['lead-a', 'lead-b']);
     expect(await store.get('lead-missing')).toBeUndefined();
   });
 
-  it('removes the demand of the resolved lead only from the database', async () => {
+  it('marks the lead found by a later search and keeps its original request', async () => {
     const { repository } = fakeRepository();
     const store = new UnmatchedDemandDbStore(repository);
     await store.record(viewFor('lead-a', '2026-10-07T09:01:00.000Z'));
-    await store.record(viewFor('lead-b', '2026-10-07T09:02:00.000Z'));
+    const raised = viewFor('lead-a', '2026-10-07T09:05:00.000Z', 1500).unmatchedDemand.searchRequest;
+    const found = { searchRequest: raised, relaxedFields: [], searchedAt: '2026-10-07T09:05:00.000Z', resultCount: 2 };
 
-    await store.resolve('lead-a');
+    await store.recordFound({ leadId: 'lead-a', ...found });
+    await store.recordFound({ leadId: 'lead-missing', ...found });
 
-    expect(await store.get('lead-a')).toBeUndefined();
-    expect((await store.list()).map((view) => view.id)).toEqual(['lead-b']);
+    expect((await store.get('lead-a'))?.unmatchedDemand).toMatchObject({
+      searchRequest: { criteria: { price: { max: 800, currency: 'USD' } } },
+      expansion: { changedFields: ['price'], outcome: 'results', resultCount: 2 },
+    });
+    expect(await store.get('lead-missing')).toBeUndefined();
   });
 
   it('reads back the same view it saved, budget included, and stores no contact data', async () => {

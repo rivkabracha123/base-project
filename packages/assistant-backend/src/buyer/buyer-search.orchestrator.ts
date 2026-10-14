@@ -71,7 +71,7 @@ export class BuyerSearchOrchestrator {
     return this.run(input, onProgress, { excludedCategories: new Set<string>(), recordDemand: true });
   }
 
-  // Searches the buyer's other criteria in every category except the requested ones; never records or resolves unmatched demand.
+  // Searches the buyer's other criteria in every category except the requested ones; never records unmatched demand.
   searchOtherCategories(
     input: BuyerSearchInput,
     onProgress?: (progress: BuyerSearchProgress) => void,
@@ -85,7 +85,7 @@ export class BuyerSearchOrchestrator {
     return this.run({ ...input, criteria }, onProgress, { excludedCategories, recordDemand: false });
   }
 
-  // Shared search flow; drops lots in excluded categories and records or resolves no-result demand only when asked.
+  // Shared search flow; drops lots in excluded categories and updates no-result demand only when asked.
   private async run(
     input: BuyerSearchInput,
     onProgress: ((progress: BuyerSearchProgress) => void) | undefined,
@@ -138,9 +138,17 @@ export class BuyerSearchOrchestrator {
     }
 
     if (items.length > 0) {
-      // A refined search that now finds results closes the lead's earlier no-result demand.
+      // A changed search that now finds lots is shown to staff next to the lead's original no-result request.
       try {
-        if (options.recordDemand) await this.demandRecorder.resolve(input.leadId);
+        if (options.recordDemand) {
+          await this.demandRecorder.recordFound({
+            leadId: input.leadId,
+            searchRequest: fullRequest,
+            relaxedFields: relaxed,
+            searchedAt: input.searchedAt,
+            resultCount: items.length,
+          });
+        }
       } catch (error) {
         notify({ stage: 'error' });
         throw error;

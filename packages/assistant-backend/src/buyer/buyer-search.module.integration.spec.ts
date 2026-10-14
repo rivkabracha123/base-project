@@ -121,7 +121,9 @@ describe('BuyerModule search wiring', () => {
     const ids = [...outcome.results.current, ...outcome.results.historical].map((entry) => entry.lot.id);
     expect(ids).toEqual([namedLot.id]);
     expect(demand.save).not.toHaveBeenCalled();
-    expect(demand.delete).toHaveBeenCalledWith({ leadId: input.leadId });
+    // A lead with no earlier no-result demand has nothing to mark.
+    expect(demand.findOneBy).toHaveBeenCalledWith({ leadId: input.leadId });
+    expect(demand.delete).not.toHaveBeenCalled();
   });
 
   it('rejects input the lots search rules forbid before any query, and records no demand', async () => {

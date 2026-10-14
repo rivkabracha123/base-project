@@ -2,10 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { BuyerUnmatchedDemandEntity } from '../database/buyer-unmatched-demand.entity';
-import type { BuyerUnmatchedDemandDashboardView } from './unmatched-demand-dashboard-view';
+import {
+  latestSearchedAt,
+  withFoundSearch,
+  withNoResultSearch,
+  type BuyerUnmatchedDemandDashboardView,
+  type FoundLaterSearch,
+} from './unmatched-demand-dashboard-view';
 import type { UnmatchedDemandRecorder } from './unmatched-demand.store';
 
-/** Database-backed unmatched-demand store keyed by lead id; the latest no-result search per lead wins and survives restarts. */
+/** Database-backed unmatched-demand store keyed by lead id: the original request plus the buyer's latest later search, surviving restarts. */
 @Injectable()
 export class UnmatchedDemandDbStore implements UnmatchedDemandRecorder {
   // Takes the buyer_unmatched_demand repository.
@@ -14,25 +20,31 @@ export class UnmatchedDemandDbStore implements UnmatchedDemandRecorder {
     private readonly repository: Repository<BuyerUnmatchedDemandEntity>,
   ) {}
 
-  // Saves the no-result view for its lead, replacing an earlier one for the same lead.
+  // Saves the first no-result view for its lead, or adds a later one as the lead's expansion.
   async record(view: BuyerUnmatchedDemandDashboardView): Promise<void> {
-    await this.repository.save({
-      leadId: view.id,
-      status: view.status,
-      searchedAt: new Date(view.unmatchedDemand.searchedAt),
-      payload: view,
-    });
+    await this.save(withNoResultSearch(await this.get(view.id), view));
   }
 
-  // Removes the lead's recorded demand, if any.
-  async resolve(leadId: string): Promise<void> {
-    await this.repository.delete({ leadId });
+  // Marks the lead's recorded demand as found by a later search, if the lead has any.
+  async recordFound(found: FoundLaterSearch): Promise<void> {
+    const existing = await this.get(found.leadId);
+    if (existing) await this.save(withFoundSearch(existing, found));
   }
 
   // Returns the recorded demand for one lead, if any.
   async get(leadId: string): Promise<BuyerUnmatchedDemandDashboardView | undefined> {
     const row = await this.repository.findOneBy({ leadId });
     return row?.payload;
+  }
+
+  // Writes one lead's view; the row's search time is the lead's most recent search.
+  private async save(view: BuyerUnmatchedDemandDashboardView): Promise<void> {
+    await this.repository.save({
+      leadId: view.id,
+      status: view.status,
+      searchedAt: new Date(latestSearchedAt(view)),
+      payload: view,
+    });
   }
 
   // Returns every recorded demand, most recent search first.
