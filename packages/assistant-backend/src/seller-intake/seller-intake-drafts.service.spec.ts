@@ -86,6 +86,57 @@ describe('SellerIntakeDraftsService', () => {
     ]);
   });
 
+  it('persists seller-edited title and description without confirming facts', async () => {
+    fixture.item.description = { he: 'תיאור קודם', en: 'Previous description' };
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const titled = await service.correctDraft('profile-a', 'session-1', 'title', {
+      en: 'Updated painting title',
+    });
+    const described = await service.correctDraft('profile-a', 'session-1', 'description', {
+      en: 'Updated description',
+    });
+    const loaded = await service.getDraft('profile-a', 'session-1');
+
+    expect(titled.version).toBe(2);
+    expect(described.version).toBe(3);
+    expect(loaded.draft.item.title).toBe('Updated painting title');
+    expect(loaded.draft.item.titleTranslations).toEqual({ en: 'Updated painting title' });
+    expect(loaded.draft.item.description).toEqual({ he: 'תיאור קודם', en: 'Updated description' });
+    expect(loaded.draft.confirmedFacts).toEqual({});
+    expect(loaded.draft.revisionHistory).toEqual([
+      expect.objectContaining({ actor: 'seller', changes: ['title'] }),
+      expect.objectContaining({ actor: 'seller', changes: ['description'] }),
+    ]);
+    await expect(service.confirmFacts('profile-a', 'session-1', ['title']))
+      .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('uses the preferred Hebrew title for legacy single-title consumers', async () => {
+    fixture.language.preferred = 'he-IL';
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const corrected = await service.correctDraft('profile-a', 'session-1', 'title', {
+      he: 'כותרת בעברית',
+    });
+
+    expect(corrected.draft.item.title).toBe('כותרת בעברית');
+    expect(corrected.draft.item.titleTranslations).toEqual({ he: 'כותרת בעברית' });
+  });
+
+  it('updates arbitrary item measurements such as ring size', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const corrected = await service.correctDraft('profile-a', 'session-1', 'dimensions', {
+      values: [{ label: 'ring_size', value: 8, unit: 'size' }],
+    });
+
+    expect(corrected.draft.item.dimensions.values).toEqual([
+      { label: 'ring_size', value: 8, unit: 'size' },
+    ]);
+    expect(corrected.draft.confirmedFacts.dimensions?.values).toEqual([
+      { label: 'ring_size', value: 8, unit: 'size' },
+    ]);
+  });
+
   it('confirms generic measurements without requiring legacy rectangular dimensions', async () => {
     fixture.item.dimensions = { values: [{ label: 'ring_size', value: 8, unit: 'size' }] };
     await service.saveDraft('profile-a', 'session-1', fixture);
@@ -154,6 +205,10 @@ describe('SellerIntakeDraftsService', () => {
   it('rejects corrections with malformed values and attempts to confirm missing facts', async () => {
     await service.saveDraft('profile-a', 'session-1', fixture);
     await expect(service.correctDraft('profile-a', 'session-1', 'dimensions', { widthCm: 0, heightCm: 30 }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.correctDraft('profile-a', 'session-1', 'title', { he: '  ' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.correctDraft('profile-a', 'session-1', 'description', { fr: 'description' }))
       .rejects.toBeInstanceOf(BadRequestException);
     await expect(service.confirmFacts('profile-a', 'session-1', ['provenance']))
       .rejects.toBeInstanceOf(BadRequestException);

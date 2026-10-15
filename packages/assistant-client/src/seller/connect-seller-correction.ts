@@ -18,6 +18,7 @@ export type SellerDraftCorrectionValue =
   | string
   | string[]
   | { he?: string; en?: string }
+  | { values: Array<{ label: string; value: number; unit: string }> }
   | { label: string; value: number; unit: string }[];
 
 function parseDraftResponse(value: unknown): SellerItemDraft {

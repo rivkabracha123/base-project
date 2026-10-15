@@ -39,10 +39,8 @@ export type MissingSellerQuestion = {
   en: string;
 };
 
-type SellerDraftCorrectionField =
-  | 'title'
+type SellerFactCorrectionField =
   | 'category'
-  | 'description'
   | 'materials'
   | 'dimensions'
   | 'condition'
@@ -50,8 +48,21 @@ type SellerDraftCorrectionField =
   | 'signatures'
   | 'provenance';
 
-type SellerDraftCorrectionValue = string | string[] | { he?: string; en?: string }
-  | { widthCm: number; heightCm: number } | SellerDimensionMeasurement[];
+type SellerDraftCorrectionField = SellerFactCorrectionField | 'title' | 'description';
+type SellerDraftCorrectionValue = string | string[] | { widthCm: number; heightCm: number }
+  | { values: Array<{ label: string; value: number; unit: string }> }
+  | Partial<Record<'he' | 'en', string>> | SellerDimensionMeasurement[];
+
+function isLocalizedCorrection(value: SellerDraftCorrectionValue): value is Partial<Record<'he' | 'en', string>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    && Object.entries(value).every(([language, text]) => ['he', 'en'].includes(language) && typeof text === 'string');
+}
+
+function isDimensionCorrection(
+  value: SellerDraftCorrectionValue,
+): value is { values: Array<{ label: string; value: number; unit: string }> } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && 'values' in value;
+}
 
 @Injectable()
 export class SellerIntakeService {
@@ -460,42 +471,44 @@ export class SellerIntakeService {
     value: SellerDraftCorrectionValue,
   ): SellerItemDraft {
     if (field === 'title' || field === 'description') {
-      const localized = value as { he?: string; en?: string };
-      const item = field === 'title'
+      if (!isLocalizedCorrection(value) || Object.keys(value).length === 0) {
+        throw new Error(`${field} correction requires a Hebrew or English value`);
+      }
+      const correctedText = 'he' in value ? value.he : value.en;
+      if (typeof correctedText !== 'string') throw new Error(`${field} correction requires a Hebrew or English value`);
+      const revision = this.appendRevisionEntry('seller', `Seller edited item ${field}`, [field]);
+      const correctedItem = field === 'title'
         ? {
             ...draft.item,
-            title: localized.he ?? localized.en ?? draft.item.title,
-            titleTranslations: { ...draft.item.titleTranslations, ...localized },
+            title: correctedText,
+            titleTranslations: { ...draft.item.titleTranslations, ...value },
           }
         : {
             ...draft.item,
-            description: { ...draft.item.description, ...localized },
+            description: { ...draft.item.description, ...value },
           };
-      const revision = this.appendRevisionEntry('seller', `Seller corrected ${field}`, [field]);
       return {
         ...draft,
-        item,
-        recalculationRequired: true,
+        item: correctedItem,
         revisionHistory: [...draft.revisionHistory, revision],
       };
     }
+
     const itemField = field === 'marks' ? 'markings' : field;
     const confirmedValue = field === 'dimensions'
       ? Array.isArray(value)
-        ? { values: value as SellerDimensionMeasurement[] }
+        ? { values: value }
         : typeof value === 'object' && value !== null && 'widthCm' in value
-          ? {
-          values: [
-            { label: 'width', value: value.widthCm, unit: 'cm' },
-            { label: 'height', value: value.heightCm, unit: 'cm' },
-          ],
-          widthCm: value.widthCm,
-          heightCm: value.heightCm,
-          unit: 'cm',
-        }
-          : { values: [] }
-      : field === 'materials' && Array.isArray(value) ? value
-      : typeof value === 'string' && value === '' ? undefined
+        ? {
+            values: [
+              { label: 'width', value: value.widthCm, unit: 'cm' },
+              { label: 'height', value: value.heightCm, unit: 'cm' },
+            ],
+            widthCm: value.widthCm,
+            heightCm: value.heightCm,
+            unit: 'cm',
+          }
+        : isDimensionCorrection(value) ? { values: value.values } : { values: [] }
       : value;
     const nextItem = {
       ...draft.item,
@@ -505,27 +518,34 @@ export class SellerIntakeService {
       ...draft.confirmedFacts,
       [itemField]: confirmedValue,
     };
-    const remainingMissingFields = new Set((draft.missingFields ?? []).filter((item) => item !== field));
-    const requiredFieldCleared = field === 'dimensions'
-      ? (confirmedValue as SellerItemDraft['item']['dimensions']).values.length === 0
-      : ['condition', 'marks', 'signatures', 'provenance'].includes(field)
-        && confirmedValue === undefined;
-    if (requiredFieldCleared) remainingMissingFields.add(field);
+    const clearsField = (field === 'dimensions'
+      && (Array.isArray(value) ? value.length === 0 : isDimensionCorrection(value) && value.values.length === 0))
+      || (field === 'materials' && Array.isArray(value) && value.length === 0)
+      || (['condition', 'marks', 'signatures', 'provenance'].includes(field) && value === '');
+    const correctedFacts = clearsField
+      ? Object.fromEntries(Object.entries(nextConfirmedFacts).filter(([name]) => name !== itemField)) as SellerItemDraft['confirmedFacts']
+      : nextConfirmedFacts;
+    const requiredField = field === 'marks' ? 'marks' : field;
+    const remainingMissingFields = new Set((draft.missingFields ?? []).filter((item) => item !== requiredField));
+    if (clearsField && ['dimensions', 'condition', 'marks', 'signatures', 'provenance'].includes(field)) {
+      remainingMissingFields.add(requiredField);
+    }
     const revision = this.appendRevisionEntry('seller', `Seller corrected ${field}`, [field]);
 
     return {
       ...draft,
       item: {
         ...nextItem,
-        catalogDraft: this.buildCatalogDraft(nextConfirmedFacts),
+        ...(clearsField && field !== 'dimensions' && field !== 'materials' ? { [itemField]: undefined } : {}),
+        catalogDraft: this.buildCatalogDraft(correctedFacts),
       },
-      confirmedFacts: nextConfirmedFacts,
+      confirmedFacts: correctedFacts,
       missingFields: [...remainingMissingFields],
       recalculationRequired: true,
       revisionHistory: [...draft.revisionHistory, revision],
       sellerConfirmation: {
         ...draft.sellerConfirmation,
-          status: this.hasAllRequiredConfirmedFacts(nextConfirmedFacts) ? 'complete' : 'partial',
+          status: this.hasAllRequiredConfirmedFacts(correctedFacts) ? 'complete' : 'partial',
         lastConfirmedAt: revision.timestamp,
         notes: 'Seller-approved facts are available for downstream review.',
       },
@@ -534,7 +554,7 @@ export class SellerIntakeService {
 
   // מאשר רק עובדות זמינות שהמוכרת בחרה לאשר ומעדכן את טיוטת הקטלוג.
   // Confirms only available facts explicitly selected by the seller and updates the catalog draft.
-  confirmSellerFacts(draft: SellerItemDraft, fields: SellerDraftCorrectionField[]): SellerItemDraft {
+  confirmSellerFacts(draft: SellerItemDraft, fields: SellerFactCorrectionField[]): SellerItemDraft {
     if (fields.length === 0) {
       throw new Error('At least one seller fact must be confirmed');
     }
@@ -550,7 +570,7 @@ export class SellerIntakeService {
             { label: 'height', value: item.dimensions.heightCm, unit: 'cm' },
           ] }
         : undefined;
-    const availableValues: Partial<Record<SellerDraftCorrectionField, unknown>> = {
+    const availableValues: Partial<Record<SellerFactCorrectionField, unknown>> = {
       category: item.category !== 'unknown' ? item.category : undefined,
       materials: item.materials.length > 0 ? item.materials : undefined,
       dimensions,
