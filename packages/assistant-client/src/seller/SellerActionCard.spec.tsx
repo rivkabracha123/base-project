@@ -23,7 +23,7 @@ describe('seller action cards', () => {
       evidence: [], item: { id: 'seller-item', category: 'rare_books', title: 'Seller manuscript', evidenceIds: [], catalogDraft: { he: 'טיוטה', en: 'Draft from confirmed facts' } },
     }, ranking: { recommendation: null, alternatives: [], excluded: [] } });
     render(<MemoryRouter><SellerActionCard language="en" action={action} /></MemoryRouter>);
-    expect(screen.getByRole('link', { name: 'Review and confirm enquiry' })).toHaveAttribute('href', '/seller/enquiry');
+    expect(screen.getByRole('link', { name: 'Send enquiry' })).toHaveAttribute('href', '/seller/enquiry');
     expect(screen.getByText('The draft has not been sent to the auction house.')).toBeInTheDocument();
   });
   it('does not show a price for a refused valuation', () => {

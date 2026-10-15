@@ -15,8 +15,33 @@ import {
 } from './buyer-conversation-message.dto';
 
 function offTopicMessage(ai: P4AiGenerateResponse): string {
-  const parts = [ai.extract.summary || ai.extract.content, ai.generalInformation ? ai.extract.recommendation : undefined, ai.extract.nextAction].filter(Boolean);
-  return [...new Set(parts)].join('\n');
+  return compactVisibleAiText([
+    ai.extract.summary || ai.extract.content,
+    ai.generalInformation ? ai.extract.recommendation : undefined,
+    ai.extract.nextAction,
+  ]);
+}
+
+/** Drop overlapping lines and keep English to one sentence per field so replies stay short. */
+function compactVisibleAiText(parts: Array<string | undefined | null>): string {
+  const cleaned: string[] = [];
+  for (const part of parts) {
+    const text = tightenEnglish(String(part ?? '').trim());
+    if (!text) continue;
+    const key = text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (cleaned.some((existing) => {
+      const other = existing.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      return other.includes(key) || key.includes(other);
+    })) continue;
+    cleaned.push(text);
+  }
+  return [...new Set(cleaned)].join('\n');
+}
+
+function tightenEnglish(text: string): string {
+  if (!text || /[\u0590-\u05FF]/.test(text) || !/[A-Za-z]/.test(text)) return text;
+  const sentences = text.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [text];
+  return sentences.slice(0, 1).join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function sellerValuationMessage(language: 'he' | 'en'): string {

@@ -410,13 +410,21 @@ describe('SellerIntakeAiAdapter', () => {
     }));
   });
 //test alls back on failure
+  it('uses the UI language when it is provided, even if the seller typed in another script', async () => {
+    const generate = jest.fn(async () => ({
+      provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff,
+    }));
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    await adapter.analyze('\u05d9\u05e9 \u05dc\u05d9 \u05e6\u05d9\u05d5\u05e8', 'ui-language', 'en');
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ language: 'en' }));
+  });
+
   it('continues with guided intake when the real AI provider is unavailable', async () => {
     const adapter = new SellerIntakeAiAdapter(intake, {
       generateSellerExtract: jest.fn(async () => {
         throw new ServiceUnavailableException('provider unavailable');
       }),
     } as never);
-
     await expect(adapter.analyze('ציור שמן')).resolves.toEqual(expect.objectContaining({
       provider: 'fixture-mock',
       ai: expect.objectContaining({

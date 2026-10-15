@@ -142,7 +142,7 @@ describe('connectSellerLevels', () => {
     expect(profileUrl).toContain('/profiles/me');
     expect(intakeUrl).toContain('/seller-intake/draft');
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(String(request.body))).toMatchObject({ input: 'I have a painting' });
+    expect(JSON.parse(String(request.body))).toMatchObject({ input: 'I have a painting', language: 'en' });
     expect(JSON.parse(String(request.body)).profileId).toBe('profile-current');
     expect(JSON.parse(String(request.body)).sessionId).toBeTruthy();
 

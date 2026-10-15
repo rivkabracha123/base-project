@@ -41,13 +41,37 @@ export async function sendSellerMessage(
   await onUpdate({ speaker: 'system', text });
 }
 
+function compactVisibleAiText(parts: Array<string | undefined | null>): string {
+  const cleaned: string[] = [];
+  for (const part of parts) {
+    const text = tightenEnglish(String(part ?? '').trim());
+    if (!text) continue;
+    const key = text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (cleaned.some((existing) => {
+      const other = existing.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      return other.includes(key) || key.includes(other);
+    })) continue;
+    cleaned.push(text);
+  }
+  return [...new Set(cleaned)].join('\n');
+}
+
+function tightenEnglish(text: string): string {
+  if (!text || /[\u0590-\u05FF]/.test(text) || !/[A-Za-z]/.test(text)) return text;
+  const sentences = text.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [text];
+  return sentences.slice(0, 1).join(' ').replace(/\s+/g, ' ').trim();
+}
+
 // בוחרת את השאלה הבאה או סיכום המערכת בשפה הפעילה של האפליקציה.
 // Selects the next question or system summary in the application's active language.
 function getSystemText(response: SellerIntakeResponse): string {
   const language = getBrowserLanguage(i18n.language);
   if (response.ai?.isRelevant === false || response.ai?.generalInformation) {
-    return [response.ai.summary, response.ai.generalInformation ? response.ai.recommendation : undefined, response.ai.nextAction].filter(text => text?.trim()).join('\n')
-      || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
+    return compactVisibleAiText([
+      response.ai.summary,
+      response.ai.generalInformation ? response.ai.recommendation : undefined,
+      response.ai.nextAction,
+    ]) || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
   }
   const nextQuestion = response.nextQuestion;
   if (nextQuestion) return nextQuestion[language];
@@ -58,7 +82,7 @@ function getSystemText(response: SellerIntakeResponse): string {
       : 'Your item details are saved.';
   }
   if (response.ai?.nextAction?.trim()) {
-    return [response.ai.summary, response.ai.nextAction].filter(Boolean).join(' ');
+    return compactVisibleAiText([response.ai.summary, response.ai.nextAction]).replaceAll('\n', ' ');
   }
 
   const summary = response.conversation?.assistantSummary?.[language];
@@ -183,7 +207,7 @@ export async function connectSellerLevels(
     const response = await fetch(`${API_BASE_URL}/seller-intake/draft`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input, profileId, sessionId }),
+      body: JSON.stringify({ input, profileId, sessionId, language: getBrowserLanguage(i18n.language) }),
     });
 
     if (!response.ok) {

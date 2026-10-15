@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client';
 import { SellerChat } from './SellerChat';
 import { connectSellerLevels } from './connect-seller-levels';
@@ -20,6 +20,11 @@ vi.mock('./connect-seller-levels', () => ({
 
 // חיבור התמונות של S1 מזויף: ההעלאה בפועל באחריות S1, והבדיקות כאן בודקות רק מה שהצ'אט מוסר ומציג.
 vi.mock('./connect-seller-photos', () => ({ connectSellerPhotos: vi.fn() }));
+
+beforeEach(() => {
+  URL.createObjectURL = vi.fn(() => 'blob:pending-photo');
+  URL.revokeObjectURL = vi.fn();
+});
 
 afterEach(async () => {
   vi.mocked(connectSellerLevels).mockReset();
@@ -232,13 +237,16 @@ describe('SellerChat', () => {
 
   const jpeg = (name: string) => new File(['pixels'], name, { type: 'image/jpeg' });
 
-  // בודק שהמוכר יכול לבחור כמה תמונות יחד, ושכולן נמסרות ל-S1 בקריאה אחת (העלאה אחת = פריט אחד).
+  // בודק שהמוכר יכול לבחור כמה תמונות יחד, ושכולן נמסרות ל-S1 בקריאה אחת רק בלחיצה על שלח.
   it('hands all the chosen photos to S1 in a single call', async () => {
     renderChat(mockConversation.en);
     await screen.findByText('I have an antique watch I want to sell');
 
     const files = [jpeg('front.jpg'), jpeg('back.jpg')];
     fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files } });
+    expect(connectSellerPhotos).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
     await waitFor(() => expect(connectSellerPhotos).toHaveBeenCalledTimes(1));
     expect(vi.mocked(connectSellerPhotos).mock.calls[0]![0]).toEqual(files);
@@ -253,6 +261,7 @@ describe('SellerChat', () => {
     await screen.findByText('I have an antique watch I want to sell');
 
     fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [jpeg('front.jpg'), jpeg('back.jpg')] } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
     const front = await screen.findByRole('img', { name: 'front.jpg' });
     const back = await screen.findByRole('img', { name: 'back.jpg' });
@@ -280,6 +289,7 @@ describe('SellerChat', () => {
     await screen.findByText('I have an antique watch I want to sell');
 
     fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [jpeg('vase.jpg')] } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
     const error = await screen.findByText('Something went wrong. Please try again.');
     expect(error.closest('li')).toHaveAttribute('data-speaker', 'error');

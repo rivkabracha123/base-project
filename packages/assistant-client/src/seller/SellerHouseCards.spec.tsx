@@ -32,6 +32,19 @@ describe('seller house cards', () => {
     expect(createSellerLead).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
+  it('moves the recommended gold style onto the house the seller selects', async () => {
+    await i18n.changeLanguage('en');
+    const alternative = { ...ranking.recommendation!, house: { ...house, id: 'alternate', name: 'Alternative house' } };
+    render(<MemoryRouter><SellerHouseCards ranking={{ ...ranking, alternatives: [alternative] }} category="rings" language="en" /></MemoryRouter>);
+    const recommendedCard = screen.getByRole('radio', { name: /Ring specialist/ }).closest('label');
+    const alternativeCard = screen.getByRole('radio', { name: /Alternative house/ }).closest('label');
+    expect(recommendedCard).toHaveClass('bg-[#f3ead8]');
+    expect(alternativeCard).not.toHaveClass('bg-[#f3ead8]');
+    fireEvent.click(screen.getByRole('radio', { name: /Alternative house/ }));
+    expect(alternativeCard).toHaveClass('bg-[#f3ead8]');
+    expect(recommendedCard).not.toHaveClass('bg-[#f3ead8]');
+  });
+
   it('preserves ranking data through message validation and shows only category specialists', async () => {
     await i18n.changeLanguage('en');
     const message = sellerMessageSchema.parse({ id: 'm1', sessionId: 's1', speaker: 'system', text: 'Houses', houseRanking: ranking });

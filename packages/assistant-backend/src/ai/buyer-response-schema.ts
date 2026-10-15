@@ -44,10 +44,13 @@ export const buyerResponseSchema = object({
 });
 
 export function buyerResponseExample(language: 'he' | 'en') {
+  const he = language === 'he';
   return {
-    isRelevant: true, error: null, summary: 'The buyer wants a painting.',
-    recommendation: 'Search the catalog using the supplied criteria.',
-    nextAction: 'Is there a preferred period?', confidence: 'low',
+    isRelevant: true, error: null,
+    summary: he ? 'מחפשים ציור.' : 'Looking for a painting.',
+    recommendation: he ? 'אפשר לחפש לפי זה.' : 'I can search with that.',
+    nextAction: he ? 'יש תקופה מועדפת?' : 'Any preferred period?',
+    confidence: 'low',
     structuredAnswer: {
       role: 'buyer', language, intent: 'Find a painting', category: 'paintings',
       creators: null, periods: null, keywords: null, geography: null,

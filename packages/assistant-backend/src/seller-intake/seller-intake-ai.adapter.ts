@@ -89,9 +89,9 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       dimensions: item.dimensions, facts, nextField: result.nextQuestion?.field, result });
   }
 
-  async analyze(input: string, sessionId?: string): Promise<SellerIntakeAiResult> {
+  async analyze(input: string, sessionId?: string, preferredLanguage?: 'he' | 'en'): Promise<SellerIntakeAiResult> {
     const previous = sessionId ? this.sessions.get(sessionId) : undefined;
-    const language = /[\u0590-\u05FF]/.test(input) ? 'he' : 'en';
+    const language = preferredLanguage ?? (/[\u0590-\u05FF]/.test(input) ? 'he' : 'en');
     if (previous?.result) {
       const comparison = requestedSellerComparison(input);
       if (comparison) return this.applyRequiredFieldPolicy({ ...previous.result,

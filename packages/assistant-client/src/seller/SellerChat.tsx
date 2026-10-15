@@ -29,8 +29,15 @@ export function SellerChat() {
   const [photoError, setPhotoError] = useState('');
   // true בזמן שתמונה מועלית; בזמן הזה אי אפשר לבחור תמונה נוספת.
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingPhotos, setPendingPhotos] = useState<Array<{ file: File; previewUrl: string }>>([]);
+  const pendingPhotosRef = useRef(pendingPhotos);
+  pendingPhotosRef.current = pendingPhotos;
   const [draftLoadError, setDraftLoadError] = useState('');
   const draftShown = useRef(false);
+
+  useEffect(() => () => {
+    pendingPhotosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+  }, []);
 
   useEffect(() => {
     if (!isSellerDraftReady()) return;
@@ -64,14 +71,10 @@ export function SellerChat() {
       comparison: { mode: 'details', item: draft.item, evidence: draft.evidence } });
   }
 
-  // Handles one or several photos chosen from the computer: checks each one, hands them all together to S1
-  // (one upload = one item), and shows what S1 returns in the conversation as a seller message.
-  // The number of photos and the rest of the upload rules are enforced by the upload service.
-  // A failed upload is shown as an error message instead.
-  async function handlePhotoChosen(event: ChangeEvent<HTMLInputElement>) {
+  // Stages chosen photos in the composer. They are uploaded only when the seller presses Send.
+  function handlePhotoChosen(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
     const files = Array.from(input.files ?? []);
-    // מאפס את השדה כדי שאפשר יהיה לבחור שוב את אותם קבצים.
     input.value = '';
     if (files.length === 0) return;
 
@@ -81,18 +84,64 @@ export function SellerChat() {
     }
 
     setPhotoError('');
-    setIsUploading(true);
-    try {
-      await connectSellerPhotos(files, addMessage);
-      if (draftShown.current) {
-        const draft = await getCurrentSellerDraft();
-        if (draft) showItemDraft(draft);
+    setPendingPhotos((current) => [
+      ...current,
+      ...files.map((file) => ({ file, previewUrl: URL.createObjectURL(file) })),
+    ]);
+  }
+
+  function removePendingPhoto(index: number) {
+    setPendingPhotos((current) => {
+      const next = [...current];
+      const [removed] = next.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return next;
+    });
+  }
+
+  async function handleComposerSend(text: string) {
+    const staged = pendingPhotos;
+    const files = staged.map((photo) => photo.file);
+    if (staged.length > 0) {
+      staged.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+      setPendingPhotos([]);
+      setIsUploading(true);
+      try {
+        await connectSellerPhotos(files, (update) => {
+          if (update.speaker === 'seller') {
+            addMessage({
+              ...update,
+              ...(text.trim() ? { text: text.trim() } : {}),
+            });
+            return;
+          }
+          addMessage(update);
+        });
+        if (draftShown.current) {
+          const draft = await getCurrentSellerDraft();
+          if (draft) showItemDraft(draft);
+        }
+      } catch {
+        showError('photo-upload-failed');
+        setIsUploading(false);
+        return;
       }
-    } catch {
-      showError('photo-upload-failed');
-    } finally {
       setIsUploading(false);
     }
+
+    if (!text.trim()) return;
+    if (files.length > 0) {
+      setIsUploading(true);
+      try {
+        await connectSellerLevels(text, addMessage, showItemDraft, draftShown.current);
+      } catch {
+        showError('send-failed');
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+    void handleSend(text);
   }
 
   // Renders a single conversation message as a bubble: the photo (if any) above the text (if any).
@@ -114,17 +163,27 @@ export function SellerChat() {
           : <SellerComparisonResults result={message.comparison} language={language} />}
       </li>;
     }
-    return (
-      <MessageBubble speaker={message.speaker} isOwn={message.speaker === 'seller'}>
-        {message.speaker === 'seller' &&
-          message.images?.map((image) => (
+    if (message.speaker === 'seller' && message.images && message.images.length > 0) {
+      return (
+        <li data-speaker="seller" className="flex max-w-lg flex-col items-end gap-2 self-end">
+          {message.images.map((image) => (
             <img
               key={image.fileId}
               src={evidenceUrl(image.previewUri)}
               alt={image.originalName}
-              className="max-h-60 rounded-lg"
+              className="h-36 w-52 rounded-2xl object-cover shadow-sm"
             />
           ))}
+          {message.text ? (
+            <p className="max-w-lg whitespace-pre-wrap rounded-full bg-[#2b2438] px-4 py-2 text-sm text-white">
+              {message.text}
+            </p>
+          ) : null}
+        </li>
+      );
+    }
+    return (
+      <MessageBubble speaker={message.speaker} isOwn={message.speaker === 'seller'}>
         {message.speaker === 'system'
           ? message.text.replace(/^(?:ה[־-]?AI אינו זמין כרגע, אז נמשיך באיסוף פרטים מונחה\.\s*|AI is temporarily unavailable, so we will continue with guided questions\.\s*)/, '')
           : message.text}
@@ -144,7 +203,7 @@ export function SellerChat() {
     <div className="flex items-center gap-2">
       <label
         title={t('chat.attachPhoto')}
-        className="flex cursor-pointer items-center rounded-xl border border-neutral-300 px-3 py-2 text-neutral-700 hover:bg-white/60"
+        className="flex cursor-pointer items-center rounded-full p-2 text-stone-500 hover:bg-[#f3ead8]"
       >
         {/* איור העלאת קובץ: חץ כלפי מעלה מעל מגש. הטקסט נשאר לקוראי מסך בלבד. */}
         <svg
@@ -191,15 +250,36 @@ export function SellerChat() {
       renderMessage={renderMessage}
       isLoading={isLoading}
       isError={isError}
-      isBusy={isBusy}
+      isBusy={isBusy || isUploading}
       onRetry={refetch}
-      onSend={handleSend}
+      onSend={handleComposerSend}
       dir={dir}
+      tone="journey"
+      placeholder={t('chat.placeholder')}
+      busyLabel={isUploading ? t('chat.checkingPhotos') : undefined}
       loadingLabel={t('chat.loading')}
       errorLabel={t('chat.error')}
       retryLabel={t('chat.retry')}
       inputLabel={t('chat.inputLabel')}
-      sendLabel={t('chat.send')}
+      sendLabel={t('chat.sellerSend')}
+      canSendEmpty={pendingPhotos.length > 0}
+      composerAbove={pendingPhotos.length > 0 ? (
+        <div className="flex flex-wrap justify-end gap-2 px-1">
+          {pendingPhotos.map((photo, index) => (
+            <div key={photo.previewUrl} className="relative">
+              <img src={photo.previewUrl} alt={photo.file.name} className="h-36 w-52 rounded-2xl object-cover shadow-sm" />
+              <button
+                type="button"
+                onClick={() => removePendingPhoto(index)}
+                className="absolute -end-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-stone-800 text-xs text-white"
+                aria-label={language === 'he' ? 'הסרת תמונה' : 'Remove photo'}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
       composerExtra={attachPhoto}
     />
   );
