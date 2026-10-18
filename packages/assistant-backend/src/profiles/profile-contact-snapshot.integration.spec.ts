@@ -5,6 +5,8 @@ import { profileContactSnapshotSchema, toProfileContactSnapshot } from '@monabid
 import type { UserProfile } from '@monabid/shared';
 import { UserProfileEntity } from '../database/user-profile.entity';
 import { LocalFileStorage } from '../storage/local-file-storage.service';
+import pinoHttp from 'pino-http';
+import { HTTP_LOG_REDACT_PATHS } from '../common/http-logger';
 import { ProfilesModule } from './profiles.module';
 
 /**
@@ -29,6 +31,7 @@ describe('Profiles <-> ProfileContactSnapshot contract (integration)', () => {
 
   // In-memory row store keyed by sessionId - stands in for Postgres.
   let rows: Map<string, UserProfileEntity>;
+  const logLines: string[] = [];
   const storage = {
     deleteProfile: jest.fn(() => Promise.resolve()),
   };
@@ -67,6 +70,12 @@ describe('Profiles <-> ProfileContactSnapshot contract (integration)', () => {
 
     app = moduleRef.createNestApplication();
     // Mirror the global HTTP configuration from main.ts.
+    // Same logger options as production, but written to an in-memory array.
+    app.use(
+      pinoHttp({ level: 'info', redact: HTTP_LOG_REDACT_PATHS }, {
+        write: (line: string) => logLines.push(line),
+      }),
+    );
     app.setGlobalPrefix('api');
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
@@ -81,6 +90,7 @@ describe('Profiles <-> ProfileContactSnapshot contract (integration)', () => {
 
   beforeEach(() => {
     rows = new Map();
+    logLines.length = 0;
     jest.clearAllMocks();
     storage.deleteProfile.mockResolvedValue(undefined);
   });
@@ -131,6 +141,41 @@ describe('Profiles <-> ProfileContactSnapshot contract (integration)', () => {
     });
 
     expect(response.status).toBe(400);
+  });
+
+  it.each([
+    ['hostile characters', '<script>alert(1)</script>'],
+    ['SQL injection attempt', "x'; DROP TABLE user_profile;--"],
+    ['too short', 'abc'],
+    ['too long', 'a'.repeat(500)],
+  ])('rejects a malformed anonymous session format: %s', async (_label, sessionId) => {
+    const response = await fetch(`${baseUrl}/api/profiles/me`, {
+      headers: { 'x-anonymous-session-id': sessionId },
+    });
+
+    expect(response.status).toBe(400);
+    // No profile may be created for a rejected session.
+    expect(rows.size).toBe(0);
+  });
+
+  it('does not write contact details or the session ID to the request log', async () => {
+    const response = await fetch(`${baseUrl}/api/profiles/me/contact`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'x-anonymous-session-id': 'sess-log-privacy-1' },
+      body: JSON.stringify({
+        email: 'log-private@example.test',
+        phone: '0501234567',
+        consentGranted: true,
+      }),
+    });
+    expect(response.status).toBeLessThan(500);
+
+    const output = logLines.join('');
+    // Sanity check: the request really was logged, so the assertions below are meaningful.
+    expect(output).toContain('request completed');
+    expect(output).not.toContain('log-private@example.test');
+    expect(output).not.toContain('0501234567');
+    expect(output).not.toContain('sess-log-privacy-1');
   });
 
   it('uses deterministic timestamps for the profile fixture', async () => {

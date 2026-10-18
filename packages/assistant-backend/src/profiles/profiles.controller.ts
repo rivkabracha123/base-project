@@ -4,6 +4,10 @@ import { ProfilesService } from './profiles.service';
 import { UpdateCurrentProfileDto } from './update-current-profile.dto';
 import { UpdateContactDto } from './update-contact.dto';
 
+// Allowed session ID format: letters, digits, "-" and "_", 8-128 characters.
+// Accepts UUIDs and ids like "sess-new-1", but rejects malformed or hostile values.
+const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+
 // This controller receives anonymous profile requests from the frontend.
 @Controller('profiles')
 export class ProfilesController {
@@ -79,6 +83,11 @@ export class ProfilesController {
 
     if (!normalizedSessionId) {
       throw new BadRequestException('Anonymous session ID is required');
+    }
+
+    // The rejected value is deliberately not echoed back, so it cannot leak into responses or logs.
+    if (!SESSION_ID_PATTERN.test(normalizedSessionId)) {
+      throw new BadRequestException('Anonymous session ID is invalid');
     }
 
     return normalizedSessionId;
