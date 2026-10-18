@@ -1,9 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { UserProfile } from '@monabid/shared';
+import {
+  toProfileContactSnapshot,
+  type ProfileContactSnapshot,
+  type UserProfile,
+} from '@monabid/shared';
 import { randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { UserProfileEntity } from '../database/user-profile.entity';
+import { LocalFileStorage } from '../storage/local-file-storage.service';
 import type { UpdateCurrentProfileDto } from './update-current-profile.dto';
 
 export type UpdateCurrentProfileInput = UpdateCurrentProfileDto;
@@ -13,6 +18,7 @@ export class ProfilesService {
   constructor(
     @InjectRepository(UserProfileEntity)
     private readonly profiles: Repository<UserProfileEntity>,
+    private readonly storage: LocalFileStorage,
   ) {}
 
   // Private helper to find or create a profile entity for the session (prevents code duplication).
@@ -27,6 +33,22 @@ export class ProfilesService {
       throw new BadRequestException('Profile could not be created');
     }
 
+    return profile;
+  }
+
+  /**
+   * Ownership check used by other modules (e.g. seller leads).
+   * A profile ID sent by the client is only a claim, never proof of ownership.
+   * We look the profile up by BOTH its id AND the caller's session ID, so a profile
+   * that belongs to a different session can never be returned.
+   * Throws 404 (not 403) on mismatch so we do not reveal that the profile exists.
+   * Never creates a profile: an unknown profile is simply "not found".
+   */
+  async getOwnedProfileEntity(sessionId: string, profileId: string): Promise<UserProfileEntity> {
+    const profile = await this.profiles.findOneBy({ id: profileId, sessionId });
+    if (!profile) {
+      throw new NotFoundException('Profile not found');
+    }
     return profile;
   }
 
@@ -46,9 +68,29 @@ export class ProfilesService {
       marketingConsent: { granted: false },
     });
     // Save the profile so it can be restored when the visitor returns.
-    const savedProfile = await this.profiles.save(newProfile);
-    return savedProfile.toUserProfile();
+    try {
+      const savedProfile = await this.profiles.save(newProfile);
+      return savedProfile.toUserProfile();
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+        const concurrentProfile = await this.profiles.findOneBy({ sessionId });
+        if (concurrentProfile) return concurrentProfile.toUserProfile();
+      }
+      throw error;
+    }
   }
+
+  /**
+   * Return the minimum privacy-safe contact contract for downstream consumers
+   * such as B4 buyer help and P5 staff views.
+   */
+  async getContactSnapshotBySessionId(
+    sessionId: string,
+  ): Promise<ProfileContactSnapshot> {
+    const profile = await this.getOrCreateBySessionId(sessionId);
+    return toProfileContactSnapshot(profile);
+  }
+
   async updateLanguage(sessionId: string, language: string): Promise<UserProfile> {
     // The reduced-cycle product supports Hebrew and English only.
     if (language !== 'he' && language !== 'en') {
@@ -61,7 +103,6 @@ export class ProfilesService {
     const savedProfile = await this.profiles.save(profile);
     return savedProfile.toUserProfile();
   }
-
   async updateCurrentProfile(
     sessionId: string,
     update: UpdateCurrentProfileInput,
@@ -86,6 +127,16 @@ export class ProfilesService {
     }
     if (update.phone !== undefined && update.phone.trim().length === 0) {
       throw new BadRequestException('Phone must not be empty');
+    }
+    // A phone is a "+" followed by digits (spaces, dashes, dots, and brackets allowed)
+    // with 7-15 digits in total, so values like "123" or "abc" are rejected.
+    if (
+      update.phone !== undefined &&
+      (!/^\+?[\d\s\-().]+$/.test(update.phone.trim()) ||
+        update.phone.replace(/\D/g, '').length < 7 ||
+        update.phone.replace(/\D/g, '').length > 15)
+    ) {
+      throw new BadRequestException('Phone must be a valid phone number');
     }
     // Helper function to validate consent evidence when consent is granted.
     const validateConsentEvidence = (
@@ -129,9 +180,79 @@ export class ProfilesService {
     return savedProfile.toUserProfile();
   }
 
+  async updateContact(
+    sessionId: string,
+    input: { email?: string; phone?: string; consentGranted: boolean },
+  ): Promise<UserProfile> {
+    if (!input.consentGranted) {
+      throw new BadRequestException('Consent is required before saving contact details');
+    }
+
+    if (!input.email && !input.phone) {
+      throw new BadRequestException('Email or phone is required');
+    }
+
+    const profile = await this.profiles.findOneBy({ sessionId });
+    if (!profile) {
+      throw new BadRequestException('Profile could not be found');
+    }
+
+    if (input.email !== undefined) {
+      profile.email = input.email.trim().toLowerCase();
+    }
+
+    if (input.phone !== undefined) {
+      profile.phone = input.phone.replace(/[()\s-]/g, '');
+    }
+    profile.serviceConsent = {
+      ...profile.serviceConsent,
+      granted: true,
+      grantedAt: new Date().toISOString(),
+      channel: 'buyer-profile-contact',
+    };
+
+    const savedProfile = await this.profiles.save(profile);
+    return savedProfile.toUserProfile();
+  }
+  async captureContactIfPresent(sessionId: string, text: string): Promise<void> {
+    const email = text
+      .match(/(?<![A-Z0-9._%+])([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i)?.[1]
+      ?.replace(/^[-.]+/, '');
+    const phone = text.match(/(?<!\d)\+?\d[\d\s().-]{6,}\d(?!\d)/)?.[0];
+
+    if (!email && !phone) {
+      return;
+    }
+
+    const profile = await this.profiles.findOneBy({ sessionId });
+    if (!profile) {
+      return;
+    }
+
+    if (!profile.serviceConsent?.granted) {
+      return;
+    }
+
+    if (email) {
+      profile.email = email.trim().toLowerCase();
+    }
+
+    if (phone) {
+      profile.phone = phone.replace(/[()\s-]/g, '');
+    }
+
+    await this.profiles.save(profile);
+  }
   // Week 5: delete by sessionId, not by internal id, so a session can only ever delete its own profile.
   async deleteBySessionId(sessionId: string): Promise<void> {
-    // delete() never throws when nothing matches, keeping the operation idempotent.
+    const profile = await this.profiles.findOneBy({ sessionId });
+    if (!profile) {
+      return;
+    }
+
+    // Remove local evidence before the profile row so storage failures are visible
+    // and do not report a completed profile deletion.
+    await this.storage.deleteProfile(profile.id);
     await this.profiles.delete({ sessionId });
   }
 }

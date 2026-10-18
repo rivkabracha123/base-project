@@ -3,7 +3,7 @@ import { buildDemandSummary } from './explained-results';
 import { createUnmatchedDemandDashboardView } from './unmatched-demand-dashboard-view';
 
 describe('createUnmatchedDemandDashboardView', () => {
-  it('wraps the full buyer request and demand summary for P5 without private conversation data', () => {
+  it('wraps the full buyer request and demand summary for the staff dashboard without private conversation data', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.categories = ['rare_books'];
     criteria.creators = ['Yitzhak Abrabanel'];

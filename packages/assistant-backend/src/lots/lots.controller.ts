@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
-import type { AuctionLot, PaginatedResult } from '@monabid/shared';
+import type { AuctionLot } from '@monabid/shared';
+import type { LotSearchResult } from './lot-match';
 import { LotQueryDto } from './lot-query.dto';
 import { LotSearchDto } from './lot-search.dto';
 import { LotsImportReportService } from './lots-import-report.service';
@@ -14,7 +15,7 @@ export class LotsController {
 
   @Post('search')
   @HttpCode(200)
-  search(@Body() body: LotSearchDto): Promise<PaginatedResult<AuctionLot>> {
+  search(@Body() body: LotSearchDto): Promise<LotSearchResult> {
     return this.lotsService.search(body);
   }
 
@@ -26,6 +27,13 @@ export class LotsController {
   @Get('import-report')
   report() {
     return this.importReports.getReport();
+  }
+
+  // This static route must precede :id, otherwise "history" would be treated
+  // as a lot id instead of the history resource.
+  @Get('history/:itemKey')
+  history(@Param('itemKey') itemKey: string): Promise<AuctionLot[]> {
+    return this.lotsService.findSaleHistoryByItemKey(itemKey);
   }
 
   @Get(':id')

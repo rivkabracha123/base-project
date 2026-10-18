@@ -1,0 +1,13 @@
+{
+  "categories": {
+    "rare_books": { "en": ["rare books", "rare book"], "he": ["ספרים נדירים", "ספר נדיר"] },
+    "paintings": { "en": ["paintings", "painting"], "he": ["ציורים", "ציור"] }
+  },
+  "creators": {
+    "yitzhak_abrabanel": {
+      "en": ["yitzhak abrabanel", "isaac abravanel", "isaac abarbanel", "yitzhak abravanel", "yitzhak abarbanel"],
+      "he": ["יצחק אברבנאל", "יצחק אברבנל"]
+    },
+    "leah_mizrahi": { "en": ["leah mizrahi"], "he": ["לאה מזרחי"] }
+  }
+}

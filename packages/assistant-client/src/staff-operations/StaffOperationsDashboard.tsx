@@ -139,19 +139,19 @@ export function StaffOperationsDashboard() {
   return (
     <PageShell>
       <section aria-labelledby="staff-operations-heading">
-        <p className="text-sm font-semibold text-indigo-700">{t('dashboard.synthetic')}</p>
-        <h1 id="staff-operations-heading" className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{t('dashboard.title')}</h1>
-        <p className="mt-3 text-slate-600">{t('dashboard.intro')}</p>
+        <p className="text-sm font-semibold text-[#b08948]">{t('dashboard.synthetic')}</p>
+        <h1 id="staff-operations-heading" className="mt-2 text-3xl font-bold tracking-tight text-stone-950">{t('dashboard.title')}</h1>
+        <p className="mt-3 text-stone-600">{t('dashboard.intro')}</p>
         <div className="mt-8">
           {query.isPending ? <LoadingState label={t('dashboard.loading')} /> : null}
           {query.isError ? <ErrorState title={t('dashboard.error')} retryLabel={t('dashboard.retry')} onRetry={() => void query.refetch()} /> : null}
           {query.isSuccess && query.data.length === 0 ? <EmptyState title={t('dashboard.empty')} /> : null}
           {query.data?.length ? <>
-            <button type="button" className="mb-4 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-800 shadow-sm" aria-expanded={filtersOpen} aria-controls="lead-filters" onClick={() => setFiltersOpen((isOpen) => !isOpen)}>
+            <button type="button" className="mb-4 rounded-lg border border-[#ead9b8] bg-white px-4 py-2 font-semibold text-stone-800 shadow-sm" aria-expanded={filtersOpen} aria-controls="lead-filters" onClick={() => setFiltersOpen((isOpen) => !isOpen)}>
               {t('dashboard.filters')}
             </button>
             {filtersOpen ? <LeadFiltersForm leads={query.data} filters={filters} language={i18n.language} onChange={setFilters} /> : null}
-            {filteredLeads.length === 0 ? <EmptyState title={t('dashboard.filteredEmpty')} /> : <ul className="grid gap-4" aria-label={t('dashboard.leads')}>{filteredLeads.map((lead) => <li key={lead.id}><button type="button" className="w-full rounded-xl border border-slate-200 bg-white p-5 text-start shadow-sm" onClick={() => setSelectedLead(lead)} aria-pressed={visibleSelectedLead?.id === lead.id}><LeadSummary lead={lead} /></button></li>)}</ul>}
+            {filteredLeads.length === 0 ? <EmptyState title={t('dashboard.filteredEmpty')} /> : <ul className="grid gap-4" aria-label={t('dashboard.leads')}>{filteredLeads.map((lead) => <li key={lead.id}><button type="button" className="w-full rounded-xl border border-[#ead9b8] bg-white p-5 text-start shadow-sm" onClick={() => setSelectedLead(lead)} aria-pressed={visibleSelectedLead?.id === lead.id}><LeadSummary lead={lead} /></button></li>)}</ul>}
           </> : null}
           {visibleSelectedLead && detailQuery.isPending ? <LoadingState label={t('dashboard.loading')} /> : null}
           {visibleSelectedLead && detailQuery.isError && isMissingLeadError(detailQuery.error) ? <EmptyState title={t('dashboard.missingLead')} /> : null}
@@ -209,9 +209,9 @@ function StaffPipelinePanel({ leadId }: { leadId: string }) {
     event.currentTarget.reset();
   };
 
-  return <article className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-    <h2 className="text-xl font-semibold text-slate-950">{t('dashboard.pipeline')}</h2>
-    <p className="mt-2 text-slate-700">{t('dashboard.status')}: {displayTerm(pipeline.status, i18n.language)}</p>
+  return <article className="mt-8 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm">
+    <h2 className="text-xl font-semibold text-stone-950">{t('dashboard.pipeline')}</h2>
+    <p className="mt-2 text-stone-700">{t('dashboard.status')}: {displayTerm(pipeline.status, i18n.language)}</p>
     <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={(event) => {
       event.preventDefault();
       if (nextStatus) updateMutation.mutate({ status: nextStatus }, {
@@ -221,28 +221,28 @@ function StaffPipelinePanel({ leadId }: { leadId: string }) {
         },
       });
     }}>
-      <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="pipeline-status">{t('dashboard.updateStatus')}
-        <select id="pipeline-status" className="rounded border border-slate-300 bg-white p-2 font-normal" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as StaffPipelineStatus | '')}>
+      <label className="grid gap-1 text-sm font-medium text-stone-700" htmlFor="pipeline-status">{t('dashboard.updateStatus')}
+        <select id="pipeline-status" className="rounded border border-[#ead9b8] bg-white p-2 font-normal" value={nextStatus} onChange={(event) => setNextStatus(event.target.value as StaffPipelineStatus | '')}>
           <option value="">{t('dashboard.chooseStatus')}</option>
           {availableStatuses.map((status) => <option key={status} value={status}>{displayTerm(status, i18n.language)}</option>)}
         </select>
       </label>
-      <button type="submit" className="rounded bg-slate-900 px-4 py-2 font-semibold text-white disabled:opacity-50" disabled={!nextStatus || updateMutation.isPending}>{t('dashboard.saveStatus')}</button>
+      <button type="submit" className="rounded-full bg-[#2b2438] px-4 py-2 font-semibold text-white disabled:opacity-50" disabled={!nextStatus || updateMutation.isPending}>{t('dashboard.saveStatus')}</button>
     </form>
     <form className="mt-5 grid gap-2" onSubmit={saveNextAction}>
-      <label className="text-sm font-medium text-slate-700" htmlFor="pipeline-next-action">{t('dashboard.nextAction')}</label>
-      <input id="pipeline-next-action" name="nextAction" className="rounded border border-slate-300 p-2" value={nextAction} onChange={(event) => setNextAction(event.target.value)} maxLength={280} />
-      <button type="submit" className="justify-self-start rounded border border-slate-300 px-4 py-2 font-semibold text-slate-800" disabled={updateMutation.isPending}>{t('dashboard.saveNextAction')}</button>
+      <label className="text-sm font-medium text-stone-700" htmlFor="pipeline-next-action">{t('dashboard.nextAction')}</label>
+      <input id="pipeline-next-action" name="nextAction" className="rounded border border-[#ead9b8] p-2" value={nextAction} onChange={(event) => setNextAction(event.target.value)} maxLength={280} />
+      <button type="submit" className="justify-self-start rounded border border-[#ead9b8] px-4 py-2 font-semibold text-stone-800" disabled={updateMutation.isPending}>{t('dashboard.saveNextAction')}</button>
     </form>
     <form className="mt-5 grid gap-2" onSubmit={saveNote}>
-      <label className="text-sm font-medium text-slate-700" htmlFor="pipeline-note">{t('dashboard.activityNote')}</label>
-      <textarea id="pipeline-note" name="note" className="rounded border border-slate-300 p-2" maxLength={500} rows={3} />
-      <button type="submit" className="justify-self-start rounded border border-slate-300 px-4 py-2 font-semibold text-slate-800" disabled={updateMutation.isPending}>{t('dashboard.saveNote')}</button>
+      <label className="text-sm font-medium text-stone-700" htmlFor="pipeline-note">{t('dashboard.activityNote')}</label>
+      <textarea id="pipeline-note" name="note" className="rounded border border-[#ead9b8] p-2" maxLength={500} rows={3} />
+      <button type="submit" className="justify-self-start rounded border border-[#ead9b8] px-4 py-2 font-semibold text-stone-800" disabled={updateMutation.isPending}>{t('dashboard.saveNote')}</button>
     </form>
-    <h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.statusHistory')}</h3>
-    <ul className="mt-2 space-y-1 text-slate-700">{pipeline.statusHistory.map((entry) => <li key={`${entry.at}-${entry.to}`}>{new Date(entry.at).toLocaleString(locale)} · {entry.from ? `${displayTerm(entry.from, i18n.language)} → ` : ''}{displayTerm(entry.to, i18n.language)}</li>)}</ul>
-    <h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.activityNotes')}</h3>
-    {pipeline.activityNotes.length ? <ul className="mt-2 space-y-1 text-slate-700">{pipeline.activityNotes.map((note) => <li key={`${note.at}-${note.text}`}>{new Date(note.at).toLocaleString(locale)} · {note.text}</li>)}</ul> : <p className="mt-2 text-slate-600">{t('dashboard.noActivityNotes')}</p>}
+    <h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.statusHistory')}</h3>
+    <ul className="mt-2 space-y-1 text-stone-700">{pipeline.statusHistory.map((entry) => <li key={`${entry.at}-${entry.to}`}>{new Date(entry.at).toLocaleString(locale)} · {entry.from ? `${displayTerm(entry.from, i18n.language)} → ` : ''}{displayTerm(entry.to, i18n.language)}</li>)}</ul>
+    <h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.activityNotes')}</h3>
+    {pipeline.activityNotes.length ? <ul className="mt-2 space-y-1 text-stone-700">{pipeline.activityNotes.map((note) => <li key={`${note.at}-${note.text}`}>{new Date(note.at).toLocaleString(locale)} · {note.text}</li>)}</ul> : <p className="mt-2 text-stone-600">{t('dashboard.noActivityNotes')}</p>}
     {saveNotice ? <p className="mt-3 text-sm text-emerald-700" role="status">{saveNotice}</p> : null}
     {updateMutation.isError ? <p className="mt-3 text-sm text-red-700" role="alert">{t('dashboard.pipelineError')}</p> : null}
   </article>;
@@ -278,32 +278,32 @@ function LeadFiltersForm({ leads, filters, language, onChange }: {
   const categories = [...new Set(leads.flatMap((lead) => lead.category ? [lead.category] : []))];
   const update = <Key extends keyof LeadFilters>(key: Key, value: LeadFilters[Key]) => onChange({ ...filters, [key]: value });
 
-  return <fieldset id="lead-filters" className="mb-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-5">
-    <legend className="px-1 font-semibold text-slate-950">{t('dashboard.filters')}</legend>
-    <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="lead-type-filter">{t('dashboard.filterLeadType')}
-      <select id="lead-type-filter" className="rounded border border-slate-300 bg-white p-2 font-normal" value={filters.type} onChange={(event) => update('type', event.target.value as LeadFilters['type'])}>
+  return <fieldset id="lead-filters" className="mb-6 grid gap-4 rounded-xl border border-[#ead9b8] bg-white p-5 sm:grid-cols-2 lg:grid-cols-5">
+    <legend className="px-1 font-semibold text-stone-950">{t('dashboard.filters')}</legend>
+    <label className="grid gap-1 text-sm font-medium text-stone-700" htmlFor="lead-type-filter">{t('dashboard.filterLeadType')}
+      <select id="lead-type-filter" className="rounded border border-[#ead9b8] bg-white p-2 font-normal" value={filters.type} onChange={(event) => update('type', event.target.value as LeadFilters['type'])}>
         <option value="">{t('dashboard.allLeadTypes')}</option>
         <option value="buyer">{t('dashboard.buyerLead')}</option>
         <option value="seller">{t('dashboard.sellerLead')}</option>
       </select>
     </label>
-    <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="lead-status-filter">{t('dashboard.filterStatus')}
-      <select id="lead-status-filter" className="rounded border border-slate-300 bg-white p-2 font-normal" value={filters.status} onChange={(event) => update('status', event.target.value)}>
+    <label className="grid gap-1 text-sm font-medium text-stone-700" htmlFor="lead-status-filter">{t('dashboard.filterStatus')}
+      <select id="lead-status-filter" className="rounded border border-[#ead9b8] bg-white p-2 font-normal" value={filters.status} onChange={(event) => update('status', event.target.value)}>
         <option value="">{t('dashboard.allStatuses')}</option>
         {statuses.map((status) => <option key={status} value={status}>{displayTerm(status, language)}</option>)}
       </select>
     </label>
-    <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="lead-category-filter">{t('dashboard.filterCategory')}
-      <select id="lead-category-filter" className="rounded border border-slate-300 bg-white p-2 font-normal" value={filters.category} onChange={(event) => update('category', event.target.value)}>
+    <label className="grid gap-1 text-sm font-medium text-stone-700" htmlFor="lead-category-filter">{t('dashboard.filterCategory')}
+      <select id="lead-category-filter" className="rounded border border-[#ead9b8] bg-white p-2 font-normal" value={filters.category} onChange={(event) => update('category', event.target.value)}>
         <option value="">{t('dashboard.allCategories')}</option>
         {categories.map((category) => <option key={category} value={category}>{displayTerm(category, language)}</option>)}
       </select>
     </label>
-    <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="lead-from-date-filter">{t('dashboard.filterFromDate')}
-      <input id="lead-from-date-filter" className="rounded border border-slate-300 bg-white p-2 font-normal" type="date" value={filters.from} onChange={(event) => update('from', event.target.value)} />
+    <label className="grid gap-1 text-sm font-medium text-stone-700" htmlFor="lead-from-date-filter">{t('dashboard.filterFromDate')}
+      <input id="lead-from-date-filter" className="rounded border border-[#ead9b8] bg-white p-2 font-normal" type="date" value={filters.from} onChange={(event) => update('from', event.target.value)} />
     </label>
-    <label className="grid gap-1 text-sm font-medium text-slate-700" htmlFor="lead-to-date-filter">{t('dashboard.filterToDate')}
-      <input id="lead-to-date-filter" className="rounded border border-slate-300 bg-white p-2 font-normal" type="date" value={filters.to} onChange={(event) => update('to', event.target.value)} />
+    <label className="grid gap-1 text-sm font-medium text-stone-700" htmlFor="lead-to-date-filter">{t('dashboard.filterToDate')}
+      <input id="lead-to-date-filter" className="rounded border border-[#ead9b8] bg-white p-2 font-normal" type="date" value={filters.to} onChange={(event) => update('to', event.target.value)} />
     </label>
   </fieldset>;
 }
@@ -318,13 +318,13 @@ function LeadSummary({ lead }: { lead: StaffLead }) {
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold text-slate-950">{leadTitle}</h2>
-          <p className="mt-1 text-sm text-slate-600">{t('dashboard.requester')}: {displayLeadField(lead, 'name', i18n.language, t)}</p>
+          <h2 className="font-semibold text-stone-950">{leadTitle}</h2>
+          <p className="mt-1 text-sm text-stone-600">{t('dashboard.requester')}: {displayLeadField(lead, 'name', i18n.language, t)}</p>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">{lead.type === 'buyer' ? t('dashboard.buyer') : t('dashboard.seller')}</span>
+        <span className="rounded-full bg-[#f7f1e6] px-3 py-1 text-sm text-stone-700">{lead.type === 'buyer' ? t('dashboard.buyer') : t('dashboard.seller')}</span>
       </div>
-      <p className="mt-3 text-slate-700">{displayLeadField(lead, 'summary', i18n.language, t)}</p>
-      <p className="mt-4 text-sm text-slate-500">{t('dashboard.status')}: {displayTerm(lead.status, i18n.language)} · {t('dashboard.created')}: {new Date(lead.createdAt).toLocaleString(locale)}</p>
+      <p className="mt-3 text-stone-700">{displayLeadField(lead, 'summary', i18n.language, t)}</p>
+      <p className="mt-4 text-sm text-stone-500">{t('dashboard.status')}: {displayTerm(lead.status, i18n.language)} · {t('dashboard.created')}: {new Date(lead.createdAt).toLocaleString(locale)}</p>
     </>
   );
 }
@@ -332,7 +332,7 @@ function LeadSummary({ lead }: { lead: StaffLead }) {
 function BuyerLeadDetail({ detail }: { detail: StaffBuyerLeadDetail }) {
   const { i18n, t } = useTranslation();
   const followUpKey = detail.contact.followUpStatus === 'ready' ? 'dashboard.ready' : detail.contact.followUpStatus === 'consent_required' ? 'dashboard.consentRequired' : 'dashboard.contactMissing';
-  return <article className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold text-slate-950">{t('dashboard.criteria')}</h2><DetailFields fields={detail.criteria} language={i18n.language} /><h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.hardConstraints')}</h3><HardConstraints constraints={detail.hardConstraints} language={i18n.language} /><h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.results')}</h3><SimpleItems items={detail.results.map((result) => `${result.id} · ${t(`dashboard.${result.group}`)}`)} />{detail.unmatchedDemand ? <section className="mt-5 text-slate-700"><p>{t('dashboard.unmatchedDemand')}: {displayTerm(detail.unmatchedDemand.reason, i18n.language)}</p><DetailFields fields={detail.unmatchedDemand.originalCriteria} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.contact')}</h3><p className="mt-2 text-slate-700">{t(followUpKey)}</p>{detail.contact.followUpStatus === 'ready' ? <div className="mt-2 text-slate-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}</article>;
+  return <article className="mt-8 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold text-stone-950">{t('dashboard.criteria')}</h2><DetailFields fields={detail.criteria} language={i18n.language} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.hardConstraints')}</h3><HardConstraints constraints={detail.hardConstraints} language={i18n.language} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.results')}</h3><SimpleItems items={detail.results.map((result) => `${result.id} · ${t(`dashboard.${result.group}`)}`)} />{detail.unmatchedDemand ? <section className="mt-5 text-stone-700"><p>{t('dashboard.unmatchedDemand')}: {displayTerm(detail.unmatchedDemand.reason, i18n.language)}</p><DetailFields fields={detail.unmatchedDemand.originalCriteria} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.contact')}</h3><p className="mt-2 text-stone-700">{t(followUpKey)}</p>{detail.contact.followUpStatus === 'ready' ? <div className="mt-2 text-stone-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}</article>;
 }
 
 function describeConstraint(constraint: BuyerHardConstraint, language: string, t: (key: string, options?: Record<string, unknown>) => string): string {
@@ -356,23 +356,23 @@ function describeConstraint(constraint: BuyerHardConstraint, language: string, t
 
 function HardConstraints({ constraints, language }: { constraints: BuyerHardConstraint[]; language: string }) {
   const { t } = useTranslation();
-  return <ul className="mt-2 space-y-2 list-none p-0 text-slate-700">{constraints.map((constraint) => <li key={`${constraint.field}-${constraint.operator}`}>{describeConstraint(constraint, language, t)}</li>)}</ul>;
+  return <ul className="mt-2 space-y-2 list-none p-0 text-stone-700">{constraints.map((constraint) => <li key={`${constraint.field}-${constraint.operator}`}>{describeConstraint(constraint, language, t)}</li>)}</ul>;
 }
-function DetailFields({ fields, language }: { fields: Record<string, unknown>; language: string }) { return <dl className="mt-2 space-y-1 text-slate-700">{Object.entries(fields).map(([key, value]) => <div key={key} className="flex flex-wrap gap-2"><dt className="font-medium">{displayTerm(key, language)}:</dt><dd>{displayValue(value, language)}</dd></div>)}</dl>; }
+function DetailFields({ fields, language }: { fields: Record<string, unknown>; language: string }) { return <dl className="mt-2 space-y-1 text-stone-700">{Object.entries(fields).map(([key, value]) => <div key={key} className="flex flex-wrap gap-2"><dt className="font-medium">{displayTerm(key, language)}:</dt><dd>{displayValue(value, language)}</dd></div>)}</dl>; }
 
 function SellerLeadDetail({ detail }: { detail: StaffSellerLeadDetail }) {
   const { i18n, t } = useTranslation();
   const canShowContact = detail.contact.serviceConsentGranted;
   const locale = i18n.language.startsWith('he') ? 'he-IL' : 'en-US';
-  return <article className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold text-slate-950">{t('dashboard.sellerItem')}</h2>{detail.item ? <DetailFields fields={detail.item} language={i18n.language} /> : <p className="mt-2 text-slate-700">{t('dashboard.unavailable')}</p>}<h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.evidence')}</h3><SimpleItems items={detail.evidence.map(({ id, type }) => `${id} • ${displayTerm(type, i18n.language)}`)} /><h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.comparables')}</h3><SimpleItems items={detail.comparables.map(({ id, source }) => `${id}${source ? ` • ${displayTerm(source.label, i18n.language)}` : ''}`)} /><SellerValuation valuation={detail.valuation} language={i18n.language} />{detail.catalogDraft ? <section className="mt-5"><h3 className="font-semibold text-slate-950">{t('dashboard.catalogDraft')}</h3><DetailFields fields={detail.catalogDraft} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.contact')}</h3><p className="mt-2 text-slate-700">{canShowContact ? t('dashboard.ready') : t('dashboard.consentRequired')}</p>{canShowContact ? <div className="mt-2 text-slate-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}<h3 className="mt-5 font-semibold text-slate-950">{t('dashboard.history')}</h3><SimpleItems items={detail.history.map(({ at, event, actor }) => `${new Date(at).toLocaleString(locale)} • ${displayTerm(event, i18n.language)} • ${displayTerm(actor, i18n.language)}`)} /></article>;
+  return <article className="mt-8 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold text-stone-950">{t('dashboard.sellerItem')}</h2>{detail.item ? <DetailFields fields={detail.item} language={i18n.language} /> : <p className="mt-2 text-stone-700">{t('dashboard.unavailable')}</p>}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.evidence')}</h3><SimpleItems items={detail.evidence.map(({ id, type }) => `${id} • ${displayTerm(type, i18n.language)}`)} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.comparables')}</h3><SimpleItems items={detail.comparables.map(({ id, source }) => `${id}${source ? ` • ${displayTerm(source.label, i18n.language)}` : ''}`)} /><SellerValuation valuation={detail.valuation} language={i18n.language} />{detail.catalogDraft ? <section className="mt-5"><h3 className="font-semibold text-stone-950">{t('dashboard.catalogDraft')}</h3><DetailFields fields={detail.catalogDraft} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.contact')}</h3><p className="mt-2 text-stone-700">{canShowContact ? t('dashboard.ready') : t('dashboard.consentRequired')}</p>{canShowContact ? <div className="mt-2 text-stone-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.history')}</h3><SimpleItems items={detail.history.map(({ at, event, actor }) => `${new Date(at).toLocaleString(locale)} • ${displayTerm(event, i18n.language)} • ${displayTerm(actor, i18n.language)}`)} /></article>;
 }
 
 function SellerValuation({ valuation, language }: { valuation: StaffSellerLeadDetail['valuation']; language: string }) {
   const { t } = useTranslation();
   if (!valuation) return null;
-  if (valuation.status === 'refusal') return <section className="mt-5 text-slate-700"><h3 className="font-semibold text-slate-950">{t('dashboard.valuation')}</h3><p>{t('dashboard.refusal')}: {valuation.reason ? displayTerm(valuation.reason, language) : t('dashboard.unavailable')}</p></section>;
+  if (valuation.status === 'refusal') return <section className="mt-5 text-stone-700"><h3 className="font-semibold text-stone-950">{t('dashboard.valuation')}</h3><p>{t('dashboard.refusal')}: {valuation.reason ? displayTerm(valuation.reason, language) : t('dashboard.unavailable')}</p></section>;
   const range = valuation.valuationRange;
-  return <section className="mt-5 text-slate-700"><h3 className="font-semibold text-slate-950">{t('dashboard.valuation')}</h3>{range ? <p>{formatMoney(range.min, range.currency, language)}–{formatMoney(range.max, range.currency, language)}</p> : <p>{t('dashboard.unavailable')}</p>}{valuation.confidence ? <p>{language.startsWith('he') ? 'רמת ביטחון' : 'Confidence'}: {displayTerm(valuation.confidence.level, language)}{valuation.confidence.explanation ? ` — ${replaceCurrencyCodes(valuation.confidence.explanation)}` : ''}</p> : null}</section>;
+  return <section className="mt-5 text-stone-700"><h3 className="font-semibold text-stone-950">{t('dashboard.valuation')}</h3>{range ? <p>{formatMoney(range.min, range.currency, language)}–{formatMoney(range.max, range.currency, language)}</p> : <p>{t('dashboard.unavailable')}</p>}{valuation.confidence ? <p>{language.startsWith('he') ? 'רמת ביטחון' : 'Confidence'}: {displayTerm(valuation.confidence.level, language)}{valuation.confidence.explanation ? ` — ${replaceCurrencyCodes(valuation.confidence.explanation)}` : ''}</p> : null}</section>;
 }
 
-function SimpleItems({ items }: { items: string[] }) { return <ul className="mt-2 space-y-1 text-slate-700">{items.map((item) => <li key={item}>{item}</li>)}</ul>; }
+function SimpleItems({ items }: { items: string[] }) { return <ul className="mt-2 space-y-1 text-stone-700">{items.map((item) => <li key={item}>{item}</li>)}</ul>; }

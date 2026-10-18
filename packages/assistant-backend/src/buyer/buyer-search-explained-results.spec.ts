@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { auctionLotSchema, type AuctionLot } from '@monabid/shared';
+import { auctionLotSchema, matchReasonSchema, type AuctionLot } from '@monabid/shared';
 import { emptyBuyerCriteria, type BuyerCriteria } from './buyer-criteria';
 import { BuyerSearchOrchestrator } from './buyer-search.orchestrator';
-import type { PaginatedSearchResult } from './search-request';
+import type { LotMatch, LotSearchResult } from '../lots/lot-match';
 
-// Wraps fixture lots as the single-page PaginatedResult the lots search API returns.
-const page = (data: AuctionLot[]): PaginatedSearchResult<AuctionLot> => ({
+// Wraps fixture matches as the single-page result the lots search API returns.
+const page = (data: LotMatch[]): LotSearchResult => ({
   data,
   total: data.length,
   page: 1,
@@ -24,8 +24,8 @@ const contract = JSON.parse(
   scenario: {
     language: 'en' | 'he';
     criteria: BuyerCriteria;
-    p2ResultLots: unknown[];
-    p2UnmatchedLots: unknown[];
+    resultMatches: Array<{ lot: unknown; matchReasons: unknown[] }>;
+    unmatchedLots: unknown[];
   };
   expected: {
     hardConstraints: unknown[];
@@ -46,7 +46,10 @@ const buyerCriteria = (): BuyerCriteria => ({
   ...scenario.criteria,
 });
 
-const searchResultLots = scenario.p2ResultLots.map((lot) => auctionLotSchema.parse(lot));
+const searchResultMatches: LotMatch[] = scenario.resultMatches.map((entry) => ({
+  lot: auctionLotSchema.parse(entry.lot),
+  matchReasons: entry.matchReasons.map((reason) => matchReasonSchema.parse(reason)),
+}));
 const lead = {
   leadId: 'buyer-lead-explained-results-demo',
   status: 'new',
@@ -60,8 +63,8 @@ const reasonsFor = (entries: Array<{ lot: AuctionLot; matchReasons: unknown }>) 
   Object.fromEntries(entries.map((entry) => [entry.lot.id, entry.matchReasons]));
 
 describe('Search explained results contract (criteria → grouped results / no-match summary)', () => {
-  it('groups exactly the lots search returned into current/historical with derived match reasons', async () => {
-    const lotsSearch = { search: jest.fn().mockResolvedValue(page(searchResultLots)) };
+  it('groups exactly the lots search returned into current/historical with its match reasons unchanged', async () => {
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(searchResultMatches)) };
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({
@@ -95,7 +98,7 @@ describe('Search explained results contract (criteria → grouped results / no-m
   });
 
   it('adds no lot the lots search API did not return', async () => {
-    const lotsSearch = { search: jest.fn().mockResolvedValue(page(searchResultLots)) };
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(searchResultMatches)) };
     const outcome = await new BuyerSearchOrchestrator(lotsSearch).search({
       criteria: buyerCriteria(),
       language: scenario.language,
@@ -103,7 +106,7 @@ describe('Search explained results contract (criteria → grouped results / no-m
     });
 
     if (outcome.kind !== 'results') throw new Error('expected results');
-    const returnedIds = searchResultLots.map((lot) => lot.id).sort();
+    const returnedIds = searchResultMatches.map((entry) => entry.lot.id).sort();
     const groupedLotIds = [...outcome.results.current, ...outcome.results.historical]
       .map((entry) => entry.lot.id)
       .sort();
@@ -111,7 +114,7 @@ describe('Search explained results contract (criteria → grouped results / no-m
   });
 
   it('recovers from no results with an honest demand summary and no budget relaxation', async () => {
-    const lotsSearch = { search: jest.fn().mockResolvedValue(page(scenario.p2UnmatchedLots as AuctionLot[])) };
+    const lotsSearch = { search: jest.fn().mockResolvedValue(page(scenario.unmatchedLots as LotMatch[])) };
     const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
     const outcome = await orchestrator.search({

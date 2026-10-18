@@ -38,6 +38,12 @@ describe('prepared draft-enquiry fixture', () => {
         ...fixture.dashboardRow,
         recommendation: fixture.dashboardRow.recommendation ?? null,
         sellerChoice: null,
+        catalogDraft: null,
+        item: null,
+        evidence: null,
+        valuation: null,
+        status: 'draft',
+        history: [],
       },
     ]);
   });

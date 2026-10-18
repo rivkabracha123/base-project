@@ -9,36 +9,48 @@ import {
 import i18n from '../i18n';
 import { soldLotFixture, unsoldLotFixture } from '../test/fixtures/auction-lots';
 import { ResultsPage } from './ResultPage';
+import { resetBuyerChatFlowForTests } from '../buyer/buyer-chat-flow';
 
 function CurrentPath() {
   return <output data-testid="current-path">{useLocation().pathname}</output>;
 }
 
 describe('ResultsPage', () => {
-  it('renders fixture results and navigates to the selected lot', async () => {
+  it('does not show fixture inventory before a search has run', async () => {
+    resetBuyerChatFlowForTests();
+    await i18n.changeLanguage('en');
+    render(<MemoryRouter><ResultsPage /></MemoryRouter>);
+    expect(screen.getByRole('status')).toHaveTextContent('There are no search results');
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  });
+  it('renders B3 fixture results and navigates to the selected lot', async () => {
     await i18n.changeLanguage('en');
     render(
       <MemoryRouter initialEntries={['/results']}>
-        <ResultsPage />
+        <ResultsPage outcome={resultsSearchOutcomeFixture} />
         <CurrentPath />
       </MemoryRouter>,
     );
 
     expect(screen.getByText('Atereth Zekeinim by Yitzhak Abrabanel')).toBeInTheDocument();
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'View item details' })[0]!);
+    fireEvent.click(screen.getByText('Atereth Zekeinim by Yitzhak Abrabanel'));
     expect(screen.getByTestId('current-path')).toHaveTextContent('/lots/lot-kestenbaum-54554-121421');
   });
 
-  it('groups sold lots as past sales and other lots as current results', async () => {
+  it('renders the current and historical groups supplied by B3', async () => {
     await i18n.changeLanguage('en');
+    const upcomingLot = { ...unsoldLotFixture, status: 'upcoming' as const };
     render(
       <MemoryRouter>
         <ResultsPage
           outcome={{
             kind: 'results',
             searchRequest: resultsSearchOutcomeFixture.searchRequest,
-            items: [unsoldLotFixture, soldLotFixture],
+            results: {
+              current: [{ lot: upcomingLot, matchReasons: [] }],
+              historical: [{ lot: soldLotFixture, matchReasons: [] }],
+            },
+            approvedRefinements: [],
           }}
         />
       </MemoryRouter>,
@@ -46,12 +58,11 @@ describe('ResultsPage', () => {
 
     const currentResults = screen.getByRole('heading', { name: 'Current results' }).parentElement;
     const pastSales = screen.getByRole('heading', { name: 'Past sales' }).parentElement;
-
     expect(within(currentResults!).getByText('Unsold test lot')).toBeInTheDocument();
     expect(within(pastSales!).getByText('Sold test lot')).toBeInTheDocument();
   });
 
-  it('does not render an empty current-results group when every lot is sold', async () => {
+  it('does not render an empty current-results group', async () => {
     await i18n.changeLanguage('en');
     render(
       <MemoryRouter>
@@ -59,7 +70,8 @@ describe('ResultsPage', () => {
           outcome={{
             kind: 'results',
             searchRequest: resultsSearchOutcomeFixture.searchRequest,
-            items: [soldLotFixture],
+            results: { current: [], historical: [{ lot: soldLotFixture, matchReasons: [] }] },
+            approvedRefinements: [],
           }}
         />
       </MemoryRouter>,
@@ -67,6 +79,32 @@ describe('ResultsPage', () => {
 
     expect(screen.getByRole('heading', { name: 'Past sales' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Current results' })).not.toBeInTheDocument();
+  });
+
+  it('shows match reasons, approved refinements, and the selected result', async () => {
+    await i18n.changeLanguage('en');
+    const upcomingLot = { ...unsoldLotFixture, status: 'upcoming' as const };
+    render(
+      <MemoryRouter>
+        <ResultsPage
+          outcome={{
+            kind: 'results',
+            searchRequest: resultsSearchOutcomeFixture.searchRequest,
+            results: {
+              current: [{ lot: upcomingLot, matchReasons: [{ field: 'creators', detail: 'Yitzhak Abrabanel' }] }],
+              historical: [],
+            },
+            approvedRefinements: ['price'],
+            selectedLotId: upcomingLot.id,
+          }}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Why this matches')).toBeInTheDocument();
+    expect(screen.getByText('Creator: Yitzhak Abrabanel')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Search was expanded without: price');
+    expect(screen.getByLabelText('Selected item')).toBeInTheDocument();
   });
 
   it('shows the B3 unmatched state without result cards or help capture', async () => {
@@ -80,5 +118,4 @@ describe('ResultsPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('No matches found');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
-
 });

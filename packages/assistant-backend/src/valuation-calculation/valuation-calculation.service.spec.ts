@@ -298,7 +298,7 @@ describe('ValuationCalculationService', () => {
       });
     });
 
-    // Confidence is explicitly qualitative and uncalibrated.
+    // Confidence is derived from comparable count and price spread; see the formula in calculateValuation.
     it('returns a confidence score describing how reliable the valuation is', async () => {
       const service = new ValuationCalculationService();
 
@@ -342,7 +342,7 @@ describe('ValuationCalculationService', () => {
       expect(result).toMatchObject({
         status: 'supported',
         itemVersion: 'v7',
-        confidence: { level: 'low', explanation: expect.stringContaining('uncalibrated') },
+        confidence: { level: 'low', explanation: expect.stringContaining('3 comparables') },
       });
     });
 

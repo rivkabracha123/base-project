@@ -6,7 +6,6 @@ export type BuyerChatSystemMessage = {
   sessionId: string;
   speaker: 'system';
   text: string;
-  date: string;
 };
 
 /** Buyer answer or explicit skip sent from the chat UI back to the criteria session. */
@@ -17,36 +16,33 @@ export type BuyerChatTurnInput =
       speaker: 'buyer';
       skipped: false;
       text: string;
-      date: string;
     }
   | {
       id: string;
       sessionId: string;
       speaker: 'buyer';
       skipped: true;
-      date: string;
     };
 
 /** One line in session history — same ids as chat UI messages. */
 export type BuyerChatHistoryEntry =
-  | { id: string; speaker: 'system'; text: string; date: string }
-  | { id: string; speaker: 'buyer'; skipped: false; text: string; date: string }
-  | { id: string; speaker: 'buyer'; skipped: true; date: string };
+  | { id: string; speaker: 'system'; text: string }
+  | { id: string; speaker: 'buyer'; skipped: false; text: string }
+  | { id: string; speaker: 'buyer'; skipped: true };
 
 export type BuyerChatHistoryInput =
-  | { id: string; speaker: 'system'; text: string; date: string }
-  | { id: string; speaker: 'buyer'; skipped: false; text: string; date: string }
-  | { id: string; speaker: 'buyer'; skipped: true; date: string };
+  | { id: string; speaker: 'system'; text: string }
+  | { id: string; speaker: 'buyer'; skipped: false; text: string }
+  | { id: string; speaker: 'buyer'; skipped: true };
 
 export function buildChatSystemMessage(
   sessionId: string,
-  message: { id: string; speaker: 'system'; text: string; date: string },
+  message: { id: string; speaker: 'system'; text: string },
 ): BuyerChatSystemMessage {
   return {
     id: message.id,
     sessionId,
     speaker: 'system',
     text: message.text,
-    date: message.date,
   };
 }
