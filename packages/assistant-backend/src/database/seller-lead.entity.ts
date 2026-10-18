@@ -51,6 +51,9 @@ export class SellerLeadEntity {
   @Column({ type: 'jsonb', nullable: true })
   valuation: SellerLeadValuation | null;
 
+  @Column({ name: 'enquiry_text', type: 'text', nullable: true })
+  enquiryText?: string | null;
+
   /** Safe comparable refs copied onto the lead — S5 does not query S3/S4 tables for P5. */
   @Column({ type: 'jsonb', nullable: true })
   comparables: SellerLeadComparableRef[] | null;

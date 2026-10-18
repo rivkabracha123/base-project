@@ -8,12 +8,41 @@ import { useChatFlow } from '../chat/useChatFlow';
 import { connectSellerLevels, isSellerDraftReady } from './connect-seller-levels';
 import { connectSellerPhotos } from './connect-seller-photos';
 import type { SellerItemDraft } from '@monabid/shared';
+import { confirmedItemDraftSchema, sellerContactFromP3Profile } from '@monabid/shared';
 import { getCurrentSellerDraft } from './connect-seller-correction';
 import { SellerItemDetailsCard } from './SellerItemDetailsCard';
 import { sellerMessageSchema, type SellerMessage } from './messages';
 import { SellerComparisonResults } from './SellerComparisonResults';
 import { SellerHouseCards } from './SellerHouseCards';
 import { SellerActionCard } from './SellerActionCard';
+import {
+  completeSellerEnquiry,
+  finalHandoffFromS1,
+  grantP3ServiceConsent,
+} from '../app/api';
+
+type PendingSellerEnquiry = {
+  preferredName?: string;
+  email?: string;
+  phone?: string;
+  enquiryText?: string;
+};
+
+function parseContactMessage(text: string): PendingSellerEnquiry {
+  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  const phone = text.match(/\+?\d[\d\s().-]{6,}\d/)?.[0]?.trim();
+  const preferredName = text
+    .replace(email ?? '', ' ')
+    .replace(phone ?? '', ' ')
+    .replace(/(?:my name is|name is|i am|i'm|שם(?:\s+מלא)?|טלפון|phone|email|אימייל|מייל)\s*[:=]?\s*/gi, ' ')
+    .replace(/[,:;|]+/g, ' ')
+    .trim();
+  return {
+    ...(preferredName && preferredName.length <= 100 ? { preferredName } : {}),
+    ...(email ? { email } : {}),
+    ...(phone ? { phone } : {}),
+  };
+}
 
 // Photo limits checked in the browser before uploading (the server enforces them again).
 const allowedPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -29,10 +58,12 @@ export function SellerChat() {
   const [photoError, setPhotoError] = useState('');
   // true בזמן שתמונה מועלית; בזמן הזה אי אפשר לבחור תמונה נוספת.
   const [isUploading, setIsUploading] = useState(false);
+  const [busyLabel, setBusyLabel] = useState<string>();
   const [pendingPhotos, setPendingPhotos] = useState<Array<{ file: File; previewUrl: string }>>([]);
   const pendingPhotosRef = useRef(pendingPhotos);
   pendingPhotosRef.current = pendingPhotos;
   const [draftLoadError, setDraftLoadError] = useState('');
+  const [pendingEnquiry, setPendingEnquiry] = useState<PendingSellerEnquiry | null>(null);
   const draftShown = useRef(false);
 
   useEffect(() => () => {
@@ -61,7 +92,12 @@ export function SellerChat() {
       fetch: (signal) => getSellerConversation(language, signal),
     },
     userMessage: (text) => ({ speaker: 'seller', text }),
-    connect: (message, onUpdate) => connectSellerLevels(message, onUpdate, showItemDraft, draftShown.current),
+    connect: (message, onUpdate) => connectSellerLevels(
+      message,
+      onUpdate,
+      showItemDraft,
+      draftShown.current,
+    ),
     errorText: t('chat.sendError'),
   });
 
@@ -69,6 +105,61 @@ export function SellerChat() {
     draftShown.current = true;
     addMessage({ speaker: 'system', text: language === 'he' ? 'פרטי הפריט שלי' : 'My item details',
       comparison: { mode: 'details', item: draft.item, evidence: draft.evidence } });
+  }
+
+  async function handleEnquiryContact(text: string, alreadyShownAsSeller = false) {
+    if (!alreadyShownAsSeller) addMessage({ speaker: 'seller', text });
+    const contact = { ...(pendingEnquiry ?? {}), ...parseContactMessage(text) };
+    if (/^(?:cancel|stop|בטל|ביטול|לא רוצה)[.!?\s]*$/i.test(text.trim())) {
+      setPendingEnquiry(null);
+      addMessage({ speaker: 'system', text: language === 'he' ? 'בסדר, ביטלתי את הפנייה.' : 'Okay, I cancelled the enquiry.' });
+      return;
+    }
+    if (!contact.preferredName) {
+      setPendingEnquiry(contact);
+      addMessage({ speaker: 'system', text: language === 'he'
+        ? 'מה השם שארשום בפנייה?'
+        : 'What name should I include in the enquiry?' });
+      return;
+    }
+    if (!contact.email && !contact.phone) {
+      setPendingEnquiry(contact);
+      addMessage({ speaker: 'system', text: language === 'he'
+        ? 'תודה. מה מספר הטלפון או כתובת האימייל שבהם נוכל לחזור אלייך?'
+        : 'Thank you. What phone number or email address can we use to contact you?' });
+      return;
+    }
+
+    setPendingEnquiry(contact);
+    setBusyLabel(t('chat.sellerProcessing'));
+    try {
+      const profile = await grantP3ServiceConsent();
+      if (!profile) throw new Error(language === 'he' ? 'לא ניתן לשמור כרגע את פרטי הקשר.' : 'Contact details could not be saved right now.');
+      const currentDraft = await getCurrentSellerDraft();
+      if (!currentDraft) throw new Error(language === 'he' ? 'לא נמצאה טיוטת הפריט.' : 'The item draft could not be found.');
+      const editableDraft = confirmedItemDraftSchema.parse(currentDraft);
+      await completeSellerEnquiry({
+        generalEnquiry: true,
+        enquiryText: contact.enquiryText,
+        handoff: finalHandoffFromS1(editableDraft),
+        contact: {
+          preferredName: contact.preferredName,
+          ...(contact.email ? { email: contact.email } : {}),
+          ...(contact.phone ? { phone: contact.phone } : {}),
+        },
+        profileId: sellerContactFromP3Profile(profile).profileId,
+        preferredLanguage: language,
+      });
+      setPendingEnquiry(null);
+      addMessage({ speaker: 'system', text: language === 'he'
+        ? 'תודה, הפנייה נשמרה לצוות Monabid. היא לא נשלחה לבית מכירות.'
+        : 'Thank you. The enquiry was saved for the Monabid team and was not sent to an auction house.' });
+    } catch (error) {
+      addMessage({ speaker: 'system', text: error instanceof Error ? error.message
+        : language === 'he' ? 'לא ניתן היה לשמור את הפנייה.' : 'The enquiry could not be saved.' });
+    } finally {
+      setBusyLabel(undefined);
+    }
   }
 
   // Stages chosen photos in the composer. They are uploaded only when the seller presses Send.
@@ -130,6 +221,12 @@ export function SellerChat() {
     }
 
     if (!text.trim()) return;
+    if (pendingEnquiry) {
+      await handleEnquiryContact(text, files.length > 0);
+      return;
+    }
+    const isSearchingItems = /search|find|similar|comparables?|past sales|previous sales|sold|\bitems?\b|\bproducts?\b|חפש|חיפוש|פריט(?:ים)?\s+דומ(?:ה|ים)|מכירות\s+(?:דומות|קודמות|בעבר)|נמכרו/i.test(text);
+    setBusyLabel(t(isSearchingItems ? 'chat.sellerSearchingItems' : 'chat.sellerProcessing'));
     if (files.length > 0) {
       setIsUploading(true);
       try {
@@ -138,16 +235,31 @@ export function SellerChat() {
         showError('send-failed');
       } finally {
         setIsUploading(false);
+        setBusyLabel(undefined);
       }
       return;
     }
-    void handleSend(text);
+    try {
+      await handleSend(text);
+    } finally {
+      setBusyLabel(undefined);
+    }
   }
 
   // Renders a single conversation message as a bubble: the photo (if any) above the text (if any).
   function renderMessageContent(message: SellerMessage) {
     if (message.speaker === 'system' && message.action) return <li data-speaker="system" className="w-full min-w-0">
-      <SellerActionCard action={message.action} language={language} summary={message.text} />
+      <SellerActionCard
+        action={message.action}
+        language={language}
+        summary={message.text}
+        onContinue={(enquiryText) => {
+          setPendingEnquiry({ enquiryText });
+          addMessage({ speaker: 'system', text: language === 'he'
+            ? 'כדי שנוכל ליצור איתך קשר, אנחנו צריכים את שמך ופרטי התקשרות. כתבי כאן את שמך ומספר טלפון או כתובת אימייל. הפנייה תישמר לצוות Monabid בלבד ולא תישלח לבית מכירות.'
+            : 'So we can get back to you, please send your name and contact details: a phone number or email address. The enquiry will be saved for the Monabid team only and will not be sent to an auction house.' });
+        }}
+      />
     </li>;
     if (message.speaker === 'system' && message.houseRanking) {
       return <li data-speaker="system" className="w-full min-w-0">
@@ -256,7 +368,7 @@ export function SellerChat() {
       dir={dir}
       tone="journey"
       placeholder={t('chat.placeholder')}
-      busyLabel={isUploading ? t('chat.checkingPhotos') : undefined}
+      busyLabel={isUploading ? t('chat.checkingPhotos') : busyLabel}
       loadingLabel={t('chat.loading')}
       errorLabel={t('chat.error')}
       retryLabel={t('chat.retry')}

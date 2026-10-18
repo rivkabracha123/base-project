@@ -47,11 +47,37 @@ describe('SellerWorkflowService', () => {
     const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
     expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1' } } })).result)
       .toEqual({ title: 'Manuscript', ...item.catalogDraft });
-    expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1' } } })).result)
-      .toMatchObject({ draft });
+    const preview = await connected.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },
+    });
+    expect(preview.result).toMatchObject({ draft, generatedByAi: false, enquiryText: expect.stringContaining('Hello,') });
     expect(drafts.getDraft).toHaveBeenCalledWith(profileId, 's1');
     expect(leads.draft).not.toHaveBeenCalled();
     expect(leads.submitFinal).not.toHaveBeenCalled();
+  });
+
+  it('uses the AI-generated plain-text enquiry when available', async () => {
+    const item = { id: 'saved-item', category: 'rare_books', title: 'Manuscript',
+      dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] },
+      condition: 'Good', catalogDraft: { he: 'כתב יד עתיק', en: 'An old manuscript' } };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }) };
+    const p4 = { generateSellerEnquiryCopy: jest.fn().mockResolvedValue('Dear Sir or Madam, please review this manuscript.') };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const result = await connected.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },
+    });
+    expect(p4.generateSellerEnquiryCopy).toHaveBeenCalledWith(expect.objectContaining({
+      language: 'en',
+      sessionId: 's1',
+      prompt: expect.stringContaining('An old manuscript'),
+    }));
+    expect(result.result).toMatchObject({
+      enquiryText: 'Dear Sir or Madam, please review this manuscript.',
+      generatedByAi: true,
+    });
   });
 
   it('blocks catalog and enquiry previews when mandatory facts are missing', async () => {

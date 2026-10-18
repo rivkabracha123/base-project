@@ -1,5 +1,5 @@
 import type { AuctionLot } from '@monabid/shared';
-import { BuyerApiError, fetchBuyerJson } from './buyer-api';
+import { BuyerApiError, buyerApiBaseUrl } from './buyer-api';
 import type { BuyerChatTurnLog } from './buyer-chat-storage';
 import type { BuyerChatUpdate } from './buyer-chat-updates';
 import { detectBuyerLanguage } from './detect-buyer-language';
@@ -25,6 +25,79 @@ type ConversationMessageResponse = {
   updates: BuyerChatUpdate[];
   turn: BuyerChatTurnLog;
 };
+
+type ConversationMessageStreamEvent =
+  | { type: 'started' }
+  | { type: 'session'; sessionId: string }
+  | { type: 'update'; index: number; update: BuyerChatUpdate }
+  | { type: 'complete'; response: ConversationMessageResponse }
+  | { type: 'failure'; status: number };
+
+async function readConversationMessageStream(
+  response: Response,
+  onUpdate: (update: BuyerChatUpdate) => void,
+  onSessionId: (sessionId: string) => void,
+): Promise<{ response: ConversationMessageResponse; streamedUpdateIndexes: Set<number> }> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Buyer conversation stream has no response body.');
+
+  const decoder = new TextDecoder();
+  const streamedUpdateIndexes = new Set<number>();
+  let buffer = '';
+  let completedResponse: ConversationMessageResponse | undefined;
+
+  const processFrame = (frame: string): void => {
+    const data = frame
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+    if (!data) return;
+
+    const event = JSON.parse(data) as ConversationMessageStreamEvent;
+    switch (event.type) {
+      case 'started':
+        break;
+      case 'session':
+        activeSessionId = event.sessionId;
+        onSessionId(event.sessionId);
+        break;
+      case 'update':
+        if (!Number.isInteger(event.index)) throw new Error('Invalid buyer conversation stream update index.');
+        streamedUpdateIndexes.add(event.index);
+        onUpdate(event.update);
+        break;
+      case 'complete':
+        completedResponse = event.response;
+        break;
+      case 'failure':
+        if (!Number.isInteger(event.status) || event.status < 400 || event.status > 599) {
+          throw new Error('Invalid buyer conversation stream failure status.');
+        }
+        throw new BuyerApiError(event.status);
+      default:
+        throw new Error('Unknown buyer conversation stream event.');
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+
+    let separator = /\r?\n\r?\n/.exec(buffer);
+    while (separator?.index !== undefined) {
+      processFrame(buffer.slice(0, separator.index));
+      buffer = buffer.slice(separator.index + separator[0].length);
+      separator = /\r?\n\r?\n/.exec(buffer);
+    }
+
+    if (done) break;
+  }
+
+  if (buffer.trim()) processFrame(buffer);
+  if (!completedResponse) throw new Error('Buyer conversation stream ended before completion.');
+  return { response: completedResponse, streamedUpdateIndexes };
+}
 
 let activeSessionId: string | null = null;
 let activeLanguage: 'he' | 'en' = 'en';
@@ -136,7 +209,7 @@ export async function submitBuyerChatMessage(
       }
       selectBuyerLot(lot);
     }
-    const body = await fetchBuyerJson<ConversationMessageResponse>('/buyer/conversation/message', {
+    const requestInit: RequestInit = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -146,8 +219,21 @@ export async function submitBuyerChatMessage(
         context: toP4AiContext(activeContext, activeSessionId ?? undefined),
         messageId: activeSessionId ? `buyer-${at}` : undefined,
       }),
-    });
+    };
+    let response = await fetch(`${buyerApiBaseUrl}/buyer/conversation/message/stream`, requestInit);
+    if (!response.ok) throw new BuyerApiError(response.status);
 
+    if (!response.headers.get('content-type')?.includes('text/event-stream')) {
+      throw new Error('Buyer conversation endpoint did not return a stream.');
+    }
+    const streamed = await readConversationMessageStream(
+      response,
+      onUpdate,
+      (sessionId) => options?.onSessionId?.(sessionId),
+    );
+    const { response: body, streamedUpdateIndexes } = streamed;
+
+    const sessionIdWasStreamed = activeSessionId === body.sessionId;
     activeSessionId = body.sessionId;
     const p4 = body.turn?.p4 as { intentRoute?: { functionName?: string; arguments?: { category?: string } } } | undefined;
     if (p4?.intentRoute?.functionName === 'rankSellerHouses') houseCategory = p4.intentRoute.arguments?.category;
@@ -160,11 +246,11 @@ export async function submitBuyerChatMessage(
       latestResultLots = body.updates.flatMap(update => update.speaker === 'result-group' ? update.lots : []);
       activeContext = { ...activeContext, lots: resultLots };
     }
-    options?.onSessionId?.(body.sessionId);
+    if (!sessionIdWasStreamed) options?.onSessionId?.(body.sessionId);
     options?.onTurnLog?.(body.turn);
-    for (const update of body.updates) {
-      onUpdate(update);
-    }
+    body.updates.forEach((update, index) => {
+      if (!streamedUpdateIndexes.has(index)) onUpdate(update);
+    });
   } catch (error) {
     const unavailable = error instanceof BuyerApiError && [429, 503].includes(error.status);
     const text = unavailable

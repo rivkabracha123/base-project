@@ -53,6 +53,23 @@ describe('ItemValuationService.calculateFromItem (S3 -> S4 flow)', () => {
     expect(report).toMatchObject({ itemId: 'item-1', itemVersion: 'v2' });
   });
 
+  it('uses rare-book sales when intake has no confirmed materials instead of demo painting materials', async () => {
+    const rareBookSales = lotsFor([800, 1000, 1200]).map(lot => ({ ...lot, category: 'rare_books' }));
+    const cleanItem = await serviceFor(rareBookSales).calculateFromItem({
+      itemId: 'manuscript-1',
+      itemVersion: 'v1',
+      item: { category: 'rare_books', materials: [] },
+    });
+    const contaminatedItem = await serviceFor(rareBookSales).calculateFromItem({
+      itemId: 'manuscript-2',
+      itemVersion: 'v1',
+      item: { category: 'rare_books', materials: ['oil', 'canvas'] },
+    });
+
+    expect(cleanItem).toMatchObject({ status: 'supported', comparableCount: 3 });
+    expect(contaminatedItem).toMatchObject({ status: 'refusal', reason: 'insufficient_comparable_sales' });
+  });
+
   it('refuses without a range when S3 supplies fewer than three credible sales', async () => {
     const report = await serviceFor(lotsFor([800, 1000, undefined])).calculateFromItem(request);
 

@@ -1,6 +1,6 @@
 {
   "id": "buyer-search-explained-results",
-  "description": "Explained buyer search results. Traces one named criteria fixture through the buyer search orchestration into the results hand-off and the unmatched-demand hand-off. The orchestrator groups exactly the lots the lots search returned into current (upcoming) and historical (past sales), passes through unchanged the match reasons the lots search reported for each lot, derives the hard constraints that must survive refinement, and on no results returns an honest demand summary without relaxing the budget or inventing inventory. Contains no profile, session, contact, or conversation data. resultLots are embedded full AuctionLot objects so this fixture does not depend on the size of the auction dataset.",
+  "description": "Explained buyer search results. Traces one named criteria fixture through the buyer search orchestration into the results hand-off and the unmatched-demand hand-off. The orchestrator groups exactly the lots the lots search returned into current (upcoming) and historical (past sales), passes through unchanged the match reasons the lots search reported for each lot (a free-text reason carries the matched word as sent), derives the hard constraints that must survive refinement, and on no results returns an honest demand summary without relaxing the budget or inventing inventory. Contains no profile, session, contact, or conversation data. resultLots are embedded full AuctionLot objects so this fixture does not depend on the size of the auction dataset.",
   "scenario": {
     "language": "en",
     "criteria": {
@@ -46,7 +46,7 @@
           }
         },
         "matchReasons": [
-          { "field": "query", "detail": "title" },
+          { "field": "query", "detail": "Abrabanel" },
           { "field": "categories", "detail": "rare_books" },
           { "field": "creators", "detail": "Yitzhak Abrabanel" },
           { "field": "price", "detail": "estimate" }
@@ -83,7 +83,7 @@
           "realizedPrice": { "amount": 1200, "currency": "USD" }
         },
         "matchReasons": [
-          { "field": "query", "detail": "title" },
+          { "field": "query", "detail": "Abrabanel" },
           { "field": "categories", "detail": "rare_books" },
           { "field": "creators", "detail": "Yitzhak Abrabanel" },
           { "field": "price", "detail": "realized" }
@@ -118,13 +118,13 @@
       "historicalLotIds": ["lot-kestenbaum-54554-121421"],
       "matchReasonsByLot": {
         "lot-kestenbaum-2026-spring-12": [
-          { "field": "query", "detail": "title" },
+          { "field": "query", "detail": "Abrabanel" },
           { "field": "categories", "detail": "rare_books" },
           { "field": "creators", "detail": "Yitzhak Abrabanel" },
           { "field": "price", "detail": "estimate" }
         ],
         "lot-kestenbaum-54554-121421": [
-          { "field": "query", "detail": "title" },
+          { "field": "query", "detail": "Abrabanel" },
           { "field": "categories", "detail": "rare_books" },
           { "field": "creators", "detail": "Yitzhak Abrabanel" },
           { "field": "price", "detail": "realized" }

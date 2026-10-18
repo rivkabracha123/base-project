@@ -140,10 +140,9 @@ export class FixtureProviderService {
     const budgetSkipped = /ללא הגבלת תקציב|אין הגבלת תקציב|אין לי תקציב מוגדר|no budget limit|no fixed budget|any budget/i.test(prompt);
     const periodSpecified = hasYear || /עתיק|וינטג|מודרני|מאה|\b(?:antique|vintage|modern|century)\b/i.test(prompt);
     const periodSkipped = /לא משנה.*(?:שנה|תקופה)|אין העדפה.*(?:שנה|תקופה)|ללא העדפ.*(?:שנה|תקופה)|any (?:year|period)|no (?:year|period) preference/i.test(prompt);
-    const buyerQuestions: string[] = [];
-    if (!price && !budgetSkipped) buyerQuestions.push(language === 'he' ? 'מה התקציב שלך או טווח המחירים הרצוי? אפשר גם לציין שאין תקציב מוגדר.' : 'What is your budget or preferred price range? You can also say you have no fixed budget.');
-    if (!periodSpecified && !periodSkipped) buyerQuestions.push(language === 'he' ? 'יש שנה או תקופה מועדפת? אפשר גם לציין שאין העדפה.' : 'Do you have a preferred year or period? You can also say you have no preference.');
-    const buyerNextAction = buyerQuestions.length ? buyerQuestions.join(' ') : language === 'he' ? 'אפשר להמשיך לחיפוש לפי הפרטים שציינת.' : 'You can continue searching with the supplied criteria.';
+    const buyerNextAction = language === 'he'
+      ? 'מתחילה לחפש לפי הפרטים שציינת. אפשר לדייק את החיפוש בהמשך.'
+      : 'I’m searching with the details you shared. You can refine the search later.';
     const hebrewItem = hasRing
       ? `טבעת${hasPink ? ' ורודה' : hasBlue ? ' כחולה' : ''}`
       : `${hasPainting ? 'ציור' : 'פריט'}${hasPink ? ' ורוד' : hasBlue ? ' כחול' : ''}`;

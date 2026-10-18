@@ -42,7 +42,9 @@ const SELLER_DOMAIN_RULES = [
 
 const BUYER_DOMAIN_RULES = [
   'Extract only facts present in the user message.',
-  'Ask for missing buyer criteria when needed.',
+  'Search as soon as the item category or a useful item keyword is known. Do not delay search for optional details such as budget, artist, year/period, location, condition, or dimensions.',
+  'Ask one short clarification only when you cannot tell what item or category the buyer wants. Never ask a sequence of questions; present results first and invite one optional refinement afterward.',
+  'Keep buyer chat replies natural, warm, concise, and non-repetitive. Do not restate the request or list missing preferences.',
   'Never include contact details, credentials, verification codes, URLs, or image data.',
   'Do not invent prices, sources, comparables, or availability.',
 ] as const;

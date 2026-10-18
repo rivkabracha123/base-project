@@ -284,6 +284,7 @@ describe('SellerLeadsController house ranking (contract)', () => {
     const handoff = {
       houseId: 'house-kedem',
       contact: { preferredName: 'Synthetic Seller', email: 'synthetic.seller@example.test' },
+      enquiryText: 'Please review this item for possible sale.',
       catalogDraft: { he: 'מחקר נוף מופשט', en: 'Abstract landscape study' },
       item: {
         id: 'item-001',
@@ -306,6 +307,7 @@ describe('SellerLeadsController house ranking (contract)', () => {
     expect(submitted.status).toBe(200);
     const row = sellerLeadSummarySchema.parse(submitted.body);
     expect(row.status).toBe('submitted');
+    expect(row.enquiryText).toBe('Please review this item for possible sale.');
     expect(row.sellerChoice?.houseId).toBe('house-kedem');
     expect(row.recommendation?.recommendation?.house.id).toBe('house-judaica-specialist');
   });

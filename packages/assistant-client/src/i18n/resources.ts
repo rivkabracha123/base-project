@@ -192,10 +192,22 @@ export const resources = {
         estimate: 'Estimate', realized: 'Realized price', source: 'View exact source',
         sold: 'Sold', unsold: 'Unsold', upcoming: 'Upcoming', withdrawn: 'Withdrawn', unknown: 'Status unknown',
       },
+      buyerCard: {
+        lot: 'Lot', matchReasons: 'Why this item matches',
+        categories: { rare_books: 'Rare books', paintings: 'Paintings' },
+        reasons: {
+          query: 'Search text', keywords: 'Keyword', categories: 'Category', creators: 'Creator',
+          auctionHouseIds: 'Auction house', geography: 'Place', media: 'Medium', periods: 'Period',
+          statuses: 'Status', dateRange: 'Sale date', price: 'Budget',
+        },
+      },
       chat: {
         send: 'Send', sellerSend: 'Send', inputLabel: 'Message',
         placeholder: 'Ask about an item, a price, or where it is worth selling…',
         checkingPhotos: 'Checking the photos…',
+        buyerProcessing: 'Checking your request…',
+        sellerProcessing: 'Working on your request…',
+        sellerSearchingItems: 'Looking for similar items…',
         loading: 'Loading conversation…',
         error: "Couldn't load the conversation.", retry: 'Try again',
         sendError: 'Something went wrong. Please try again.',
@@ -203,6 +215,7 @@ export const resources = {
         invalidPhoto: 'Choose a JPEG, PNG or WebP photo up to 10 MiB.',
         itemEdit: {
           title: 'My item details',
+          categories: { rare_books: 'Rare books and manuscripts', paintings: 'Paintings' },
           edit: 'Edit item',
           save: 'Save changes',
           saving: 'Saving…',
@@ -425,10 +438,22 @@ export const resources = {
         estimate: 'הערכה', realized: 'מחיר מכירה', source: 'הצגת המקור המדויק',
         sold: 'נמכר', unsold: 'לא נמכר', upcoming: 'עתידי', withdrawn: 'הוסר', unknown: 'סטטוס לא ידוע',
       },
+      buyerCard: {
+        lot: 'לוט', matchReasons: 'למה הפריט מתאים',
+        categories: { rare_books: 'ספרים נדירים', paintings: 'ציורים' },
+        reasons: {
+          query: 'טקסט החיפוש', keywords: 'מילת מפתח', categories: 'תחום', creators: 'יוצר',
+          auctionHouseIds: 'בית מכירות', geography: 'מקום', media: 'טכניקה', periods: 'תקופה',
+          statuses: 'סטטוס', dateRange: 'תאריך מכירה', price: 'תקציב',
+        },
+      },
       chat: {
         send: 'שליחה', sellerSend: 'שלח', inputLabel: 'הודעה',
         placeholder: 'שאל על פריט, מחיר, או איפה כדאי למכור…',
         checkingPhotos: 'בודק את התמונות…',
+        buyerProcessing: 'בודקת את הבקשה…',
+        sellerProcessing: 'בודק את הבקשה…',
+        sellerSearchingItems: 'מחפש פריטים דומים…',
         loading: 'טוען שיחה…',
         error: 'לא הצלחנו לטעון את השיחה.', retry: 'נסו שוב',
         sendError: 'משהו השתבש. נסו שוב.',
@@ -436,6 +461,7 @@ export const resources = {
         invalidPhoto: 'יש לבחור תמונה מסוג JPEG, PNG או WebP, עד 10 MiB.',
         itemEdit: {
           title: 'פרטי הפריט שלי',
+          categories: { rare_books: 'ספרים וכתבי יד נדירים', paintings: 'ציורים' },
           edit: 'עריכת פריט',
           save: 'שמירת שינויים',
           saving: 'שומר…',

@@ -16,6 +16,8 @@ describe('seller demonstration requests', () => {
     ['תראה לי דוגמאות דומות שנמכרו בעבר', 'getSellerComparableHistory'],
     ['כתוב עבורי תיאור מקצועי לקטלוג', 'getSellerCatalogDraft'],
     ['שלח פנייה לבית המכירות', 'getSellerEnquiryPreview'],
+    ['אני רוצה ליצור פנייה לבית מכירות', 'getSellerEnquiryPreview'],
+    ['Create an enquiry for the auction house', 'getSellerEnquiryPreview'],
   ])('routes %s to %s', (message, functionName) => {
     expect(requestedSellerComparison(message)).toBe(functionName);
   });

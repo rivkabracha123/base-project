@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { AuctionLot } from '@monabid/shared';
 import type { LotsSearchClient } from './buyer-search.orchestrator';
-import type { SearchRequest } from './search-request';
 import type { LotSearchResult } from '../lots/lot-match';
+import type { SearchRequest } from './search-request';
 
 const fixtureLots = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),

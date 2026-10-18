@@ -5,9 +5,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { updateProfileLanguage } from '../app/api';
 import { createQueryClient } from '../app/query-client';
+import { AppHeader } from './AppHeader';
 import i18n from '../i18n';
 import { resources } from '../i18n/resources';
-import { AppHeader } from './AppHeader';
 
 vi.mock('../app/api', () => ({
   updateProfileLanguage: vi.fn(),

@@ -277,6 +277,7 @@ const sellerLeadDashboardDetailSchema = z.object({
       reason: z.string().min(1),
     }),
   ]).nullable(),
+  enquiryText: z.string().max(8000).nullable().optional(),
   recommendation: z.record(z.unknown()).nullable(),
   alternatives: z.array(z.record(z.unknown())),
   sellerChoice: z.record(z.unknown()).nullable(),
@@ -723,10 +724,12 @@ export function evidenceUrl(path: string): string {
   return new URL(path, apiBaseUrl).toString();
 }
 
-/** One persist call: rank once, save choice, submit. Used by the enquiry screen. */
+/** Persist an internal enquiry; a general request intentionally has no house choice. */
 export async function completeSellerEnquiry(
   input: {
-    houseId: string;
+    houseId?: string;
+    generalEnquiry?: boolean;
+    enquiryText?: string;
     handoff: SubmitSellerLead;
     contact: { preferredName: string; email?: string; phone?: string };
     profileId?: string;
@@ -742,7 +745,9 @@ export async function completeSellerEnquiry(
       'x-anonymous-session-id': anonymousSessionId(),
     },
     body: JSON.stringify({
-      houseId: input.houseId,
+      ...(input.houseId ? { houseId: input.houseId } : {}),
+      ...(input.generalEnquiry ? { generalEnquiry: true } : {}),
+      ...(input.enquiryText ? { enquiryText: input.enquiryText } : {}),
       ...input.handoff,
       contact: input.contact,
       ...(input.profileId ? { profileId: input.profileId } : {}),
@@ -755,7 +760,9 @@ export async function completeSellerEnquiry(
   const summary = sellerLeadSummarySchema.parse(await response.json());
   emitSellerEnquiryEvent({
     kind: 'internal_enquiry',
-    houseName: summary.sellerChoice?.houseName ?? summary.recommendation?.recommendation?.house.name ?? 'Monabid',
+    houseName: input.generalEnquiry
+      ? 'Monabid'
+      : summary.sellerChoice?.houseName ?? summary.recommendation?.recommendation?.house.name ?? 'Monabid',
   });
   return summary;
 }

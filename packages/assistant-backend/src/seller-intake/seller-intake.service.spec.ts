@@ -339,13 +339,13 @@ describe('SellerIntakeService', () => {
     expect(service.askMissingSellerQuestions(reviewState)).toEqual([
       {
         field: 'marks',
-        he: 'האם יש על הפריט סימנים, חותמות או כיתובים?',
-        en: 'Are there any marks, stamps, or inscriptions on the item?',
+        he: 'יש סימונים, חותמות או כיתוב שכדאי לציין?',
+        en: 'Any marks, stamps, or inscriptions worth noting?',
       },
       {
         field: 'provenance',
-        he: 'מה ידוע על מקור הפריט וההיסטוריה שלו?',
-        en: "What is known about the item's provenance and history?",
+        he: 'ידוע לך משהו על המקור או ההיסטוריה של הפריט?',
+        en: "Do you know anything about the item's origin or history?",
       },
     ]);
   });
@@ -355,8 +355,8 @@ describe('SellerIntakeService', () => {
 
     expect(service.askNextSellerQuestion(reviewState)).toEqual({
       field: 'dimensions',
-      he: 'מהן מידות הפריט?',
-      en: 'What are the item dimensions?',
+      he: 'מה המידות? למשל 80×70 ס״מ.',
+      en: 'What are the dimensions? For example, 80 × 70 cm.',
     });
   });
 
@@ -462,6 +462,16 @@ it('updates seller corrections and fact confirmation status', () => {
     expect(painting.item.title).toBe('Painting width 40 cm, height 50 cm');
     expect(other.item.title).toContain('Bronze figurine');
     expect(painting.item.catalogDraft.en).not.toBe(other.item.catalogDraft.en);
+  });
+
+  it('uses a buyer-facing Hebrew title for a manuscript draft instead of an internal English label', () => {
+    const draft = service.createDraftFromSellerInput(fixture, 'יש לי כתב יד עתיק', [
+      { label: 'width', value: 80, unit: 'cm' },
+      { label: 'height', value: 70, unit: 'cm' },
+    ]);
+
+    expect(draft.item.title).toBe('כתב יד או ספר נדיר');
+    expect(draft.item.title).not.toContain('seller intake');
   });
 
   it('confirms only requested available facts and keeps unconfirmed catalog fields explicit', () => {

@@ -116,6 +116,10 @@ function normalizeP4Response(body: unknown, fallbackExtract: AiExtractResponse):
 export class P4AiGenerateClient {
   constructor(private readonly config: ConfigService) {}
 
+  private getApiKey(): string | undefined {
+    return this.config.get<string>('AI_GENERATE_API_KEY') ?? this.config.get<string>('AI_API_KEY');
+  }
+
   async generateBuyerExtract(request: ShilatAiGenerateRequest): Promise<P4AiGenerateResponse> {
     const mode = this.config.get<string>('AI_PROVIDER_MODE') ?? 'fixture';
     const fallback = fixtureExtract(request);
@@ -140,7 +144,7 @@ export class P4AiGenerateClient {
       );
     }
 
-    const apiKey = this.config.get<string>('AI_GENERATE_API_KEY');
+    const apiKey = this.getApiKey();
     const anonymousSessionId =
       request.sessionId?.trim() ||
       this.config.get<string>('AI_ANONYMOUS_SESSION_ID') ||
@@ -205,7 +209,7 @@ export class P4AiGenerateClient {
       'Content-Type': 'application/json',
       'x-anonymous-session-id': anonymousSessionId,
     };
-    const apiKey = this.config.get<string>('AI_GENERATE_API_KEY');
+    const apiKey = this.getApiKey();
     if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
 
     const response = await fetch(url, {
@@ -245,5 +249,49 @@ export class P4AiGenerateClient {
       structuredAnswer,
       ...(body.functionCall !== undefined ? { functionCall: body.functionCall as ShilatSellerGenerateResponse['functionCall'] } : {}),
     };
+  }
+
+  async generateSellerEnquiryCopy(
+    request: Pick<ShilatAiGenerateRequest, 'prompt' | 'language' | 'sessionId'>,
+  ): Promise<string | null> {
+    if ((this.config.get<string>('AI_PROVIDER_MODE') ?? 'fixture') !== 'real') return null;
+
+    const url = this.config.get<string>('AI_GENERATE_URL');
+    if (!url) throw new ServiceUnavailableException('AI_PROVIDER_MODE is real but AI_GENERATE_URL is not configured.');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-anonymous-session-id': request.sessionId?.trim()
+        || this.config.get<string>('AI_ANONYMOUS_SESSION_ID')
+        || 'seller-dev-session',
+    };
+    const apiKey = this.getApiKey();
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ role: 'seller', ...request }),
+      });
+    } catch {
+      throw new ServiceUnavailableException('Seller enquiry copy generation failed.');
+    }
+    if (!response.ok) {
+      throw new ServiceUnavailableException(`Seller enquiry copy generation failed with status ${response.status}.`);
+    }
+
+    const body: unknown = await response.json();
+    if (!body || typeof body !== 'object') {
+      throw new ServiceUnavailableException('Seller AI returned an invalid enquiry draft.');
+    }
+    const record = body as Record<string, unknown>;
+    const content = typeof record.content === 'string' ? record.content.trim()
+      : typeof record.summary === 'string' ? record.summary.trim() : '';
+    if (!content || record.isRelevant === false) {
+      throw new ServiceUnavailableException('Seller AI did not return a usable enquiry draft.');
+    }
+    return content;
   }
 }

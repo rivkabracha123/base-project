@@ -116,6 +116,32 @@ describe('SellerItemDetailsCard', () => {
     expect(screen.queryByLabelText('Title')).not.toBeInTheDocument();
   });
 
+  it('localizes standard measurement labels in the Hebrew draft summary', async () => {
+    await i18n.changeLanguage('he');
+    render(<SellerItemDetailsCard
+      item={{ ...item, dimensions: { values: [
+        { label: 'width', value: 80, unit: 'cm' },
+        { label: 'height', value: 70, unit: 'cm' },
+      ] } }}
+      language="he"
+    />);
+
+    expect(screen.getByText(/רוחב: 80 cm\s+גובה: 70 cm/)).toBeInTheDocument();
+    expect(screen.queryByText(/width:|height:/i)).not.toBeInTheDocument();
+  });
+
+  it('localizes legacy generated titles and categories in a Hebrew draft', async () => {
+    await i18n.changeLanguage('he');
+    render(<SellerItemDetailsCard
+      item={{ ...item, title: 'Rare Hebrew book from seller intake', category: 'rare_books' }}
+      language="he"
+    />);
+
+    expect(screen.getByRole('heading', { name: 'כתב יד או ספר נדיר' })).toBeInTheDocument();
+    expect(screen.getByText('ספרים וכתבי יד נדירים')).toBeInTheDocument();
+    expect(screen.queryByText('Rare Hebrew book from seller intake')).not.toBeInTheDocument();
+  });
+
   it('rejects invalid measurement lines before calling the correction API', async () => {
     await i18n.changeLanguage('en');
     render(<SellerItemDetailsCard item={item} language="en" />);

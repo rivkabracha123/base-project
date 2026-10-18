@@ -18,10 +18,16 @@ import {
   type ExplainedLot,
 } from './explained-results';
 import { unmatchedDemandStore, type UnmatchedDemandRecorder } from './unmatched-demand.store';
+import { resolveCategoryAlias } from '../lots/lot-alias';
 
 export type { BuyerSearchOutcome };
 
-// Lots-search client; today wired directly to LotsService.search() (no HTTP, so no ValidationPipe).
+// Canonical category token as the lots search matches it, so "ספרים נדירים" and "rare_books" compare equal.
+function toCategoryToken(category: string): string {
+  return resolveCategoryAlias(category) ?? category.trim().toLowerCase();
+}
+
+// Lots-search client; wired directly to LotsService.search() (no HTTP), so the client validates against the lots DTO itself.
 export interface LotsSearchClient {
   search(request: SearchRequest): Promise<LotSearchResult>;
 }
@@ -58,9 +64,32 @@ export class BuyerSearchOrchestrator {
 
   // Returns grouped explained results or a privacy-safe no-result view, criteria unchanged.
   // onProgress is optional and fires only in-process (e.g. for the criteria service to relay onward); it carries no lot data.
-  async search(
+  search(
     input: BuyerSearchInput,
     onProgress?: (progress: BuyerSearchProgress) => void,
+  ): Promise<BuyerSearchOutcome> {
+    return this.run(input, onProgress, { excludedCategories: new Set<string>(), recordDemand: true });
+  }
+
+  // Searches the buyer's other criteria in every category except the requested ones; never records unmatched demand.
+  searchOtherCategories(
+    input: BuyerSearchInput,
+    onProgress?: (progress: BuyerSearchProgress) => void,
+  ): Promise<BuyerSearchOutcome> {
+    const excludedCategories = new Set(input.criteria.categories.map(toCategoryToken));
+    const criteria: BuyerCriteria = {
+      ...input.criteria,
+      categories: [],
+      hardConstraints: input.criteria.hardConstraints.filter((constraint) => constraint.field !== 'categories'),
+    };
+    return this.run({ ...input, criteria }, onProgress, { excludedCategories, recordDemand: false });
+  }
+
+  // Shared search flow; drops lots in excluded categories and updates no-result demand only when asked.
+  private async run(
+    input: BuyerSearchInput,
+    onProgress: ((progress: BuyerSearchProgress) => void) | undefined,
+    options: { excludedCategories: ReadonlySet<string>; recordDemand: boolean },
   ): Promise<BuyerSearchOutcome> {
     // A failing progress listener must never break the search itself.
     const notify = (progress: BuyerSearchProgress): void => {
@@ -98,12 +127,32 @@ export class BuyerSearchOrchestrator {
     let items: ExplainedLot[];
     try {
       ({ data: items } = await this.lotsSearch.search(searchRequest));
+      // A malformed response is a service failure, never an empty result that would record false demand.
+      if (!Array.isArray(items)) throw new Error('Lots search returned no result list');
     } catch (error) {
       notify({ stage: 'error' });
       throw error;
     }
+    if (options.excludedCategories.size > 0) {
+      items = items.filter((entry) => !options.excludedCategories.has(toCategoryToken(entry.lot.category)));
+    }
 
     if (items.length > 0) {
+      // A changed search that now finds lots is shown to staff next to the lead's original no-result request.
+      try {
+        if (options.recordDemand) {
+          await this.demandRecorder.recordFound({
+            leadId: input.leadId,
+            searchRequest: fullRequest,
+            relaxedFields: relaxed,
+            searchedAt: input.searchedAt,
+            resultCount: items.length,
+          });
+        }
+      } catch (error) {
+        notify({ stage: 'error' });
+        throw error;
+      }
       notify({ stage: 'results-found', count: items.length });
       return {
         kind: 'results',
@@ -115,7 +164,6 @@ export class BuyerSearchOrchestrator {
       };
     }
 
-    notify({ stage: 'no-results' });
     const view = createUnmatchedDemandDashboardView({
       id: input.leadId,
       status: input.status,
@@ -124,7 +172,14 @@ export class BuyerSearchOrchestrator {
       searchRequest: fullRequest,
       demandSummary: buildDemandSummary(input.criteria, relaxed),
     });
-    await this.demandRecorder.record(view);
+    // No-result is reported only once the demand is saved; a failed save is a search error.
+    try {
+      if (options.recordDemand) await this.demandRecorder.record(view);
+    } catch (error) {
+      notify({ stage: 'error' });
+      throw error;
+    }
+    notify({ stage: 'no-results' });
     return {
       kind: 'unmatched',
       view,

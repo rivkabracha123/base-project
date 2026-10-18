@@ -5,6 +5,8 @@ import { createQueryClient } from '../app/query-client';
 import { SellerChat } from './SellerChat';
 import { connectSellerLevels } from './connect-seller-levels';
 import { connectSellerPhotos } from './connect-seller-photos';
+import * as appApi from '../app/api';
+import * as sellerCorrection from './connect-seller-correction';
 import { mockConversation } from './mock-conversation';
 import i18n from '../i18n';
 
@@ -30,6 +32,7 @@ afterEach(async () => {
   vi.mocked(connectSellerLevels).mockReset();
   vi.mocked(connectSellerPhotos).mockReset();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   await i18n.changeLanguage('en');
 });
 
@@ -172,6 +175,18 @@ describe('SellerChat', () => {
     expect(sent.closest('li')).toHaveAttribute('data-speaker', 'seller');
   });
 
+  it('shows a similar-items progress status while the seller search is running', async () => {
+    await i18n.changeLanguage('en');
+    vi.mocked(connectSellerLevels).mockImplementation(() => new Promise(() => {}));
+    renderChat([]);
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Find similar items' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Looking for similar items…');
+  });
+
   it('sends the message when the seller presses Enter in the input', async () => {
     renderChat(mockConversation.en);
     await screen.findByText('I have an antique watch I want to sell');
@@ -221,6 +236,93 @@ describe('SellerChat', () => {
 
     const update = await screen.findByText('Checking the details...');
     expect(update.closest('li')).toHaveAttribute('data-speaker', 'system');
+  });
+
+  it('continues an enquiry through ordinary chat messages instead of a styled contact form', async () => {
+    await i18n.changeLanguage('en');
+    vi.mocked(connectSellerLevels).mockImplementation(async (_message, onUpdate) => {
+      await onUpdate({ speaker: 'system', text: 'I prepared an editable enquiry draft:', action: {
+        kind: 'enquiry',
+        draft: {
+          evidence: [],
+          item: {
+            id: 'item-1', category: 'rare_books', title: 'Manuscript', evidenceIds: [],
+            description: { he: 'כתב יד', en: 'Manuscript' }, materials: [],
+            dimensions: { values: [] }, source: 'seller-intake',
+            catalogDraft: { he: 'טיוטה', en: 'Draft' },
+          },
+        },
+        enquiryText: 'Dear Sir or Madam, please review this manuscript.',
+        generatedByAi: true,
+      } });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'I want to create an enquiry' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByRole('textbox', { name: 'Enquiry text' })).toHaveValue('Dear Sir or Madam, please review this manuscript.');
+    expect(screen.queryByText(/please send your name and contact details/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /name/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with internal Monabid enquiry/i }));
+    expect(await screen.findByText(/please send your name and contact details/i)).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'Dana Levy' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    expect(await screen.findByText(/What phone number or email address can we use/i)).toBeInTheDocument();
+  });
+
+  it('saves a chat-provided name and email as a general internal enquiry', async () => {
+    await i18n.changeLanguage('en');
+    vi.spyOn(appApi, 'grantP3ServiceConsent').mockResolvedValue({ id: 'profile-1', serviceConsent: true } as never);
+    vi.spyOn(appApi, 'completeSellerEnquiry').mockResolvedValue({ id: 'lead-1' } as never);
+    vi.spyOn(sellerCorrection, 'getCurrentSellerDraft').mockResolvedValue({
+      language: { preferred: 'en' },
+      item: {
+        id: 'item-1', category: 'rare_books', title: 'Manuscript',
+        evidenceIds: [], catalogDraft: { he: 'כתב יד', en: 'Manuscript' },
+      },
+      evidence: [],
+    } as never);
+    vi.mocked(connectSellerLevels).mockImplementation(async (_message, onUpdate) => {
+      await onUpdate({ speaker: 'system', text: 'I prepared an editable enquiry draft:', action: {
+        kind: 'enquiry',
+        draft: {
+          evidence: [],
+          item: {
+            id: 'item-1', category: 'rare_books', title: 'Manuscript', evidenceIds: [],
+            description: { he: 'כתב יד', en: 'Manuscript' }, materials: [],
+            dimensions: { values: [] }, source: 'seller-intake',
+            catalogDraft: { he: 'טיוטה', en: 'Draft' },
+          },
+        },
+        enquiryText: 'Please review this manuscript.',
+        generatedByAi: true,
+      } });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Create an enquiry' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByRole('textbox', { name: 'Enquiry text' });
+    fireEvent.click(screen.getByRole('button', { name: /continue with internal Monabid enquiry/i }));
+
+    fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'Dana Levy' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByText(/What phone number or email address can we use/i);
+
+    fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'dana@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText(/The enquiry was saved for the Monabid team/i)).toBeInTheDocument();
+    expect(appApi.completeSellerEnquiry).toHaveBeenCalledWith(expect.objectContaining({
+      generalEnquiry: true,
+      enquiryText: 'Please review this manuscript.',
+      contact: { preferredName: 'Dana Levy', email: 'dana@example.com' },
+      profileId: 'profile-1',
+    }));
   });
 
   // Reference to an uploaded photo, in the shape the evidence API returns after an upload.

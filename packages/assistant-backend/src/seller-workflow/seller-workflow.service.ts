@@ -1,5 +1,6 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { submitSellerLeadSchema } from '@monabid/shared';
+import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider } from '../seller-intake/seller-intake-ai.provider';
 import { SellerLeadsService } from '../seller-leads/seller-leads.service';
 import { toSellerLeadDashboardDetail } from '../seller-leads/seller-lead-dashboard';
@@ -46,6 +47,7 @@ export class SellerWorkflowService {
     @Optional() private readonly drafts?: SellerIntakeDraftsService,
     @Optional() private readonly itemValuation?: ItemValuationService,
     @Optional() private readonly comparables?: ComparablesService,
+    @Optional() private readonly p4?: P4AiGenerateClient,
   ) {}
 
   async execute(
@@ -126,7 +128,51 @@ export class SellerWorkflowService {
           en: 'Reliable provenance can help verify identity and authenticity. Its effect on value requires reviewing the documents and the item. The current valuation does not add an assumed premium for unverified provenance.',
         } };
         if (action.functionToRun === 'getSellerCatalogDraft') return { title: saved.draft.item.title, ...saved.draft.item.catalogDraft };
-        return { draft: saved.draft, ranking: this.sellerLeads.rankHouses({ category: saved.draft.item.category }) };
+        const language = optionalString(action.object, 'language') === 'en' ? 'en' : 'he';
+        const item = saved.draft.item;
+        const facts = {
+          category: item.category,
+          title: item.title,
+          catalogDescription: item.catalogDraft?.[language] || item.description?.[language] || '',
+          materials: item.materials ?? [],
+          dimensions: item.dimensions?.values ?? [],
+          condition: item.condition ?? '',
+          markings: item.markings ?? '',
+          signatures: item.signatures ?? '',
+          provenance: item.provenance ?? '',
+        };
+        const prompt = [
+          'Write a concise, polished and respectful seller enquiry in the requested language.',
+          'The text should include a brief catalog-style description and a courteous request for the recipient to review the item for possible sale.',
+          'Do not name a specific auction house. Do not invent or infer facts, condition, attribution, provenance, authenticity, value, or acceptance.',
+          'Use only the supplied item facts. Return only the finished message as plain text, with no markdown or form fields.',
+          JSON.stringify(facts),
+        ].join('\n\n');
+        let generatedByAi = false;
+        let enquiryText: string | null = null;
+        if (this.p4) {
+          try {
+            enquiryText = await this.p4.generateSellerEnquiryCopy({
+              prompt,
+              language,
+              sessionId: requiredString(action.object, 'sessionId'),
+            });
+            generatedByAi = enquiryText !== null;
+          } catch (error) {
+            if (!(error instanceof ServiceUnavailableException)) throw error;
+          }
+        }
+        if (!enquiryText) {
+          const description = facts.catalogDescription.trim() || item.title;
+          enquiryText = language === 'he'
+            ? `שלום רב,\n\nאשמח לקבל את חוות דעתכם בנוגע לאפשרות להציע את הפריט הבא למכירה:\n${item.title}\n${description}\n\nאודה לכם אם תוכלו לעיין בפרטים ולעדכן אם הפריט עשוי להתאים. אשמח למסור מידע נוסף לפי הצורך.\n\nתודה רבה.`
+            : `Hello,\n\nI would appreciate your opinion on whether the following item may be suitable for sale:\n${item.title}\n${description}\n\nPlease review the details and let me know whether the item may be a fit. I would be happy to provide further information if needed.\n\nThank you.`;
+        }
+        return {
+          draft: saved.draft,
+          enquiryText,
+          generatedByAi,
+        };
       }
       case 'calculateSellerValuation': {
         if (!this.drafts || !this.itemValuation) throw new BadRequestException('Seller valuation is unavailable');
@@ -300,6 +346,7 @@ export class SellerWorkflowService {
     return {
       ...this.safeLeadSummary(lead),
       catalogDraft: lead.catalogDraft,
+      enquiryText: lead.enquiryText,
       evidence: (lead.evidence ?? []).map(({ id, type }) => ({ id, type })),
       valuation: lead.valuation,
     };

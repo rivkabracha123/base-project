@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { connectSellerLevels, getPendingSellerEvidenceItemId, sendSellerMessage } from './connect-seller-levels';
 import type { SellerUpdate } from '../chat/chat-types';
+import i18n from '../i18n';
+
+vi.mock('./connect-seller-correction', () => ({
+  getCurrentSellerDraft: vi.fn(),
+  correctSellerDraftField: vi.fn(),
+}));
 
 const currentProfile = {
   id: 'profile-current',
@@ -26,6 +32,20 @@ describe('connectSellerLevels', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'I can help with buying or selling items at auction.' });
   });
+  it('refreshes the visible card after a direct Hebrew title correction', async () => {
+    const updatedDraft = { item: { title: 'כתב יד עתיק למכירה', category: 'rare_books' }, evidence: [] };
+    const { correctSellerDraftField } = await import('./connect-seller-correction');
+    vi.mocked(correctSellerDraftField).mockResolvedValue(updatedDraft as never);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ requiredMissingFields: [], nextQuestion: null }), { status: 200 })));
+    const onDraftReady = vi.fn();
+
+    await connectSellerLevels('תשנה את השם לכתב יד עתיק למכירה', vi.fn(), onDraftReady, true);
+
+    expect(correctSellerDraftField).toHaveBeenCalledWith('title', { en: 'כתב יד עתיק למכירה' });
+    expect(onDraftReady).toHaveBeenCalledWith(updatedDraft);
+  });
   it('preserves structured catalog output instead of flattening it to a status line', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
@@ -34,6 +54,31 @@ describe('connectSellerLevels', () => {
     const callback = vi.fn();
     await connectSellerLevels('Write a catalog description', callback);
     expect(callback).toHaveBeenCalledWith(expect.objectContaining({ action: { kind: 'catalog', title: 'Manuscript', he: 'טיוטה', en: 'Saved catalog facts' } }));
+  });
+  it('shows the editable enquiry draft as an action card without requesting contact details yet', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: {
+        draft: { item: {
+          id: 'item-1',
+          category: 'rare_books',
+          title: 'Manuscript',
+          evidenceIds: [],
+          catalogDraft: { he: 'כתב יד', en: 'Manuscript' },
+          description: { he: 'כתב יד', en: 'Manuscript' },
+          materials: [],
+          dimensions: { values: [] },
+          source: 'seller-intake',
+        }, evidence: [] },
+        enquiryText: 'Please review this manuscript.',
+        generatedByAi: true,
+      } }), { status: 200 })));
+    const callback = vi.fn();
+    await connectSellerLevels('Create an enquiry', callback);
+    expect(callback).toHaveBeenCalledWith(expect.objectContaining({
+      action: expect.objectContaining({ kind: 'enquiry', enquiryText: 'Please review this manuscript.', generatedByAi: true }),
+    }));
+    expect(callback).not.toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringMatching(/send your name/i) }));
   });
   it('does not replace a sale-history request with an auction-house offer', async () => {
     const fetchMock = vi.fn()
@@ -112,6 +157,26 @@ describe('connectSellerLevels', () => {
     const callback = vi.fn();
     await connectSellerLevels('No known history', callback);
     expect(callback).toHaveBeenCalledWith({ speaker: 'system', text: 'Your ring details are saved. Would you like auction-house recommendations?' });
+  });
+  it('keeps the AI explanation and recommendation when asking the next required question', async () => {
+    await i18n.changeLanguage('he');
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        nextQuestion: { field: 'dimensions', he: 'כדי להמשיך, מה מידות הפריט?', en: 'What are the dimensions?' },
+        ai: {
+          summary: 'כתב היד עשוי לעניין אספנים.',
+          recommendation: 'כדאי לבדוק אפשרות למכירה לאחר הערכת מומחה.',
+          nextAction: 'כדי להמשיך, מה מידות הפריט?',
+        },
+      }), { status: 200 })));
+    const callback = vi.fn();
+    await connectSellerLevels('יש לי כתב יד עתיק ואני מתלבטת אם למכור אותו', callback);
+    expect(callback).toHaveBeenCalledWith({
+      speaker: 'system',
+      text: 'כתב היד עשוי לעניין אספנים. כדאי לבדוק אפשרות למכירה לאחר הערכת מומחה. כדי להמשיך, מה מידות הפריט?',
+    });
+    await i18n.changeLanguage('en');
   });
   beforeEach(() => {
     localStorage.clear();

@@ -1,3 +1,4 @@
+import { type ItemCardLabels } from '@monabid/ui';
 import { Link, useNavigate } from 'react-router-dom';
 import { SellerComparisonResults } from '../seller/SellerComparisonResults';
 import { ResultCard } from '../components/ResultCard';
@@ -8,6 +9,7 @@ import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
 import { getBuyerChatFlowSnapshot, selectBuyerLot, getBuyerHouseCategory } from './buyer-chat-flow';
+import { BuyerLotCard, type BuyerLotCardLabels } from './BuyerLotCard';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
 
@@ -16,6 +18,38 @@ export function BuyerChat() {
   const { i18n, t } = useTranslation();
   const language = i18n.language.startsWith('he') ? 'he' : 'en';
   const dir = language === 'he' ? 'rtl' : 'ltr';
+  const locale = language === 'he' ? 'he-IL' : 'en-US';
+  const cardLabels: ItemCardLabels = {
+    estimate: t('card.estimate'),
+    realized: t('card.realized'),
+    source: t('card.source'),
+    sold: t('card.sold'),
+    unsold: t('card.unsold'),
+    upcoming: t('card.upcoming'),
+    withdrawn: t('card.withdrawn'),
+    unknown: t('card.unknown'),
+  };
+
+  const lotCardLabels: BuyerLotCardLabels = {
+    estimate: cardLabels.estimate,
+    realized: cardLabels.realized,
+    source: cardLabels.source,
+    lot: t('buyerCard.lot'),
+    matchReasons: t('buyerCard.matchReasons'),
+    status: {
+      sold: cardLabels.sold,
+      unsold: cardLabels.unsold,
+      upcoming: cardLabels.upcoming,
+      withdrawn: cardLabels.withdrawn,
+      unknown: cardLabels.unknown,
+    },
+  };
+
+  // The lot's category in the buyer's language; a category with no translation is shown as the data names it.
+  function categoryLabel(category: string): string {
+    return t(`buyerCard.categories.${category}`, { defaultValue: category.replace(/[_-]+/g, ' ') });
+  }
+
   const navigate = useNavigate();
   // הלוגיקה המשותפת לקונה ולמוכר: טעינת שיחה, callback להצגה, נעילה בזמן עבודה ושגיאות.
   // כאן מוגדר רק מה שייחודי לקונה: הסכמה, צורת הודעת הקונה והחיבור לשכבה שמנהלת את התהליך.
@@ -34,6 +68,31 @@ export function BuyerChat() {
 
   // Renders a single conversation message in the form that fits its kind.
   function renderMessage(message: BuyerMessage) {
+    // Lots from other categories: a card that shows each lot's category and the reasons the search reported.
+    if (message.speaker === 'result-group' && message.variant === 'other-categories') {
+      return (
+        <li data-speaker={message.speaker} data-variant={message.variant} className="flex flex-col gap-4">
+          {message.title && <h2 className="text-lg font-semibold text-neutral-900">{message.title}</h2>}
+          {/* Horizontal carousel: one card wide on a phone, up to three side by side when the chat is wide enough. */}
+          <ul className="flex snap-x gap-4 overflow-x-auto pb-3">
+            {message.lots.map((lot) => (
+              <li key={lot.id} className="w-72 shrink-0 snap-start sm:w-80 lg:w-[calc((100%-2rem)/3)] lg:min-w-[17rem]">
+                <BuyerLotCard
+                  lot={lot}
+                  locale={locale}
+                  labels={lotCardLabels}
+                  categoryLabel={categoryLabel(lot.category)}
+                  reasons={(message.matchReasons?.[lot.id] ?? []).map((reason) => ({
+                    label: t(`buyerCard.reasons.${reason.field}`, { defaultValue: '' }),
+                    detail: reason.detail,
+                  }))}
+                />
+              </li>
+            ))}
+          </ul>
+        </li>
+      );
+    }
     if (message.speaker === 'house-ranking') {
       return <li data-speaker={message.speaker} className="w-full min-w-0">
         <h2 className="mb-3 text-lg font-semibold">{language === 'he' ? 'בתי מכירות מתמחים' : 'Specialist auction houses'}</h2>
@@ -99,6 +158,7 @@ export function BuyerChat() {
       onSend={handleSend}
       dir={dir}
       loadingLabel={t('chat.loading')}
+      busyLabel={t('chat.buyerProcessing')}
       errorLabel={t('chat.error')}
       retryLabel={t('chat.retry')}
       inputLabel={t('chat.inputLabel')}
