@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { baseMessageFields, errorMessageSchema, systemMessageSchema } from '@monabid/shared';
 import { createQueryClient } from '../app/query-client';
 import type { OnChatUpdate } from './chat-types';
+import { sanitizeChatForLocalStorage, sanitizeExistingLocalChatStorage } from './local-chat-storage';
 import { useChatFlow } from './useChatFlow';
 
 // סכמת בדיקה קטנה: משתמש, מערכת ושגיאה — כמו הצורה המשותפת לקונה ולמוכר.
@@ -20,6 +21,7 @@ const ERROR_TEXT = 'Something went wrong. Please try again.';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 // Helper: מרנדר את ה-hook עם שיחה קיימת אחת מהשרת, והחיבור שהבדיקה מספקת.
@@ -55,6 +57,44 @@ function texts(messages: TestMessage[]) {
 
 // Tests for the shared chat flow used by both the buyer and the seller screens.
 describe('useChatFlow', () => {
+  it('removes sensitive fields and redacts explicitly labeled secrets before storage', () => {
+    const sanitized = sanitizeChatForLocalStorage({
+      speaker: 'user',
+      text: 'My password is swordfish and my API key: abc123',
+      image: {
+        profileId: 'profile-private',
+        fileId: 'file-private',
+        previewUri: '/private/preview',
+        description: 'safe image',
+      },
+    });
+
+    expect(sanitized).toEqual({
+      speaker: 'user',
+      text: 'My password: [REDACTED] and my API key: [REDACTED]',
+      image: { description: 'safe image' },
+    });
+  });
+
+  it('sanitizes existing stored chats without deleting the conversation', () => {
+    localStorage.setItem('monabid.chat.seller.he', JSON.stringify([
+      {
+        speaker: 'seller',
+        text: 'הסיסמה שלי היא סודית123',
+        profileId: 'profile-private',
+      },
+    ]));
+
+    sanitizeExistingLocalChatStorage();
+
+    expect(JSON.parse(localStorage.getItem('monabid.chat.seller.he') ?? 'null')).toEqual([
+      {
+        speaker: 'seller',
+        text: 'הסיסמה שלי: [REDACTED]',
+      },
+    ]);
+  });
+
   // בודק שהשיחה שנטענה מהשרת מופיעה, ואחריה ההודעות שנוספו מקומית.
   it('shows the loaded conversation first and the local messages after it', async () => {
     const { result } = setup(async (_message, onUpdate) => {
