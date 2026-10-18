@@ -162,8 +162,17 @@ describe('validateAuctionLotFixture', () => {
       accepted: 0,
       rejected: 0,
       duplicateIds: [],
-      validationErrors: [],
+      validationErrors: ['Fixture input must be an array of records'],
     });
+  });
+
+  it('safely handles any non-array input, not just null', () => {
+    for (const garbage of ['not an array', 42, { not: 'an array' }, true]) {
+      const result = validateAuctionLotFixture(garbage);
+
+      expect(result.records).toEqual([]);
+      expect(result.report.validationErrors).toEqual(['Fixture input must be an array of records']);
+    }
   });
 
   it('produces an independent, correct report on each call — not influenced by a previous run', () => {
@@ -290,5 +299,81 @@ describe('validateAuctionLotFixture', () => {
     const serializedReport = JSON.stringify(result.report).toLowerCase();
 
     expect(serializedReport).not.toMatch(/email|phone|bidder|consignor|verification|credential|conversation|signed/);
+  });
+
+  it('accepts a large batch of valid records without any false rejections', () => {
+    const batch = Array.from({ length: 500 }, (_, i) => makeLot({ id: `lot-${i}` }));
+
+    const result = validateAuctionLotFixture(batch);
+
+    expect(result.report).toMatchObject({ total: 500, accepted: 500, rejected: 0 });
+    expect(result.records).toHaveLength(500);
+  });
+
+  it('correctly separates valid, duplicate, and broken records inside a large batch', () => {
+    const validRecords = Array.from({ length: 485 }, (_, i) => makeLot({ id: `lot-${i}` }));
+    const brokenRecords = Array.from({ length: 10 }, (_, i) => ({ id: `broken-${i}` }));
+    const duplicateExtras = Array.from({ length: 5 }, (_, i) => makeLot({ id: `lot-${i}`, lotNumber: 'dup' }));
+
+    const batch = [...validRecords, ...brokenRecords, ...duplicateExtras];
+    const result = validateAuctionLotFixture(batch);
+
+    expect(result.report).toMatchObject({ total: 500, accepted: 480, rejected: 20 });
+    expect(result.report.duplicateIds.sort()).toEqual(['lot-0', 'lot-1', 'lot-2', 'lot-3', 'lot-4']);
+    expect(result.records).toHaveLength(480);
+    expect(result.records.some((lot) => ['lot-0', 'lot-1', 'lot-2', 'lot-3', 'lot-4'].includes(lot.id))).toBe(false);
+  });
+
+  it('produces identical results across repeated runs on the same large batch (deterministic)', () => {
+    const batch = Array.from({ length: 300 }, (_, i) => makeLot({ id: `lot-${i}` }));
+
+    const firstRun = validateAuctionLotFixture(batch);
+    const secondRun = validateAuctionLotFixture(batch);
+    const thirdRun = validateAuctionLotFixture(batch);
+
+    expect(secondRun.report).toEqual(firstRun.report);
+    expect(thirdRun.report).toEqual(firstRun.report);
+    expect(secondRun.records.map((lot) => lot.id)).toEqual(firstRun.records.map((lot) => lot.id));
+    expect(thirdRun.records.map((lot) => lot.id)).toEqual(firstRun.records.map((lot) => lot.id));
+  });
+
+  it('measures real validation time on a large batch and documents the result', () => {
+    const batch = Array.from({ length: 1000 }, (_, i) => makeLot({ id: `lot-${i}` }));
+
+    const start = performance.now();
+    const result = validateAuctionLotFixture(batch);
+    const durationMs = performance.now() - start;
+
+    console.log(`Validated ${batch.length} records in ${durationMs.toFixed(2)}ms`);
+
+    expect(result.report.accepted).toBe(1000);
+    expect(durationMs).toBeLessThan(5000); // sanity ceiling, not a performance claim — catches real regressions only
+  });
+
+  it('rejects a record with email-like content in a free-text field', () => {
+    const recordWithEmail = makeLot({
+      id: 'lot-with-email',
+      description: { en: 'Contact me at secret@example.com for details.' },
+    });
+
+    const result = validateAuctionLotFixture([recordWithEmail]);
+
+    expect(result.records).toEqual([]);
+    expect(result.report).toMatchObject({ total: 1, accepted: 0, rejected: 1 });
+  });
+
+  it('never leaks the actual email content into the report, even mixed with other failures', () => {
+    const batch = [
+      makeLot({ id: 'lot-ok-1' }),
+      makeLot({ id: 'lot-ok-2' }),
+      makeLot({ id: 'lot-dup' }),
+      makeLot({ id: 'lot-dup', lotNumber: 'dup-copy' }),
+      makeLot({ id: 'lot-email', description: { en: 'Reach me at secret@example.com' } }),
+    ];
+
+    const result = validateAuctionLotFixture(batch);
+    const serializedReport = JSON.stringify(result.report).toLowerCase();
+
+    expect(serializedReport).not.toMatch(/secret@example\.com/);
   });
 });
