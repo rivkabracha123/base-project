@@ -78,13 +78,24 @@ function fakeLotsRepository(failWith?: Error) {
         if ('query' in params) throw new Error('fake repository does not emulate free-text search');
         const inList = (key: string, value: unknown) =>
           !(key in params) || (params[key] as unknown[]).includes(value);
-        const amount = (lot: AuctionLot) => lot.realizedPrice?.amount ?? Number.NaN;
+        // Same price rule as the lots search: a sold lot by its realized price, an unsold lot when its
+        // estimate band overlaps the budget, and a lot with neither is excluded.
+        const withinBudget = (lot: AuctionLot) => {
+          const min = params.priceMin as number | undefined;
+          const max = params.priceMax as number | undefined;
+          if (min == null && max == null) return true;
+          if (lot.realizedPrice) {
+            const amount = lot.realizedPrice.amount;
+            return (min == null || amount >= min) && (max == null || amount <= max);
+          }
+          if (!lot.estimate) return false;
+          return (min == null || lot.estimate.high.amount >= min) && (max == null || lot.estimate.low.amount <= max);
+        };
         matched = lots
           .filter((lot) => inList('categories', lot.category))
           .filter((lot) => inList('creators', (lot as { creator?: string }).creator))
           .filter((lot) => inList('auctionHouseIds', lot.auctionHouse.id))
-          .filter((lot) => params.priceMin == null || amount(lot) >= (params.priceMin as number))
-          .filter((lot) => params.priceMax == null || amount(lot) <= (params.priceMax as number))
+          .filter(withinBudget)
           .filter((lot) => params.dateFrom == null || lot.saleDate >= (params.dateFrom as string))
           .filter((lot) => params.dateTo == null || lot.saleDate <= (params.dateTo as string))
           .sort((a, b) => b.saleDate.localeCompare(a.saleDate) || a.id.localeCompare(b.id));
@@ -200,6 +211,37 @@ describe('Buyer search strict constraints: measured fixture scenarios', () => {
     expect(named.lot).toEqual(lots.find((lot) => lot.id === contract.namedLotId));
     expect(named.matchReasons.map((reason) => reason.field)).not.toContain('price');
   });
+
+  it('keeps the original no-result request for staff and shows the approved later search that found lots', async () => {
+    const { orchestrator, demandStore } = wire();
+    const scenario = contract.scenarios.find((entry) => entry.name === 'strict-budget-no-result')!;
+    const input = {
+      criteria: criteriaOf(scenario),
+      language: scenario.language,
+      leadId: 'buyer-lead-traced',
+      status: 'new',
+      createdAt: '2026-10-11T09:00:00.000Z',
+    };
+
+    await orchestrator.search({ ...input, searchedAt: '2026-10-11T09:01:00.000Z' });
+    await orchestrator.search({ ...input, searchedAt: '2026-10-11T09:05:00.000Z', approvedRelaxations: approvals(['price']) });
+
+    const demand = demandStore.get('buyer-lead-traced')!.unmatchedDemand;
+    expect(demand.searchRequest.criteria.price).toEqual(scenario.criteria.price);
+    expect(demand.demandSummary.recovery).toBe('no_relaxation_no_invention');
+    expect(demand.expansion).toEqual(
+      expect.objectContaining({ changedFields: [], relaxedFields: ['price'], outcome: 'results', resultCount: 4 }),
+    );
+  });
+
+  it('groups the upcoming lot as current and the sold lots as historical, by lot status', async () => {
+    const scenario = contract.scenarios.find((entry) => entry.name === 'approved-budget-relaxation')!;
+    const { outcome } = await runScenario(scenario);
+    if (outcome instanceof Error || outcome.kind !== 'results') throw new Error('expected results');
+
+    expect(outcome.results.current.map((entry) => entry.lot.id)).toEqual(['lot-kestenbaum-2026-spring-12']);
+    expect(outcome.results.historical.map((entry) => entry.lot.status)).toEqual(['sold', 'sold', 'sold']);
+  });
 });
 
 describe('Buyer search deterministic behavior', () => {
@@ -274,7 +316,11 @@ describe('Buyer search repeated refinement', () => {
     );
 
     const relaxed = await turn(third, ['price']);
-    expect(handedLotIds(relaxed)).toEqual(['lot-kestenbaum-54554-121421', 'lot-kestenbaum-54554-121488']);
+    expect(handedLotIds(relaxed)).toEqual([
+      'lot-kestenbaum-2026-spring-12',
+      'lot-kestenbaum-54554-121421',
+      'lot-kestenbaum-54554-121488',
+    ]);
     expect(relaxed.kind === 'results' && relaxed.searchRequest.criteria.price).toEqual(tightened);
 
     expect((await turn(third)).kind).toBe('unmatched');

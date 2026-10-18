@@ -2,6 +2,8 @@
 
 How the buyer search was verified at the boundary between typed buyer criteria, the lots search, the result cards and the staff unmatched-demand dashboard. Every claim below points to a fixture or a test that fails if the behavior changes.
 
+For configuration, the runbook, diagnosis and known limits, see [buyer-search-handoff.md](buyer-search-handoff.md).
+
 ## Reproduce
 
 From the repository root:
@@ -23,21 +25,24 @@ Fixture: [`fixtures/demo-scenarios/buyer-search-strict-constraints.json`](../fix
 1. **Buyer criteria in.** `{ categories: ["rare_books"], price: { min: 100, max: 500, currency: "USD" } }`.
 2. **Lots search request.** `criteriaToSearchRequest` sends `filters.categories` and `filters.price` unchanged. `LotsServiceSearchClient` validates the request against the lots search's own `LotSearchDto` before calling `LotsService.search`.
 3. **Strict budget, no result.** No lot is within 100–500. The buyer gets `kind: "unmatched"` with relaxation options `categories`, `price`, each with `requiresApproval: true`. Staff get a demand record listing `appliedCriteria: ["price", "categories"]` and `recovery: "no_relaxation_no_invention"`. No lot is invented.
-4. **Approved refinement.** The buyer approves dropping the budget for one search. The request is sent without `price`, and the result cards receive all three lots in lots-search order, the named lot first, unmodified, with no `price` match reason and `approvedRefinements: ["price"]`. The buyer's budget stays in `searchRequest.criteria` and in the hard constraints.
-5. **Next turn.** With no new approval, the budget is sent again.
+4. **Approved refinement.** The buyer approves dropping the budget for one search. The request is sent without `price`, and the result cards receive all four lots in lots-search order: the upcoming lot under `current`, then the three sold lots under `historical` with the named lot first, unmodified, with no `price` match reason and `approvedRefinements: ["price"]`. The buyer's budget stays in `searchRequest.criteria` and in the hard constraints.
+5. **Staff demand.** The lead's record keeps the original 100–500 request and its `no_relaxation_no_invention` summary, and adds an `expansion` with `relaxedFields: ["price"]`, `outcome: "results"` and `resultCount: 4`.
+6. **Next turn.** With no new approval, the budget is sent again.
 
 ## Measured results
 
-Measured against the three committed lots; each row is asserted by `buyer-strict-constraints.real-search.integration.spec.ts`.
+Measured against four lots copied from the committed auction data (three sold, one upcoming with an estimate of 1,500–2,500 USD and a creator); each row is asserted by `buyer-strict-constraints.real-search.integration.spec.ts`.
 
 | Scenario | Sent to lots search | Outcome | Lots handed on, in order |
 |---|---|---|---|
 | `strict-budget-two-lots` | category + price 900–1300 | results | `…121421`, `kedem-…88421` |
 | `hebrew-category-alias-same-lots` | Hebrew category alias + price 900–1300 | results | same two lots |
 | `strict-budget-no-result` | category + price 100–500 | unmatched, demand recorded | none |
-| `approved-budget-relaxation` | category only | results, refinement `price` | `…121421`, `kedem-…88421`, `…121488` |
+| `approved-budget-relaxation` | category only | results, refinement `price` | `…2026-spring-12` (current), `…121421`, `kedem-…88421`, `…121488` |
 | `other-filter-approved-budget-kept` | price 100–500 only | unmatched, demand recorded | none |
-| `strict-creator-no-result` | category + creator | unmatched (no committed lot has a creator yet) | none |
+| `strict-creator-upcoming-lot` | category + creator | results | `…2026-spring-12` (current) |
+| `hebrew-creator-budget-overlaps-estimate` | Hebrew creator alias + price 2000–3000 | results, matched by estimate | `…2026-spring-12` (current) |
+| `creator-budget-below-estimate-no-result` | category + creator + price 900–1300 | unmatched, demand recorded | none |
 | `inverted-budget-sent-unchanged` | price min 1500 > max 900, unchanged | unmatched, demand recorded | none |
 | `invalid-negative-budget` | rejected before the lots search | error `filters.price.min`, no demand | none |
 | `invalid-sale-date` | rejected before the lots search | error `filters.dateRange.from`, no demand | none |
@@ -65,6 +70,6 @@ Measured against the three committed lots; each row is asserted by `buyer-strict
 
 ## Known limitations
 
-- No committed lot carries a `creator`, so any creator filter returns nothing until the auction data populates it.
-- Budgets compare amounts as-is; there is no currency conversion (lots search rule).
+- Only one committed lot carries a `creator`, so other creator filters return nothing until the auction data populates them.
+- Budgets compare amounts as-is; there is no currency conversion (lots search rule). A sold lot is compared by its realized price, an unsold lot by its estimate band.
 - `statuses` is not sent yet; it waits for the buyer criteria to carry it.
