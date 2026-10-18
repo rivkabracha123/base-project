@@ -33,6 +33,9 @@ const MISSING_SELLER_QUESTION_COPY = {
   },
 } as const;
 
+const UNCONFIRMED_CORRECTION_REASON =
+  'Seller changed this fact; explicit confirmation is required before downstream use.';
+
 export type MissingSellerQuestion = {
   field: (typeof REQUIRED_SELLER_DETAILS)[number] | 'category';
   he: string;
@@ -89,13 +92,7 @@ export class SellerIntakeService {
       item: {
         ...item,
         description: { he: input.trim(), en: input.trim() },
-        catalogDraft: this.buildCatalogDraft({
-          ...(dimensions.length ? { dimensions: { values: dimensions } } : {}),
-          ...(extraction.item.condition ? { condition: extraction.item.condition } : {}),
-          ...(extraction.item.markings ? { markings: extraction.item.markings } : {}),
-          ...(extraction.item.signature ? { signatures: extraction.item.signature } : {}),
-          ...(extraction.item.provenance ? { provenance: extraction.item.provenance } : {}),
-        }),
+        catalogDraft: this.buildCatalogDraft(confirmedFacts),
       },
       missingFields: extraction.missingFacts,
       confirmedFacts,
@@ -188,15 +185,6 @@ export class SellerIntakeService {
   ): SellerItemDraft {
     const reviewState = this.buildReviewState(input, aiDimensions.length > 0);
     const extractedDimensions = aiDimensions.length ? { values: aiDimensions } : undefined;
-    const extractedCatalogFacts: SellerItemDraft['confirmedFacts'] = {
-      ...(reviewState.category !== 'unknown' ? { category: reviewState.category } : {}),
-      ...(reviewState.materials.length ? { materials: reviewState.materials } : {}),
-      ...(extractedDimensions ? { dimensions: extractedDimensions } : {}),
-      ...(reviewState.condition === 'Not yet confirmed' ? {} : { condition: reviewState.condition }),
-      ...(reviewState.markings === 'Not yet confirmed' ? {} : { markings: reviewState.markings }),
-      ...(reviewState.signatures === 'Not yet confirmed' ? {} : { signatures: reviewState.signatures }),
-      ...(reviewState.provenance ? { provenance: reviewState.provenance } : {}),
-    };
     const item = {
       ...fixture.item,
       title: this.draftTitleFromInput(input, reviewState.category, extractedDimensions),
@@ -216,7 +204,7 @@ export class SellerIntakeService {
       item: {
         ...item,
         description: { he: input.trim(), en: input.trim() },
-        catalogDraft: this.buildCatalogDraft(extractedCatalogFacts),
+        catalogDraft: this.buildCatalogDraft({}),
       },
       missingFields: reviewState.missingFields,
       confirmedFacts: {},
@@ -463,8 +451,8 @@ export class SellerIntakeService {
     };
   }
 
-  // מעדכן עובדה לפי תיקון שאישרה המוכרת, מתעד גרסה ומסמן צורך בחישוב מחדש.
-  // Applies a seller-approved correction, records a revision, and flags recalculation.
+  // מעדכן את ערך העובדה אך משאיר אותה לא מאושרת עד לאישור מפורש של המוכרת.
+  // Updates a fact value but keeps it unconfirmed until the seller explicitly confirms it.
   applySellerDraftCorrection(
     draft: SellerItemDraft,
     field: SellerDraftCorrectionField,
@@ -514,19 +502,33 @@ export class SellerIntakeService {
       ...draft.item,
       [itemField]: confirmedValue,
     };
-    const nextConfirmedFacts = {
-      ...draft.confirmedFacts,
-      [itemField]: confirmedValue,
-    };
     const clearsField = (field === 'dimensions'
       && (Array.isArray(value) ? value.length === 0 : isDimensionCorrection(value) && value.values.length === 0))
       || (field === 'materials' && Array.isArray(value) && value.length === 0)
       || (['condition', 'marks', 'signatures', 'provenance'].includes(field) && value === '');
-    const correctedFacts = clearsField
-      ? Object.fromEntries(Object.entries(nextConfirmedFacts).filter(([name]) => name !== itemField)) as SellerItemDraft['confirmedFacts']
-      : nextConfirmedFacts;
+    const correctedFacts = Object.fromEntries(
+      Object.entries(draft.confirmedFacts).filter(([name]) => name !== itemField),
+    ) as SellerItemDraft['confirmedFacts'];
+    const correctedValue = typeof confirmedValue === 'string' || typeof confirmedValue === 'number'
+      ? confirmedValue
+      : JSON.stringify(confirmedValue);
+    if (correctedValue === undefined && !clearsField) {
+      throw new Error(`Could not represent corrected fact: ${field}`);
+    }
+    const uncertainFacts = draft.uncertainFacts.filter(
+      (fact) => fact.field !== field && fact.field !== itemField,
+    );
+    if (!clearsField) {
+      uncertainFacts.push({
+        field,
+        status: 'uncertain',
+        value: correctedValue ?? null,
+        reason: UNCONFIRMED_CORRECTION_REASON,
+      });
+    }
     const requiredField = field === 'marks' ? 'marks' : field;
     const remainingMissingFields = new Set((draft.missingFields ?? []).filter((item) => item !== requiredField));
+    const skippedFields = (draft.skippedFields ?? []).filter((item) => item !== requiredField);
     if (clearsField && ['dimensions', 'condition', 'marks', 'signatures', 'provenance'].includes(field)) {
       remainingMissingFields.add(requiredField);
     }
@@ -540,14 +542,17 @@ export class SellerIntakeService {
         catalogDraft: this.buildCatalogDraft(correctedFacts),
       },
       confirmedFacts: correctedFacts,
+      uncertainFacts,
       missingFields: [...remainingMissingFields],
+      skippedFields,
       recalculationRequired: true,
       revisionHistory: [...draft.revisionHistory, revision],
       sellerConfirmation: {
         ...draft.sellerConfirmation,
-          status: this.hasAllRequiredConfirmedFacts(correctedFacts) ? 'complete' : 'partial',
-        lastConfirmedAt: revision.timestamp,
-        notes: 'Seller-approved facts are available for downstream review.',
+        status: this.hasAllRequiredConfirmedFacts(correctedFacts)
+          ? 'complete'
+          : Object.values(correctedFacts).some((fact) => fact !== undefined) ? 'partial' : 'pending',
+        notes: 'Corrected facts require explicit seller confirmation before downstream use.',
       },
     };
   }
@@ -592,6 +597,7 @@ export class SellerIntakeService {
 
     const nextConfirmedFacts = { ...draft.confirmedFacts, ...confirmedValues };
     const revision = this.appendRevisionEntry('seller', 'Seller confirmed extracted facts', fields);
+    const confirmedFieldNames = new Set(fields.flatMap((field) => [field, field === 'marks' ? 'markings' : field]));
     return {
       ...draft,
       item: {
@@ -599,6 +605,9 @@ export class SellerIntakeService {
         catalogDraft: this.buildCatalogDraft(nextConfirmedFacts),
       },
       confirmedFacts: nextConfirmedFacts,
+      uncertainFacts: draft.uncertainFacts.filter((fact) => !confirmedFieldNames.has(fact.field)),
+      missingFields: (draft.missingFields ?? []).filter((field) => !confirmedFieldNames.has(field)),
+      skippedFields: (draft.skippedFields ?? []).filter((field) => !confirmedFieldNames.has(field)),
       recalculationRequired: true,
       revisionHistory: [...draft.revisionHistory, revision],
         sellerConfirmation: {
@@ -614,6 +623,9 @@ export class SellerIntakeService {
   // Merges a new intake turn while preserving previously confirmed facts, corrections, and revision history.
   mergeNewIntakeTurn(previous: SellerItemDraft, incoming: SellerItemDraft): SellerItemDraft {
     const confirmedFacts = previous.confirmedFacts;
+    const pendingCorrections = previous.uncertainFacts.filter(
+      (fact) => fact.reason === UNCONFIRMED_CORRECTION_REASON,
+    );
     const confirmedFieldNames = new Set([
       ...(confirmedFacts.dimensions ? ['dimensions'] : []),
       ...(confirmedFacts.condition ? ['condition'] : []),
@@ -623,6 +635,18 @@ export class SellerIntakeService {
       ...(confirmedFacts.category ? ['category'] : []),
       ...(confirmedFacts.materials ? ['materials'] : []),
     ]);
+    const hasIncomingValue: Record<string, boolean> = {
+      category: incoming.item.category !== 'unknown',
+      dimensions: incoming.item.dimensions.values.length > 0,
+      condition: Boolean(incoming.item.condition?.trim()),
+      marks: Boolean(incoming.item.markings?.trim()),
+      signatures: Boolean(incoming.item.signatures?.trim()),
+      provenance: Boolean(incoming.item.provenance?.trim()),
+    };
+    const skippedFields = [...new Set([
+      ...(previous.skippedFields ?? []),
+      ...(incoming.skippedFields ?? []),
+    ])].filter((field) => !hasIncomingValue[field] && !confirmedFieldNames.has(field));
     const confirmedItemValues = {
       ...(confirmedFacts.category ? { category: confirmedFacts.category } : {}),
       ...(confirmedFacts.materials ? { materials: confirmedFacts.materials } : {}),
@@ -632,6 +656,41 @@ export class SellerIntakeService {
       ...(confirmedFacts.signatures ? { signatures: confirmedFacts.signatures } : {}),
       ...(confirmedFacts.provenance ? { provenance: confirmedFacts.provenance } : {}),
     };
+    const pendingCorrectionItemValues: Partial<SellerItemDraft['item']> = {};
+    for (const fact of pendingCorrections) {
+      switch (fact.field) {
+        case 'category':
+          pendingCorrectionItemValues.category = previous.item.category;
+          break;
+        case 'materials':
+          pendingCorrectionItemValues.materials = previous.item.materials;
+          break;
+        case 'dimensions':
+          pendingCorrectionItemValues.dimensions = previous.item.dimensions;
+          break;
+        case 'condition':
+          pendingCorrectionItemValues.condition = previous.item.condition;
+          break;
+        case 'marks':
+        case 'markings':
+          pendingCorrectionItemValues.markings = previous.item.markings;
+          break;
+        case 'signatures':
+          pendingCorrectionItemValues.signatures = previous.item.signatures;
+          break;
+        case 'provenance':
+          pendingCorrectionItemValues.provenance = previous.item.provenance;
+          break;
+      }
+    }
+    const uncertainFactsByField = new Map(
+      incoming.uncertainFacts
+        .filter((fact) => !confirmedFieldNames.has(fact.field))
+        .map((fact) => [fact.field, fact]),
+    );
+    for (const fact of pendingCorrections) {
+      if (!confirmedFieldNames.has(fact.field)) uncertainFactsByField.set(fact.field, fact);
+    }
 
     return {
       ...incoming,
@@ -639,6 +698,7 @@ export class SellerIntakeService {
       item: {
         ...incoming.item,
         ...confirmedItemValues,
+        ...pendingCorrectionItemValues,
         id: previous.item.id,
         catalogDraft: this.buildCatalogDraft(confirmedFacts),
         evidenceIds: previous.item.evidenceIds,
@@ -646,8 +706,10 @@ export class SellerIntakeService {
       evidence: previous.evidence,
       factEvidence: previous.factEvidence,
       confirmedFacts,
-      missingFields: (incoming.missingFields ?? []).filter((field) => !confirmedFieldNames.has(field)),
-      uncertainFacts: incoming.uncertainFacts.filter((fact) => !confirmedFieldNames.has(fact.field)),
+      missingFields: [...new Set([...(incoming.missingFields ?? []), ...skippedFields])]
+        .filter((field) => !confirmedFieldNames.has(field)),
+      skippedFields,
+      uncertainFacts: [...uncertainFactsByField.values()],
       revisionHistory: previous.revisionHistory,
       recalculationRequired: previous.recalculationRequired,
       sellerConfirmation: previous.sellerConfirmation,

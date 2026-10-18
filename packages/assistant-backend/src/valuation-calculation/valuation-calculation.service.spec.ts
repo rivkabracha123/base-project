@@ -57,6 +57,7 @@ describe('ValuationCalculationService', () => {
         reason: 'insufficient_comparable_sales',
         itemVersion: 'v1',
       });
+      expect(result).not.toHaveProperty('valuationRange');
     });
 
     // Test #2: The service supports valuation when at least three credible sales are available.

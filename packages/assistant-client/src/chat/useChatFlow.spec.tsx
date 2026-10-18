@@ -124,9 +124,12 @@ describe('useChatFlow', () => {
 
   // בודק שכל עדכון פגום (סוג לא מוכר או טקסט ריק) מוחלף בהודעת שגיאה אחת, ועדכון תקין שאחריו מוצג.
   it('shows an error instead of each invalid update and keeps the valid ones', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { result } = setup(async (_message, onUpdate) => {
-      onUpdate({ speaker: 'unknown', text: 'Unknown speaker text' } as never);
+      onUpdate({
+        speaker: 'unknown',
+        text: 'verification-code-9382 email seller@example.test signed-url-secret',
+      } as never);
       onUpdate({ speaker: 'system', text: '' });
       onUpdate({ speaker: 'system', text: 'Valid after invalid' });
     });
@@ -141,6 +144,8 @@ describe('useChatFlow', () => {
       ERROR_TEXT,
       'Valid after invalid',
     ]);
+    expect(warn).toHaveBeenCalledWith('Invalid chat update ignored');
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(/verification-code|seller@example\.test|signed-url-secret/);
   });
 
   // בודק שהודעה שמגיעה מהחיבור נושאת את מזהה השיחה האמיתי ברגע שהוא ידוע, ולא מזהה מקומי קבוע.

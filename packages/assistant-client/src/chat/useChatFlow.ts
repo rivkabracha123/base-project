@@ -88,7 +88,7 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
       addToScreen(parsed.data);
       return;
     }
-    console.warn('Invalid chat update ignored', update, parsed.error);
+    console.warn('Invalid chat update ignored');
     showError('invalid-update');
   };
 
