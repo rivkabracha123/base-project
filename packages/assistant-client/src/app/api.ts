@@ -87,6 +87,60 @@ export function getAnonymousSessionId(): string {
   localStorage.setItem(anonymousSessionStorageKey, newSessionId);
   return newSessionId;
 }
+
+/**
+ * Reads the locally stored chat and sends its latest snapshot to the backend.
+ * קוראת את השיחה שנשמרה מקומית ושולחת לשרת את תמונת המצב העדכנית שלה.
+ */
+export async function syncChatSnapshotFromLocalStorage(
+  storageKey: string,
+  role: 'buyer' | 'seller',
+  language: 'he' | 'en',
+  completed = false,
+): Promise<void> {
+  const storedMessages = localStorage.getItem(storageKey);
+  if (!storedMessages) {
+    throw new Error(`No local chat exists for key "${storageKey}"`);
+  }
+
+  const messages: unknown = JSON.parse(storedMessages);
+  if (!Array.isArray(messages)) {
+    throw new Error(`Stored chat for key "${storageKey}" is not an array`);
+  }
+
+  const conversationIdKey = `${storageKey}.conversationId`;
+  let conversationId = localStorage.getItem(conversationIdKey);
+  if (!conversationId) {
+    conversationId = crypto.randomUUID();
+    localStorage.setItem(conversationIdKey, conversationId);
+  }
+
+  const versionKey = `${storageKey}.snapshotVersion`;
+  const previousVersion = Number(localStorage.getItem(versionKey) ?? '0');
+  if (!Number.isSafeInteger(previousVersion) || previousVersion < 0) {
+    throw new Error(`Invalid snapshot version for key "${versionKey}"`);
+  }
+
+  const version = previousVersion + 1;
+  localStorage.setItem(versionKey, String(version));
+
+  const response = await fetch(
+    `${apiBaseUrl}/chat/conversations/${encodeURIComponent(conversationId)}/snapshot`,
+    {
+      method: 'PUT',
+      headers: {
+        ...profileHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role, language, messages, version, completed }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Chat snapshot save failed with status ${response.status}`);
+  }
+}
+
 function profileHeaders(): HeadersInit {
   // The backend uses this identifier to find only this browser's profile.
   return { 'x-anonymous-session-id': getAnonymousSessionId() };

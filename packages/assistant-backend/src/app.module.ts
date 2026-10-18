@@ -46,6 +46,8 @@ import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { SellerWorkflowModule } from './seller-workflow/seller-workflow.module';
+import { ChatConversationEntity } from './database/chat-conversation.entity';
+import { CreateChatConversations1790000000000 } from './database/1790000000000-create-chat-conversations';
 
 /**
  * Root application module for the Monabid Assistant backend.
@@ -72,6 +74,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       BuyerConversationEntity,
       SellerIntakeDraftEntity,
       BuyerUnmatchedDemandEntity,
+      ChatConversationEntity,
     ],
     migrations: [
       CreateAuctionLots1710000000000,
@@ -90,6 +93,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       AddSellerLeadDashboard1788220800004,
       CreateSellerIntakeDrafts1788220800005,
       AlignLegacySellerLeads1788220800006,
+      CreateChatConversations1790000000000,
     ],
     synchronize: false,
   };

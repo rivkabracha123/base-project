@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ZodType } from 'zod';
 import type { BaseChatMessage, ChatUpdate, OnChatUpdate } from './chat-types';
 import { sanitizeChatForLocalStorage } from './local-chat-storage';
+import { syncChatSnapshotFromLocalStorage } from '../app/api';
 
 // Placeholder session id for locally-created messages until the client is wired to the real P3 anonymous session.
 export const LOCAL_SESSION_ID = 'local-session';
@@ -38,6 +39,9 @@ interface UseChatFlowOptions<TMessage extends BaseChatMessage> {
   errorText: string;
   // מפתח localStorage ייעודי לשמירת השיחה הפעילה בדפדפן.
   storageKey?: string;
+  // התפקיד והשפה משמשים לשמירת השיחה בשרת לצד הפרופיל.
+  chatRole?: 'buyer' | 'seller';
+  chatLanguage?: 'he' | 'en';
   // מזהה השיחה האמיתי כשהוא כבר ידוע (השרת מחזיר אותו אחרי ההודעה הראשונה); null או חסר = עדיין לא ידוע.
   getSessionId?: () => string | null;
 }
@@ -49,6 +53,8 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
   connect,
   errorText,
   storageKey,
+  chatRole,
+  chatLanguage,
   getSessionId,
 }: UseChatFlowOptions<TMessage>) {
   // השיחה הקיימת, כפי שנטענה מהשרת.
@@ -69,8 +75,27 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
       localStorage.setItem(storageKey, JSON.stringify(sanitizeChatForLocalStorage(messages)));
     } catch (error) {
       console.error(`Failed to save chat to local storage (${storageKey})`, error);
+      return;
     }
-  }, [messages, storageKey]);
+
+    // לא שומרים בשרת את שיחת הדוגמה עד שהמשתמש הוסיף הודעה מקומית.
+    if (liveMessages.length === 0 || !chatRole || !chatLanguage || query.isError) return;
+
+    void syncChatSnapshotFromLocalStorage(
+      storageKey,
+      chatRole,
+      chatLanguage,
+    ).catch((error) => {
+      console.error(`Failed to sync chat snapshot (${storageKey})`, error);
+    });
+  }, [
+    chatLanguage,
+    chatRole,
+    liveMessages.length,
+    messages,
+    query.isError,
+    storageKey,
+  ]);
 
   // מזהה השיחה שמוטבע על כל הודעה: האמיתי כשהוא ידוע, ואחרת המזהה המקומי (לפני התשובה הראשונה של השרת).
   function currentSessionId(): string {
