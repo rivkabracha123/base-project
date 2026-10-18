@@ -528,6 +528,16 @@ it('updates seller corrections and fact confirmation status', () => {
     expect(merged.item.catalogDraft.en).toContain('provenance: Family archive');
   });
 
+  it('keeps a written description when another intake turn arrives', () => {
+    const initial = service.createDraftFromSellerInput(fixture, 'I have a painting.');
+    const described = service.applySellerDraftCorrection(initial, 'description', { he: 'ציור שמן על בד, במצב טוב.' });
+    const nextTurn = service.createDraftFromSellerInput(fixture, 'It is signed.');
+
+    const merged = service.mergeNewIntakeTurn(described, nextTurn);
+
+    expect(merged.item.description.he).toBe('ציור שמן על בד, במצב טוב.');
+  });
+
   it('does not ask again for a fact already corrected and confirmed in an earlier turn', () => {
     const initial = service.createDraftFromSellerInput(fixture, 'I have a painting.');
     const corrected = service.applySellerDraftCorrection(initial, 'provenance', 'Family archive');

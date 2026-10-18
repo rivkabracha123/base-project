@@ -7,7 +7,7 @@ afterEach(async () => {
 });
 
 describe('seller intake system messages', () => {
-  it('asks the next seller question directly without verbose AI summaries', async () => {
+  it('keeps a Hebrew AI explanation before the next Hebrew question', async () => {
     await i18n.changeLanguage('he');
 
     const message = getSystemText({
@@ -19,8 +19,22 @@ describe('seller intake system messages', () => {
       },
     });
 
-    expect(message).toBe('מה מצבו של כתב היד?');
+    expect(message).toBe('תודה ששיתפת את הפרטים על כתב היד העתיק. המידות עוזרות לתעד את הפריט. מה מצבו של כתב היד?');
     expect(message).not.toContain('מה סוג הפריט?');
+  });
+
+  it('drops an English explanation from a Hebrew answer when the model mixes languages', async () => {
+    await i18n.changeLanguage('he');
+
+    const message = getSystemText({
+      ai: {
+        summary: 'The seller has an ancient manuscript on laws they are considering selling.',
+        nextAction: "What specific details can you provide about the manuscript's dimensions or origin?",
+      },
+      nextQuestion: { field: 'dimensions', he: 'כדי להכין טיוטה, מה המידות ומה מצב הפריט?', en: 'What are its dimensions?' },
+    });
+
+    expect(message).toBe('כדי להכין טיוטה, מה המידות ומה מצב הפריט?');
   });
 
   it('shows only the concise next question when the AI has no summary', async () => {

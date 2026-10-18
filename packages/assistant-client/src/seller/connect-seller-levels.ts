@@ -41,11 +41,12 @@ export async function sendSellerMessage(
   await onUpdate({ speaker: 'system', text });
 }
 
-function compactVisibleAiText(parts: Array<string | undefined | null>): string {
+// The model sometimes answers in English during a Hebrew chat; drop any part not in the active language.
+function compactVisibleAiText(parts: Array<string | undefined | null>, language: 'he' | 'en'): string {
   const cleaned: string[] = [];
   for (const part of parts) {
     const text = tightenEnglish(String(part ?? '').trim());
-    if (!text) continue;
+    if (!text || !isInLanguage(text, language)) continue;
     const key = text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
     if (cleaned.some((existing) => {
       const other = existing.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -92,7 +93,7 @@ export function getSystemText(response: SellerIntakeResponse): string {
       response.ai.summary,
       response.ai.generalInformation ? response.ai.recommendation : undefined,
       response.ai.nextAction,
-    ]) || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
+    ], language) || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
   }
   const nextQuestion = response.nextQuestion;
   if (nextQuestion) {
@@ -101,7 +102,7 @@ export function getSystemText(response: SellerIntakeResponse): string {
       response.ai?.recommendation,
       response.ai?.nextAction,
       nextQuestion[language],
-    ]).replaceAll('\n', ' ');
+    ], language).replaceAll('\n', ' ');
   }
 
   if (response.requiredMissingFields?.length === 0 || response.missingFields?.length === 0) {
@@ -109,9 +110,8 @@ export function getSystemText(response: SellerIntakeResponse): string {
       ? '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e0\u05e9\u05de\u05e8\u05d5.'
       : 'Your item details are saved.';
   }
-  if (response.ai?.nextAction?.trim()) {
-    return compactVisibleAiText([response.ai.summary, response.ai.nextAction]).replaceAll('\n', ' ');
-  }
+  const aiText = compactVisibleAiText([response.ai?.summary, response.ai?.nextAction], language).replaceAll('\n', ' ');
+  if (response.ai?.nextAction?.trim() && aiText) return aiText;
 
   const summary = response.conversation?.assistantSummary?.[language];
   if (summary) return summary;
@@ -274,7 +274,7 @@ export async function connectSellerLevels(
       const workflowCall = sessionActions.includes(functionCall.functionToRun)
         ? { functionToRun: functionCall.functionToRun, object: {
             sessionId,
-            ...(functionCall.functionToRun === 'getSellerEnquiryPreview' ? { language } : {}),
+            ...(['getSellerEnquiryPreview', 'getSellerCatalogDraft'].includes(functionCall.functionToRun) ? { language } : {}),
           } } : functionCall;
       const workflowResponse = await fetch(`${API_BASE_URL}/seller-workflow/callback`, {
         method: 'POST',

@@ -85,7 +85,13 @@ function correctionValue(field: EditableField, value: string, language: 'he' | '
   return value;
 }
 
-export function SellerItemDetailsCard({ item: initialItem, language, evidence = [] }: { item: Item; language: 'he' | 'en'; evidence?: SellerItemDraft['evidence'] }) {
+export function SellerItemDetailsCard({ item: initialItem, language, evidence = [], showDescription = false }: {
+  item: Item;
+  language: 'he' | 'en';
+  evidence?: SellerItemDraft['evidence'];
+  /** Only a written description (seller edit or AI catalog text); before that the field holds raw chat text. */
+  showDescription?: boolean;
+}) {
   const { t } = useTranslation();
   const [item, setItem] = useState(initialItem);
   const [isEditing, setIsEditing] = useState(false);
@@ -233,6 +239,12 @@ export function SellerItemDetailsCard({ item: initialItem, language, evidence = 
         </div>
       ) : (
         <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          {showDescription && item.description[language]?.trim() ? (
+            <div className="sm:col-span-2">
+              <dt className="font-medium">{t('chat.itemEdit.fields.description')}</dt>
+              <dd className="whitespace-pre-line leading-relaxed">{item.description[language]}</dd>
+            </div>
+          ) : null}
           {displayFields.map(([field, value]) => (
             <div key={field}>
               <dt className="font-medium">{t(`chat.itemEdit.fields.${field}`)}</dt>

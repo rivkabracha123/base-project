@@ -20,6 +20,44 @@ describe('BuyerCriteria extraction', () => {
     expect(updated.criteria.price).toEqual({ max: 250, currency: 'USD' });
     expect(updated.criteria.categories).toEqual(initial.criteria.categories);
   });
+  it.each([
+    ['Looking for silver Judaica under $2000', []],
+    ['manuscript up to 1900 USD', []],
+    ['ספר עד 2000 שקל', []],
+    ['manuscript under $12000', []],
+    ['manuscript from 1920 under $2000', ['1920']],
+  ])('does not read a price as a period in %s', (content, periods) => {
+    const result = parseCriteriaFromAiResponse({
+      provider: 'fixture', mode: 'fixture', content,
+      summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+    });
+    expect(result.criteria.periods).toEqual(periods);
+  });
+  it.each([
+    ['ספרים', ['rare_books']],
+    ['ספר חסידים', ['rare_books']],
+    ['old books', ['rare_books']],
+    ['ספר לי על מכירות פומביות', []],
+  ])('maps book wording in %s', (content, categories) => {
+    const result = parseCriteriaFromAiResponse({
+      provider: 'fixture', mode: 'fixture', content,
+      summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+    });
+    expect(result.criteria.categories).toEqual(categories);
+  });
+  it.each([
+    ['unknown', [], true],
+    ['books', ['rare_books'], false],
+    ['manuscripts', ['rare_books'], false],
+  ])('normalizes an AI category of %s', (category, categories, asksCategory) => {
+    const result = parseCriteriaFromAiResponse({
+      provider: 'real', mode: 'real', content: '{}',
+      summary: '', recommendation: '', nextAction: '', confidence: 'low',
+      structuredAnswer: { role: 'buyer', language: 'he', intent: 'search', category, hasContactDetails: false, hasImages: false },
+    } as never);
+    expect(result.criteria.categories).toEqual(categories);
+    expect(result.conversation.missing.includes('category')).toBe(asksCategory);
+  });
   it.each(['אני רוצה כתבי יד עתיקים', 'כתבי יד עתיק', 'כתב יד עתיק'])(
     'recognizes manuscript category and keywords in %s',
     (content) => {
@@ -227,11 +265,11 @@ describe('Week 3 focused questions', () => {
         notes: [],
       },
       action: 'answer',
-      message: 'rare Hebrew books',
+      message: 'vintage cameras',
     });
 
     expect(afterAnswer.criteria.categories).toEqual([]);
-    expect(afterAnswer.criteria.keywords).toEqual(['rare Hebrew books']);
+    expect(afterAnswer.criteria.keywords).toEqual(['vintage cameras']);
     expect(afterAnswer.conversation.missing).toEqual([]);
   });
 

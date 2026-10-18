@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { SellerItemDetailsCard } from './SellerItemDetailsCard';
 import type { SellerActionResult } from './seller-action-result';
 
 export function SellerActionCard({ action, language, summary, onContinue }: {
@@ -13,9 +12,12 @@ export function SellerActionCard({ action, language, summary, onContinue }: {
     <article className="rounded-[1.5rem] border border-[#eadfd0] bg-white px-8 py-8 text-center shadow-sm">
       <h2 className="sr-only">{he ? 'טיוטת תיאור לקטלוג' : 'Catalog description draft'}</h2>
       <h3 className="text-xl font-semibold leading-snug text-stone-950">{action.title}</h3>
-      {action.en ? <p className="mt-4 text-sm leading-relaxed text-stone-500">{action.en}</p> : null}
-      {action.he ? <p className="mt-4 text-sm leading-relaxed text-stone-700" lang="he" dir="rtl">{action.he}</p> : null}
-      {!action[language] ? <p className="mt-4 text-sm text-stone-600">{he ? 'טרם נשמר תיאור בשפה זו.' : 'No description is saved in this language yet.'}</p> : null}
+      {action[language]
+        ? <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-stone-700" lang={language} dir={he ? 'rtl' : 'ltr'}>{action[language]}</p>
+        : <p className="mt-4 text-sm text-stone-600">{he ? 'טרם נשמר תיאור בשפה זו.' : 'No description is saved in this language yet.'}</p>}
+      {action.generatedByAi ? <p className="mt-4 text-xs text-stone-500">{he
+        ? 'התיאור נכתב בעזרת AI על סמך הפרטים שמסרת. כדאי לעבור עליו לפני שימוש.'
+        : 'This description was written with AI from the details you provided. Please review it before use.'}</p> : null}
     </article>
   );
   if (action.kind === 'enquiry') return <SellerEnquiryActionCard action={action} language={language} onContinue={onContinue} />;
@@ -47,7 +49,6 @@ function SellerEnquiryActionCard({ action, language, onContinue }: {
       <h2 className="text-lg font-semibold text-stone-950">{he ? 'טיוטת פנייה לבית מכירות' : 'Auction enquiry draft'}</h2>
       <p className="mt-1 text-sm text-stone-600">{he ? 'אפשר לערוך את הטיוטה לפני שממשיכים. הפנייה תישלח לצוות Monabid בלבד.' : 'Edit the draft before continuing. The enquiry will be sent to the Monabid team only.'}</p>
       {!action.generatedByAi && <p className="mt-2 text-xs text-stone-500">{he ? 'הטיוטה נוסחה על סמך הפרטים שנמסרו.' : 'This draft was prepared from the details provided.'}</p>}
-      <SellerItemDetailsCard item={action.draft.item} evidence={action.draft.evidence} language={language} />
       <label className="mt-5 block text-sm font-medium text-stone-700">
         {he ? 'נוסח הפנייה' : 'Enquiry text'}
         <textarea

@@ -618,12 +618,16 @@ export class SellerIntakeService {
       ...(confirmedFacts.provenance ? { provenance: confirmedFacts.provenance } : {}),
     };
 
+    // A written description (by the seller or the AI catalog writer) must survive later chat turns.
+    const descriptionWritten = (previous.revisionHistory ?? []).some((revision) => revision.changes.includes('description'));
+
     return {
       ...incoming,
       id: previous.id,
       item: {
         ...incoming.item,
         ...confirmedItemValues,
+        ...(descriptionWritten ? { description: previous.item.description } : {}),
         id: previous.item.id,
         catalogDraft: this.buildCatalogDraft(confirmedFacts),
         evidenceIds: previous.item.evidenceIds,

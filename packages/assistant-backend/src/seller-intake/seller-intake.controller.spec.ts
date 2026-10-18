@@ -18,6 +18,13 @@ describe('Seller valuation routing', () => {
     const result = await controller.createDraft({ input: 'אני רוצה הערכת שווי', profileId: 'p', sessionId: 's' });
     expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 's' } });
   });
+  it('runs the valuation when the AI labels a Hebrew worth question as general advice', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rings' }, seller: {}, requiredMissingFields: [],
+      ai: { isRelevant: true, generalInformation: true, summary: 'Ring values vary' }, functionCall: null }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'כמה היא שווה?', profileId: 'p', sessionId: 's' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 's' } });
+  });
   it('does not save general auction advice as seller item facts', async () => {
     const drafts = { saveIntakeTurn: jest.fn() };
     const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {},

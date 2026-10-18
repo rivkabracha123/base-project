@@ -76,6 +76,20 @@ describe('SellerIntakeAiAdapter', () => {
     await adapter.analyze('70x80 cm', 'general-session');
     expect(generate.mock.calls[2][0].prompt).not.toContain('What is an auction reserve?');
   });
+  it('keeps an item named in a turn the AI treats as general advice', async () => {
+    const generalAdvice = { provider: 'real', mode: 'real', isRelevant: true, error: null,
+      structuredAnswer: { ...handoff, intent: 'general_information', category: 'unknown' } };
+    const generate = jest.fn()
+      .mockResolvedValueOnce(generalAdvice)
+      .mockResolvedValue({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+        structuredAnswer: { ...handoff, category: 'unknown', item: { ...handoff.item, dimensions: { values: [] } } } });
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    await adapter.analyze('יש לי כתב יד עתיק אני מתלבטת אם למכור אותו', 'manuscript-session', 'he');
+    const next = await adapter.analyze('מצב טוב', 'manuscript-session', 'he');
+    expect(generate.mock.calls[1][0].prompt).toContain('כתב יד עתיק');
+    expect(next.item.category).toBe('rare_books');
+    expect(next.requiredMissingFields).not.toContain('category');
+  });
   it('redirects an unrelated request without replacing saved facts or the active question', async () => {
     const generate = jest.fn()
       .mockResolvedValueOnce({ provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff })

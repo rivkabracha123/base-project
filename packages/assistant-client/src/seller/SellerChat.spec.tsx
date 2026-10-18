@@ -316,7 +316,7 @@ describe('SellerChat', () => {
     fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'dana@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
-    expect(await screen.findByText(/The enquiry was saved for the Monabid team/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Your enquiry was opened successfully/i)).toBeInTheDocument();
     expect(appApi.completeSellerEnquiry).toHaveBeenCalledWith(expect.objectContaining({
       generalEnquiry: true,
       enquiryText: 'Please review this manuscript.',

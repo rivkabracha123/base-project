@@ -251,13 +251,19 @@ export class P4AiGenerateClient {
     };
   }
 
-  async generateSellerEnquiryCopy(
+  /**
+   * Finished seller prose (enquiry letter, catalog description) from POST /ai/generate-text.
+   * Returns null in fixture mode; throws 503 when the real provider fails so callers use their template.
+   */
+  async generateSellerText(
     request: Pick<ShilatAiGenerateRequest, 'prompt' | 'language' | 'sessionId'>,
   ): Promise<string | null> {
     if ((this.config.get<string>('AI_PROVIDER_MODE') ?? 'fixture') !== 'real') return null;
 
-    const url = this.config.get<string>('AI_GENERATE_URL');
-    if (!url) throw new ServiceUnavailableException('AI_PROVIDER_MODE is real but AI_GENERATE_URL is not configured.');
+    const generateUrl = this.config.get<string>('AI_GENERATE_URL');
+    if (!generateUrl) throw new ServiceUnavailableException('AI_PROVIDER_MODE is real but AI_GENERATE_URL is not configured.');
+    // /ai/generate always answers with the JSON handoff schema; prose has its own endpoint beside it.
+    const url = generateUrl.replace(/\/generate\/?$/, '/generate-text');
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -273,25 +279,18 @@ export class P4AiGenerateClient {
       response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ role: 'seller', ...request }),
+        body: JSON.stringify({ prompt: request.prompt, language: request.language }),
       });
     } catch {
-      throw new ServiceUnavailableException('Seller enquiry copy generation failed.');
+      throw new ServiceUnavailableException('Seller text generation failed.');
     }
     if (!response.ok) {
-      throw new ServiceUnavailableException(`Seller enquiry copy generation failed with status ${response.status}.`);
+      throw new ServiceUnavailableException(`Seller text generation failed with status ${response.status}.`);
     }
 
-    const body: unknown = await response.json();
-    if (!body || typeof body !== 'object') {
-      throw new ServiceUnavailableException('Seller AI returned an invalid enquiry draft.');
-    }
-    const record = body as Record<string, unknown>;
-    const content = typeof record.content === 'string' ? record.content.trim()
-      : typeof record.summary === 'string' ? record.summary.trim() : '';
-    if (!content || record.isRelevant === false) {
-      throw new ServiceUnavailableException('Seller AI did not return a usable enquiry draft.');
-    }
-    return content;
+    const body = await response.json().catch(() => null) as { text?: unknown } | null;
+    const text = typeof body?.text === 'string' ? body.text.trim() : '';
+    if (!text) throw new ServiceUnavailableException('Seller AI did not return usable text.');
+    return text;
   }
 }

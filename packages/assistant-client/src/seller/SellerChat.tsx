@@ -152,8 +152,8 @@ export function SellerChat() {
       });
       setPendingEnquiry(null);
       addMessage({ speaker: 'system', text: language === 'he'
-        ? 'תודה, הפנייה נשמרה לצוות Monabid. היא לא נשלחה לבית מכירות.'
-        : 'Thank you. The enquiry was saved for the Monabid team and was not sent to an auction house.' });
+        ? 'הפנייה נפתחה בהצלחה! צוות Monabid ייצור קשר בהקדם.'
+        : 'Your enquiry was opened successfully! The Monabid team will get back to you soon.' });
     } catch (error) {
       addMessage({ speaker: 'system', text: error instanceof Error ? error.message
         : language === 'he' ? 'לא ניתן היה לשמור את הפנייה.' : 'The enquiry could not be saved.' });
@@ -271,7 +271,8 @@ export function SellerChat() {
       return <li data-speaker="system" className="w-full min-w-0">
         <h2 className="mb-3 text-lg font-semibold">{message.text}</h2>
         {message.comparison.mode === 'details'
-          ? <SellerItemDetailsCard item={message.comparison.item} evidence={message.comparison.evidence} language={language} />
+          ? <SellerItemDetailsCard item={message.comparison.item} evidence={message.comparison.evidence} language={language}
+            showDescription={message.comparison.descriptionWritten} />
           : <SellerComparisonResults result={message.comparison} language={language} />}
       </li>;
     }

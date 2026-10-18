@@ -279,6 +279,14 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     };
     if (structuredAnswer.intent === 'general_information' || isGeneralAuctionQuestion(input)) {
       const preserved = previous?.result ?? this.intake.analyze('');
+      // "I have an old manuscript, should I sell it?" reads as general advice to the AI, but it still names
+      // the item. Keep that wording so later turns do not ask for the category again.
+      const describesItem = !isGeneralAuctionQuestion(input)
+        && (sellerComparisonCategory(structuredAnswer.category, input) !== 'unknown'
+          || this.intake.analyze(input).item.category !== 'unknown');
+      if (sessionId && describesItem) {
+        this.sessions.set(sessionId, { ...previous, input: combinedInput, dimensions, facts });
+      }
       return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
         ai: { provider: response.provider, mode: response.mode, isRelevant: true, error: response.error,
           generalInformation: true, aiMissingFields: preserved.missingFields ?? [],

@@ -72,6 +72,22 @@ function containsRestrictedProviderContent(content: string): boolean {
   );
 }
 
+// The model sometimes answers Hebrew input with Hebrew units and labels; downstream code expects English ones.
+const HEBREW_UNITS: Array<[RegExp, string]> = [[/^ס["״']?מ$/, 'cm'], [/^מ["״']?מ$/, 'mm'], [/^אינץ['׳]?$/, 'in'], [/^מטר$/, 'm']];
+const HEBREW_LABELS: Record<string, string> = { 'אורך': 'length', 'רוחב': 'width', 'גובה': 'height', 'עומק': 'depth', 'קוטר': 'diameter' };
+
+function normalizeMeasurement(entry: unknown): unknown {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+  const measurement = entry as Record<string, unknown>;
+  const unit = typeof measurement.unit === 'string' ? measurement.unit.trim() : measurement.unit;
+  const label = typeof measurement.label === 'string' ? measurement.label.trim() : measurement.label;
+  return {
+    ...measurement,
+    ...(typeof unit === 'string' ? { unit: HEBREW_UNITS.find(([pattern]) => pattern.test(unit))?.[1] ?? unit } : {}),
+    ...(typeof label === 'string' ? { label: HEBREW_LABELS[label] ?? label } : {}),
+  };
+}
+
 function normalizeSellerHandoff(value: unknown): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
   const handoff = value as Record<string, unknown>;
@@ -81,6 +97,10 @@ function normalizeSellerHandoff(value: unknown): unknown {
   if (item && typeof item === 'object') {
     for (const key of ['title', 'condition', 'markings', 'signature', 'provenance', 'notes', 'dimensions']) {
       if ((item as Record<string, unknown>)[key] === null) delete (item as Record<string, unknown>)[key];
+    }
+    const dimensions = (item as Record<string, unknown>).dimensions as { values?: unknown } | undefined;
+    if (dimensions && Array.isArray(dimensions.values)) {
+      (item as Record<string, unknown>).dimensions = { ...dimensions, values: dimensions.values.map(normalizeMeasurement) };
     }
   }
   return {
@@ -172,6 +192,9 @@ function describeInvalidResponse(value: unknown, role: AiRole): string {
 
 //option to switch between the mock and fetch for test
 
+// OpenAI models that support response_format json_schema with strict: true.
+const STRICT_SCHEMA_OPENAI_MODEL = /^(?:gpt-4o(?:-mini)?|gpt-4\.1(?:-mini|-nano)?)(?:-\d{4}-\d{2}-\d{2})?$/;
+
 export class RealProviderService {
   async generate(input: RealProviderRequest): Promise<RealProviderResponse> {
     const baseUrl = input.baseUrl;
@@ -183,13 +206,12 @@ export class RealProviderService {
     if (!baseUrl || !modelName || !apiKey) {
       throw new Error('Real provider is not configured. Set baseUrl, modelName, and apiKey.');
     }
-    const strictBuyerOutput = role === 'buyer' && (
-      new URL(baseUrl).hostname === 'api.groq.com' && ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'].includes(modelName)
-      || new URL(baseUrl).hostname === 'api.openai.com' && modelName === 'gpt-4.1-mini');
     const groqProvider = new URL(baseUrl).hostname === 'api.groq.com';
-    const strictSellerOutput = role === 'seller' && (
-      groqProvider && ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'].includes(modelName)
-      || new URL(baseUrl).hostname === 'api.openai.com' && modelName === 'gpt-4.1-mini');
+    // Without a strict JSON schema the model often breaks the handoff contract and every turn falls back to guided mode.
+    const supportsStrictSchema = groqProvider && ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'].includes(modelName)
+      || new URL(baseUrl).hostname === 'api.openai.com' && STRICT_SCHEMA_OPENAI_MODEL.test(modelName);
+    const strictBuyerOutput = role === 'buyer' && supportsStrictSchema;
+    const strictSellerOutput = role === 'seller' && supportsStrictSchema;
 
     //sent the actual request to the real provider
     const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -305,5 +327,44 @@ export class RealProviderService {
     }
 
     return result as RealProviderResponse;
+  }
+
+  // Free-text writing (catalog descriptions, enquiry letters). No JSON schema: the caller wants finished prose.
+  async generateText(input: Pick<RealProviderRequest, 'prompt' | 'language' | 'baseUrl' | 'modelName' | 'apiKey' | 'fetchImpl'>): Promise<string> {
+    const { baseUrl, modelName, apiKey } = input;
+    if (!baseUrl || !modelName || !apiKey) {
+      throw new Error('Real provider is not configured. Set baseUrl, modelName, and apiKey.');
+    }
+    const language = input.language === 'en' ? 'English' : 'Hebrew';
+    const response = await (input.fetchImpl ?? fetch)(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: modelName,
+        temperature: 0.2,
+        messages: [
+          {
+            role: 'system',
+            content: [
+              `You are a professional auction-catalog writer. Write only in ${language}.`,
+              'Use only the facts you are given. Never invent attribution, date, provenance, authenticity, value, or condition details.',
+              'Never say that a detail is missing, unknown, or not provided; simply leave it out.',
+              `Translate every term into ${language}; do not leave English words in Hebrew text.`,
+              'Do not address the reader by gender; use neutral wording.',
+              'Return only the finished text: no markdown, headings, lists, JSON, or commentary.',
+            ].join('\n'),
+          },
+          { role: 'user', content: sanitizePrompt(input.prompt) },
+        ],
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Real provider request failed: ${response.status} ${await response.text()}`);
+    }
+    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error('Real provider returned no content.');
+    if (containsRestrictedProviderContent(text)) throw new Error('Real provider returned restricted contact or image data.');
+    return text;
   }
 }

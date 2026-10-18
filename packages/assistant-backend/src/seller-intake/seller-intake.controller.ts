@@ -81,7 +81,9 @@ export class SellerIntakeController {
       scopedSessionId,
       language,
     );
-    if (ai?.isRelevant === false || ai?.generalInformation) {
+    // "כמה היא שווה?" can read as general advice to the AI, but it is a valuation request for this item.
+    const wantsValuation = asksValuation && !declinesValuation;
+    if (ai?.isRelevant === false || (ai?.generalInformation && !wantsValuation)) {
       if (previousComparison) this.pendingComparisons.set(scopedSessionId, previousComparison);
       else this.pendingComparisons.delete(scopedSessionId);
       if (previousValuation) this.pendingValuations.add(scopedSessionId);

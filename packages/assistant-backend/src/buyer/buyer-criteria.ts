@@ -245,6 +245,8 @@ const parseCategory = (text: string): string | null => {
   const lower = text.toLowerCase();
   if (/\brings?\b|\u05d8\u05d1\u05e2(?:\u05ea|\u05d5\u05ea)/i.test(lower)) return 'rings';
   if (/\b(?:manuscripts?|rare books?)\b|\u05db\u05ea\u05d1\u05d9?\s+\u05d9\u05d3|\u05e1\u05e4\u05e8(?:\u05d9\u05dd)?\s+\u05e0\u05d3\u05d9\u05e8/i.test(lower)) return 'rare_books';
+  // Rare books are the only book category; "\u05e1\u05e4\u05e8 \u05dc\u05d9" ("tell me") is a verb, not a book.
+  if (/\bbooks?\b|(?:^|[\s,;.!?"'\u05f4\u05f3])\u05d4?\u05e1\u05e4\u05e8(?:\u05d9\u05dd)?(?![\u0590-\u05ff])(?!\s+\u05dc(?:\u05d9|\u05e0\u05d5)(?![\u0590-\u05ff]))/i.test(lower)) return 'rare_books';
   if (/\bjewelry\b|\u05ea\u05db\u05e9\u05d9\u05d8/i.test(lower)) return 'jewelry';
   if (/\bjudaica\b|\u05d9\u05d5\u05d3\u05d0\u05d9\u05e7\u05d4/i.test(lower)) return 'judaica';
   if (/\bwatches?\b|\u05e9\u05e2\u05d5\u05df|\u05e9\u05e2\u05d5\u05e0\u05d9\u05dd/i.test(lower)) return 'watches';
@@ -254,11 +256,19 @@ const parseCategory = (text: string): string | null => {
   return null;
 };
 
+// "$2000" or "2000 שקל" is a budget, not a year.
+const PRICE_BEFORE = /(?:[$₪€£]|\b(?:usd|ils|eur|nis|budget(?:\s+of)?)|תקציב(?:\s+של)?)\s*$/i;
+const PRICE_AFTER = /^\s*(?:[$₪€£]|usd\b|ils\b|eur\b|nis\b|dollars?\b|shekels?\b|דולר|שקל|ש["״']?ח|אירו)/i;
+
 const parsePeriod = (text: string): string | null => {
-  const match = text.match(/(19th|20th|(?:19|20)\d{2})/i);
-  if (!match) return null;
-  const value = match[0].toLowerCase();
-  return value.includes('19th') ? '19th' : value.includes('20th') ? '20th' : value;
+  for (const match of text.matchAll(/19th|20th|(?<![\d,.])(?:19|20)\d{2}(?![\d,.]*\d)/gi)) {
+    const value = match[0].toLowerCase();
+    if (value === '19th' || value === '20th') return value;
+    const index = match.index ?? 0;
+    if (PRICE_BEFORE.test(text.slice(0, index)) || PRICE_AFTER.test(text.slice(index + value.length))) continue;
+    return value;
+  }
+  return null;
 };
 
 function hasCreatorRefinement(text: string): boolean {
@@ -438,9 +448,11 @@ function withConversation(
 function normalizeStructuredCategory(category: string | undefined): string | null {
   if (!category?.trim()) return null;
   const trimmed = category.trim();
+  // The bridge stores "unknown" when the AI found no category; treat it as missing so the buyer is asked.
+  if (/^(?:unknown|general|other|items?|null|none|לא ידוע|פריט)$/i.test(trimmed)) return null;
   if (trimmed.includes('ציור')) return 'painting';
   if (trimmed.includes('פסל')) return 'sculpture';
-  return trimmed;
+  return parseCategory(trimmed) === 'rare_books' ? 'rare_books' : trimmed;
 }
 
 function criteriaFromStructuredAiExtract(structured: StructuredAiExtract): BuyerCriteria {

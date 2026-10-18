@@ -32,7 +32,7 @@ const enquiryDraftSchema = z.object({
 }).passthrough();
 
 export const sellerActionResultSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('catalog'), title: z.string(), he: z.string(), en: z.string() }),
+  z.object({ kind: z.literal('catalog'), title: z.string(), he: z.string(), en: z.string(), generatedByAi: z.boolean().optional() }),
   z.object({
     kind: z.literal('enquiry'),
     draft: enquiryDraftSchema,

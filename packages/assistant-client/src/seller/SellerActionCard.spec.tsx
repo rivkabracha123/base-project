@@ -30,7 +30,8 @@ describe('seller action cards', () => {
     const onContinue = vi.fn();
     render(<MemoryRouter><SellerActionCard language="en" action={action} onContinue={onContinue} /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: 'Auction enquiry draft' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'chat.itemEdit.edit' })).toBeInTheDocument();
+    // The enquiry shows only its text and the two actions; item details live in their own card.
+    expect(screen.queryByRole('button', { name: 'chat.itemEdit.edit' })).not.toBeInTheDocument();
     const draft = screen.getByRole('textbox', { name: 'Enquiry text' });
     expect(draft).toHaveValue('Dear Sir or Madam, please review this manuscript.');
     fireEvent.change(draft, { target: { value: 'Please review this manuscript.' } });

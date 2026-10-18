@@ -5,6 +5,7 @@ export function requestedSellerComparison(input: string): SellerComparisonAction
   if (/\b(?:don't|do not|cancel)\b|\u05dc\u05d0\s+(?:\u05e8\u05d5\u05e6\u05d4|\u05de\u05e2\u05d5\u05e0\u05d9\u05d9?\u05df)|\u05d1\u05d8\u05dc/i.test(input)) return null;
   if (/(?:מחיר|prices?).*(?:השתנ|שנים|לאורך\s+זמן|changes?|changed|over\s+(?:time|the\s+years))|(?:השתנ|changes?|changed).*(?:מחיר|prices?)/i.test(input)) return 'getSellerPriceTrend';
   if (/תיאור.*קטלוג|קטלוג.*תיאור|catalog(?:ue)?\s+(?:description|draft)/i.test(input)) return 'getSellerCatalogDraft';
+  if (/תיאור\s+(?:מקצועי|לפריט|של\s+(?:ה)?פריט)|(?:כתוב|תכתוב|כתבי|תכתבי|לכתוב|נסח|תנסח|נסחי|לנסח)(?![֐-׿]).{0,30}תיאור|professional\s+description|(?:write|draft)\b.{0,30}description/i.test(input)) return 'getSellerCatalogDraft';
   if (/(?:שלח|הכן|הכיני|טיוטת|ליצור|צור|כתבי|כתוב).*פני{1,2}ה|(?:prepare|send|create|write).*enquir(?:y|ies)/i.test(input)) return 'getSellerEnquiryPreview';
   if (/(?:איפה|היכן).*למכור|where.*sell|הבדל.*(?:בתי|בית)\s+מכירות/i.test(input)) return 'getSellerHouseRecommendation';
   if (/(?:בית|בתי)\s+מכירות|auction houses?/i.test(input)
