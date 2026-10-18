@@ -58,6 +58,31 @@ describe('confirmed item draft consumer for seller enquiry', () => {
     expect(rankingItemFromS1Draft(null)).toEqual(defaultRankingItem);
   });
 
+  it('does not hand corrected but unconfirmed category or materials to downstream consumers', () => {
+    const correctedButUnconfirmedDraft = {
+      ...efratDraft,
+      item: {
+        ...efratDraft.item,
+        category: 'rings',
+        materials: ['gold'],
+        catalogDraft: { he: 'קטגוריה לא אושרה', en: 'Category not confirmed' },
+      },
+      confirmedFacts: {},
+    };
+    const draft = confirmedItemDraftSchema.parse(correctedButUnconfirmedDraft);
+
+    expect(sellerItemFromS1Draft(draft)).toEqual({ category: 'unknown' });
+    expect(rankingItemFromS1Draft(draft).category).toBe('unknown');
+    expect(leadHandoffFromS1Draft(draft, valuation).item.category).toBe('unknown');
+    expect(receiveConfirmedItemHandoff(draft).item.category).toBe('unknown');
+  });
+
+  it('keeps legacy item-category fallback only when no confirmation contract is present', () => {
+    const { confirmedFacts: _confirmedFacts, ...legacyDraft } = efratDraft;
+
+    expect(sellerItemFromS1Draft(legacyDraft).category).toBe('paintings');
+  });
+
   it('copies catalog, item, and evidence ids without URIs, contact, or uncertain facts', () => {
     const handoff = leadHandoffFromS1Draft(confirmedItemDraftSchema.parse(efratDraft), valuation);
     expect(handoff.catalogDraft).toEqual(efratDraft.item.catalogDraft);
@@ -84,6 +109,7 @@ describe('confirmed item draft consumer for seller enquiry', () => {
       sellerItemFromS1Draft({
         ...efratDraft,
         item: { ...efratDraft.item, materials: ['oil', 'canvas'] },
+        confirmedFacts: { ...efratDraft.confirmedFacts, materials: ['oil', 'canvas'] },
       }),
     ).toEqual({ category: 'paintings', materials: ['oil', 'canvas'] });
     expect(itemVersionFromS1Draft({ ...efratDraft, updatedAt: '2026-09-01T10:00:00.000Z' })).toBe(

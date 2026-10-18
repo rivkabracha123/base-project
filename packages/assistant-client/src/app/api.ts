@@ -36,6 +36,22 @@ import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draf
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const anonymousSessionStorageKey = 'anonymousSessionId';
+const localStorageCleanupSessionKey = 'monabid.localStorageCleanupDone';
+
+export function clearLocalStorageExceptAnonymousSessionId(): void {
+  const sessionId = localStorage.getItem(anonymousSessionStorageKey);
+  localStorage.clear();
+  if (sessionId) {
+    localStorage.setItem(anonymousSessionStorageKey, sessionId);
+  }
+}
+
+export function clearLocalStorageOnNewTabSession(): void {
+  if (sessionStorage.getItem(localStorageCleanupSessionKey)) return;
+  clearLocalStorageExceptAnonymousSessionId();
+  sessionStorage.setItem(localStorageCleanupSessionKey, 'true');
+}
+
 export interface UpdateCurrentProfileInput {
   preferredName?: string;
   grammaticalForm?: 'masculine' | 'feminine' | 'neutral' | 'unspecified';

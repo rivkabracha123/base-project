@@ -424,7 +424,7 @@ describe('SellerLeadsService', () => {
     expect(itemValuation.calculateFromItem).toHaveBeenCalledWith({
       itemId: 'item-001',
       itemVersion: 'confirmed',
-      item: { category: 'paintings', materials: ['oil'] },
+      item: { category: 'paintings' },
     });
     expect(received.valuation?.status).toBe('supported');
     expect(received.valuation && 'valuationRange' in received.valuation && received.valuation.valuationRange).toEqual({

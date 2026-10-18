@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { baseMessageFields, errorMessageSchema, systemMessageSchema } from '@monabid/shared';
 import { createQueryClient } from '../app/query-client';
 import type { OnChatUpdate } from './chat-types';
+import { sanitizeChatForLocalStorage, sanitizeExistingLocalChatStorage } from './local-chat-storage';
 import { useChatFlow } from './useChatFlow';
 
 // סכמת בדיקה קטנה: משתמש, מערכת ושגיאה — כמו הצורה המשותפת לקונה ולמוכר.
@@ -20,6 +21,7 @@ const ERROR_TEXT = 'Something went wrong. Please try again.';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 // Helper: מרנדר את ה-hook עם שיחה קיימת אחת מהשרת, והחיבור שהבדיקה מספקת.
@@ -55,6 +57,44 @@ function texts(messages: TestMessage[]) {
 
 // Tests for the shared chat flow used by both the buyer and the seller screens.
 describe('useChatFlow', () => {
+  it('removes sensitive fields and redacts explicitly labeled secrets before storage', () => {
+    const sanitized = sanitizeChatForLocalStorage({
+      speaker: 'user',
+      text: 'My password is swordfish and my API key: abc123',
+      image: {
+        profileId: 'profile-private',
+        fileId: 'file-private',
+        previewUri: '/private/preview',
+        description: 'safe image',
+      },
+    });
+
+    expect(sanitized).toEqual({
+      speaker: 'user',
+      text: 'My password: [REDACTED] and my API key: [REDACTED]',
+      image: { description: 'safe image' },
+    });
+  });
+
+  it('sanitizes existing stored chats without deleting the conversation', () => {
+    localStorage.setItem('monabid.chat.seller.he', JSON.stringify([
+      {
+        speaker: 'seller',
+        text: 'הסיסמה שלי היא סודית123',
+        profileId: 'profile-private',
+      },
+    ]));
+
+    sanitizeExistingLocalChatStorage();
+
+    expect(JSON.parse(localStorage.getItem('monabid.chat.seller.he') ?? 'null')).toEqual([
+      {
+        speaker: 'seller',
+        text: 'הסיסמה שלי: [REDACTED]',
+      },
+    ]);
+  });
+
   // בודק שהשיחה שנטענה מהשרת מופיעה, ואחריה ההודעות שנוספו מקומית.
   it('shows the loaded conversation first and the local messages after it', async () => {
     const { result } = setup(async (_message, onUpdate) => {
@@ -124,9 +164,12 @@ describe('useChatFlow', () => {
 
   // בודק שכל עדכון פגום (סוג לא מוכר או טקסט ריק) מוחלף בהודעת שגיאה אחת, ועדכון תקין שאחריו מוצג.
   it('shows an error instead of each invalid update and keeps the valid ones', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { result } = setup(async (_message, onUpdate) => {
-      onUpdate({ speaker: 'unknown', text: 'Unknown speaker text' } as never);
+      onUpdate({
+        speaker: 'unknown',
+        text: 'verification-code-9382 email seller@example.test signed-url-secret',
+      } as never);
       onUpdate({ speaker: 'system', text: '' });
       onUpdate({ speaker: 'system', text: 'Valid after invalid' });
     });
@@ -141,6 +184,8 @@ describe('useChatFlow', () => {
       ERROR_TEXT,
       'Valid after invalid',
     ]);
+    expect(warn).toHaveBeenCalledWith('Invalid chat update ignored');
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(/verification-code|seller@example\.test|signed-url-secret/);
   });
 
   // בודק שהודעה שמגיעה מהחיבור נושאת את מזהה השיחה האמיתי ברגע שהוא ידוע, ולא מזהה מקומי קבוע.

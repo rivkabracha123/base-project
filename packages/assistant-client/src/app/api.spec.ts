@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockConversation } from '../buyer/mock-conversation';
-import { getAnonymousSessionId, getConversation, getLotById, getLotSaleHistory } from './api';
+import {
+  clearLocalStorageExceptAnonymousSessionId,
+  clearLocalStorageOnNewTabSession,
+  getAnonymousSessionId,
+  getConversation,
+  getLotById,
+  getLotSaleHistory,
+} from './api';
 
 const lot = {
   id: 'lot-1',
@@ -19,6 +26,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 describe('getAnonymousSessionId', () => {
@@ -41,6 +49,41 @@ describe('getAnonymousSessionId', () => {
 
     expect(sessionId).toBe('saved-test-session-id');
     expect(randomUUID).not.toHaveBeenCalled();
+  });
+});
+
+describe('clearLocalStorageOnNewTabSession', () => {
+  it('clears old chat data once and preserves it on a refresh in the same tab', () => {
+    localStorage.setItem('anonymousSessionId', 'saved-test-session-id');
+    localStorage.setItem('monabid.chat.buyer.en', '[{"text":"old chat"}]');
+
+    clearLocalStorageOnNewTabSession();
+    localStorage.setItem('monabid.chat.buyer.en', '[{"text":"current chat"}]');
+    clearLocalStorageOnNewTabSession();
+
+    expect(localStorage.getItem('anonymousSessionId')).toBe('saved-test-session-id');
+    expect(localStorage.getItem('monabid.chat.buyer.en')).toBe('[{"text":"current chat"}]');
+  });
+});
+
+describe('clearLocalStorageExceptAnonymousSessionId', () => {
+  it('removes other local storage values and preserves the anonymous session id', () => {
+    localStorage.setItem('anonymousSessionId', 'saved-test-session-id');
+    localStorage.setItem('monabid.buyer-chat.en', 'old chat');
+    localStorage.setItem('unrelated-key', 'old value');
+
+    clearLocalStorageExceptAnonymousSessionId();
+
+    expect(localStorage.length).toBe(1);
+    expect(localStorage.getItem('anonymousSessionId')).toBe('saved-test-session-id');
+  });
+
+  it('clears local storage when there is no anonymous session id', () => {
+    localStorage.setItem('monabid.buyer-chat.en', 'old chat');
+
+    clearLocalStorageExceptAnonymousSessionId();
+
+    expect(localStorage.length).toBe(0);
   });
 });
 

@@ -87,6 +87,7 @@ export const sellerItemDraftSchema = z.object({
   evidence: z.array(sellerItemEvidenceSchema),
   factEvidence: z.record(z.array(z.string())).optional(),
   missingFields: z.array(z.string()).optional(),
+  skippedFields: z.array(z.string()).optional(),
   recalculationRequired: z.boolean().optional(),
   // Yael Sagis — photo references: evidence items are references, not storage or valuation logic.
   // Heni Cohen — confirmed facts: trusted seller-approved fields remain separate from uncertainFacts.

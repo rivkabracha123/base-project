@@ -57,6 +57,7 @@ export function SellerChat() {
     userMessage: (text) => ({ speaker: 'seller', text }),
     connect: (message, onUpdate) => connectSellerLevels(message, onUpdate, showItemDraft, draftShown.current),
     errorText: t('chat.sendError'),
+    storageKey: `monabid.chat.seller.${language}`,
   });
 
   function showItemDraft(draft: SellerItemDraft) {

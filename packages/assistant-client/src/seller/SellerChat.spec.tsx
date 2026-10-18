@@ -126,15 +126,23 @@ describe('SellerChat', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('Loading conversation…')).toBeInTheDocument();
-    expect(screen.getByRole('textbox')).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading conversation…');
+    expect(screen.getByRole('textbox', { name: /message/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
   });
 
   it('shows an error message and a retry button when loading the conversation fails', async () => {
     renderChatWithError();
-    expect(await screen.findByText("Couldn't load the conversation.")).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the conversation.");
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it('exposes the conversation and composer with accessible roles and names', async () => {
+    renderChat(mockConversation.en);
+
+    expect(await screen.findByRole('log')).toHaveAttribute('dir', 'ltr');
+    expect(screen.getByRole('textbox', { name: /message/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
   });
 
   it('loads the conversation when the seller clicks retry after a failure', async () => {
