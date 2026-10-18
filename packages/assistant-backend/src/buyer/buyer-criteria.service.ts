@@ -12,27 +12,30 @@ import {
   AiExtractResponse,
   parseCriteriaFromAiResponse,
   applyClarificationTurn,
+  createGuidedFallbackCriteriaResponse,
+  detectBuyerLanguage,
 } from './buyer-criteria';
 import {
   appendBuyerCriteriaHistory,
   createBuyerCriteriaSession,
   getBuyerCriteriaSession,
+  getBuyerCriteriaSessionSnapshot,
   resetBuyerCriteriaSessions,
   saveSessionAfterClarification,
 } from './buyer-criteria-session.store';
+import { buildBuyerCriteriaReviewResponse, type BuyerCriteriaReviewResponse } from './buyer-criteria-review';
 
 export { appendBuyerCriteriaHistory };
 
 function toHistoryEntry(request: BuyerChatTurnInput): BuyerChatHistoryEntry {
   if (request.skipped) {
-    return { id: request.id, speaker: 'buyer', skipped: true, date: request.date };
+    return { id: request.id, speaker: 'buyer', skipped: true };
   }
   return {
     id: request.id,
     speaker: 'buyer',
     skipped: false,
     text: request.text.trim(),
-    date: request.date,
   };
 }
 
@@ -40,9 +43,13 @@ function toHistoryEntry(request: BuyerChatTurnInput): BuyerChatHistoryEntry {
 export class BuyerCriteriaService {
   /** Create a criteria session from AI extract response and return the first system question for the chat UI. */
   startCriteriaSessionFromAiResponse(response: AiExtractResponse): BuyerChatSystemMessage {
-    const extracted = parseCriteriaFromAiResponse(response);
-    const date = new Date().toISOString();
-    const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted, date);
+    let extracted;
+    try {
+      extracted = parseCriteriaFromAiResponse(response);
+    } catch {
+      extracted = createGuidedFallbackCriteriaResponse(detectBuyerLanguage(response.content));
+    }
+    const { sessionId, systemMessage } = createBuyerCriteriaSession(extracted);
     return buildChatSystemMessage(sessionId, systemMessage);
   }
 
@@ -74,8 +81,7 @@ export class BuyerCriteriaService {
       message: request.skipped ? undefined : request.text.trim(),
     });
 
-    const date = new Date().toISOString();
-    const systemMessage = saveSessionAfterClarification(request.sessionId, updated, date);
+    const systemMessage = saveSessionAfterClarification(request.sessionId, updated);
     if (systemMessage) {
       return buildChatSystemMessage(request.sessionId, systemMessage);
     }
@@ -84,7 +90,6 @@ export class BuyerCriteriaService {
       id: randomUUID(),
       speaker: 'system',
       text: updated.conversation.nextQuestion,
-      date,
     });
   }
 
@@ -113,6 +118,22 @@ export class BuyerCriteriaService {
       throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);
     }
     return [...session.history];
+  }
+
+  getCriteriaReview(sessionId: string): BuyerCriteriaReviewResponse {
+    const session = getBuyerCriteriaSession(sessionId);
+    if (!session) {
+      throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);
+    }
+    return buildBuyerCriteriaReviewResponse(sessionId, session.criteria, session.conversation);
+  }
+
+  getSessionSnapshot(sessionId: string) {
+    try {
+      return getBuyerCriteriaSessionSnapshot(sessionId);
+    } catch {
+      throw new NotFoundException(`Unknown buyer criteria session: ${sessionId}`);
+    }
   }
 
   resetSessionsForTests(): void {

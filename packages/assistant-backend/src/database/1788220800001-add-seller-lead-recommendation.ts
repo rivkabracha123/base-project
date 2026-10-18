@@ -5,14 +5,14 @@ export class AddSellerLeadRecommendation1788220800001 implements MigrationInterf
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      ALTER TABLE "seller_enquiries"
+      ALTER TABLE "seller_leads"
       ADD COLUMN "recommendation" jsonb
     `);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      ALTER TABLE "seller_enquiries"
+      ALTER TABLE "seller_leads"
       DROP COLUMN "recommendation"
     `);
   }

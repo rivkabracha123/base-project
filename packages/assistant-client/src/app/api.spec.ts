@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockConversation } from '../buyer/mock-conversation';
-import { getAnonymousSessionId, getConversation, getLotById } from './api';
+import { getAnonymousSessionId, getConversation, getLotById, getLotSaleHistory } from './api';
 
 const lot = {
   id: 'lot-1',
@@ -60,6 +60,25 @@ describe('getLotById', () => {
   });
 });
 
+describe('getLotSaleHistory', () => {
+  it('returns validated historical sales for an itemKey', async () => {
+    vi.stubEnv('VITE_FIXTURE_MODE', 'false');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([lot]), { status: 200 })));
+
+    await expect(getLotSaleHistory('abrabanel_commentary')).resolves.toEqual([lot]);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://localhost:3001/api/lots/history/abrabanel_commentary',
+      expect.objectContaining({ signal: undefined }),
+    );
+  });
+
+  it('returns an empty list in fixture mode instead of inventing sales', async () => {
+    vi.stubEnv('VITE_FIXTURE_MODE', 'true');
+
+    await expect(getLotSaleHistory('abrabanel_commentary')).resolves.toEqual([]);
+  });
+});
+
 describe('getConversation', () => {
   it('fetches and validates a real bilingual conversation from the backend', async () => {
     const sample = mockConversation.he;
@@ -67,22 +86,23 @@ describe('getConversation', () => {
 
     await expect(getConversation('he')).resolves.toEqual(sample);
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'http://localhost:3001/api/chat/conversation?language=he',
+      'http://localhost:3001/api/buyer-chat/conversation?language=he',
       expect.objectContaining({ signal: undefined }),
     );
   });
 
   it('drops invalid messages returned by the API before exposing them', async () => {
     const validMessage = {
-      kind: 'buyer',
+      speaker: 'buyer',
       id: 'incoming-1',
-      at: '2026-01-01T10:00:00.000Z',
+      sessionId: 'session-1',
+      skipped: false,
       text: 'שלום',
     };
     const responseBody = [
-      { kind: 'banana', id: 'bad-1', at: '2026-01-01T10:00:01.000Z', text: 'x' },
+      { speaker: 'banana', id: 'bad-1', sessionId: 'session-1', text: 'x' },
       validMessage,
-      { kind: 'assistant', id: 'bad-2', at: '2026-01-01T10:00:02.000Z' },
+      { speaker: 'system', id: 'bad-2', sessionId: 'session-1' },
     ];
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(responseBody), { status: 200 })));

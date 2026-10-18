@@ -1,15 +1,42 @@
 import {
   applyBuyerAnswer,
+  applyCriteriaCorrection,
+  applyCriteriaRemoval,
+  createGuidedFallbackCriteriaResponse,
   emptyBuyerCriteria,
   parseCriteriaFromAiResponse,
   mergeBuyerCriteria,
   nextFocusedQuestion,
   applyClarificationTurn,
   skipCurrentQuestion,
+  type BuyerCriteriaConversation,
 } from './buyer-criteria';
 import { sampleAiExtractResponses, sampleClarificationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
+  it.each(['אני רוצה כתבי יד עתיקים', 'כתבי יד עתיק', 'כתב יד עתיק'])(
+    'recognizes manuscript category and keywords in %s',
+    (content) => {
+      const result = parseCriteriaFromAiResponse({
+        provider: 'fixture', mode: 'fixture', content,
+        summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+      });
+
+      expect(result.criteria.categories).toEqual(['rare_books']);
+      expect(result.criteria.keywords).toContain('manuscript');
+      expect(result.conversation.missing).not.toContain('category');
+    },
+  );
+
+  it('accepts plural Hebrew manuscripts during guided category collection', () => {
+    const initial = createGuidedFallbackCriteriaResponse('he');
+    const withoutBudget = skipCurrentQuestion(initial.criteria, initial.conversation);
+    const result = applyBuyerAnswer(withoutBudget.criteria, withoutBudget.conversation, 'כתבי יד עתיקים');
+
+    expect(result.criteria.categories).toEqual(['rare_books']);
+    expect(result.conversation.missing).not.toContain('category');
+  });
+
   it('extracts a basic structured request from a fixture response', () => {
     const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
 
@@ -144,7 +171,7 @@ describe('Week 3 focused questions', () => {
   it('extracts keywords from the first message so category is not required twice', () => {
     const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.manuscriptEn());
 
-    expect(result.criteria.categories).toEqual([]);
+    expect(result.criteria.categories).toEqual(['rare_books']);
     expect(result.criteria.keywords).toEqual(expect.arrayContaining(['rare', 'Hebrew', 'manuscript']));
     expect(result.conversation.missing).not.toContain('category');
     expect(result.conversation.missing[0]).toBe('creator');
@@ -166,6 +193,58 @@ describe('Week 3 focused questions', () => {
     expect(afterAnswer.criteria.categories).toEqual([]);
     expect(afterAnswer.criteria.keywords).toEqual(['rare Hebrew books']);
     expect(afterAnswer.conversation.missing[0]).toBe('creator');
+  });
+
+  it('uses guided fallback criteria when AI extract is irrelevant', () => {
+    const fallback = createGuidedFallbackCriteriaResponse('en');
+    expect(fallback.conversation.notes).toContain('guided_fallback');
+    expect(fallback.conversation.nextQuestion).toMatch(/Describe what you want/i);
+  });
+
+  it('removes budget when the buyer asks to drop it', () => {
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const removed = applyCriteriaRemoval(initial.criteria, initial.conversation, 'remove budget');
+    expect(removed.criteria.price).toBeUndefined();
+    expect(removed.criteria.categories).toEqual(initial.criteria.categories);
+  });
+
+  it('applies a budget correction without erasing category', () => {
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const corrected = applyCriteriaCorrection(initial.criteria, initial.conversation, 'change budget to $8000');
+    expect(corrected.criteria.price?.max).toBe(8000);
+    expect(corrected.criteria.price?.min).toBe(8000);
+    expect(corrected.criteria.categories).toEqual(initial.criteria.categories);
+  });
+
+  it('accepts plain and worded budget answers when the buyer is answering the budget question', () => {
+    const criteria = emptyBuyerCriteria('en');
+    const conversation: BuyerCriteriaConversation = {
+      skipped: [],
+      missing: ['budget', 'category', 'creator', 'period', 'location'],
+      nextQuestion: 'Is there a budget range I should stay within?',
+      notes: [],
+    };
+
+    expect(applyBuyerAnswer(criteria, conversation, '600').criteria.price).toEqual({
+      min: 600,
+      max: 600,
+      currency: 'USD',
+    });
+    expect(applyBuyerAnswer(criteria, conversation, '600 thousand').criteria.price).toEqual({
+      min: 600_000,
+      max: 600_000,
+      currency: 'USD',
+    });
+    expect(applyBuyerAnswer(criteria, conversation, '600 אלף').criteria.price).toEqual({
+      min: 600_000,
+      max: 600_000,
+      currency: 'USD',
+    });
+    expect(applyBuyerAnswer(criteria, conversation, '500-1500').criteria.price).toEqual({
+      min: 500,
+      max: 1500,
+      currency: 'USD',
+    });
   });
 
   it('applies answer and skip using shared turn fixtures', () => {

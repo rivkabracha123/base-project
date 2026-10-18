@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { SellerItemDraft } from '@monabid/shared';
+import type { SellerDimensionMeasurement, SellerItemDraft } from '@monabid/shared';
+import type { SellerHandoffContract } from '../ai/seller-handoff';
 import { SellerIntakeService } from './seller-intake.service';
+import type { MissingSellerQuestion } from './seller-intake.service';
+import type { SellerIntakeAiProvider, SellerIntakeAiResult } from './seller-intake-ai.provider';
 
 const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
   id: 'seller-item-draft-001',
@@ -116,20 +119,94 @@ const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
 
 // Simulates Shilat Ben Gigi — AI connection: deterministic seller-intake output without external JSON files.
 @Injectable()
-export class SellerIntakeAiMock {
+export class SellerIntakeAiMock implements SellerIntakeAiProvider {
+  private readonly sessions = new Map<string, { input: string; dimensions?: SellerDimensionMeasurement[] }>();
+
   constructor(private readonly sellerIntakeService: SellerIntakeService) {}
 
-  analyze(input: string): SellerItemDraft & {
-    provider: 'fixture-mock';
-    missingFields: string[];
-  } {
+  createDraftFromAiExtraction(input: string, extraction: SellerHandoffContract): SellerItemDraft {
+    return this.sellerIntakeService.createDraftFromAiExtraction(
+      createDeterministicSellerItemDraft(),
+      input,
+      extraction,
+    );
+  }
+
+  nextQuestionForAiFields(fields: string[]): MissingSellerQuestion | null {
+    return this.sellerIntakeService.askNextSellerQuestionForFields(fields);
+  }
+
+  applyAiDimensions(
+    result: SellerIntakeAiResult,
+    dimensions: SellerDimensionMeasurement[] | undefined,
+  ): SellerIntakeAiResult {
+    if (!dimensions?.length) return result;
+
+    const input = result.item.description.he;
+    const reviewState = this.sellerIntakeService.buildReviewState(input, true);
+    if (result.sessionId) this.sessions.set(result.sessionId, { input, dimensions });
+    return {
+      ...result,
+      ...this.sellerIntakeService.createDraftFromSellerInput(result, input, dimensions),
+      missingFields: this.sellerIntakeService.askMissingSellerDetails(reviewState),
+      nextQuestion: this.sellerIntakeService.askNextSellerQuestion(reviewState),
+    };
+  }
+
+  analyze(input: string, sessionId?: string): SellerIntakeAiResult {
     const fixture = createDeterministicSellerItemDraft();
-    const reviewState = this.sellerIntakeService.buildReviewState(input);
+    const previous = sessionId ? this.sessions.get(sessionId) : undefined;
+    const previousState = previous
+      ? this.sellerIntakeService.buildReviewState(previous.input, Boolean(previous.dimensions?.length))
+      : undefined;
+    const expectedQuestion = previousState
+      ? this.sellerIntakeService.askNextSellerQuestion(previousState)
+      : null;
+    const answerAccepted = !previous || !expectedQuestion || this.answerMatchesField(expectedQuestion.field, input);
+    const answerError = answerAccepted
+      ? undefined
+      : `Answer does not match the requested field: ${expectedQuestion?.field}`;
+    const combinedInput = previous && answerAccepted
+      ? `${previous.input} ${input}`
+      : previous?.input ?? input;
+
+    if (sessionId && answerAccepted) {
+      this.sessions.set(sessionId, { input: combinedInput });
+    }
+
+    const reviewState = this.sellerIntakeService.buildReviewState(
+      combinedInput,
+      Boolean(previous?.dimensions?.length),
+    );
 
     return {
-      ...this.sellerIntakeService.createDraftFromSellerInput(fixture, input),
+      ...this.sellerIntakeService.createDraftFromSellerInput(fixture, combinedInput, previous?.dimensions),
       missingFields: this.sellerIntakeService.askMissingSellerDetails(reviewState),
+      nextQuestion: this.sellerIntakeService.askNextSellerQuestion(reviewState),
       provider: 'fixture-mock' as const,
+      structuredAnswer: null,
+      ai: {
+        provider: 'fixture' as const,
+        mode: 'fixture' as const,
+        isRelevant: true,
+        error: null,
+        aiMissingFields: [],
+      },
+      ...(sessionId ? { sessionId } : {}),
+      ...(previous ? { answerAccepted } : {}),
+      ...(answerError ? { answerError } : {}),
     };
+  }
+
+  private answerMatchesField(field: MissingSellerQuestion['field'], input: string): boolean {
+    const text = input.toLowerCase();
+
+    if (field === 'dimensions') {
+      return /\d+\s*(?:x|על|by)\s*\d+|(?:length|width|height|depth|diameter|אורך|רוחב|גובה|עומק|קוטר)/i.test(input);
+    }
+    if (field === 'condition') return text.includes('condition') || text.includes('מצב') || text.includes('repair') || text.includes('damag');
+    if (field === 'marks') return text.includes('mark') || text.includes('stamp') || text.includes('inscription') || input.includes('סימן') || input.includes('חותמת') || input.includes('כיתוב');
+    if (field === 'signatures') return text.includes('signed') || text.includes('signature') || text.includes('חתום') || text.includes('חתימה');
+    return text.includes('family') || text.includes('provenance') || text.includes('history') || input.includes('משפחה') || input.includes('מקור') || input.includes('היסטוריה');
   }
 }

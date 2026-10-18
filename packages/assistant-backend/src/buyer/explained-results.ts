@@ -3,6 +3,7 @@ import type { BuyerCriteria, Constraint } from './buyer-criteria';
 import { CONVERTED_CRITERIA, searchableValues } from './criteria-to-search-request';
 
 export type { DemandSummary, ExplainedLot, GroupedResults };
+export type { MatchReason } from '@monabid/shared';
 
 const BUDGET_REASON = 'Buyer budget is a hard limit and is not relaxed without approval';
 const REQUIREMENT_REASON = 'Buyer requirement kept through refinement';

@@ -2,7 +2,6 @@ import { BuyerCriteriaService } from './buyer-criteria.service';
 import { sampleAiExtractResponses } from './buyer-criteria.fixtures';
 import { resetBuyerCriteriaSessions } from './buyer-criteria-session.store';
 
-const buyerAt = '2026-09-15T09:00:00.000Z';
 const buyerMessageId = 'buyer-msg-1';
 const skipMessageId = 'buyer-msg-skip';
 
@@ -21,7 +20,6 @@ describe('Chat messages for extract and clarification turns', () => {
       sessionId: expect.any(String),
       speaker: 'system',
       text: 'Is there a specific artist or maker?',
-      date: expect.any(String),
     });
     expect(response).not.toHaveProperty('criteria');
     expect(response).not.toHaveProperty('conversation');
@@ -35,7 +33,6 @@ describe('Chat messages for extract and clarification turns', () => {
       speaker: 'buyer',
       skipped: false,
       text: 'Monet',
-      date: buyerAt,
     });
 
     expect(second.id).toEqual(expect.any(String));
@@ -54,7 +51,6 @@ describe('Chat messages for extract and clarification turns', () => {
           speaker: 'buyer',
           skipped: false,
           text: 'Monet',
-          date: buyerAt,
         }),
         expect.objectContaining({
           id: second.id,
@@ -73,14 +69,12 @@ describe('Chat messages for extract and clarification turns', () => {
       speaker: 'buyer',
       skipped: false,
       text: 'Monet',
-      date: buyerAt,
     });
     const afterSkip = service.continueCriteriaSessionFromChat({
       id: skipMessageId,
       sessionId: first.sessionId,
       speaker: 'buyer',
       skipped: true,
-      date: '2026-09-15T09:01:00.000Z',
     });
 
     expect(afterSkip.id).toEqual(expect.any(String));
@@ -93,7 +87,6 @@ describe('Chat messages for extract and clarification turns', () => {
           id: skipMessageId,
           speaker: 'buyer',
           skipped: true,
-          date: '2026-09-15T09:01:00.000Z',
         }),
       ]),
     );

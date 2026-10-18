@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { USD_EXCHANGE_RATE_FIXTURES } from './valuation-calculation.fixtures';
+import { WITHHELD_IDENTIFIER, isIsoDate, safeIdentifier, safeReason, safeSource } from './privacy-projection';
 
 export type ComparableSaleInput = {
   id: string; saleDate: string; soldPrice: number; weight: number;
@@ -16,24 +17,34 @@ type ComparableEvidence = {
   originalCurrency: string; normalizedPrice: number; weight: number;
   fx: { to: 'USD'; rate: number; asOfDate: string; source: string };
 };
-export type ValuationResult = {
-  status: 'refusal' | 'supported'; reason?: string;
+type ValuationReportEvidence = {
   reportId: string; itemId: string; itemVersion: string; calculationVersion: string;
   comparableCount: number; baseCurrency: 'USD';
-  valuationRange?: { min: number; max: number; currency: 'USD' };
-  calculation?: {
-    totalWeight: number; mean: number; variance: number;
-    standardDeviation: number; rawMin: number; rawMax: number;
-  };
   originalCurrencies: string[];
-  confidence: { level: 'low'; explanation: string };
-  limitations: string[]; comparables: ComparableEvidence[];
+  confidence: { level: 'low' | 'medium' | 'high'; explanation: string };
+  limitations: string[];
+  // Records how price outliers were treated, as required by the valuation policy in docs/decisions.md.
+  outlierTreatment: { method: 'none'; removedComparableIds: string[]; explanation: string };
+  comparables: ComparableEvidence[];
   excludedComparables: ExcludedComparable[];
   includedComparableIds: string[]; excludedComparableIds: string[];
   missingExchangeRateComparableIds: string[];
   weights: Array<{ id: string; weight: number }>;
   fxRatesUsed: Array<{ currency: string; rate: number; asOfDate: string; source: string }>;
 };
+
+// Make the existing runtime invariant explicit for backend consumers as well.
+export type ValuationResult = ValuationReportEvidence & (
+  | {
+    status: 'supported'; reason?: never;
+    valuationRange: { min: number; max: number; currency: 'USD' };
+    calculation: {
+      totalWeight: number; mean: number; variance: number;
+      standardDeviation: number; rawMin: number; rawMax: number;
+    };
+  }
+  | { status: 'refusal'; reason: string; valuationRange?: never; calculation?: never }
+);
 
 const deepFreeze = <T>(value: T): T => {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -47,30 +58,35 @@ const deepFreeze = <T>(value: T): T => {
 export class ValuationCalculationService {
   async calculateValuation(input: ValuationInput): Promise<ValuationResult> {
     // Copy only contract fields: do not freeze caller-owned data or expose extra fields.
-    const excludedComparables = (input.excludedComparables ?? []).map(({ id, reason }) => ({ id, reason }));
-    const explicitlyExcluded = new Set(excludedComparables.map(entry => entry.id));
+    // Externally supplied strings are projected (see privacy-projection.ts) before they enter the report.
+    const supplied = input.excludedComparables ?? [];
+    const excludedComparables = supplied.map(({ id, reason }, index) =>
+      ({ id: safeIdentifier(id, `withheld-excluded-${index}`), reason: safeReason(reason) }));
+    const explicitlyExcluded = new Set(supplied.map(entry => entry.id));
     const comparables: ComparableEvidence[] = [];
     const missingExchangeRateComparableIds: string[] = [];
-    for (const sale of input.comparables) {
+    for (const [index, sale] of input.comparables.entries()) {
       if (explicitlyExcluded.has(sale.id)) continue;
+      const saleId = safeIdentifier(sale.id, `withheld-sale-${index}`);
       let reason: string | undefined;
       if (sale.status !== 'sold') reason = 'not_sold';
-      else if (!Number.isFinite(sale.weight) || sale.weight < 0 || sale.weight > 1
+      else if (!isIsoDate(sale.saleDate) || !/^[A-Z]{3}$/.test(sale.currency)
+        || !Number.isFinite(sale.weight) || sale.weight < 0 || sale.weight > 1
         || !Number.isFinite(sale.soldPrice) || sale.soldPrice <= 0) reason = 'invalid_sale_data';
       else if (sale.weight === 0) reason = 'zero_weight';
       const rate = sale.currency === 'USD' ? 1 : USD_EXCHANGE_RATE_FIXTURES[sale.currency]?.[sale.saleDate];
       if (!reason && (!Number.isFinite(rate) || rate! <= 0)) {
         reason = 'missing_exchange_rate_data';
-        missingExchangeRateComparableIds.push(sale.id);
+        missingExchangeRateComparableIds.push(saleId);
       }
       const normalizedPrice = sale.soldPrice * (rate ?? 0);
       if (!reason && (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0)) reason = 'invalid_normalized_price';
       if (reason) {
-        excludedComparables.push({ id: sale.id, reason });
+        excludedComparables.push({ id: saleId, reason });
         continue;
       }
       comparables.push({
-        id: sale.id, source: sale.source, saleDate: sale.saleDate,
+        id: saleId, source: safeSource(sale.source), saleDate: sale.saleDate,
         originalPrice: sale.soldPrice, originalCurrency: sale.currency,
         normalizedPrice, weight: sale.weight,
         fx: { to: 'USD', rate: rate!, asOfDate: sale.saleDate,
@@ -78,10 +94,12 @@ export class ValuationCalculationService {
       });
     }
     const common = {
-      reportId: randomUUID(), itemId: input.itemId, itemVersion: input.itemVersion,
+      reportId: randomUUID(), itemId: safeIdentifier(input.itemId, WITHHELD_IDENTIFIER),
+      itemVersion: safeIdentifier(input.itemVersion, WITHHELD_IDENTIFIER),
       calculationVersion: 'weighted-usd-population-sd-v1',
       baseCurrency: 'USD' as const, comparableCount: comparables.length,
-      originalCurrencies: input.comparables.filter(sale => sale.status === 'sold').map(sale => sale.currency),
+      originalCurrencies: input.comparables.filter(sale => sale.status === 'sold' && /^[A-Z]{3}$/.test(sale.currency))
+        .map(sale => sale.currency),
       comparables, excludedComparables,
       includedComparableIds: comparables.map(sale => sale.id),
       excludedComparableIds: excludedComparables.map(sale => sale.id),
@@ -91,10 +109,16 @@ export class ValuationCalculationService {
       // Conservative, explicitly uncalibrated default; never a statistical probability.
       confidence: { level: 'low' as const,
         explanation: 'Confidence is uncalibrated; low is a conservative default pending expert review, not a probability.' },
+      outlierTreatment: {
+        method: 'none' as const, removedComparableIds: [] as string[],
+        explanation: 'No automatic outlier detection: every accepted comparable is used. '
+          + 'Only sales explicitly excluded upstream appear in excludedComparables.',
+      },
       limitations: [
         'Historical fixture rates and supplied evidence only; no current-market or growth adjustment.',
         'Mean plus/minus population standard deviation is a descriptive range, not a confidence interval.',
-        'Confidence calibration and downstream consumer integration require separate review.',
+        'Confidence level follows the documented rule (comparable count and price spread, docs/s4-confidence-rules.pdf); '
+          + 'its thresholds are a team-adjustable proposal, not calibrated against outcomes.',
       ],
     };
     if (comparables.length < 3) {
@@ -121,7 +145,23 @@ export class ValuationCalculationService {
       || !Number.isSafeInteger(min) || !Number.isSafeInteger(max) || min <= 0) {
       return deepFreeze({ ...common, status: 'refusal', reason: 'unusable_range_requires_expert_review' });
     }
+    // Confidence reflects only evidence quantity and price agreement, never a statistical probability.
+    // cv (coefficient of variation) is the price spread relative to the mean; lower means tighter agreement.
+    const cv = standardDeviation / mean;
+    const confidenceLevel: 'low' | 'medium' | 'high' =
+      comparables.length >= 5 && cv <= 0.15 ? 'high'
+      : comparables.length >= 4 && cv <= 0.30 ? 'medium'
+      : 'low';
+    const spreadPct = `${(cv * 100).toFixed(1)}%`;
+    const confidenceExplanation = confidenceLevel === 'low'
+      ? `Confidence is low: ${comparables.length < 4
+        ? `only ${comparables.length} comparables (the required minimum)`
+        : `a ${spreadPct} price spread around the mean is too wide`
+      }. This reflects evidence quantity and price agreement only, not a statistical probability.`
+      : `Confidence is ${confidenceLevel}: ${comparables.length} comparables with a ${spreadPct} price spread `
+        + 'around the mean. This reflects evidence quantity and price agreement only, not a statistical probability.';
     return deepFreeze({ ...common, status: 'supported',
+      confidence: { level: confidenceLevel, explanation: confidenceExplanation },
       calculation: { totalWeight, mean, variance, standardDeviation, rawMin, rawMax },
       valuationRange: { min, max, currency: 'USD' } });
   }

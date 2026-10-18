@@ -97,8 +97,8 @@
         "query": "",
         "language": "en",
         "filters": {
-          "categories": ["rare_books"],
           "creators": ["Yitzhak Abrabanel"],
+          "categories": ["rare_books"],
           "price": { "min": 1000, "max": 1500, "currency": "USD" }
         }
       }
@@ -122,8 +122,8 @@
         "query": "",
         "language": "en",
         "filters": {
-          "categories": ["ספרים נדירים"],
           "creators": ["Yitzhak Abrabanel"],
+          "categories": ["ספרים נדירים"],
           "price": { "min": 1000, "max": 1500, "currency": "USD" }
         }
       }
