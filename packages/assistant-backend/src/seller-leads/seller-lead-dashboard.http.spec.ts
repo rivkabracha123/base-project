@@ -5,6 +5,7 @@ import { sellerLeadDashboardDetailFixture, sellerLeadDashboardDetailSchema } fro
 import { SellerLeadEntity } from '../database/seller-lead.entity';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { UserProfileEntity } from '../database/user-profile.entity';
+import { LocalFileStorage } from '../storage/local-file-storage.service';
 import { SellerLeadsModule } from './seller-leads.module';
 
 const FORBIDDEN = /profileId|sessionId|marketingConsent|conversation|signedUrl|file:\/\/|\\\\Users\\/i;
@@ -32,6 +33,8 @@ describe('SellerLeadsController dashboard detail (P5 contract)', () => {
         create: jest.fn((row: Partial<UserProfileEntity>) => Object.assign(new UserProfileEntity(), row)),
         save: jest.fn(async (row: UserProfileEntity) => row),
       })
+      .overrideProvider(LocalFileStorage)
+      .useValue({ deleteProfile: jest.fn() })
       .overrideProvider(getRepositoryToken(AuctionLotEntity))
       .useValue({ find: jest.fn(async () => []) })
       .compile();

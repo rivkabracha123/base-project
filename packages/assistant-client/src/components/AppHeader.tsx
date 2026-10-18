@@ -64,17 +64,26 @@ export function AppHeader() {
             </Link>
           )}
         </nav>
-        <Button
-          onPress={() => {
-            // A language control must respond immediately, even if saving the preference is unavailable.
-            void i18n.changeLanguage(nextLanguage);
-            languageMutation.mutate(nextLanguage);
-          }}
-          isDisabled={languageMutation.isPending}
-          className="rounded-full border border-stone-300 bg-white px-3 py-2 text-sm font-medium hover:bg-[#f3ead8] focus:outline-none focus:ring-2 focus:ring-amber-700"
-        >
-          {t('language')}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Entry point to the personal area (profile update and deletion) */}
+          <Link
+            to="/account"
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
+          >
+            {t('navigation.account')}
+          </Link>
+          <Button
+            onPress={() => {
+              // A language control must respond immediately, even if saving the preference is unavailable.
+              void i18n.changeLanguage(nextLanguage);
+              languageMutation.mutate(nextLanguage);
+            }}
+            isDisabled={languageMutation.isPending}
+            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
+          >
+            {t('language')}
+          </Button>
+        </div>
       </div>
       {/* השמירה בשרת נכשלה: השפה נשארת כמו שהיא, והכפתור פתוח לניסיון חוזר. */}
       {languageMutation.isError && (

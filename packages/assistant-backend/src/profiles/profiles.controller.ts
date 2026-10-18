@@ -1,7 +1,12 @@
 import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, Patch } from '@nestjs/common';
-import type { UserProfile } from '@monabid/shared';
-import { ProfilesService, type UpdateCurrentProfileInput } from './profiles.service';
+import type { ProfileContactSnapshot, UserProfile } from '@monabid/shared';
+import { ProfilesService } from './profiles.service';
+import { UpdateCurrentProfileDto } from './update-current-profile.dto';
 import { UpdateContactDto } from './update-contact.dto';
+
+// Allowed session ID format: letters, digits, "-" and "_", 8-128 characters.
+// Accepts UUIDs and ids like "sess-new-1", but rejects malformed or hostile values.
+const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
 
 // This controller receives anonymous profile requests from the frontend.
 @Controller('profiles')
@@ -14,6 +19,16 @@ export class ProfilesController {
     @Headers('x-anonymous-session-id') sessionId: string,
   ): Promise<UserProfile> {
     return this.profilesService.getOrCreateBySessionId(
+      this.requireSessionId(sessionId),
+    );
+  }
+
+  // Privacy-safe contact contract for downstream features such as buyer help.
+  @Get('me/contact-snapshot')
+  getCurrentContactSnapshot(
+    @Headers('x-anonymous-session-id') sessionId: string,
+  ): Promise<ProfileContactSnapshot> {
+    return this.profilesService.getContactSnapshotBySessionId(
       this.requireSessionId(sessionId),
     );
   }
@@ -34,7 +49,8 @@ export class ProfilesController {
   @Patch('me')
   updateCurrentProfile(
     @Headers('x-anonymous-session-id') sessionId: string,
-    @Body() update: UpdateCurrentProfileInput,
+    // Use the runtime DTO class so Nest's ValidationPipe can validate the request body.
+    @Body() update: UpdateCurrentProfileDto,
   ): Promise<UserProfile> {
     return this.profilesService.updateCurrentProfile(
       this.requireSessionId(sessionId),
@@ -63,10 +79,17 @@ export class ProfilesController {
 
   // Reject requests that cannot be tied to one anonymous browser session.
   private requireSessionId(sessionId: string | undefined): string {
-    if (!sessionId) {
+    const normalizedSessionId = sessionId?.trim();
+
+    if (!normalizedSessionId) {
       throw new BadRequestException('Anonymous session ID is required');
     }
 
-    return sessionId;
+    // The rejected value is deliberately not echoed back, so it cannot leak into responses or logs.
+    if (!SESSION_ID_PATTERN.test(normalizedSessionId)) {
+      throw new BadRequestException('Anonymous session ID is invalid');
+    }
+
+    return normalizedSessionId;
   }
 }

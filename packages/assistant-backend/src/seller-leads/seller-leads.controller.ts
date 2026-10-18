@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import type {
   HouseRanking,
   SellerChoice,
@@ -14,6 +14,14 @@ import { toSellerLeadSummary } from './seller-lead-summary';
 import { SellerLeadsService } from './seller-leads.service';
 import { SubmitSellerLeadDto } from './submit-seller-lead.dto';
 
+/** Rejects requests without the anonymous session header; the header identifies the caller. */
+function requireSessionId(sessionId: string | undefined): string {
+  if (!sessionId || sessionId.trim().length === 0) {
+    throw new BadRequestException('Anonymous session ID is required');
+  }
+  return sessionId;
+}
+
 /** S5 HTTP API for draft enquiry, house ranking, seller choice, final lead, and P5 list. */
 @Controller('seller-leads')
 export class SellerLeadsController {
@@ -22,10 +30,11 @@ export class SellerLeadsController {
   /** S5 Week 2: create an internal draft enquiry. Does not contact an auction house. */
   @Post()
   async create(
+    @Headers('x-anonymous-session-id') sessionId: string | undefined,
     @Body() enquiry: CreateSellerLeadDto,
-    @Headers('x-anonymous-session-id') sessionId?: string,
   ): Promise<{ id: string }> {
-    const lead = await this.sellerLeads.draft(enquiry, sessionId);
+    // The service verifies that enquiry.profileId belongs to this session.
+    const lead = await this.sellerLeads.draft(requireSessionId(sessionId), enquiry);
 
     return { id: lead.id };
   }
@@ -62,9 +71,9 @@ export class SellerLeadsController {
   @HttpCode(200)
   async completeEnquiry(
     @Body() body: CompleteSellerEnquiryDto,
-    @Headers('x-anonymous-session-id') sessionId?: string,
+    @Headers('x-anonymous-session-id') sessionId: string | undefined,
   ): Promise<SellerLeadSummary> {
-    const lead = await this.sellerLeads.completeEnquiry(body, sessionId);
+    const lead = await this.sellerLeads.completeEnquiry(body, requireSessionId(sessionId));
     return toSellerLeadSummary(lead);
   }
 
@@ -72,9 +81,12 @@ export class SellerLeadsController {
   @Post(':id/house-rankings')
   @HttpCode(200)
   async rankAndStore(
+    @Headers('x-anonymous-session-id') sessionId: string | undefined,
     @Param('id') id: string,
     @Body() query: RankHousesDto,
   ): Promise<HouseRanking> {
+    // Reject early (before ranking) when the caller does not own this lead.
+    const session = requireSessionId(sessionId);
     const ranking = this.sellerLeads.rankHouses(
       {
         category: query.category,
@@ -83,21 +95,23 @@ export class SellerLeadsController {
       },
       query.houses,
     );
-    await this.sellerLeads.attachRanking(id, ranking);
+    await this.sellerLeads.attachRanking(session, id, ranking);
     return ranking;
   }
 
   /**
-   * S5 Week 4: save the seller’s house pick on this lead.
-   * Returns SellerChoice only — the ranked recommendation stays on the lead unchanged.
+   * S5 Week 4: save the sellerג€™s house pick on this lead.
+   * Returns SellerChoice only ג€” the ranked recommendation stays on the lead unchanged.
    */
   @Post(':id/choice')
   @HttpCode(200)
   async chooseHouse(
+    @Headers('x-anonymous-session-id') sessionId: string | undefined,
     @Param('id') id: string,
     @Body() body: ChooseSellerHouseDto,
   ): Promise<SellerChoice> {
-    const lead = await this.sellerLeads.saveSellerChoice(id, body.houseId);
+    // The service checks lead -> profile -> session ownership before saving the choice.
+    const lead = await this.sellerLeads.saveSellerChoice(requireSessionId(sessionId), id, body.houseId);
     if (!lead.sellerChoice) {
       throw new Error('Seller choice was not stored');
     }
@@ -118,7 +132,7 @@ export class SellerLeadsController {
     return toSellerLeadSummary(lead);
   }
 
-  /** S5 → P5: list leads with recommendation, choice, catalog draft, and status. */
+  /** S5 ג†’ P5: list leads with recommendation, choice, catalog draft, and status. */
   @Get()
   async list(): Promise<SellerLeadSummary[]> {
     const leads = await this.sellerLeads.list();
@@ -126,7 +140,7 @@ export class SellerLeadsController {
   }
 
   /**
-   * S5 → P5 Week 4: privacy-limited dashboard detail by leadId.
+   * S5 ג†’ P5 Week 4: privacy-limited dashboard detail by leadId.
    * 400 when leadId is not a UUID; 404 when the lead does not exist.
    */
   @Get(':id')

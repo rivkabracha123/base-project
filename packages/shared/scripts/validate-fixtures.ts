@@ -9,7 +9,7 @@ const { records, report } = validateAuctionLotFixture(JSON.parse(contents));
 // The committed fixture is a curated, prepared snapshot — not live provider data — so CI still
 // fails on any rejected record. Per-record reporting (vs. one opaque whole-array schema error)
 // tells you exactly which records and why.
-if (report.rejected > 0) {
+if (report.rejected > 0 || report.validationErrors.length > 0) {
   console.error(`Rejected ${report.rejected} of ${report.total} record(s).`);
   if (report.duplicateIds.length > 0) {
     console.error(`Duplicate IDs: ${report.duplicateIds.join(', ')}`);

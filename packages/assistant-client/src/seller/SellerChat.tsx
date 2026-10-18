@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { evidenceUrl, getSellerConversation } from '../app/api';
+import { getSellerConversation } from '../app/api';
+import { EvidenceImage } from '../app/EvidenceImage';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
@@ -280,9 +281,9 @@ export function SellerChat() {
       return (
         <li data-speaker="seller" className="flex max-w-lg flex-col items-end gap-2 self-end">
           {message.images.map((image) => (
-            <img
+            <EvidenceImage
               key={image.fileId}
-              src={evidenceUrl(image.previewUri)}
+              path={image.previewUri}
               alt={image.originalName}
               className="h-36 w-52 rounded-2xl object-cover shadow-sm"
             />

@@ -1,6 +1,7 @@
-import type { LoggerService } from '@nestjs/common';
+import { NotFoundException, type LoggerService } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import type { SellerLeadEntity } from '../database/seller-lead.entity';
+import type { ProfilesService } from '../profiles/profiles.service';
 import type { CreateSellerLeadDto } from './create-seller-lead.dto';
 import { SellerLeadsService } from './seller-leads.service';
 
@@ -37,7 +38,27 @@ function createHarness() {
     findOneBy: jest.fn(async (where: { id: string }) => stored.find((lead) => lead.id === where.id) ?? null),
   } as unknown as Repository<SellerLeadEntity>;
 
-  return { logged, saved, stored, repository, logger, service: new SellerLeadsService(repository, logger) };
+  // Fake ProfilesService: only profile 'profile-synthetic-1' belongs to 'session-1'.
+  const profiles = {
+    getOwnedProfileEntity: jest.fn(async (sessionId: string, profileId: string) => {
+      if (sessionId === 'session-1' && profileId === 'profile-synthetic-1') return { id: profileId, sessionId };
+      throw new NotFoundException('Profile not found');
+    }),
+    getOrCreateBySessionId: jest.fn(async (sessionId: string) => ({
+      id: 'profile-synthetic-1',
+      sessionId,
+      language: 'he' as const,
+      preferredName: enquiry.contact.preferredName,
+      email: enquiry.contact.email ?? null,
+      phone: enquiry.contact.phone ?? null,
+      serviceConsent: { granted: true, grantedAt: '2026-09-01T00:00:00.000Z' },
+      marketingConsent: { granted: false },
+      createdAt: '2026-09-01T00:00:00.000Z',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    })),
+  } as unknown as ProfilesService;
+
+  return { logged, saved, stored, repository, logger, profiles, service: new SellerLeadsService(repository, logger, profiles) };
 }
 
 function draftLead(overrides: Partial<SellerLeadEntity> = {}): SellerLeadEntity {
@@ -61,11 +82,29 @@ function draftLead(overrides: Partial<SellerLeadEntity> = {}): SellerLeadEntity 
   };
 }
 
+describe('SellerLeadsService ownership', () => {
+  it('rejects a lead for a profile that does not belong to the session and saves nothing', async () => {
+    const { service, repository } = createHarness();
+
+    await expect(service.draft('session-other', enquiry)).rejects.toThrow(NotFoundException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('does not let another session rank or choose on an existing lead', async () => {
+    const { service, stored, repository } = createHarness();
+    stored.push({ id: 'lead-1', profileId: 'profile-synthetic-1', recommendation: null, sellerChoice: null } as SellerLeadEntity);
+
+    await expect(service.attachRanking('session-other', 'lead-1', {} as never)).rejects.toThrow(NotFoundException);
+    await expect(service.saveSellerChoice('session-other', 'lead-1', 'house-kedem')).rejects.toThrow(NotFoundException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+});
+
 describe('SellerLeadsService', () => {
   it('does not write the preferred name, email, or phone to the log', async () => {
     const { service, logged } = createHarness();
 
-    await service.draft(enquiry);
+    await service.draft('session-1', enquiry);
 
     expect(logged.length).toBeGreaterThan(0);
     const output = JSON.stringify(logged);
@@ -77,7 +116,7 @@ describe('SellerLeadsService', () => {
   it('persists service-contact consent for P5 but never marketing consent or consent in logs', async () => {
     const { service, saved, logged } = createHarness();
 
-    await service.draft(enquiry);
+    await service.draft('session-1', enquiry);
 
     expect(saved).toHaveLength(1);
     expect(saved[0]).toMatchObject({ serviceConsent: true });
@@ -88,7 +127,7 @@ describe('SellerLeadsService', () => {
   it('saves the draft enquiry once with the captured contact', async () => {
     const { service, saved, repository } = createHarness();
 
-    await service.draft(enquiry);
+    await service.draft('session-1', enquiry);
 
     expect(repository.save).toHaveBeenCalledTimes(1);
     expect(saved[0]).toMatchObject({
@@ -104,6 +143,7 @@ describe('SellerLeadsService', () => {
   it('copies profileId and contact from P3 when an anonymous session is present', async () => {
     const { saved, repository, logger } = createHarness();
     const profiles = {
+      getOwnedProfileEntity: jest.fn(async () => ({ id: 'profile-from-p3', sessionId: 'sess-p3' })),
       getOrCreateBySessionId: jest.fn(async () => ({
         id: 'profile-from-p3',
         sessionId: 'sess-p3',
@@ -119,7 +159,7 @@ describe('SellerLeadsService', () => {
     };
     const service = new SellerLeadsService(repository, logger, profiles as never);
 
-    await service.draft(enquiry, 'sess-p3');
+    await service.draft('sess-p3', { ...enquiry, profileId: 'profile-from-p3' });
 
     expect(profiles.getOrCreateBySessionId).toHaveBeenCalledWith('sess-p3');
     expect(saved[0]).toMatchObject({
@@ -176,7 +216,7 @@ describe('SellerLeadsService', () => {
     stored.push(draftLead());
 
     const ranking = service.rankHouses({ category: 'rare_books' });
-    await service.attachRanking('lead-1', ranking);
+    await service.attachRanking('session-1', 'lead-1', ranking);
 
     expect(saved.at(-1)).toMatchObject({
       id: 'lead-1',
@@ -196,7 +236,7 @@ describe('SellerLeadsService', () => {
     });
     stored.push(draftLead({ recommendation: ranking }));
 
-    const updated = await service.saveSellerChoice('lead-1', 'house-kedem');
+    const updated = await service.saveSellerChoice('session-1', 'lead-1', 'house-kedem');
 
     expect(updated.recommendation?.recommendation?.house.id).toBe('house-kestenbaum');
     expect(updated.sellerChoice).toEqual({
@@ -218,7 +258,7 @@ describe('SellerLeadsService', () => {
     const ranking = service.rankHouses({ category: 'rare_books' });
     stored.push(draftLead({ recommendation: ranking }));
 
-    await expect(service.saveSellerChoice('lead-1', 'house-inactive-demo')).rejects.toThrow(
+    await expect(service.saveSellerChoice('session-1', 'lead-1', 'house-inactive-demo')).rejects.toThrow(
       'Seller choice must be an active ranked house',
     );
   });
@@ -321,7 +361,7 @@ describe('SellerLeadsService', () => {
     const { service } = createHarness();
     const ranking = service.rankHouses({ category: 'rare_books' });
 
-    await expect(service.attachRanking('missing-lead', ranking)).rejects.toThrow(
+    await expect(service.attachRanking('session-1', 'missing-lead', ranking)).rejects.toThrow(
       'Seller lead missing-lead was not found',
     );
   });
@@ -400,11 +440,14 @@ describe('SellerLeadsService', () => {
   it('completes an internal enquiry with one persist path without contacting a house', async () => {
     const { service, stored, logged } = createHarness();
 
-    const submitted = await service.completeEnquiry({
-      ...handoff,
-      houseId: 'house-kedem',
-      contact: enquiry.contact,
-    });
+    const submitted = await service.completeEnquiry(
+      {
+        ...handoff,
+        houseId: 'house-kedem',
+        contact: enquiry.contact,
+      },
+      'session-1',
+    );
 
     expect(submitted.status).toBe('submitted');
     expect(submitted.sellerChoice?.houseId).toBe('house-kedem');
@@ -419,7 +462,7 @@ describe('SellerLeadsService', () => {
       ...handoff,
       generalEnquiry: true,
       contact: enquiry.contact,
-    });
+    }, 'session-1');
 
     expect(submitted.status).toBe('submitted');
     expect(submitted.sellerChoice).toBeNull();
@@ -432,6 +475,7 @@ describe('SellerLeadsService', () => {
     await expect(service.completeEnquiry({
       ...handoff,
       contact: enquiry.contact,
-    } as never)).rejects.toThrow('Choose a house or explicitly submit a general internal enquiry');
+    } as never, 'session-1')).rejects.toThrow('Choose a house or explicitly submit a general internal enquiry');
   });
 });
+

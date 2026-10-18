@@ -1,6 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { UserProfileEntity } from '../database/user-profile.entity';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -42,7 +44,8 @@ describe('SellerIntakeController photos (HTTP)', () => {
         { provide: P4AiGenerateClient, useValue: { generate: jest.fn() } },
         { provide: SellerIntakeDraftsService, useValue: drafts },
       ],
-    }).compile();
+    }).overrideProvider(getRepositoryToken(UserProfileEntity)).useValue({ findOneBy: async (where: { id: string; sessionId: string }) => where })
+      .compile();
 
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new HttpExceptionFilter());
@@ -79,7 +82,7 @@ describe('SellerIntakeController photos (HTTP)', () => {
     expect(new Set(references.map((reference: { itemId: string }) => reference.itemId)).size).toBe(1);
     expect(references.every((reference: { profileId: string }) => reference.profileId === 'profile-p3')).toBe(true);
 
-    const stored = await (await fetch(`${baseUrl}/evidence/profile-p3`)).json();
+    const stored = await (await fetch(`${baseUrl}/evidence/profile-p3`, { headers: { 'x-anonymous-session-id': 'session-1' } })).json();
     expect(stored).toHaveLength(2);
   });
 

@@ -10,6 +10,7 @@ import {
   IsString,
   Matches,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -22,17 +23,17 @@ const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * be a canonical ISO 4217 code; anything else is rejected rather than guessed.
  */
 export class PriceRangeDto {
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsNumber()
   @Min(0)
   min?: number;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsNumber()
   @Min(0)
   max?: number;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
   @Matches(/^[A-Z]{3}$/, { message: 'currency must be a canonical ISO 4217 code (e.g. USD)' })
   currency?: string;
@@ -99,7 +100,7 @@ export class LotFiltersDto {
   @Type(() => DateRangeDto)
   dateRange?: DateRangeDto;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsObject()
   @ValidateNested()
   @Type(() => PriceRangeDto)
@@ -113,28 +114,28 @@ export class LotFiltersDto {
  * docs/index.html so the caller's criteria pass through without remapping.
  */
 export class LotSearchDto {
-  @IsOptional()
+  
+  @ValidateIf((_, value) => value !== undefined)
   @IsString()
   query?: string;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsIn(['en', 'he'])
   language?: 'en' | 'he';
 
-  // No default here — the service is the single source of truth for pagination.
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @Type(() => Number)
   @IsInt()
   @Min(1)
   limit?: number;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsObject()
   @ValidateNested()
   @Type(() => LotFiltersDto)

@@ -9,6 +9,7 @@ import { SellerLeadsController } from './seller-leads.controller';
 import { SellerLeadsService } from './seller-leads.service';
 
 @Module({
+  // ProfilesModule provides the session -> profile ownership check used by every lead operation.
   imports: [
     TypeOrmModule.forFeature([SellerLeadEntity]),
     ProfilesModule,
