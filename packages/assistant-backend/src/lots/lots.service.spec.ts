@@ -85,8 +85,8 @@ describe('LotsService', () => {
     expect(queryBuilder.skip).toHaveBeenCalledWith(0);
     expect(queryBuilder.take).toHaveBeenCalledWith(10);
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-      expect.stringContaining(`LOWER(lot.payload->'title'->>'en') LIKE LOWER(:query)`),
-      expect.objectContaining({ query: '%Atereth%' })
+      expect.stringContaining(`LOWER(lot.payload->'title'->>'en') LIKE LOWER(:like0)`),
+      expect.objectContaining({ like0: '%Atereth%' })
     );
   });
 
@@ -108,6 +108,14 @@ describe('LotsService', () => {
       limit: 10,
       totalPages: 0,
     });
+  });
+
+  it('treats a query made only of stop words as no text at all', async () => {
+    const repository = {} as Repository<AuctionLotEntity>;
+
+    const result = await new LotsService(repository).search({ query: 'of the', page: 1, limit: 10 });
+
+    expect(result).toEqual({ data: [], total: 0, page: 1, limit: 10, totalPages: 0 });
   });
 
   it('escapes literal percent and underscore characters and handles pagination parameters', async () => {
@@ -148,10 +156,36 @@ describe('LotsService', () => {
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         expect.stringContaining(
-          `to_tsvector('english', lot.payload->'title'->>'en') @@ plainto_tsquery('english', :ftsQuery)`
+          `to_tsvector('english', lot.payload->'title'->>'en') @@ plainto_tsquery('english', :fts0)`
         ),
-        expect.objectContaining({ ftsQuery: 'Atereth' }),
+        expect.objectContaining({ fts0: 'Atereth' }),
       );
+    });
+  });
+
+  describe('free-text words', () => {
+    it('requires at least half of the query words to match anywhere in the title or description', async () => {
+      const queryBuilder = createMockQueryBuilder([{ payload }], 1);
+
+      await new LotsService(mockRepo(queryBuilder)).search({ query: 'old map jerusalem' });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('>= :requiredMatches'),
+        expect.objectContaining({
+          requiredMatches: 2,
+          like0: '%old%',
+          like1: '%map%',
+          like2: '%jerusalem%',
+          fts0: 'old',
+          fts1: 'map',
+          fts2: 'jerusalem',
+        }),
+      );
+
+      // Every word, not only the first, is looked up in both the title and the description.
+      const [sql] = queryBuilder.andWhere.mock.calls[0];
+      expect(sql).toContain(`lot.payload->'title'->>'en') LIKE LOWER(:like1)`);
+      expect(sql).toContain(`lot.payload->'description'->>'en') LIKE LOWER(:like1)`);
     });
   });
 
@@ -184,7 +218,7 @@ describe('LotsService', () => {
       // the text term is still matched — the filter narrows, it does not replace
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('LIKE'),
-        expect.objectContaining({ query: expect.stringContaining('atereth') }),
+        expect.objectContaining({ like0: expect.stringContaining('atereth') }),
       );
     });
 
@@ -396,15 +430,14 @@ describe('LotsService', () => {
   });
 
   describe('deterministic ranking', () => {
-    it('orders title matches before description-only matches, then recency, then id', async () => {
+    it('orders by how many query words matched, then recency, then id', async () => {
       const queryBuilder = createMockQueryBuilder([{ payload }], 1);
 
-      await new LotsService(mockRepo(queryBuilder)).search({ query: 'Abrabanel' });
+      await new LotsService(mockRepo(queryBuilder)).search({ query: 'old map jerusalem' });
 
-      expect(queryBuilder.orderBy).toHaveBeenCalledWith('title_match', 'DESC');
-      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(1, 'description_match', 'DESC');
-      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(2, 'sale_date', 'DESC');
-      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(3, 'lot.id', 'ASC');
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('matched_words', 'DESC');
+      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(1, 'sale_date', 'DESC');
+      expect(queryBuilder.addOrderBy).toHaveBeenNthCalledWith(2, 'lot.id', 'ASC');
     });
 
     // Ranking is only an ORDER BY: if a ranking column ever reached the WHERE
@@ -419,7 +452,7 @@ describe('LotsService', () => {
 
       const where = queryBuilder.andWhere.mock.calls.map((call: unknown[]) => call[0]).join(' ');
       expect(where).toContain('<= :priceMax');
-      expect(where).not.toMatch(/title_match|description_match|sale_date/);
+      expect(where).not.toMatch(/matched_words|word_match|sale_date/);
     });
 
     it('adds no text-match columns when there is no text to match', async () => {
@@ -428,8 +461,8 @@ describe('LotsService', () => {
       await new LotsService(mockRepo(queryBuilder)).search({ filters: { categories: ['rare_books'] } });
 
       const aliases = queryBuilder.addSelect.mock.calls.map((call: unknown[]) => call[1]);
-      expect(aliases).not.toContain('title_match');
-      expect(aliases).not.toContain('description_match');
+      expect(aliases).not.toContain('matched_words');
+      expect(aliases).not.toContain('word_match_0');
       expect(aliases).toContain('sale_date');
     });
 
@@ -447,71 +480,37 @@ describe('LotsService', () => {
   });
 
   describe('match reasons', () => {
-    // The title/description flags come back as raw columns next to each entity, so
-    // the reason reports where the text matched, as decided by the SQL itself.
-    it('reports a title match for a lot whose title matched the text', async () => {
+    // The per-word flags come back as raw columns next to each entity, so each
+    // reason names a word the SQL itself found in the lot.
+    it('reports one reason per query word the lot matched, as the word was sent', async () => {
       const queryBuilder = {
         ...createMockQueryBuilder([], 0),
         getRawAndEntities: jest.fn().mockResolvedValue({
           entities: [{ payload }],
-          raw: [{ title_match: 1, description_match: 0 }],
+          raw: [{ word_match_0: 1, word_match_1: 0, word_match_2: 1 }],
         }),
         getCount: jest.fn().mockResolvedValue(1),
       };
 
-      const result = await new LotsService(mockRepo(queryBuilder)).search({ query: 'Lot' });
-
-      expect(result.data).toEqual([
-        { lot: payload, matchReasons: [{ field: 'query', detail: 'title' }] },
-      ]);
-    });
-
-    it('reports a description match for a lot whose description matched but its title did not', async () => {
-      const queryBuilder = {
-        ...createMockQueryBuilder([], 0),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [{ payload }],
-          raw: [{ title_match: 0, description_match: 1 }],
-        }),
-        getCount: jest.fn().mockResolvedValue(1),
-      };
-
-      const result = await new LotsService(mockRepo(queryBuilder)).search({ query: 'Description' });
-
-      expect(result.data).toEqual([
-        { lot: payload, matchReasons: [{ field: 'query', detail: 'description' }] },
-      ]);
-    });
-
-    it('reports both a title and a description match, title first', async () => {
-      const queryBuilder = {
-        ...createMockQueryBuilder([], 0),
-        getRawAndEntities: jest.fn().mockResolvedValue({
-          entities: [{ payload }],
-          raw: [{ title_match: 1, description_match: 1 }],
-        }),
-        getCount: jest.fn().mockResolvedValue(1),
-      };
-
-      const result = await new LotsService(mockRepo(queryBuilder)).search({ query: 'Lot' });
+      const result = await new LotsService(mockRepo(queryBuilder)).search({ query: 'old map jerusalem' });
 
       expect(result.data).toEqual([
         {
           lot: payload,
           matchReasons: [
-            { field: 'query', detail: 'title' },
-            { field: 'query', detail: 'description' },
+            { field: 'query', detail: 'old' },
+            { field: 'query', detail: 'jerusalem' },
           ],
         },
       ]);
     });
 
-    it('reports no query reason when the free text matched neither field', async () => {
+    it('reports no query reason when none of the query words matched', async () => {
       const queryBuilder = {
         ...createMockQueryBuilder([], 0),
         getRawAndEntities: jest.fn().mockResolvedValue({
           entities: [{ payload }],
-          raw: [{ title_match: 0, description_match: 0 }],
+          raw: [{ word_match_0: 0 }],
         }),
         getCount: jest.fn().mockResolvedValue(1),
       };
@@ -569,13 +568,13 @@ describe('LotsService', () => {
         ...createMockQueryBuilder([], 0),
         getRawAndEntities: jest.fn().mockResolvedValue({
           entities: [{ payload }],
-          raw: [{ title_match: 1, description_match: 1, periods_position: 0, categories_position: 0 }],
+          raw: [{ word_match_0: 1, word_match_1: 1, periods_position: 0, categories_position: 0 }],
         }),
         getCount: jest.fn().mockResolvedValue(1),
       };
 
       const result = await new LotsService(mockRepo(queryBuilder)).search({
-        query: 'Lot',
+        query: 'Lot Description',
         filters: { periods: ['16th century'], categories: ['rare_books'] },
       });
 
@@ -747,6 +746,18 @@ describe('LotsService', () => {
 
       expect(result).not.toHaveProperty('unrecognizedFilters');
       expect(repository.createQueryBuilder).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('service failure', () => {
+    // A failed search must reach the caller as an error: an empty page would
+    // read as an honest "no lots match".
+    it('does not turn a database failure into an empty result', async () => {
+      const queryBuilder = createMockQueryBuilder([], 0);
+      const failure = new Error('connection refused');
+      queryBuilder.getRawAndEntities.mockRejectedValue(failure);
+
+      await expect(new LotsService(mockRepo(queryBuilder)).search({ query: 'Abrabanel' })).rejects.toBe(failure);
     });
   });
 });
