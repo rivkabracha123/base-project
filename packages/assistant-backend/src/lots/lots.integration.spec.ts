@@ -175,4 +175,15 @@ describe('Lots API (integration)', () => {
     expect(response.status).toBe(200);
     expect(body.data).toEqual([{ lot: minimalRecord, matchReasons: [] }]);
   });
+
+  it('answers a database failure with a 500 that leaks no internal detail', async () => {
+    queryBuilder.getRawAndEntities.mockRejectedValueOnce(
+      new Error('password authentication failed for user "secret_user"'),
+    );
+
+    const response = await postSearch({ query: 'Abrabanel' });
+
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain('secret_user');
+  });
 });
