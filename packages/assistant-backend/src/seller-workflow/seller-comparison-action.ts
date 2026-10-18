@@ -1,7 +1,9 @@
 export type SellerComparisonAction = 'searchSellerComparables' | 'getSellerComparableHistory' | 'getSellerPriceTrend' | 'getSellerItemDetails' | 'getSellerCatalogDraft' | 'getSellerEnquiryPreview' | 'getSellerProvenanceAdvice' | 'getSellerHouseRecommendation';
 
 export function requestedSellerComparison(input: string): SellerComparisonAction | null {
+  if (isGeneralAuctionQuestion(input)) return null;
   if (/\b(?:don't|do not|cancel)\b|\u05dc\u05d0\s+(?:\u05e8\u05d5\u05e6\u05d4|\u05de\u05e2\u05d5\u05e0\u05d9\u05d9?\u05df)|\u05d1\u05d8\u05dc/i.test(input)) return null;
+  if (/(?:מחיר|prices?).*(?:השתנ|שנים|לאורך\s+זמן|changes?|changed|over\s+(?:time|the\s+years))|(?:השתנ|changes?|changed).*(?:מחיר|prices?)/i.test(input)) return 'getSellerPriceTrend';
   if (/תיאור.*קטלוג|קטלוג.*תיאור|catalog(?:ue)?\s+(?:description|draft)/i.test(input)) return 'getSellerCatalogDraft';
   if (/(?:איפה|היכן).*למכור|where.*sell|הבדל.*(?:בתי|בית)\s+מכירות/i.test(input)) return 'getSellerHouseRecommendation';
   if (/(?:בית|בתי)\s+מכירות|auction houses?/i.test(input)
@@ -13,7 +15,8 @@ export function requestedSellerComparison(input: string): SellerComparisonAction
   if (/\b(?:don't|do not|cancel)\b|לא\s+(?:רוצה|מעוניי?נ)|בטל/i.test(input)) return null;
   if (/\b(?:graph|chart|price trend)\b|גרף|מגמת\s+מחירים/i.test(input)) return 'getSellerPriceTrend';
   if (/previous sales|sale history|sales history|מכירות\s+(?:קודמות|עבר)|(?:דוגמאות|פריטים).*נמכרו.*(?:בעבר|עבר)|היסטוריי?ת\s+מכירות/i.test(input)) return 'getSellerComparableHistory';
-  if (/item details|more details|פרטים\s+(?:נוספים|על\s+הפריט)|פרטי\s+הפריט/i.test(input)) return 'getSellerItemDetails';
+  if (/item details|more details|פרטים\s+(?:נוספים|על\s+(?:ה)?פריט)|פרטי\s+(?:ה)?פריט/i.test(input)) return 'getSellerItemDetails';
   if (/\b(?:search|find)\b.*\b(?:similar|items|lots|criteria)\b|חפש|חיפוש|פריטים\s+דומים/i.test(input)) return 'searchSellerComparables';
   return null;
 }
+import { isGeneralAuctionQuestion } from '../ai/off-topic';

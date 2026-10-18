@@ -14,6 +14,12 @@ import {
 import { sampleAiExtractResponses, sampleClarificationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
+  it('treats a 250 dollar budget as a ceiling and replaces an older lower bound during refinement', () => {
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const updated = applyClarificationTurn({ ...initial, action: 'answer', message: 'אני רוצה תקציב של 250 דולר' });
+    expect(updated.criteria.price).toEqual({ max: 250, currency: 'USD' });
+    expect(updated.criteria.categories).toEqual(initial.criteria.categories);
+  });
   it.each(['אני רוצה כתבי יד עתיקים', 'כתבי יד עתיק', 'כתב יד עתיק'])(
     'recognizes manuscript category and keywords in %s',
     (content) => {
@@ -43,7 +49,7 @@ describe('BuyerCriteria extraction', () => {
     expect(result.criteria.categories).toEqual(['painting']);
     expect(result.criteria.keywords).toEqual(['blue']);
     expect(result.criteria.periods).toEqual(['19th']);
-    expect(result.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+    expect(result.criteria.price).toEqual({ max: 10000, currency: 'USD' });
     expect(result.criteria.language).toBe('en');
     expect(result.conversation.missing).toEqual(['creator', 'location']);
     expect(result.conversation.nextQuestion).toBe('Is there a specific artist or maker?');
@@ -146,7 +152,7 @@ describe('Week 3 focused questions', () => {
     expect(afterSkip.conversation.skipped).toEqual(['creator']);
     expect(afterSkip.conversation.missing).toEqual(['location']);
     expect(afterSkip.conversation.nextQuestion).toBe('Is there a place or origin that matters?');
-    expect(afterSkip.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+    expect(afterSkip.criteria.price).toEqual({ max: 10000, currency: 'USD' });
   });
 
   it('does not skip category when search intent is still missing', () => {
@@ -212,7 +218,7 @@ describe('Week 3 focused questions', () => {
     const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
     const corrected = applyCriteriaCorrection(initial.criteria, initial.conversation, 'change budget to $8000');
     expect(corrected.criteria.price?.max).toBe(8000);
-    expect(corrected.criteria.price?.min).toBe(8000);
+    expect(corrected.criteria.price?.min).toBeUndefined();
     expect(corrected.criteria.categories).toEqual(initial.criteria.categories);
   });
 
@@ -226,17 +232,14 @@ describe('Week 3 focused questions', () => {
     };
 
     expect(applyBuyerAnswer(criteria, conversation, '600').criteria.price).toEqual({
-      min: 600,
       max: 600,
       currency: 'USD',
     });
     expect(applyBuyerAnswer(criteria, conversation, '600 thousand').criteria.price).toEqual({
-      min: 600_000,
       max: 600_000,
       currency: 'USD',
     });
     expect(applyBuyerAnswer(criteria, conversation, '600 אלף').criteria.price).toEqual({
-      min: 600_000,
       max: 600_000,
       currency: 'USD',
     });

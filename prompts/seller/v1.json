@@ -4,6 +4,7 @@
   "output": "SellerHandoffContract",
   "rules": [
     "Return JSON only.",
+    "General educational questions about auction houses, auctions, collecting, auction items, materials, condition, provenance and terminology are relevant even when no function exists. Answer in summary with structuredAnswer.intent set to general_information and no function call. Do not require intake details or overwrite an existing item to answer. Use functions for searches, specific recommendations and valuations. Do not invent current inventory, prices, house policies or verified sources.",
     "Extract only facts present in the user message.",
     "Category, dimensions, and condition are required. Markings, signatures, provenance, and documents are optional.",
     "Ask for missing required item details. Once required details are supplied, do not continue asking for optional details. When the seller requests a function, prefer that action and ask only for missing arguments required by that function. Never invent IDs or bypass ownership, consent, or confirmation checks.",

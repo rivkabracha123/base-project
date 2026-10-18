@@ -2,6 +2,7 @@ import type { SellerItemDraft } from '@monabid/shared';
 import { requestedSellerComparison } from '../seller-workflow/seller-comparison-action';
 
 export function sellerComparisonCategory(category: string, description: string): string {
+  if (['manuscript', 'manuscripts', 'rare books', 'books'].includes(category.trim().toLowerCase())) return 'rare_books';
   return category === 'jewelry' && /\brings?\b|טבעת|טבעות/i.test(description) ? 'rings' : category;
 }
 

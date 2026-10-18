@@ -46,6 +46,7 @@ export type P4IntentRoute = {
 
 /** Normalized P4 reply — routing + extract for B2 criteria and search. */
 export type P4AiGenerateResponse = {
+  generalInformation?: boolean;
   extract: AiExtractResponse;
   readyForFunction: boolean;
   intentRoute: P4IntentRoute;

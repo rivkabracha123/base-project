@@ -20,6 +20,45 @@ const handoff: SellerHandoffContract = {
 
 describe('SellerIntakeAiAdapter', () => {
   const intake = new SellerIntakeAiMock(new SellerIntakeService());
+  it('does not reuse the saved item to recommend houses for an auction-record question', async () => {
+    const generate = jest.fn().mockResolvedValueOnce({ provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff })
+      .mockResolvedValue({ provider: 'real', mode: 'real', isRelevant: true, error: null, summary: 'A historical auction record.',
+        functionCall: { functionToRun: 'rankSellerHouses', object: { category: 'paintings' } },
+        structuredAnswer: { ...handoff, intent: 'recommend an auction house' } });
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    await adapter.analyze('I have a painting', 'record-session');
+    const result = await adapter.analyze('איזה מוצר נמכר בסכום הכי גבוה אי פעם במכירה פומבית ובאיזה בית מכירות?', 'record-session');
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(result.ai.generalInformation).toBe(true);
+    expect(result.functionCall).toBeNull();
+  });
+  it('does not start item intake when a general auction question encounters an AI outage', async () => {
+    const adapter = new SellerIntakeAiAdapter(intake, {
+      generateSellerExtract: jest.fn().mockRejectedValue(new ServiceUnavailableException()),
+    } as never);
+    const result = await adapter.analyze('איזה פריט הכי יקר נמכר במכירה פומבית ובאיזה בית מכירות?');
+    expect(result.ai.generalInformation).toBe(true);
+    expect(result.ai.summary).toContain('אינו זמין');
+    expect(result.nextQuestion).toBeNull();
+    expect(result.functionCall).toBeNull();
+  });
+  it('answers general auction questions without changing the item or interrupting intake', async () => {
+    const generate = jest.fn().mockResolvedValueOnce({ provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff })
+      .mockResolvedValueOnce({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+        summary: 'An auction reserve is the minimum price accepted by the seller.', nextAction: 'Ask the house about its reserve policy.',
+        structuredAnswer: { ...handoff, intent: 'general_information', category: 'unknown' } })
+      .mockResolvedValue({ provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff });
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    const first = await adapter.analyze('I have a painting', 'general-session');
+    const answer = await adapter.analyze('What is an auction reserve?', 'general-session');
+    expect(answer.ai.generalInformation).toBe(true);
+    expect(answer.ai.summary).toContain('reserve');
+    expect(answer.item).toEqual(first.item);
+    expect(answer.nextQuestion).toBeNull();
+    expect(answer.functionCall).toBeNull();
+    await adapter.analyze('70x80 cm', 'general-session');
+    expect(generate.mock.calls[2][0].prompt).not.toContain('What is an auction reserve?');
+  });
   it('redirects an unrelated request without replacing saved facts or the active question', async () => {
     const generate = jest.fn()
       .mockResolvedValueOnce({ provider: 'real', mode: 'real', isRelevant: true, error: null, structuredAnswer: handoff })
@@ -265,6 +304,33 @@ describe('SellerIntakeAiAdapter', () => {
     expect(real.item.dimensions.values).toEqual(dimensions.values);
     expect(generate.mock.calls[2][0].prompt).toContain('condition good');
     expect(generate.mock.calls[2][0].prompt).toContain('painting width 80 cm');
+  });
+  it.each(['70*80 ס״מ', '70 × 80 cm', '70x80 ס"מ'])('accepts explicit dimensions during an outage: %s', async input => {
+    const adapter = new SellerIntakeAiAdapter(intake, {
+      generateSellerExtract: jest.fn().mockRejectedValue(new ServiceUnavailableException()),
+    } as never);
+    await adapter.analyze('old manuscript', 'dimensions-session');
+    const result = await adapter.analyze(input, 'dimensions-session');
+    expect(result.item.dimensions.values).toEqual([
+      { label: 'width', value: 70, unit: 'cm' },
+      { label: 'height', value: 80, unit: 'cm' },
+    ]);
+    expect(result.nextQuestion?.field).toBe('condition');
+    const next = await adapter.analyze('good', 'dimensions-session');
+    expect(next.item.dimensions).toEqual(result.item.dimensions);
+    expect(next.requiredMissingFields).not.toContain('dimensions');
+  });
+  it('asks only for the missing unit and accepts it on the next guided turn', async () => {
+    const adapter = new SellerIntakeAiAdapter(intake, {
+      generateSellerExtract: jest.fn().mockRejectedValue(new ServiceUnavailableException()),
+    } as never);
+    await adapter.analyze('old manuscript', 'unit-session');
+    const bare = await adapter.analyze('70*80', 'unit-session');
+    expect(bare.item.dimensions.values).toEqual([]);
+    expect(bare.nextQuestion?.en).toContain('unit');
+    const complete = await adapter.analyze('ס״מ', 'unit-session');
+    expect(complete.item.dimensions.values.map(value => value.unit)).toEqual(['cm', 'cm']);
+    expect(complete.nextQuestion?.field).toBe('condition');
   });
   it.each([{ missingFacts: [] }, { missingFacts: ['unrecognized_detail'] }])('asks for missing item details when AI facts are $missingFacts', async ({ missingFacts }) => {
     const adapter = new SellerIntakeAiAdapter(intake, {

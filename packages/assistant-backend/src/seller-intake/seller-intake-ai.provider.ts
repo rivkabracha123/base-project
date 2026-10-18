@@ -26,7 +26,9 @@ export type SellerIntakeAiEnrichment = {
   // AI-suggested missing facts mapped to intake names (markings -> marks, signature -> signatures).
   aiMissingFields: string[];
   summary?: string;
+  recommendation?: string;
   nextAction?: string;
+  generalInformation?: boolean;
 };
 
 export type SellerIntakeAiResult = SellerIntakeResult & {

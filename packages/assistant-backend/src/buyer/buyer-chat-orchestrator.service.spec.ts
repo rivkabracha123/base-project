@@ -53,6 +53,22 @@ describe('BuyerChatOrchestratorService', () => {
     expect(result.turn.buyer.message).toBe('לא');
     expect(result.turn.buyer.skipped).toBe(true);
   });
+  it('records a budget answer locally even if the model would reject the short reply', async () => {
+    const criteria = new BuyerCriteriaService();
+    const chat = criteria.startCriteriaSessionFromAiResponse({ provider: 'real', mode: 'real', isRelevant: true,
+      content: 'manuscript', summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+      structuredAnswer: { role: 'buyer', language: 'he', intent: 'search', category: 'rare_books', keywords: ['manuscript'], hasContactDetails: false, hasImages: false } });
+    const bridge = { routeBuyerMessage: jest.fn(), evaluateSearchReadiness: jest.fn() };
+    const executor = { execute: jest.fn() };
+    const orchestrator = new BuyerChatOrchestratorService(bridge as never, criteria, executor as never);
+
+    await orchestrator.handleMessage({ sessionId: chat.sessionId, message: '250 dollars', language: 'he' });
+
+    expect(bridge.routeBuyerMessage).not.toHaveBeenCalled();
+    expect(criteria.getCriteriaForSession(chat.sessionId).price).toEqual({ max: 250, currency: 'USD' });
+    expect(criteria.getSessionResponse(chat.sessionId).conversation.missing[0]).toBe('creator');
+  });
+
   function createOrchestrator() {
     const config = {
       get: (key: string) => (key === 'AI_PROVIDER_MODE' ? 'fixture' : undefined),
@@ -91,6 +107,38 @@ describe('BuyerChatOrchestratorService', () => {
     expect(result.sessionId).toBeTruthy();
     expect(result.updates.length).toBeGreaterThanOrEqual(1);
     expect(result.updates[0]?.speaker).toBe('system');
+  });
+
+  it('finds manuscript results after Hebrew budget and optional skips without real AI', async () => {
+    const { orchestrator, criteria } = createOrchestrator();
+
+    const opened = await orchestrator.handleMessage({ message: 'אני רוצה כתב יד עתיק', language: 'he' });
+    await orchestrator.handleMessage({ sessionId: opened.sessionId, message: '250 דולר', language: 'he' });
+    await orchestrator.handleMessage({ sessionId: opened.sessionId, message: 'לא', language: 'he' });
+    await orchestrator.handleMessage({ sessionId: opened.sessionId, message: 'לא', language: 'he' });
+    const result = await orchestrator.handleMessage({ sessionId: opened.sessionId, message: 'לא', language: 'he' });
+
+    expect(criteria.getCriteriaForSession(opened.sessionId)).toMatchObject({
+      categories: ['rare_books'],
+      price: { max: 250, currency: 'USD' },
+    });
+    expect(result.updates.some((update) => update.speaker === 'result-group')).toBe(true);
+    expect(result.updates.some((update) => update.speaker === 'no-results')).toBe(false);
+  });
+
+  it('routes valuation requests in buyer chat to the seller flow without spending an AI call', async () => {
+    const criteria = new BuyerCriteriaService();
+    const bridge = { openConversation: jest.fn(), routeBuyerMessage: jest.fn(), evaluateSearchReadiness: jest.fn() };
+    const executor = { execute: jest.fn() };
+    const orchestrator = new BuyerChatOrchestratorService(bridge as never, criteria, executor as never);
+
+    const result = await orchestrator.handleMessage({ message: 'אני רוצה הערכת שווי', language: 'he' });
+
+    expect(result.updates).toEqual([{ speaker: 'system', text: expect.stringContaining('תהליך המוכר') }]);
+    expect(bridge.openConversation).not.toHaveBeenCalled();
+    expect(bridge.routeBuyerMessage).not.toHaveBeenCalled();
+    expect(executor.execute).not.toHaveBeenCalled();
+    expect(criteria.getCriteriaForSession(result.sessionId).categories).toEqual([]);
   });
 
   it('preserves criteria and skips functions for an unrelated follow-up', async () => {

@@ -27,6 +27,19 @@ describe('criteriaToSearchRequest', () => {
     });
   });
 
+  it('converts Hebrew manuscript keywords to searchable catalog terms', () => {
+    const criteria = emptyBuyerCriteria('he');
+    criteria.categories = ['rare_books'];
+    criteria.keywords = ['\u05db\u05ea\u05d1 \u05d9\u05d3', '\u05e2\u05ea\u05d9\u05e7'];
+    criteria.price = { max: 250, currency: 'USD' };
+
+    expect(criteriaToSearchRequest(criteria, 'he')).toEqual({
+      query: 'manuscript antique',
+      language: 'he',
+      filters: { categories: ['rare_books'], price: { max: 250, currency: 'USD' } },
+    });
+  });
+
   it('preserves the approved optional search criteria', () => {
     const criteria = emptyBuyerCriteria('en');
     criteria.media = ['painting'];

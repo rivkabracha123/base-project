@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { AlignLegacySellerLeads1788220800006 } from './1788220800006-align-legacy-seller-leads';
 import { AddAiConversations1750000000000 } from './1750000000000-add-ai-conversations';
 import { AiHistoryEntity } from './ai-history.entity';
 import { CreateAiHistory1740000000000 } from './1740000000000-create-ai-history';
@@ -64,6 +65,7 @@ const AppDataSource = new DataSource({
     AddSellerLeadFinal1788220800003,
     AddSellerLeadDashboard1788220800004,
     CreateSellerIntakeDrafts1788220800005,
+    AlignLegacySellerLeads1788220800006,
   ],
   synchronize: false,
   logging: false,

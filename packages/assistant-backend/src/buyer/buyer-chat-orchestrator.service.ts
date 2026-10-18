@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { buildMissingFields, detectBuyerLanguage, OPTIONAL_SEARCH_FACTS } from './buyer-criteria';
+import { buildMissingFields, detectBuyerLanguage, isBudgetAnswer, OPTIONAL_SEARCH_FACTS } from './buyer-criteria';
 import type { BuyerChatUpdate } from './buyer-chat-update';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
@@ -15,8 +15,18 @@ import {
 } from './buyer-conversation-message.dto';
 
 function offTopicMessage(ai: P4AiGenerateResponse): string {
-  const parts = [ai.extract.summary || ai.extract.content, ai.extract.nextAction].filter(Boolean);
+  const parts = [ai.extract.summary || ai.extract.content, ai.generalInformation ? ai.extract.recommendation : undefined, ai.extract.nextAction].filter(Boolean);
   return [...new Set(parts)].join('\n');
+}
+
+function sellerValuationMessage(language: 'he' | 'en'): string {
+  return language === 'he'
+    ? 'הערכת שווי מתבצעת בתהליך המוכר. עברי לצ׳אט המוכר, העלי או תארי את הפריט, ושם אוכל לבנות טיוטת פריט ולהציג הערכת שווי כשיש מספיק נתונים.'
+    : 'Valuation is handled in the seller flow. Open the seller chat, upload or describe the item, and I can build the item draft and show a valuation when there is enough evidence.';
+}
+
+function isSellerValuationRequest(message: string): boolean {
+  return /הערכת\s+שווי|להעריך\s+שווי|שווי\s+של\s+פריט|valuation|appraisal|value my item/i.test(message);
 }
 
 @Injectable()
@@ -45,6 +55,32 @@ export class BuyerChatOrchestratorService {
     let language = request.language ?? 'en';
     let lastAi: P4AiGenerateResponse | undefined;
 
+    if (!isSkip && isSellerValuationRequest(trimmed)) {
+      if (sessionId) {
+        const session = this.criteriaService.getSessionResponse(sessionId);
+        language = session.criteria.language;
+      } else {
+        language = request.language ?? detectBuyerLanguage(trimmed);
+        sessionId = this.criteriaService.startCriteriaSessionFromAiResponse(buildFixtureAiExtract('', language)).sessionId;
+      }
+      updates.push({ speaker: 'system', text: sellerValuationMessage(language) });
+      return {
+        sessionId,
+        updates,
+        turn: {
+          at,
+          buyer: {
+            message: trimmed,
+            skipped: false,
+            messageId: request.messageId,
+            language: request.language,
+            context: request.context,
+          },
+          updates: [...updates],
+        },
+      };
+    }
+
     const p4Context = {
       ...request.context,
       sessionId: sessionId ?? request.context?.sessionId,
@@ -67,7 +103,9 @@ export class BuyerChatOrchestratorService {
       lastAi = opened.ai;
       p4Context.sessionId = sessionId;
       const directAction = opened.ai.intentRoute?.functionName === 'rankSellerHouses' || opened.ai.intentRoute?.intent === 'search_similar_lots';
-      if (!directAction || !opened.ai.intentRoute.readyForFunction) {
+      if (opened.ai.generalInformation) {
+        updates.push({ speaker: 'system', text: offTopicMessage(opened.ai) });
+      } else if (!directAction || !opened.ai.intentRoute.readyForFunction) {
         if (opened.ai.extract.isRelevant === false || buildMissingFields(this.criteriaService.getSessionResponse(sessionId).criteria,
           this.criteriaService.getSessionResponse(sessionId).conversation).length > 0) {
           updates.push({ speaker: 'system', text: opened.ai.extract.isRelevant === false
@@ -75,7 +113,8 @@ export class BuyerChatOrchestratorService {
         }
       }
     } else {
-      if (!isSkip) {
+      const directCriteriaAnswer = currentField === 'budget' && isBudgetAnswer(trimmed);
+      if (!isSkip && !directCriteriaAnswer) {
         const session = this.criteriaService.getSessionResponse(sessionId);
         language = session.criteria.language;
         lastAi = await this.p4Bridge.routeBuyerMessage(trimmed, language, {
@@ -83,7 +122,7 @@ export class BuyerChatOrchestratorService {
           sessionId,
         });
       }
-      if (lastAi?.extract.isRelevant === false) {
+      if (lastAi?.generalInformation || lastAi?.extract.isRelevant === false) {
         updates.push({ speaker: 'system', text: offTopicMessage(lastAi) });
       } else if (lastAi?.intentRoute.functionName === 'rankSellerHouses') {
         if (!lastAi.readyForFunction) {
@@ -152,7 +191,7 @@ export class BuyerChatOrchestratorService {
     ai: P4AiGenerateResponse | undefined,
     updates: BuyerChatUpdate[],
   ): Promise<void> {
-    if (ai?.extract.isRelevant === false) {
+    if (ai?.generalInformation || ai?.extract.isRelevant === false) {
       return;
     }
 

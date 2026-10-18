@@ -162,6 +162,7 @@ describe('BuyerP4FunctionExecutor', () => {
   it('runs getPriceTrend with the previous B3 result IDs and relays its callback', async () => {
     const lotsResolver = createLotsResolver();
     const sampleLots = resolveBuyerFixtureLots().slice(0, 2);
+    const criteria = { getCriteriaForSession: jest.fn(() => ({ categories: ['rare_books'] })) };
     const presentation: BuyerResultsPresentationPort = {
       presentSearchResults: jest.fn(),
       presentPriceTrend: jest.fn(async ({ onUpdate }) => {
@@ -175,7 +176,7 @@ describe('BuyerP4FunctionExecutor', () => {
       }),
     };
     const executor = new BuyerP4FunctionExecutor(
-      createSaleHistory(), presentation, new BuyerCriteriaService(), lotsResolver,
+      createSaleHistory(), presentation, criteria as unknown as BuyerCriteriaService, lotsResolver,
     );
     const updates: import('./buyer-chat-update').BuyerChatUpdate[] = [];
 
@@ -189,5 +190,30 @@ describe('BuyerP4FunctionExecutor', () => {
     expect(handled).toBe(true);
     expect(presentation.presentPriceTrend).toHaveBeenCalledWith(expect.objectContaining({ lots: sampleLots.map((lot) => ({ id: lot.id })) }));
     expect(updates).toContainEqual(expect.objectContaining({ speaker: 'price-trend' }));
+  });
+
+  it('filters price trend evidence by the saved buyer budget before presenting it', async () => {
+    const sampleLots = resolveBuyerFixtureLots().filter((lot) => lot.status === 'sold').slice(0, 2);
+    const overBudget = { ...sampleLots[0]!, id: 'over-budget', realizedPrice: { amount: 260, currency: 'USD' as const } };
+    const inBudget = { ...sampleLots[1]!, id: 'in-budget', realizedPrice: { amount: 240, currency: 'USD' as const } };
+    const lotsResolver = { findLot: jest.fn(async (id: string) => ({ 'over-budget': overBudget, 'in-budget': inBudget }[id] ?? null)) };
+    const criteria = { getCriteriaForSession: jest.fn(() => ({ categories: ['rare_books'], price: { max: 250, currency: 'USD' } })) };
+    const presentation: BuyerResultsPresentationPort = {
+      presentSearchResults: jest.fn(),
+      presentPriceTrend: jest.fn(async () => ({ lots: [inBudget], points: [] })),
+    };
+    const executor = new BuyerP4FunctionExecutor(
+      createSaleHistory(), presentation, criteria as unknown as BuyerCriteriaService, lotsResolver as unknown as BuyerLotsResolverService,
+    );
+    const updates: import('./buyer-chat-update').BuyerChatUpdate[] = [];
+
+    await executor.execute({
+      extract: { provider: 'fixture', mode: 'fixture', content: '', summary: '', recommendation: '', nextAction: '', confidence: 'low' },
+      readyForFunction: true,
+      intentRoute: { functionName: SHILAT_FUNCTION_PRICE_TREND, readyForFunction: true },
+      functionParameters: null,
+    }, { sessionId: 's1', language: 'en', criteriaComplete: false, p4Context: { lots: [{ id: 'over-budget' }, { id: 'in-budget' }] } }, updates);
+
+    expect(presentation.presentPriceTrend).toHaveBeenCalledWith(expect.objectContaining({ lots: [{ id: 'in-budget' }] }));
   });
 });
