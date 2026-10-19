@@ -104,6 +104,7 @@ Add an entry to `fixtures/demo-scenarios/buyer-search-strict-constraints.json` w
 | Progress `error`, no demand recorded | Lots database failure, a response without a result list, or a failed demand save. The original error is rethrown. | Server log; `buyer-strict-constraints...spec.ts` "service failure" |
 | Buyer sees "not filtered by period / location / medium" | A period, place or medium the lots search cannot read was left out of the request rather than guessed. | `unfilteredCriteria` in `criteria-to-search-request.ts` |
 | `insufficient-criteria` although the buyer said something | Only blank keywords or unreadable period/place/medium values were given. | Benchmark scenario `nothing-searchable` |
+| The manual script finds fewer lots than the committed data holds (e.g. `unmatched` for the default search) | The local database was seeded from an older `lots.json`. | `npm run db:seed` again (it upserts by lot id; nothing is deleted) |
 | A lot within budget is missing | Sold lots are matched on realized price, not estimate; or more than 50 lots matched. | `lots.service.ts` price rule; `DEFAULT_SEARCH_LIMIT` |
 | A lot outside the stated budget appears | The buyer approved dropping `price` for that search; `approvedRefinements` contains `price`. | The outcome's `approvedRefinements` |
 | The same lead appears once in staff demand after several searches | By design: the first no-result is the original, the latest later search is the `expansion`. | `unmatched-demand-dashboard-view.spec.ts` |
