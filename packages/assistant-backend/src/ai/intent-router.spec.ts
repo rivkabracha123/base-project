@@ -42,6 +42,11 @@ describe('routeBuyerIntent', () => {
       missingFields: [], arguments: { category: 'judaica', geography: 'Israel', language: 'he' },
     });
   });
+  it('routes "matching auction houses" in every Hebrew form of the word', () => {
+    for (const prompt of ['איזה בתי מכירות מתאימים?', 'איזה בית מכירות מתאים?', 'בית מכירות מתאימה לפריט']) {
+      expect(routeBuyerIntent(prompt, { category: 'rare_books', language: 'he' })).toMatchObject({ functionName: 'rankSellerHouses', readyForFunction: true });
+    }
+  });
   it('requires a category rather than inventing one for house rankings', () => {
     expect(routeBuyerIntent('Which auction house specializes in this category?', { language: 'en' })).toMatchObject({
       functionName: 'rankSellerHouses', readyForFunction: false, missingFields: ['category'], arguments: { language: 'en' },

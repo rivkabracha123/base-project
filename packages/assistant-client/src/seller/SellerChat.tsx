@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { cloneElement, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getSellerConversation } from '../app/api';
 import { EvidenceImage } from '../app/EvidenceImage';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
+import { StepLine, isStepMessage, useStepReveal } from '../chat/StepLine';
 import { useChatFlow } from '../chat/useChatFlow';
 import { connectSellerLevels, isSellerDraftReady } from './connect-seller-levels';
 import { connectSellerPhotos } from './connect-seller-photos';
@@ -249,8 +250,13 @@ export function SellerChat() {
     }
   }
 
+  // Step lines show one after another and what follows them waits, so the screen only scrolls to what is visible.
+  const { visible: visibleMessages, delayed } = useStepReveal(messages);
+
   // Renders a single conversation message as a bubble: the photo (if any) above the text (if any).
   function renderMessageContent(message: SellerMessage) {
+    // Progress lines: small animated steps instead of chat bubbles.
+    if (message.speaker === 'system' && isStepMessage(message)) return <StepLine speaker={message.speaker} text={message.text} />;
     if (message.speaker === 'system' && message.action) return <li data-speaker="system" className="w-full min-w-0">
       <SellerActionCard
         action={message.action}
@@ -310,8 +316,11 @@ export function SellerChat() {
     );
   }
 
+  // Fades in what was held back behind the step lines.
   function renderMessage(message: SellerMessage) {
-    return renderMessageContent(message);
+    const element = renderMessageContent(message);
+    if (!delayed.has(message.id)) return element;
+    return cloneElement(element, { className: `${element.props.className ?? ''} buyer-reveal` });
   }
 
   // לחצן צירוף תמונה: תווית שמפעילה שדה קובץ מוסתר, ואזהרה כשהקובץ שנבחר אינו תמונה תקינה.
@@ -362,7 +371,7 @@ export function SellerChat() {
 
   return (
     <ChatScreen
-      messages={messages}
+      messages={visibleMessages}
       renderMessage={renderMessage}
       isLoading={isLoading}
       isError={isError}

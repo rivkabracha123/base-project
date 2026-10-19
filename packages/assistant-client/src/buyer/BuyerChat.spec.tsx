@@ -84,6 +84,25 @@ describe('BuyerChat', () => {
     expect(cards).toHaveClass('buyer-reveal');
   }, 10000);
 
+  it('introduces auction houses with "searching auction houses" and how many fit', async () => {
+    const ranking = houseRankingSchema.parse({ recommendation: {
+      house: { id: 'house-specialist', name: 'Manuscript specialist', active: true, categories: ['rare_books'], languages: ['he', 'en'], geography: 'Israel', comparableSoldCountByCategory: { rare_books: 3 } },
+      score: 10, reasons: ['Category expertise'],
+    }, alternatives: [], excluded: [] });
+    vi.mocked(connectLevels).mockImplementation(async (_message, onUpdate) => {
+      onUpdate({ speaker: 'house-ranking', ranking, category: 'rare_books' });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I am looking for a mock lot');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Which auction houses?' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect((await screen.findByText('Searching auction houses…')).closest('li')).toHaveTextContent('🔍');
+    expect((await screen.findByText('Found 1 matching auction houses', {}, { timeout: 2000 })).closest('li')).toHaveTextContent('🏛️');
+    expect(await screen.findByRole('heading', { name: 'Manuscript specialist' }, { timeout: 3000 })).toBeInTheDocument();
+  }, 10000);
+
   it('renders specialist houses inline without seller selection controls', async () => {
     const ranking = houseRankingSchema.parse({ recommendation: {
       house: { id: 'house-specialist', name: 'Manuscript specialist', active: true, categories: ['rare_books'], languages: ['he', 'en'], geography: 'Israel', comparableSoldCountByCategory: { rare_books: 3 } },

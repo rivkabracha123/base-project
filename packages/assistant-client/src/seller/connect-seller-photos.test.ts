@@ -55,7 +55,7 @@ describe('connectSellerPhotos', () => {
     expect(sentNames).toEqual(['front.jpg', 'back.jpg']);
   });
 
-  // מה ש-S1 מחזירה מוצג בשיחה כהודעה אחת של המוכרת עם כל התמונות.
+  // מה ש-S1 מחזירה מוצג בשיחה כהודעה אחת של המוכרת עם כל התמונות, אחרי שורת "בודק את התמונות…".
   it('shows what S1 returns as one seller update with all the photos', async () => {
     const photos = [storedPhoto('f1', 'front.jpg'), storedPhoto('f2', 'back.jpg')];
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(photos), { status: 201 })));
@@ -63,8 +63,9 @@ describe('connectSellerPhotos', () => {
 
     await connectSellerPhotos([jpeg('front.jpg'), jpeg('back.jpg')], onUpdate);
 
-    expect(onUpdate).toHaveBeenCalledTimes(1);
-    expect(onUpdate).toHaveBeenCalledWith({ speaker: 'seller', images: photos });
+    expect(onUpdate).toHaveBeenCalledTimes(2);
+    expect(onUpdate).toHaveBeenNthCalledWith(1, { speaker: 'system', text: expect.stringMatching(/^(?:בודק את התמונות…|Checking the photos…)$/) });
+    expect(onUpdate).toHaveBeenNthCalledWith(2, { speaker: 'seller', images: photos });
   });
 
   // אותה שיחה מקבלת אותו sessionId בכל העלאה, כדי ש-S1 תצרף לאותה טיוטה.
@@ -80,12 +81,13 @@ describe('connectSellerPhotos', () => {
   });
 
   // כש-S1 דוחה (למשל S2 דחתה את הקבצים) נזרקת שגיאה ושום הודעה לא מוצגת.
-  it('throws and shows nothing when S1 rejects the upload', async () => {
+  it('throws and shows only the checking line when S1 rejects the upload', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('bad', { status: 400 })));
     const onUpdate = vi.fn();
 
     await expect(connectSellerPhotos([jpeg('front.jpg')], onUpdate)).rejects.toThrow();
-    expect(onUpdate).not.toHaveBeenCalled();
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).not.toHaveBeenCalledWith(expect.objectContaining({ speaker: 'seller' }));
   });
 
   // בלי קבצים אין מה למסור.

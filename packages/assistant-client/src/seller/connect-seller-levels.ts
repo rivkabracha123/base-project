@@ -6,6 +6,8 @@ import { houseRankingSchema } from '@monabid/shared';
 import { sellerActionResultSchema } from './seller-action-result';
 import type { SellerItemDraft } from '@monabid/shared';
 import { correctSellerDraftField, getCurrentSellerDraft } from './connect-seller-correction';
+import { sellerComparisonFoundStepText, sellerHousesFoundStepText, sellerSearchingStepText } from './seller-steps';
+import { selectableHouses } from '../app/SellerJourneyChrome';
 
 interface SellerIntakeResponse {
   ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; generalInformation?: boolean; summary?: string; recommendation?: string; nextAction?: string };
@@ -276,6 +278,8 @@ export async function connectSellerLevels(
             sessionId,
             ...(['getSellerEnquiryPreview', 'getSellerCatalogDraft'].includes(functionCall.functionToRun) ? { language } : {}),
           } } : functionCall;
+      const searchingStep = sellerSearchingStepText(functionCall.functionToRun, language);
+      if (searchingStep) await sendSellerMessage(searchingStep, onUpdate);
       const workflowResponse = await fetch(`${API_BASE_URL}/seller-workflow/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -340,6 +344,8 @@ export async function connectSellerLevels(
           ? houseRankingSchema.safeParse((result as Record<string, unknown>).recommendation) : direct;
         if (nested.success) {
           const category = functionCall.object?.category ?? (result && typeof result === 'object' ? (result as Record<string, unknown>).category : undefined);
+          await sendSellerMessage(sellerHousesFoundStepText(selectableHouses(nested.data)
+            .filter((row) => typeof category !== 'string' || row.house.categories.includes(category)).length, language), onUpdate);
           await onUpdate({ speaker: 'system', text: language === 'he' ? 'בתי מכירות מומלצים' : 'Recommended auction houses',
             houseRanking: nested.data,
             ...(typeof category === 'string' ? { houseCategory: category } : {}),
@@ -358,6 +364,9 @@ export async function connectSellerLevels(
           trend: { he: '\u05d2\u05e8\u05e3 \u05de\u05d7\u05d9\u05e8\u05d9\u05dd \u05e9\u05dc \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd', en: 'Prices of similar items' },
           details: { he: '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e9\u05dc\u05d9', en: 'My item details' },
         };
+        if (comparison.mode !== 'details') {
+          await sendSellerMessage(sellerComparisonFoundStepText(comparison.mode, comparison.lots.length, language), onUpdate);
+        }
         await onUpdate({ speaker: 'system', text: titles[mode][language], comparison });
         return;
       }
