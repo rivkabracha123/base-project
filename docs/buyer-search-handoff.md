@@ -43,7 +43,7 @@ Callers of the search, owned by other parts of the buyer flow: `buyer-search-exe
 | `periods` | `filters.periods` | Only `19th`, `19th century` or a 4-digit year convert (`1890` becomes `19th century`); anything else is not sent. |
 | `geography`, `media` | `filters.*` | English values only; a Hebrew value is not sent. |
 | `dateRange` | `filters.dateRange` | Sent as given; the lots search rejects an impossible date. |
-| `price` | `filters.price` | Sent exactly as given, including an inverted range. Never widened, never dropped without approval. |
+| `price` | `filters.price` | Sent exactly as given. Never widened, never dropped without approval. An inverted range (min above max) is rejected by the lots search's validation, so the search ends in an error and no demand is recorded. |
 
 The lots search matches the budget on a lot's realized price when it has one, whatever its status. A lot without a realized price (including upcoming and withdrawn lots) matches when its estimate band overlaps the budget. A lot with neither is excluded whenever a budget is sent. Amounts are compared as-is, without currency conversion.
 

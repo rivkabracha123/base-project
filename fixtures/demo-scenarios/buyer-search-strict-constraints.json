@@ -138,7 +138,7 @@
       }
     },
     {
-      "name": "inverted-budget-sent-unchanged",
+      "name": "invalid-inverted-budget",
       "language": "en",
       "criteria": { "categories": ["rare_books"], "price": { "min": 1500, "max": 900, "currency": "USD" } },
       "expected": {
@@ -147,11 +147,9 @@
           "language": "en",
           "filters": { "categories": ["rare_books"], "price": { "min": 1500, "max": 900, "currency": "USD" } }
         },
-        "kind": "unmatched",
-        "relaxationOptions": ["categories", "price"],
-        "appliedCriteria": ["price", "categories"],
-        "recovery": "no_relaxation_no_invention",
-        "demandRecorded": true
+        "kind": "error",
+        "invalidFields": ["filters.price.max"],
+        "demandRecorded": false
       }
     },
     {
