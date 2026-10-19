@@ -19,7 +19,8 @@ describe('Chat messages for extract and clarification turns', () => {
       id: expect.any(String),
       sessionId: expect.any(String),
       speaker: 'system',
-      text: 'Is there a specific artist or maker?',
+      // Category and budget are known, so optional questions are not asked before the search.
+      text: 'I’m looking for matching items based on what you shared.',
     });
     expect(response).not.toHaveProperty('criteria');
     expect(response).not.toHaveProperty('conversation');
@@ -36,7 +37,7 @@ describe('Chat messages for extract and clarification turns', () => {
     });
 
     expect(second.id).toEqual(expect.any(String));
-    expect(second.text).toBe('Is there a place or origin that matters?');
+    expect(second.text).toBe('I’m looking for matching items based on what you shared.');
     expect(second.speaker).toBe('system');
     expect(service.getCriteriaForSession(first.sessionId).creators).toEqual(['Monet']);
     expect(service.getHistory(first.sessionId)).toEqual(
@@ -44,7 +45,7 @@ describe('Chat messages for extract and clarification turns', () => {
         expect.objectContaining({
           id: first.id,
           speaker: 'system',
-          text: 'Is there a specific artist or maker?',
+          text: 'I’m looking for matching items based on what you shared.',
         }),
         expect.objectContaining({
           id: buyerMessageId,
@@ -55,7 +56,7 @@ describe('Chat messages for extract and clarification turns', () => {
         expect.objectContaining({
           id: second.id,
           speaker: 'system',
-          text: 'Is there a place or origin that matters?',
+          text: 'I’m looking for matching items based on what you shared.',
         }),
       ]),
     );
@@ -79,7 +80,8 @@ describe('Chat messages for extract and clarification turns', () => {
 
     expect(afterSkip.id).toEqual(expect.any(String));
     expect(afterSkip.text.length).toBeGreaterThan(0);
-    expect(service.getSessionResponse(first.sessionId).conversation.skipped).toEqual(['location']);
+    // No optional question is pending, so the skip is recorded in history without marking a field skipped.
+    expect(service.getSessionResponse(first.sessionId).conversation.skipped).toEqual([]);
     expect(service.getSessionResponse(first.sessionId).conversation.missing).toEqual([]);
     expect(service.getHistory(first.sessionId)).toEqual(
       expect.arrayContaining([

@@ -1,6 +1,6 @@
 import { Body, Controller, DefaultValuePipe, Get, Headers, Param, ParseIntPipe, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { AiHistoryService } from './ai-history.service';
-import { GenerateAiRequestDto, GenerateAiResponseDto } from './ai.dto';
+import { GenerateAiRequestDto, GenerateAiResponseDto, GenerateAiTextRequestDto } from './ai.dto';
 import { AiService } from './ai.service';
 
 @Controller('ai')
@@ -43,6 +43,16 @@ export class AiController {
     }
     const entry = await this.history.record(userId, body, response);
     return { ...response, conversationId: entry.conversationId, exchangeId: entry.id };
+  }
+
+  /** Finished prose from the real provider; 503 when it is unavailable so callers can use their own template. */
+  @Post('generate-text')
+  async generateText(
+    @Body() body: GenerateAiTextRequestDto,
+    @Headers('x-anonymous-session-id') sessionId?: string,
+  ): Promise<{ text: string }> {
+    await this.history.resolveUserId(sessionId);
+    return { text: await this.aiService.generateText(body) };
   }
 
   @Get('conversations/:conversationId')

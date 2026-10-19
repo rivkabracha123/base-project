@@ -4,9 +4,11 @@ import { getSellerMessageIds } from './seller-ids';
 import { sellerComparisonModes, sellerComparisonResultSchema } from './seller-comparison-result';
 import { houseRankingSchema } from '@monabid/shared';
 import { sellerActionResultSchema } from './seller-action-result';
+import type { SellerItemDraft } from '@monabid/shared';
+import { correctSellerDraftField, getCurrentSellerDraft } from './connect-seller-correction';
 
 interface SellerIntakeResponse {
-  ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; summary?: string; nextAction?: string };
+  ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; generalInformation?: boolean; summary?: string; recommendation?: string; nextAction?: string };
   missingFields?: string[];
   requiredMissingFields?: string[];
   nextQuestion?: { field: string; he: string; en: string } | null;
@@ -16,6 +18,7 @@ interface SellerIntakeResponse {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const PENDING_UPLOAD_ITEM_KEY = 'monabid.seller.pendingEvidenceItemId';
+const DRAFT_READY_STORAGE_KEY = 'monabid.seller.itemDraftReady';
 
 export function getPendingSellerEvidenceItemId(): string | undefined {
   return typeof sessionStorage === 'undefined'
@@ -38,25 +41,77 @@ export async function sendSellerMessage(
   await onUpdate({ speaker: 'system', text });
 }
 
+// The model sometimes answers in English during a Hebrew chat; drop any part not in the active language.
+function compactVisibleAiText(parts: Array<string | undefined | null>, language: 'he' | 'en'): string {
+  const cleaned: string[] = [];
+  for (const part of parts) {
+    const text = tightenEnglish(String(part ?? '').trim());
+    if (!text || !isInLanguage(text, language)) continue;
+    const key = text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (cleaned.some((existing) => {
+      const other = existing.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      return other.includes(key) || key.includes(other);
+    })) continue;
+    cleaned.push(text);
+  }
+  return [...new Set(cleaned)].join('\n');
+}
+
+function isInLanguage(text: string, language: 'he' | 'en'): boolean {
+  const hebrewLetters = text.match(/[\u05D0-\u05EA]/g)?.length ?? 0;
+  const latinLetters = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return language === 'he' ? hebrewLetters > latinLetters : latinLetters > hebrewLetters;
+}
+
+function tightenEnglish(text: string): string {
+  if (!text || /[\u0590-\u05FF]/.test(text) || !/[A-Za-z]/.test(text)) return text;
+  const sentences = text.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [text];
+  return sentences.slice(0, 1).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+export function requestedSellerTitle(input: string): string | undefined {
+  const match = input.trim().match(
+    /(?:^|[\s,;.!])(?:אני\s+)?(?:רוצה\s+)?(?:לשנות|שנה|תשנה|לעדכן|עדכן|תעדכן|לרשום|רשום|תרשום)\s+(?:לי\s+)?(?:את\s+)?(?:ה)?(?:שם|כותרת)(?:\s+(?:של\s+)?(?:ה)?פריט)?(?:\s+(?:לשם|לכותרת|ל|כ|בתור))?\s*[:\-]?\s*(.+)$/i,
+  ) ?? input.trim().match(
+    /(?:^|[\s,;.!])(?:please\s+)?(?:change|rename|update)\s+(?:the\s+)?(?:item\s+)?(?:name|title)(?:\s+of\s+(?:the\s+)?item)?(?:\s+(?:to|as))?\s+(.+)$/i,
+  );
+  return match?.[1]?.trim().replace(/^[\s"'״׳]+|[\s"'״׳]+$/g, '').replace(/[.!?]+$/, '').trim() || undefined;
+}
+
+export function isSellerEnquiryRequest(input: string): boolean {
+  if (/\b(?:don't|do not|cancel)\b|לא\s+(?:רוצה|מעוניי?נ)|בטל/i.test(input)) return false;
+  return /פני{1,2}ה|enquir(?:y|ies)/i.test(input)
+    && /רוצה|מבקש|מבקשת|ליצור|צור|הכן|הכיני|טיוטת|שלח|כתבי|כתוב|create|prepare|send|write|draft/i.test(input);
+}
+
 // בוחרת את השאלה הבאה או סיכום המערכת בשפה הפעילה של האפליקציה.
 // Selects the next question or system summary in the application's active language.
-function getSystemText(response: SellerIntakeResponse): string {
+export function getSystemText(response: SellerIntakeResponse): string {
   const language = getBrowserLanguage(i18n.language);
-  if (response.ai?.isRelevant === false) {
-    return [response.ai.summary, response.ai.nextAction].filter(text => text?.trim()).join('\n')
-      || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
+  if (response.ai?.isRelevant === false || response.ai?.generalInformation) {
+    return compactVisibleAiText([
+      response.ai.summary,
+      response.ai.generalInformation ? response.ai.recommendation : undefined,
+      response.ai.nextAction,
+    ], language) || (language === 'he' ? 'אני יכולה לעזור בקנייה או במכירה של פריטים במכירות פומביות.' : 'I can help with buying or selling items at auction.');
   }
   const nextQuestion = response.nextQuestion;
-  if (nextQuestion) return nextQuestion[language];
+  if (nextQuestion) {
+    return compactVisibleAiText([
+      response.ai?.summary,
+      response.ai?.recommendation,
+      response.ai?.nextAction,
+      nextQuestion[language],
+    ], language).replaceAll('\n', ' ');
+  }
 
   if (response.requiredMissingFields?.length === 0 || response.missingFields?.length === 0) {
     return language === 'he'
       ? '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e0\u05e9\u05de\u05e8\u05d5.'
       : 'Your item details are saved.';
   }
-  if (response.ai?.nextAction?.trim()) {
-    return [response.ai.summary, response.ai.nextAction].filter(Boolean).join(' ');
-  }
+  const aiText = compactVisibleAiText([response.ai?.summary, response.ai?.nextAction], language).replaceAll('\n', ' ');
+  if (response.ai?.nextAction?.trim() && aiText) return aiText;
 
   const summary = response.conversation?.assistantSummary?.[language];
   if (summary) return summary;
@@ -162,41 +217,99 @@ function getFunctionResultText(functionName: string, result: unknown, language: 
 export async function connectSellerLevels(
   message: string,
   onUpdate: (update: SellerUpdate) => void | Promise<void>,
+  onDraftReady?: (draft: SellerItemDraft) => void,
+  draftAlreadyShown = false,
 ): Promise<void> {
   try {
     const input = message.trim();
     if (!input) throw new Error('יש להזין הודעה לפני השליחה.');
 
     const { profileId, sessionId } = await getSellerMessageIds();
-    const response = await fetch(`${API_BASE_URL}/seller-intake/draft`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input, profileId, sessionId }),
-    });
+    if (onDraftReady && /item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט/i.test(input)) {
+      const draft = await getCurrentSellerDraft();
+      if (!draft) throw new Error(i18n.language.startsWith('he') ? 'עדיין אין פריט שמור בשיחה הזו.' : 'There is no saved item in this conversation yet.');
+      await sendSellerMessage(i18n.language.startsWith('he') ? 'פרטי הפריט שלך:' : 'Your item details:', onUpdate);
+      onDraftReady(draft);
+      return;
+    }
+    const language = getBrowserLanguage(i18n.language);
+    const title = requestedSellerTitle(input);
+    let body: SellerIntakeResponse;
+    if (title) {
+      const updatedDraft = await correctSellerDraftField('title', { [language]: title });
+      onDraftReady?.(updatedDraft);
+      await sendSellerMessage(language === 'he' ? `עדכנתי את שם הפריט ל״${title}״.` : `I updated the item name to “${title}”.`, onUpdate);
+      return;
+    }
+    if (isSellerEnquiryRequest(input)) {
+      body = {
+        functionCall: {
+          functionToRun: 'getSellerEnquiryPreview',
+          object: { sessionId, language },
+        },
+      };
+    } else {
+      const response = await fetch(`${API_BASE_URL}/seller-intake/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input, profileId, sessionId, language }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Seller intake request failed (${response.status})`);
+      if (!response.ok) {
+        throw new Error(`Seller intake request failed (${response.status})`);
+      }
+      body = await response.json() as SellerIntakeResponse;
     }
 
-    const body = await response.json() as SellerIntakeResponse;
-    const language = getBrowserLanguage(i18n.language);
-    if (body.ai?.isRelevant === false) {
+    if (body.ai?.isRelevant === false || body.ai?.generalInformation) {
       await sendSellerMessage(getSystemText(body), onUpdate);
       return;
     }
+    await publishCompletedDraft(body, onDraftReady, draftAlreadyShown);
     const functionCall = body.functionCall;
     if (functionCall?.functionToRun) {
+      const sessionActions = ['calculateSellerValuation', 'searchSellerComparables', 'getSellerComparableHistory',
+        'getSellerPriceTrend', 'getSellerItemDetails', 'getSellerCatalogDraft', 'getSellerEnquiryPreview',
+        'getSellerProvenanceAdvice', 'getSellerHouseRecommendation'];
+      const workflowCall = sessionActions.includes(functionCall.functionToRun)
+        ? { functionToRun: functionCall.functionToRun, object: {
+            sessionId,
+            ...(['getSellerEnquiryPreview', 'getSellerCatalogDraft'].includes(functionCall.functionToRun) ? { language } : {}),
+          } } : functionCall;
       const workflowResponse = await fetch(`${API_BASE_URL}/seller-workflow/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId, structuredAnswer: functionCall }),
+        body: JSON.stringify({ profileId, structuredAnswer: workflowCall }),
       });
       if (!workflowResponse.ok) {
-        throw new Error(`Seller workflow request failed (${workflowResponse.status})`);
+        const failure = await workflowResponse.json().catch(() => null) as { message?: string | string[] } | null;
+        const detail = Array.isArray(failure?.message) ? failure.message.join('; ') : failure?.message;
+        throw new Error(detail || `Seller workflow request failed (${workflowResponse.status})`);
       }
       const workflowResult = await workflowResponse.json() as { result?: unknown };
-      const kinds: Record<string, 'catalog' | 'enquiry' | 'valuation'> = {
-        getSellerCatalogDraft: 'catalog', getSellerEnquiryPreview: 'enquiry', calculateSellerValuation: 'valuation',
+      if (functionCall.functionToRun === 'getSellerEnquiryPreview') {
+        const result = workflowResult.result && typeof workflowResult.result === 'object'
+          ? workflowResult.result as { draft?: unknown; enquiryText?: unknown; generatedByAi?: unknown }
+          : undefined;
+        if (typeof result?.enquiryText !== 'string' || !result.enquiryText.trim()) {
+          throw new Error('Seller enquiry preview did not include a draft');
+        }
+        const action = sellerActionResultSchema.safeParse({
+          kind: 'enquiry',
+          draft: result.draft,
+          enquiryText: result.enquiryText.trim(),
+          generatedByAi: result.generatedByAi === true,
+        });
+        if (!action.success) throw new Error('Seller enquiry preview returned an invalid draft');
+        await onUpdate({
+          speaker: 'system',
+          text: language === 'he' ? 'הכנתי טיוטת פנייה שאפשר לערוך:' : 'I prepared an editable enquiry draft:',
+          action: action.data,
+        });
+        return;
+      }
+      const kinds: Record<string, 'catalog' | 'valuation'> = {
+        getSellerCatalogDraft: 'catalog', calculateSellerValuation: 'valuation',
       };
       if (kinds[functionCall.functionToRun]) {
         const action = sellerActionResultSchema.safeParse({
@@ -260,4 +373,23 @@ export async function connectSellerLevels(
     await onUpdate(update);
     throw error;
   }
+}
+
+async function publishCompletedDraft(
+  response: SellerIntakeResponse,
+  onDraftReady?: (draft: SellerItemDraft) => void,
+  draftAlreadyShown = false,
+): Promise<void> {
+  if (!onDraftReady
+    || draftAlreadyShown
+    || (response.requiredMissingFields ?? response.missingFields)?.length !== 0) return;
+  const draft = await getCurrentSellerDraft();
+  if (draft) {
+    sessionStorage.setItem(DRAFT_READY_STORAGE_KEY, 'true');
+    onDraftReady(draft);
+  }
+}
+
+export function isSellerDraftReady(): boolean {
+  return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(DRAFT_READY_STORAGE_KEY) === 'true';
 }

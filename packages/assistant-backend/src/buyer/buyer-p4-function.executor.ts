@@ -4,6 +4,7 @@ import { ComparablesService } from '../comparables/comparables.service';
 import {
   SHILAT_FUNCTION_GET_LOT_BY_ID,
   SHILAT_FUNCTION_PRICE_TREND,
+  SHILAT_MISSING_SIMILAR_FUNCTION,
   resolveBuyerActionFromP4,
   shouldRunComparableSaleHistory,
 } from '../ai/p4-buyer-routing';
@@ -17,6 +18,11 @@ import {
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
+import {
+  BuyerSessionSearchService,
+  type BuyerOtherCategoriesSearchResponse,
+} from './buyer-session-search.service';
+import type { AuctionLot, BuyerPriceRange } from '@monabid/shared';
 
 export type P4FunctionExecutionContext = {
   sessionId: string;
@@ -25,6 +31,21 @@ export type P4FunctionExecutionContext = {
   /** B2 criteria + conversation have no missing search facts. */
   criteriaComplete: boolean;
 };
+
+function lotMatchesPrice(lot: AuctionLot, price: BuyerPriceRange | undefined): boolean {
+  if (!price || (price.min == null && price.max == null)) return true;
+
+  if (lot.realizedPrice) {
+    const amount = lot.realizedPrice.amount;
+    return (price.min == null || amount >= price.min) && (price.max == null || amount <= price.max);
+  }
+
+  if (lot.estimate) {
+    return (price.min == null || lot.estimate.high.amount >= price.min) && (price.max == null || lot.estimate.low.amount <= price.max);
+  }
+
+  return false;
+}
 
 /**
  * Maps Shilat intentRoute.functionName → B2 handlers (search, sale history, lot detail).
@@ -39,6 +60,7 @@ export class BuyerP4FunctionExecutor {
     private readonly lotsResolver: BuyerLotsResolverService,
     @Optional() private readonly sellerLeads?: SellerLeadsService,
     @Optional() private readonly comparables?: ComparablesService,
+    @Optional() private readonly sessionSearch?: BuyerSessionSearchService,
   ) {}
 
   /** Run the function Shilat named, push chat updates. Returns true if a handler ran. */
@@ -70,6 +92,10 @@ export class BuyerP4FunctionExecutor {
       return true;
     }
     if (ai.intentRoute.intent === 'search_similar_lots') {
+      // P4 has no similar-lots function to run: answer with the cross-category search instead.
+      if (!ai.intentRoute.readyForFunction && ai.intentRoute.missingFields?.includes(SHILAT_MISSING_SIMILAR_FUNCTION) && this.sessionSearch) {
+        return this.runSimilarLots(ctx, updates);
+      }
       if (!ai.intentRoute.readyForFunction) return false;
       if (!this.comparables) throw new Error('Buyer comparison service is unavailable');
       const args = ai.intentRoute.arguments ?? {};
@@ -82,10 +108,12 @@ export class BuyerP4FunctionExecutor {
       const category = typeof args.category === 'string' && args.category.trim() ? args.category.trim()
         : anchor?.category ?? this.criteriaService.getCriteriaForSession(ctx.sessionId).categories.map((value) => value.trim()).filter(Boolean).at(-1);
       if (!category || ['unknown', 'general'].includes(category)) return false;
+      const criteria = this.criteriaService.getCriteriaForSession(ctx.sessionId);
       const evidence = await this.comparables.findComparables({ category });
       const status = args.status === 'sold' ? 'sold' : 'upcoming';
       const lots = [...evidence.included, ...evidence.excluded]
         .filter((entry) => entry.lot.status === status && entry.lot.category === category && entry.score >= 0.8 && entry.lot.id !== anchor?.id)
+        .filter((entry) => lotMatchesPrice(entry.lot, criteria.price))
         .map((entry) => entry.lot);
       updates.push(lots.length ? { speaker: 'result-group', title: ctx.language === 'he' ? '\u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd \u05dc\u05e4\u05d9 \u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4' : 'Similar items by category', lots }
         : { speaker: 'no-results', text: ctx.language === 'he' ? '\u05dc\u05d0 \u05e0\u05de\u05e6\u05d0\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd.' : 'No similar items were found.' });
@@ -106,13 +134,6 @@ export class BuyerP4FunctionExecutor {
     }
 
     if (action.kind === 'searchLots') {
-      if (!ctx.criteriaComplete) {
-        return false;
-      }
-      return this.runSearchLots(ctx, updates);
-    }
-
-    if (action.kind === 'similarLots') {
       if (!ctx.criteriaComplete) {
         return false;
       }
@@ -230,18 +251,97 @@ export class BuyerP4FunctionExecutor {
       return true;
     }
 
+    const criteria = this.criteriaService.getCriteriaForSession(ctx.sessionId);
+    const trendLots = criteria.price
+      ? (await Promise.all(lots.map(async (lot) => {
+          const resolved = await this.lotsResolver.findLot(lot.id);
+          return resolved && lotMatchesPrice(resolved, criteria.price) ? { id: lot.id } : null;
+        }))).filter((lot): lot is { id: string } => lot !== null)
+      : lots;
+    if (!trendLots.length) {
+      updates.push({
+        speaker: 'no-results',
+        text: ctx.language === 'he'
+          ? 'לא נמצאו פריטים בתקציב להצגת מגמת מחירים.'
+          : 'No in-budget lots were found for a price trend.',
+      });
+      return true;
+    }
+
     if (!this.resultsPresentation.presentPriceTrend) {
       updates.push({ speaker: 'error', code: 'price_trend_unavailable', text: 'Price trend is unavailable.' });
       return true;
     }
 
     await this.resultsPresentation.presentPriceTrend({
-      lots,
+      lots: trendLots,
       language: ctx.language,
       onUpdate: (flowUpdate) => {
         updates.push(...buyerFlowUpdatesToChatUpdates(flowUpdate, ctx.language));
       },
     });
+    return true;
+  }
+
+  // Follow-up "similar items in other categories": the search itself belongs to the orchestrator; this only reports it.
+  private async runSimilarLots(ctx: P4FunctionExecutionContext, updates: BuyerChatUpdate[]): Promise<boolean> {
+    if (!this.sessionSearch) throw new Error('Buyer cross-category search is unavailable');
+    let search: BuyerOtherCategoriesSearchResponse;
+    try {
+      search = await this.sessionSearch.searchOtherCategoriesForSession(ctx.sessionId);
+    } catch {
+      updates.push({
+        speaker: 'error',
+        code: 'similar_failed',
+        text:
+          ctx.language === 'he'
+            ? 'לא הצלחנו לחפש פריטים דומים בתחומים אחרים.'
+            : 'Could not search for similar items in other categories.',
+      });
+      return true;
+    }
+
+    if (search.kind === 'unavailable') {
+      updates.push({
+        speaker: 'error',
+        code: 'similar_not_wired',
+        text:
+          ctx.language === 'he'
+            ? 'חיפוש פריטים דומים עדיין לא מחובר — B3/B4.'
+            : 'Similar items search is not wired yet (B3/B4).',
+      });
+      return true;
+    }
+
+    if (search.kind === 'unmatched') {
+      updates.push({ speaker: 'no-results', text: search.message });
+      return true;
+    }
+
+    if (search.kind === 'insufficient-criteria') {
+      updates.push({ speaker: 'system', text: search.message });
+      return true;
+    }
+
+    const totalLots = search.groups.reduce((count, group) => count + group.lots.length, 0);
+    updates.push({
+      speaker: 'results-found',
+      text:
+        ctx.language === 'he'
+          ? `מצאנו ${totalLots} פריטים דומים בתחומים אחרים.`
+          : `Found ${totalLots} similar lots in other categories.`,
+    });
+
+    for (const group of search.groups) {
+      if (group.lots.length === 0) continue;
+      updates.push({
+        speaker: 'result-group',
+        title: group.title,
+        lots: group.lots,
+        variant: 'other-categories',
+        ...(group.matchReasons ? { matchReasons: group.matchReasons } : {}),
+      });
+    }
     return true;
   }
 }

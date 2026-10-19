@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, Logger, Param, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import type { ShilatAiGenerateRequest } from '../ai/p4-ai.types';
 import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { BuyerCriteriaService } from './buyer-criteria.service';
@@ -6,7 +7,10 @@ import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
 import { BuyerSessionSearchService } from './buyer-session-search.service';
 import type { P4BuyerAiContext } from '../ai/p4-ai.types';
 import type { OpenBuyerConversationRequest } from './buyer-conversation.dto';
-import type { BuyerConversationMessageRequest } from './buyer-conversation-message.dto';
+import type {
+  BuyerConversationMessageRequest,
+  BuyerConversationMessageStreamEvent,
+} from './buyer-conversation-message.dto';
 import { BuyerChatOrchestratorService } from './buyer-chat-orchestrator.service';
 import {
   BuyerComparableSaleHistoryService,
@@ -20,6 +24,8 @@ import { BuyerCriteria, AiExtractResponse } from './buyer-criteria';
 
 @Controller('buyer')
 export class BuyerController {
+  private readonly logger = new Logger(BuyerController.name);
+
   constructor(
     private readonly buyerCriteriaService: BuyerCriteriaService,
     private readonly buyerSessionSearchService: BuyerSessionSearchService,
@@ -39,6 +45,48 @@ export class BuyerController {
   @Post('conversation/message')
   handleConversationMessage(@Body() request: BuyerConversationMessageRequest) {
     return this.buyerChatOrchestratorService.handleMessage(request);
+  }
+
+  @Post('conversation/message/stream')
+  async handleConversationMessageStream(
+    @Body() request: BuyerConversationMessageRequest,
+    @Res() response: Response,
+  ): Promise<void> {
+    response.status(200);
+    response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-cache, no-transform');
+    response.setHeader('Connection', 'keep-alive');
+    response.setHeader('X-Accel-Buffering', 'no');
+    response.flushHeaders();
+
+    let clientConnected = true;
+    response.on('close', () => {
+      clientConnected = false;
+    });
+
+    const send = (event: BuyerConversationMessageStreamEvent): void => {
+      if (!clientConnected || response.writableEnded) return;
+      response.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+
+    send({ type: 'started' });
+    try {
+      const result = await this.buyerChatOrchestratorService.handleMessage(request, {
+        onSessionId: (sessionId) => send({ type: 'session', sessionId }),
+        onUpdate: (update, index) => {
+          if (update.speaker === 'system' || update.speaker === 'results-found') {
+            send({ type: 'update', index, update });
+          }
+        },
+      });
+      send({ type: 'complete', response: result });
+      if (!response.writableEnded) response.end();
+    } catch (error) {
+      const status = error instanceof HttpException ? error.getStatus() : 500;
+      this.logger.error('Buyer conversation stream failed', error instanceof Error ? error.stack : undefined);
+      send({ type: 'failure', status });
+      if (!response.writableEnded) response.end();
+    }
   }
 
   /** P4 bridge: buyer message → /ai/generate → criteria session (preferred over raw POST /extract). */

@@ -99,4 +99,51 @@ describe('BuyerController', () => {
     expect(result).toBe(systemMessageAfterSkip);
     expect(service.continueCriteriaSessionFromChat).toHaveBeenCalledWith(turnRequest);
   });
+
+  it('writes search updates to the stream before the conversation is complete', async () => {
+    let finish!: () => void;
+    const fullResponse = { sessionId: 'session-1', updates: [], turn: { at: '', buyer: { message: '', skipped: false }, updates: [] } };
+    const orchestrator = {
+      handleMessage: jest.fn(async (_request, callbacks) => {
+        callbacks.onSessionId('session-1');
+        callbacks.onUpdate({ speaker: 'system', text: 'מחפשים פריטים לפי קטגוריה: ספרים נדירים…' }, 0);
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+        });
+        return fullResponse;
+      }),
+    };
+    const writes: string[] = [];
+    const response = {
+      status: jest.fn().mockReturnThis(),
+      setHeader: jest.fn(),
+      flushHeaders: jest.fn(),
+      on: jest.fn(),
+      writableEnded: false,
+      write: jest.fn((chunk: string) => writes.push(chunk)),
+      end: jest.fn(),
+    };
+    const controller = new BuyerController(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      orchestrator as never,
+      {} as never,
+    );
+
+    const pending = controller.handleConversationMessageStream({ message: 'כתב יד עתיק' }, response as never);
+    await Promise.resolve();
+
+    expect(writes.map((frame) => JSON.parse(frame.replace(/^data:\s*|\s*$/g, '')))).toEqual([
+      { type: 'started' },
+      { type: 'session', sessionId: 'session-1' },
+      { type: 'update', index: 0, update: { speaker: 'system', text: 'מחפשים פריטים לפי קטגוריה: ספרים נדירים…' } },
+    ]);
+
+    finish();
+    await pending;
+    expect(writes.some((frame) => frame.includes('"type":"complete"'))).toBe(true);
+    expect(response.end).toHaveBeenCalledTimes(1);
+  });
 });

@@ -11,6 +11,36 @@ import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 import { UploadsService } from '../uploads/uploads.service';
 
 describe('Seller valuation routing', () => {
+  it('prioritizes the explicit valuation request over a different AI-selected function', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rare_books' }, seller: {}, requiredMissingFields: [],
+      functionCall: { functionToRun: 'getSellerCatalogDraft', object: {} } }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'אני רוצה הערכת שווי', profileId: 'p', sessionId: 's' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 's' } });
+  });
+  it('runs the valuation when the AI labels a Hebrew worth question as general advice', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rings' }, seller: {}, requiredMissingFields: [],
+      ai: { isRelevant: true, generalInformation: true, summary: 'Ring values vary' }, functionCall: null }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'כמה היא שווה?', profileId: 'p', sessionId: 's' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 's' } });
+  });
+  it('does not save general auction advice as seller item facts', async () => {
+    const drafts = { saveIntakeTurn: jest.fn() };
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {},
+      ai: { isRelevant: true, generalInformation: true, summary: 'Auction advice' }, functionCall: null }) };
+    const controller = new SellerIntakeController(provider as never, drafts as never, {} as never);
+    const result = await controller.createDraft({ profileId: 'p', sessionId: 's', input: 'What is an auction reserve?' });
+    expect(result.ai.generalInformation).toBe(true);
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+  });
+  it('uses the current session for valuation even when AI supplies a different payload', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rare_books' }, seller: {}, requiredMissingFields: [],
+      functionCall: { functionToRun: 'calculateSellerValuation', object: { itemId: 'model-item' } } }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'Please estimate value', profileId: 'profile-1', sessionId: 'session-1' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 'session-1' } });
+  });
   it('does not persist unrelated input or dispatch a function from it', async () => {
     const drafts = { saveIntakeTurn: jest.fn() };
     const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {}, ai: { isRelevant: false }, requiredMissingFields: [],

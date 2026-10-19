@@ -11,7 +11,7 @@ export function buyerFlowUpdatesToChatUpdates(
       return [
         {
           speaker: 'system',
-          text: language === 'he' ? 'מחפשים פריטים…' : 'Searching for lots…',
+          text: update.text ?? (language === 'he' ? 'מחפשים פריטים…' : 'Searching for lots…'),
         },
       ];
     case 'progress':

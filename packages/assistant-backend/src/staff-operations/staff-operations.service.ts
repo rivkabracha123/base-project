@@ -134,6 +134,7 @@ export class StaffOperationsService {
       alternatives: lead.alternatives,
       sellerChoice: lead.sellerChoice,
       catalogDraft: lead.catalogDraft,
+      enquiryText: lead.enquiryText,
       contact: this.limitSellerContactToServiceConsent(lead.contact),
       history: lead.history.map(({ at, event, actor }) => ({ at, event, actor })),
     };

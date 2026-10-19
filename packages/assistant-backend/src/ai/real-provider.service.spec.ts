@@ -1,6 +1,58 @@
 import { MAX_PROVIDER_PROMPT_LENGTH, RealProviderService, sanitizePrompt } from './real-provider.service';
 //test real provider service
 describe('RealProviderService', () => {
+  it('requires structured seller output from OpenAI without unsupported reasoning options', async () => {
+    const envelope = { isRelevant: true, error: null, summary: 'Auction information', recommendation: 'Verify the sale record',
+      nextAction: 'Ask about auction history', confidence: 'low', functionCall: { functionToRun: null, argumentsJson: null },
+      structuredAnswer: { role: 'seller', language: 'en', intent: 'general_information', category: 'unknown', item: {},
+        missingFacts: [], confirmedFacts: [], uncertainFacts: [], sellerConfirmation: { required: true, status: 'pending' },
+        hasContactDetails: false, hasImages: false } };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(envelope) } }] }) });
+    await new RealProviderService().generate({ prompt: 'What is the auction record?', role: 'seller',
+      baseUrl: 'https://api.openai.com/v1', modelName: 'gpt-4.1-mini', apiKey: 'test', fetchImpl: fetchMock });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.response_format.type).toBe('json_schema');
+    expect(body.response_format.json_schema.schema.properties.structuredAnswer.properties.role.enum).toEqual(['seller']);
+    expect(body.reasoning_effort).toBeUndefined();
+  });
+  it.each([
+    ['gpt-4o-mini', 'json_schema'],
+    ['gpt-4o-mini-2024-07-18', 'json_schema'],
+    ['gpt-4.1', 'json_schema'],
+    ['gpt-3.5-turbo', 'json_object'],
+  ])('uses %s with %s buyer output', async (modelName, format) => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: '{}' } }] }) });
+    await new RealProviderService().generate({ prompt: 'Rare books', role: 'buyer',
+      baseUrl: 'https://api.openai.com/v1', modelName, apiKey: 'test', fetchImpl: fetchMock }).catch(() => undefined);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).response_format.type).toBe(format);
+  });
+  it('writes free text without a JSON response format', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true,
+      json: async () => ({ choices: [{ message: { content: '  כתב יד הלכתי על קלף.  ' } }] }) });
+    const text = await new RealProviderService().generateText({ prompt: 'Describe the item', language: 'he',
+      baseUrl: 'https://api.openai.com/v1', modelName: 'gpt-4o-mini', apiKey: 'test', fetchImpl: fetchMock });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(text).toBe('כתב יד הלכתי על קלף.');
+    expect(body.response_format).toBeUndefined();
+    expect(body.messages[0].content).toContain('Write only in Hebrew');
+  });
+  it('normalizes Hebrew measurement units and labels from the model', async () => {
+    const structuredAnswer = {
+      role: 'seller', language: 'he', intent: 'Sell a manuscript', category: 'rare_books',
+      item: { title: null, condition: null, markings: null, signature: null, provenance: null, notes: null,
+        dimensions: { values: [{ label: 'אורך', value: 35, unit: 'ס"מ' }, { label: 'רוחב', value: 25, unit: 'ס״מ' }] } },
+      missingFacts: [], confirmedFacts: [], uncertainFacts: [],
+      sellerConfirmation: { required: true, status: 'pending' }, hasContactDetails: false, hasImages: false,
+    };
+    const fetchMock = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({
+      isRelevant: true, error: null, summary: 'כתב יד.', recommendation: 'נמשיך.', nextAction: 'מה המצב?', confidence: 'low',
+      structuredAnswer, functionCall: { functionToRun: null, argumentsJson: null },
+    }) } }] }) });
+    const result = await new RealProviderService().generate({ prompt: '35 על 25 ס"מ', role: 'seller', language: 'he',
+      baseUrl: 'https://api.openai.com/v1', modelName: 'gpt-4o-mini', apiKey: 'test', fetchImpl: fetchMock });
+    expect((result.structuredAnswer as { item: { dimensions: unknown } }).item.dimensions).toEqual({ values: [
+      { label: 'length', value: 35, unit: 'cm' }, { label: 'width', value: 25, unit: 'cm' }] });
+  });
   it.each([null, { values: [{ label: 'ring_size', value: 8, unit: 'size' }] }])('accepts strict seller measurements %j', async dimensions => {
     const structuredAnswer = {
       role: 'seller', language: 'en', intent: 'Sell a ring', category: 'rings',

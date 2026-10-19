@@ -8,9 +8,10 @@ describe('Buyer criteria W5 integration', () => {
     service.resetSessionsForTests();
   });
 
-  it('extract → skip optional fact → review summary lists skipped fields', () => {
+  it('extract → skip with no pending question → review keeps the criteria and lists nothing as skipped', () => {
     const first = service.startCriteriaSessionFromAiResponse(sampleAiExtractResponses.paintingEn());
 
+    // Optional facts are no longer asked once the category is known, so a skip has nothing to mark.
     service.continueCriteriaSessionFromChat({
       id: 'buyer-skip-creator',
       sessionId: first.sessionId,
@@ -19,7 +20,8 @@ describe('Buyer criteria W5 integration', () => {
     });
 
     const review = service.getCriteriaReview(first.sessionId);
-    expect(review.summary).toContain('Skipped: creator');
+    expect(review.summary).toContain('Category: painting');
+    expect(review.summary).not.toContain('Skipped:');
     expect(review.criteria.categories).toEqual(['painting']);
   });
 

@@ -30,10 +30,10 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
         categories: ['painting'],
         creators: ['Monet'],
         periods: ['19th century'],
-        price: { min: 10000, max: 10000, currency: 'USD' },
+        price: { max: 10000, currency: 'USD' },
       },
     });
-    expect(session.conversation.missing).toEqual(['location']);
+    expect(session.conversation.missing).toEqual([]);
     expect(criteria.hardConstraints.length).toBeGreaterThan(0);
   });
 

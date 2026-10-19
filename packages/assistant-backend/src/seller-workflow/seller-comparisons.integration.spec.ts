@@ -30,7 +30,7 @@ describe('seller comparable actions integration', () => {
   });
   it('returns only item details without seller contact or other draft fields', async () => {
     const result = await workflow.execute({ profileId: 'owner', structuredAnswer: { functionToRun: 'getSellerItemDetails', object: { sessionId: 'session' } } });
-    expect(result.result).toEqual({ item });
+    expect(result.result).toEqual({ item, descriptionWritten: false });
   });
   it('matches existing jewelry drafts describing a ring to canonical rings without rewriting the draft', async () => {
     const savedItem = { ...item, category: 'jewelry', title: 'Blue ring' };

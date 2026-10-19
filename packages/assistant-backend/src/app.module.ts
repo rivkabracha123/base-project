@@ -7,11 +7,11 @@ import { UserProfileEntity } from './database/user-profile.entity';
 import { StaffOperationEntity } from './database/staff-operation.entity';
 import { CreateAuctionLots1710000000000 } from './database/1710000000000-create-auction-lots';
 import { CreateMonabidBasicSchema1710000000001 } from './database/1710000000001-create-monabid-basic-schema';
-import { CreateUserProfiles1730000000000 } from './database/1730000000000-create-user-profiles';
-import { CreateStaffOperations1725000000000 } from './database/1725000000000-create-staff-operations';
 import { ChatModule } from './chat/chat.module';
 import { BuyerChatModule } from './buyer-chat/buyer-chat.module';
 import { SellerChatModule } from './seller-chat/seller-chat.module';
+import { CreateStaffOperations1725000000000 } from './database/1725000000000-create-staff-operations';
+import { CreateUserProfiles1730000000000 } from './database/1730000000000-create-user-profiles';
 import { CreateTeamTables1710000000001 } from './database/1710000000001-create-team-tables';
 import { CreateBuyerTables1710000000002 } from './database/1710000000002-create-buyer-tables';
 import { AiProviderConfigEntity } from './database/ai-provider-config.entity';
@@ -41,6 +41,7 @@ import { AddSellerLeadChoice1788220800002 } from './database/1788220800002-add-s
 import { AddSellerLeadFinal1788220800003 } from './database/1788220800003-add-seller-lead-final';
 import { AddSellerLeadDashboard1788220800004 } from './database/1788220800004-add-seller-lead-dashboard';
 import { CreateSellerIntakeDrafts1788220800005 } from './database/1788220800005-create-seller-intake-drafts';
+import { AddSellerEnquiryText1788220800007 } from './database/1788220800007-add-seller-enquiry-text';
 import { ComparablesModule } from './comparables/comparables.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
@@ -70,8 +71,8 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       BuyerRequestEntity,
       BuyerCriteriaEntity,
       BuyerConversationEntity,
-      SellerIntakeDraftEntity,
       BuyerUnmatchedDemandEntity,
+      SellerIntakeDraftEntity,
     ],
     migrations: [
       CreateAuctionLots1710000000000,
@@ -80,15 +81,17 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       CreateBuyerTables1710000000002,
       CreateStaffOperations1725000000000,
       CreateUserProfiles1730000000000,
+      CreateBuyerUnmatchedDemand1740000000000,
       CreateAiHistory1740000000000,
       AddAiConversations1750000000000,
-      CreateBuyerUnmatchedDemand1740000000000,
       CreateSellerLeads1788220800000,
       AddSellerLeadRecommendation1788220800001,
       AddSellerLeadChoice1788220800002,
       AddSellerLeadFinal1788220800003,
       AddSellerLeadDashboard1788220800004,
       CreateSellerIntakeDrafts1788220800005,
+      AlignLegacySellerLeads1788220800006,
+      AddSellerEnquiryText1788220800007,
     ],
     synchronize: false,
   };
@@ -120,3 +123,4 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
   ],
 })
 export class AppModule {}
+import { AlignLegacySellerLeads1788220800006 } from './database/1788220800006-align-legacy-seller-leads';
