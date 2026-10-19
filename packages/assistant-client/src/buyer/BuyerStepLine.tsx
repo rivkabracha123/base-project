@@ -1,12 +1,19 @@
 import type { BuyerMessage } from './messages';
 
+// Pause after the "searching…" line before the lines that report what was found.
+const SEARCHING_PAUSE_MS = 1000;
 // Delay between two step lines that arrive together, so they appear one after another.
 const STEP_STAGGER_MS = 400;
 
-// True for the search progress lines: the "searching…" opener and the "found…/checked…" steps after it.
+// When the step at this position starts appearing: the opener first, the rest a second later, one after another.
+function stepDelay(position: number): number {
+  return position === 0 ? 0 : SEARCHING_PAUSE_MS + (position - 1) * STEP_STAGGER_MS;
+}
+
+// True for the search progress lines: the "searching…" opener and the "found…" steps after it.
 export function isBuyerStepMessage(message: BuyerMessage): boolean {
   if (message.speaker === 'results-found') return true;
-  return message.speaker === 'system' && /^(?:מחפשים פריטים|Searching for lots)/.test(message.text);
+  return message.speaker === 'system' && /^(?:מחפש(?:ים פריטים)?|Searching(?: for lots)?)…$/.test(message.text);
 }
 
 // Picks the icon that fits what the step says.
@@ -41,7 +48,7 @@ export function buyerRevealDelays(messages: BuyerMessage[]): Map<string, number>
       run++;
       continue;
     }
-    if (run > 0) waiting = (run - 1) * STEP_STAGGER_MS + STEP_SHIMMER_MS;
+    if (run > 0) waiting = stepDelay(run - 1) + STEP_SHIMMER_MS;
     run = 0;
     if (message.speaker === 'buyer') waiting = 0;
     if (waiting > 0) delays.set(message.id, waiting);
@@ -56,10 +63,10 @@ export function BuyerStepLine({ speaker, text, position }: { speaker: string; te
       data-speaker={speaker}
       data-step="true"
       className="buyer-step flex items-center gap-2 self-start text-sm text-stone-400"
-      style={{ animationDelay: `${position * STEP_STAGGER_MS}ms` }}
+      style={{ animationDelay: `${stepDelay(position)}ms` }}
     >
       <span aria-hidden="true">{stepIcon(text)}</span>
-      <span className="buyer-step-text" style={{ animationDelay: `${position * STEP_STAGGER_MS}ms` }}>
+      <span className="buyer-step-text" style={{ animationDelay: `${stepDelay(position)}ms` }}>
         {text}
       </span>
     </li>

@@ -53,27 +53,27 @@ function renderChatWithError() {
 describe('BuyerChat', () => {
   it('shows search progress as staggered step lines with icons, not chat bubbles', async () => {
     renderChat([
-      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching for lots by category: rare books…' },
-      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 2 upcoming lots that match this request.' },
-      { id: 'step-3', sessionId: 's1', speaker: 'results-found', text: 'We also checked the sales archive: 8 similar past sales found.' },
+      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching…' },
+      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 2 similar lots in upcoming sales' },
+      { id: 'step-3', sessionId: 's1', speaker: 'results-found', text: 'Found 8 similar lots in the past sales archive' },
     ]);
-    const searching = (await screen.findByText(/Searching for lots/)).closest('li')!;
-    const archive = screen.getByText(/sales archive/).closest('li')!;
+    const searching = (await screen.findByText('Searching…')).closest('li')!;
+    const archive = screen.getByText(/past sales archive/).closest('li')!;
     expect(searching).toHaveAttribute('data-step', 'true');
     expect(searching).toHaveTextContent('🔍');
     expect(archive).toHaveTextContent('🗂️');
-    expect(archive.style.animationDelay).toBe('800ms');
+    expect(archive.style.animationDelay).toBe('1400ms');
   });
 
   it('holds the result cards back until the search steps finished appearing', async () => {
     renderChat([
-      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching for lots by category: rare books…' },
-      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 1 upcoming lots that match this request.' },
+      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching…' },
+      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 1 similar lots in upcoming sales' },
       { id: 'cards', sessionId: 's1', speaker: 'result-group', title: 'Upcoming lots', lots: [soldLotFixture] },
     ]);
     const cards = (await screen.findByRole('heading', { name: 'Upcoming lots' })).closest('li')!;
     expect(cards).toHaveClass('buyer-reveal');
-    expect(cards.style.animationDelay).toBe('2000ms');
+    expect(cards.style.animationDelay).toBe('2600ms');
   });
 
   it('renders specialist houses inline without seller selection controls', async () => {
