@@ -51,30 +51,38 @@ function renderChatWithError() {
 
 // Tests for the buyer chat screen.
 describe('BuyerChat', () => {
-  it('shows search progress as staggered step lines with icons, not chat bubbles', async () => {
+  it('shows search progress as step lines with icons, not chat bubbles', async () => {
     renderChat([
-      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching…' },
+      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'מחפש…' },
       { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 2 similar lots in upcoming sales' },
       { id: 'step-3', sessionId: 's1', speaker: 'results-found', text: 'Found 8 similar lots in the past sales archive' },
     ]);
-    const searching = (await screen.findByText('Searching…')).closest('li')!;
-    const archive = screen.getByText(/past sales archive/).closest('li')!;
+    const searching = (await screen.findByText('מחפש…')).closest('li')!;
     expect(searching).toHaveAttribute('data-step', 'true');
     expect(searching).toHaveTextContent('🔍');
-    expect(archive).toHaveTextContent('🗂️');
-    expect(archive.style.animationDelay).toBe('1400ms');
+    expect(screen.getByText(/upcoming sales/).closest('li')).toHaveTextContent('📚');
+    expect(screen.getByText(/past sales archive/).closest('li')).toHaveTextContent('🗂️');
   });
 
-  it('holds the result cards back until the search steps finished appearing', async () => {
-    renderChat([
-      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching…' },
-      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 1 similar lots in upcoming sales' },
-      { id: 'cards', sessionId: 's1', speaker: 'result-group', title: 'Upcoming lots', lots: [soldLotFixture] },
-    ]);
-    const cards = (await screen.findByRole('heading', { name: 'Upcoming lots' })).closest('li')!;
+  it('shows "searching" first, the found lines a second later, and the cards only after them', async () => {
+    vi.mocked(connectLevels).mockImplementation(async (_message, onUpdate) => {
+      onUpdate({ speaker: 'system', text: 'Searching…' });
+      onUpdate({ speaker: 'results-found', text: 'Found 1 similar lots in upcoming sales' });
+      onUpdate({ speaker: 'result-group', title: 'Upcoming lots', lots: [soldLotFixture] });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I am looking for a mock lot');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Looking for a watch' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText('Searching…')).toBeInTheDocument();
+    expect(screen.queryByText(/upcoming sales/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/upcoming sales/, {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Upcoming lots' })).not.toBeInTheDocument();
+    const cards = (await screen.findByRole('heading', { name: 'Upcoming lots' }, { timeout: 3000 })).closest('li')!;
     expect(cards).toHaveClass('buyer-reveal');
-    expect(cards.style.animationDelay).toBe('2600ms');
-  });
+  }, 10000);
 
   it('renders specialist houses inline without seller selection controls', async () => {
     const ranking = houseRankingSchema.parse({ recommendation: {

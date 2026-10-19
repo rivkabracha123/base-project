@@ -1,11 +1,14 @@
+import { useEffect, useRef, useState } from 'react';
 import type { BuyerMessage } from './messages';
 
 // Pause after the "searching…" line before the lines that report what was found.
 const SEARCHING_PAUSE_MS = 1000;
 // Delay between two step lines that arrive together, so they appear one after another.
 const STEP_STAGGER_MS = 400;
+// Time the sweep takes on one step line; matches buyer-step-shimmer in index.css.
+const STEP_SHIMMER_MS = 1600;
 
-// When the step at this position starts appearing: the opener first, the rest a second later, one after another.
+// When the step at this position appears: the opener first, the rest a second later, one after another.
 function stepDelay(position: number): number {
   return position === 0 ? 0 : SEARCHING_PAUSE_MS + (position - 1) * STEP_STAGGER_MS;
 }
@@ -18,34 +21,20 @@ export function isBuyerStepMessage(message: BuyerMessage): boolean {
 
 // Picks the icon that fits what the step says.
 function stepIcon(text: string): string {
-  if (/^(?:מחפשים|Searching)/.test(text)) return '🔍';
+  if (/^(?:מחפש|Searching)/.test(text)) return '🔍';
   if (/ארכיון|archive/i.test(text)) return '🗂️';
   if (/^(?:שימו לב|Note)/.test(text)) return 'ℹ️';
   return '📚';
 }
 
-// Time the sweep takes on one step line; matches buyer-step-shimmer in index.css.
-const STEP_SHIMMER_MS = 1600;
-
-// Position of each step line inside its run of consecutive step lines, keyed by message id.
-export function buyerStepPositions(messages: BuyerMessage[]): Map<string, number> {
-  const positions = new Map<string, number>();
-  let run = 0;
-  for (const message of messages) {
-    if (isBuyerStepMessage(message)) positions.set(message.id, run++);
-    else run = 0;
-  }
-  return positions;
-}
-
-// Delay for the messages that come right after a run of steps (cards, no-results), so they appear once the last step finished.
+// How long after arriving each message waits before it shows: steps one after another, then what follows them.
 export function buyerRevealDelays(messages: BuyerMessage[]): Map<string, number> {
   const delays = new Map<string, number>();
   let run = 0;
   let waiting = 0;
   for (const message of messages) {
     if (isBuyerStepMessage(message)) {
-      run++;
+      delays.set(message.id, stepDelay(run++));
       continue;
     }
     if (run > 0) waiting = stepDelay(run - 1) + STEP_SHIMMER_MS;
@@ -56,19 +45,38 @@ export function buyerRevealDelays(messages: BuyerMessage[]): Map<string, number>
   return delays;
 }
 
+// Shows each new message only when its turn comes, so the chat scrolls to it as it appears.
+// Messages already there on the first load show at once.
+export function useBuyerReveal(messages: BuyerMessage[]): BuyerMessage[] {
+  const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
+  const seen = useRef(new Set<string>());
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const firstLoad = seen.current.size === 0;
+    const delays = buyerRevealDelays(messages);
+    const now: string[] = [];
+    for (const message of messages) {
+      if (seen.current.has(message.id)) continue;
+      seen.current.add(message.id);
+      const delay = firstLoad ? 0 : delays.get(message.id) ?? 0;
+      if (delay === 0) now.push(message.id);
+      else timers.current.push(setTimeout(() => setRevealed((ids) => new Set(ids).add(message.id)), delay));
+    }
+    if (now.length > 0) setRevealed((ids) => new Set([...ids, ...now]));
+  }, [messages]);
+
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  return messages.filter((message) => revealed.has(message.id));
+}
+
 // One search progress line: small grey text with an icon that slides in and shimmers once.
-export function BuyerStepLine({ speaker, text, position }: { speaker: string; text: string; position: number }) {
+export function BuyerStepLine({ speaker, text }: { speaker: string; text: string }) {
   return (
-    <li
-      data-speaker={speaker}
-      data-step="true"
-      className="buyer-step flex items-center gap-2 self-start text-sm text-stone-400"
-      style={{ animationDelay: `${stepDelay(position)}ms` }}
-    >
+    <li data-speaker={speaker} data-step="true" className="buyer-step flex items-center gap-2 self-start text-sm text-stone-400">
       <span aria-hidden="true">{stepIcon(text)}</span>
-      <span className="buyer-step-text" style={{ animationDelay: `${stepDelay(position)}ms` }}>
-        {text}
-      </span>
+      <span className="buyer-step-text">{text}</span>
     </li>
   );
 }
