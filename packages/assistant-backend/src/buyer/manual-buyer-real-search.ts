@@ -22,7 +22,8 @@ const defaultCriteria: BuyerCriteria = {
 
 // Runs the real BuyerSearchOrchestrator against the real LotsService and the
 // live database (not a mock), so the printed results are ones you can actually use.
-// Usage: npm run manual:buyer:real-search [-- '<BuyerCriteria JSON>']
+// Usage, from packages/assistant-backend with the database migrated and seeded:
+// npx tsx src/buyer/manual-buyer-real-search.ts ['<BuyerCriteria JSON>']
 async function run(): Promise<void> {
   const criteria: BuyerCriteria = process.argv[2] ? JSON.parse(process.argv[2]) : defaultCriteria;
 

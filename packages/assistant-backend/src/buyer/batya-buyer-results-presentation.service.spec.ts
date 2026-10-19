@@ -58,10 +58,10 @@ describe('BatyaBuyerResultsPresentationService', () => {
     if (result.outcome.kind !== 'results') throw new Error('expected results');
     const { current, historical } = result.outcome.results;
     expect(updates).toEqual([
-      { type: 'loading', text: 'מחפשים פריטים לפי קטגוריה: rare_books · תקופה: תקופה לא מוכרת · תקציב: עד 1300 USD…' },
+      { type: 'loading', text: 'מחפש…' },
       { type: 'progress', text: 'שימו לב: לא ניתן לסנן לפי תקופה, לכן התוצאות לא הוגבלו לפי זה.' },
-      { type: 'progress', text: `נמצאו ${current.length} פריטים קרובים למכירה שמתאימים לבקשה.` },
-      { type: 'progress', text: `בדקנו גם בארכיון המכירות: נמצאו ${historical.length} מכירות קודמות דומות.` },
+      { type: 'progress', text: `נמצאו ${current.length} פריטים דומים במכירות הקרובות` },
+      { type: 'progress', text: `נמצאו ${historical.length} פריטים דומים בארכיון מכירות קודמות` },
       expect.objectContaining({ type: 'result_cards' }),
     ]);
   });
