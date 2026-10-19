@@ -3,7 +3,7 @@ import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService, type FixtureProviderRequest, type FixtureProviderResponse } from './fixture-provider.service';
 import { RealProviderService, type RealProviderRequest, type RealProviderResponse } from './real-provider.service';
 import type { AiRole } from './ai.dto';
-import { isExplicitlyOffTopic, offTopicCopy } from './off-topic';
+import { isExplicitlyOffTopic, mentionsAuctionIntent, offTopicCopy } from './off-topic';
 
 export type ProviderConfig = {
   kind: 'fixture' | 'real';
@@ -41,6 +41,19 @@ export function classifyProviderFailure(error: unknown): string {
   if (/malformed/i.test(message)) return 'invalid_response_malformed';
   if (/schema validation|malformed|non-JSON|no content|restricted/i.test(message)) return 'invalid_response';
   return 'unavailable';
+}
+
+// gpt-4o-mini sometimes answers in English during a Hebrew chat; the client hides that text,
+// leaving only the fixed intake question, so such a reply is worth one retry.
+export function isReplyInWrongLanguage(
+  response: Pick<ProviderGatewayResponse, 'summary' | 'nextAction'>,
+  language?: 'he' | 'en',
+): boolean {
+  if (!language) return false;
+  const text = `${response.summary ?? ''} ${response.nextAction ?? ''}`;
+  const hebrewLetters = text.match(/[א-ת]/g)?.length ?? 0;
+  const latinLetters = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return language === 'he' ? latinLetters > hebrewLetters : hebrewLetters > latinLetters;
 }
 
 //2 providers - fixture and real
@@ -101,6 +114,15 @@ export class ProviderGatewayService {
               throw new Error('Real provider returned a malformed response payload.');
             }
             result = candidate;
+            if (attempt === 0 && isReplyInWrongLanguage(candidate, input.language)) {
+              this.logger.warn('Real provider attempt 1 answered in the wrong language; retrying.');
+              continue;
+            }
+            // "I inherited a manuscript and am not sure whether to sell it" is sometimes judged unrelated.
+            if (attempt === 0 && !candidate.isRelevant && mentionsAuctionIntent(input.prompt)) {
+              this.logger.warn('Real provider attempt 1 judged a buy/sell message unrelated; retrying.');
+              continue;
+            }
             break;
           } catch (error) {
             this.logger.warn(`Real provider attempt ${attempt + 1} failed: ${classifyProviderFailure(error)}`);

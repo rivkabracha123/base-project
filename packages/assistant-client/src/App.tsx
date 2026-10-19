@@ -34,7 +34,7 @@ export function App() {
         )}
         {/* S5 Week 5: catalog draft review and final internal lead */}
         <Route path="/seller/enquiry" element={<SellerEnquiryPage />} />
-        <Route path="*" element={<Navigate to="/results" replace />} />
+        <Route path="*" element={<Navigate to="/chat/buyer" replace />} />
       </Routes>
     </>
   );

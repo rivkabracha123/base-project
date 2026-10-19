@@ -1,8 +1,12 @@
+/** True when the message plainly talks about buying, selling or auctions. */
+export function mentionsAuctionIntent(prompt: string): boolean {
+  return /מכירה פומבית|מכירות פומביות|\u05d1\u05d9\u05ea\s+\u05de\u05db\u05d9\u05e8\u05d5\u05ea|\u05d1\u05ea\u05d9\s+\u05de\u05db\u05d9\u05e8\u05d5\u05ea|למכור|לקנות|מחפש|מחפשת|auction|\b(?:buy|sell|collect|valuation)\b/.test(prompt.toLowerCase());
+}
+
 /** Catch explicit unrelated requests even when earlier turns contain auction terms. */
 export function isExplicitlyOffTopic(prompt: string): boolean {
   const text = prompt.toLowerCase();
-  const auctionRequest = /מכירה פומבית|מכירות פומביות|\u05d1\u05d9\u05ea\s+\u05de\u05db\u05d9\u05e8\u05d5\u05ea|\u05d1\u05ea\u05d9\s+\u05de\u05db\u05d9\u05e8\u05d5\u05ea|למכור|לקנות|מחפש|מחפשת|auction|\b(?:buy|sell|collect|valuation)\b/.test(text);
-  if (auctionRequest) return false;
+  if (mentionsAuctionIntent(text)) return false;
   return /מתכון|לעוגת|לבשל|מזג (?:ה)?אוויר|בדיחה|\b(?:recipe|cook|bake|weather|joke)\b/.test(text);
 }
 

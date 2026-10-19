@@ -1,5 +1,22 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { SellerWorkflowService } from './seller-workflow.service';
+import { SellerWorkflowService, sellerItemFormat } from './seller-workflow.service';
+
+describe('sellerItemFormat', () => {
+  const item = (title: string, he = '') => ({ title, description: { he, en: '' } }) as never;
+  it.each([
+    ['כתב יד עתיק', 'handwritten'],
+    ['מגילת אסתר', 'handwritten'],
+    ['Decorated parchment manuscript', 'handwritten'],
+    ['ספר עתיק בדפוס ונציה', 'printed'],
+    ['An early printed book', 'printed'],
+  ])('reads %s as %s', (title, format) => {
+    expect(sellerItemFormat(item(title))).toBe(format);
+  });
+  it('ignores the generic category title and reads the seller wording instead', () => {
+    expect(sellerItemFormat(item('כתב יד או ספר נדיר', 'יש לי ספר ישן'))).toBe('printed');
+    expect(sellerItemFormat(item('כתב יד או ספר נדיר'))).toBeUndefined();
+  });
+});
 
 describe('SellerWorkflowService', () => {
   const profileId = 'profile-1';
@@ -75,10 +92,12 @@ describe('SellerWorkflowService', () => {
   it('builds a catalog template from saved facts and previews an enquiry without creating or submitting a lead', async () => {
     const item = { id: 'saved-item', category: 'rare_books', title: 'Manuscript', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'Good', catalogDraft: { he: 'מקור לא אושר', en: 'Origin unconfirmed' } };
     const draft = { item, evidence: [] };
-    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft }) };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft }), correctDraft: jest.fn() };
     const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
     expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1' } } })).result)
       .toEqual({ title: 'Manuscript', he: 'Manuscript. מידות: 20 cm. מצב: Good.', en: '', generatedByAi: false });
+    // The chat only confirms the draft, so the template is saved where the seller will view it.
+    expect(drafts.correctDraft).toHaveBeenCalledWith(profileId, 's1', 'description', { he: 'Manuscript. מידות: 20 cm. מצב: Good.' });
     const preview = await connected.execute({
       profileId,
       structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },

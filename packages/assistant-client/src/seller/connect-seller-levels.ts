@@ -97,10 +97,10 @@ export function getSystemText(response: SellerIntakeResponse): string {
   }
   const nextQuestion = response.nextQuestion;
   if (nextQuestion) {
+    // The fixed intake question replaces the model's own question so the seller is asked one thing at a time.
     return compactVisibleAiText([
       response.ai?.summary,
       response.ai?.recommendation,
-      response.ai?.nextAction,
       nextQuestion[language],
     ], language).replaceAll('\n', ' ');
   }
@@ -308,8 +308,15 @@ export async function connectSellerLevels(
         });
         return;
       }
+      // The catalog text is saved on the item; it is shown only when the seller asks to see or edit it.
+      if (functionCall.functionToRun === 'getSellerCatalogDraft') {
+        await sendSellerMessage(language === 'he'
+          ? 'ניסחתי טיוטת תיאור לקטלוג ושמרתי אותה בפרטי הפריט. אפשר לבקש לראות אותה או לערוך אותה.'
+          : 'I drafted a catalog description and saved it in your item details. You can ask to see or edit it.', onUpdate);
+        return;
+      }
       const kinds: Record<string, 'catalog' | 'valuation'> = {
-        getSellerCatalogDraft: 'catalog', calculateSellerValuation: 'valuation',
+        calculateSellerValuation: 'valuation',
       };
       if (kinds[functionCall.functionToRun]) {
         const action = sellerActionResultSchema.safeParse({

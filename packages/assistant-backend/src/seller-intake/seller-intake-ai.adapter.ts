@@ -10,6 +10,28 @@ import { hasSellerCondition, sellerComparisonCategory } from './seller-item-read
 import { guidedDimensions } from './guided-dimensions';
 import { isGeneralAuctionQuestion } from '../ai/off-topic';
 
+// The model sometimes volunteers these on an unrelated turn (an enquiry card after the seller gave dimensions).
+// They run only when the seller's own words ask for them, which requestedReadAction and the controller detect.
+const EXPLICIT_REQUEST_ONLY = new Set([
+  'rankSellerHouses', 'getSellerEnquiryPreview', 'getSellerCatalogDraft', 'calculateSellerValuation',
+  'createSellerLeadDraft', 'createSellerLead', 'submitFinalSellerLead',
+]);
+
+// The combined history still holds the unitless "80*70" after the seller answered "ס״מ" in a later turn.
+// Ask for the unit only when the latest message brings new measurements; otherwise keep the saved ones.
+function currentDimensions(
+  combinedInput: string,
+  latestInput: string,
+  unitHint: string | undefined,
+  saved: { values: Array<{ label: string; value: number; unit: string }> } | undefined,
+): ReturnType<typeof guidedDimensions> {
+  const parsed = guidedDimensions(combinedInput, unitHint);
+  if (parsed?.needsUnit && saved?.values.length && !guidedDimensions(latestInput, unitHint)) {
+    return { values: saved.values as NonNullable<ReturnType<typeof guidedDimensions>>['values'], needsUnit: false };
+  }
+  return parsed;
+}
+
 function requestedReadAction(input: string, category: string, language: 'he' | 'en'): AiFunctionCall | null {
   if (isGeneralAuctionQuestion(input)) return null;
   if (/^(?:list my saved enquiries|\u05d4\u05e6\u05d2 \u05d0\u05ea \u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea \u05e9\u05dc\u05d9)[.!?\s]*$/i.test(input)) {
@@ -195,7 +217,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
               summary: language === 'he' ? 'זו שאלה על מכירות פומביות, אבל שירות ה־AI אינו זמין כרגע. לא אוכל לענות עליה באופן אמין כרגע.' : 'This is an auction question, but the AI service is unavailable. I cannot answer it reliably right now.' } };
         }
         const unitHint = previous?.nextField === 'dimensions' ? answer : undefined;
-        const parsedDimensions = isActionRequest ? undefined : guidedDimensions(combinedInput, unitHint);
+        const parsedDimensions = isActionRequest ? undefined : currentDimensions(combinedInput, contextualInput, unitHint, dimensions);
         if (parsedDimensions?.values.length) dimensions = { values: parsedDimensions.values };
         if (!isActionRequest) {
           const fieldPatterns: Record<string, RegExp> = {
@@ -308,6 +330,10 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       if (value?.trim()) facts[key] = value;
     }
     if (facts.title) structuredAnswer.item.title = facts.title;
+    // A turn like "here is a photo" carries no title; without this the whole chat text became the item name.
+    else if (!structuredAnswer.item.title?.trim() && previous?.result?.item.title?.trim()) {
+      structuredAnswer.item.title = previous.result.item.title;
+    }
     if (!structuredAnswer.item.dimensions?.values.length && dimensions?.values.length) {
       structuredAnswer.item.dimensions = dimensions;
     }
@@ -326,7 +352,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       if (!item.provenance?.trim()) missingFields.push('provenance');
     }
     const unitHint = previous?.nextField === 'dimensions' ? answer : undefined;
-    const explicitDimensions = guidedDimensions(combinedInput, unitHint);
+    const explicitDimensions = currentDimensions(combinedInput, contextualInput, unitHint, dimensions);
     if (explicitDimensions?.needsUnit) {
       structuredAnswer.item.dimensions = { values: [] };
       dimensions = undefined;
@@ -341,7 +367,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       nextQuestion: this.intake.nextQuestionForAiFields(missingFields),
       structuredAnswer,
       functionCall: requestedReadAction(input, structuredAnswer.category, language)
-        ?? (response.functionCall?.functionToRun === 'rankSellerHouses' ? null : response.functionCall ?? null),
+        ?? (EXPLICIT_REQUEST_ONLY.has(response.functionCall?.functionToRun ?? '') ? null : response.functionCall ?? null),
       ai: {
         provider: response.provider,
         mode: response.mode,
@@ -358,6 +384,8 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         he: 'באיזו יחידה המידות — ס״מ, מ״מ או אינץ׳?',
         en: 'What unit are the measurements in — cm, mm, or inches?',
       };
+      // The model tends to assume a unit ("80x70 ס״מ") in its own text; show only the unit question.
+      result.ai = { ...result.ai, summary: '', recommendation: '', nextAction: '' };
     }
     if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: structuredAnswer.item.dimensions,
       nextField: result.nextQuestion?.field, facts, result });

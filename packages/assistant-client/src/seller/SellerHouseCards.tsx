@@ -21,7 +21,8 @@ export function SellerHouseCards({ ranking, category, language }: { ranking: Hou
       if (!leadId.current) {
         const granted = await grantP3ServiceConsent();
         if (!granted) throw new Error('Service consent could not be saved');
-        leadId.current = await createSellerLead();
+        // Without the session's own profile the API falls back to the demo profile and rejects it (404).
+        leadId.current = await createSellerLead(undefined, undefined, { profileId: granted.id, serviceConsent: true });
       }
       const selected = houses.find(entry => entry?.house.id === selectedHouseId);
       await rankHousesForLead(leadId.current, undefined, {

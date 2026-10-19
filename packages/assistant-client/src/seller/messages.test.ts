@@ -46,14 +46,18 @@ describe('connectSellerLevels', () => {
     expect(correctSellerDraftField).toHaveBeenCalledWith('title', { en: 'כתב יד עתיק למכירה' });
     expect(onDraftReady).toHaveBeenCalledWith(updatedDraft);
   });
-  it('preserves structured catalog output instead of flattening it to a status line', async () => {
+  it('confirms the catalog draft without showing its text until the seller asks for it', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ functionCall: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 'session-1' } } }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ result: { title: 'Manuscript', he: 'טיוטה', en: 'Saved catalog facts' } }), { status: 200 })));
     const callback = vi.fn();
     await connectSellerLevels('Write a catalog description', callback);
-    expect(callback).toHaveBeenCalledWith(expect.objectContaining({ action: { kind: 'catalog', title: 'Manuscript', he: 'טיוטה', en: 'Saved catalog facts' } }));
+    expect(callback).toHaveBeenCalledTimes(1);
+    const update = callback.mock.calls[0]![0];
+    expect(update.action).toBeUndefined();
+    expect(update.text).not.toContain('Saved catalog facts');
+    expect(update.text).toMatch(/ניסחתי טיוטת תיאור לקטלוג|I drafted a catalog description/);
   });
   it('shows the editable enquiry draft as an action card without requesting contact details yet', async () => {
     vi.stubGlobal('fetch', vi.fn()

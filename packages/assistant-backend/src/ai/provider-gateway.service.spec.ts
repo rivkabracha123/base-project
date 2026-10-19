@@ -455,3 +455,36 @@ describe('ProviderGatewayService', () => {
     expect(fixtureProvider.generate).not.toHaveBeenCalled();
   });
 });
+
+describe('ProviderGatewayService wrong-language retry', () => {
+  const config = [{ kind: 'real' as const, enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'token' }];
+
+  it('retries once when a Hebrew chat gets an English reply', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const good = await new FixtureProviderService().generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' });
+    const hebrew = { ...good, provider: 'real', mode: 'real', summary: 'טבעת כחולה נמצאה.', nextAction: 'מה התקציב?' };
+    const english = { ...hebrew, summary: 'A blue ring was found.', nextAction: 'What is your budget?' };
+    const realProvider = {
+      generate: jest.fn().mockResolvedValueOnce(english).mockResolvedValueOnce(hebrew),
+    } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' }, config);
+
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(result.summary).toBe('טבעת כחולה נמצאה.');
+  });
+
+  it('keeps the second reply even if it is still in the wrong language', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const good = await new FixtureProviderService().generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' });
+    const english = { ...good, provider: 'real', mode: 'real', summary: 'A blue ring was found.', nextAction: 'What is your budget?' };
+    const realProvider = { generate: jest.fn().mockResolvedValue(english) } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' }, config);
+
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(result.provider).toBe('real');
+  });
+});

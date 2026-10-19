@@ -595,4 +595,40 @@ describe('SellerIntakeAiAdapter', () => {
       }),
     }));
   });
+  it('keeps the unit answered in an earlier turn when the seller asks for a catalog draft', async () => {
+    const reply = (item: Record<string, unknown>) => ({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+      summary: 'כתב יד בגודל 80x70 ס״מ.', recommendation: '', nextAction: '',
+      structuredAnswer: { ...handoff, category: 'rare_books', item: { title: 'כתב יד', ...item }, missingFacts: [] } });
+    const adapter = new SellerIntakeAiAdapter(intake, {
+      generateSellerExtract: jest.fn(async () => reply({ condition: 'מצב טוב' })),
+    } as never);
+    const unitless = await adapter.analyze('80*70 במצב טוב עם חתימה מאחורה', 'unit-session');
+    expect(unitless.nextQuestion?.he).toContain('באיזו יחידה');
+    // The model assumed centimetres; that guess must not be shown next to the unit question.
+    expect(unitless.ai.summary).toBe('');
+    const answered = await adapter.analyze('ס״מ', 'unit-session');
+    expect(answered.item.dimensions.values.map(value => value.unit)).toEqual(['cm', 'cm']);
+    const catalog = await adapter.analyze('אני רוצה שתנסח לי טיוטת קטלוג עבור המוצר שלי', 'unit-session');
+    expect(catalog.requiredMissingFields).toEqual([]);
+    expect(catalog.nextQuestion?.field).not.toBe('dimensions');
+    expect(catalog.item.dimensions.values).toHaveLength(2);
+  });
+  it.each(['getSellerEnquiryPreview', 'getSellerCatalogDraft', 'calculateSellerValuation'])('ignores %s when the model volunteers it on an unrelated turn', async (functionToRun) => {
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: jest.fn(async () => ({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+      functionCall: { functionToRun, object: {} },
+      structuredAnswer: { ...handoff, category: 'rare_books', item: { title: 'כתב יד', condition: 'מצב טוב',
+        dimensions: { values: [{ label: 'width', value: 80, unit: 'cm' }] } }, missingFacts: [] } })) } as never);
+    const result = await adapter.analyze('80*70 ס״מ במצב טוב עם חתימה מאחורה', `volunteer-${functionToRun}`);
+    expect(result.functionCall?.functionToRun ?? null).toBeNull();
+  });
+  it('keeps the item name when a later turn such as "here is a photo" has no title', async () => {
+    const reply = (item: Record<string, unknown>) => ({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+      structuredAnswer: { ...handoff, category: 'rare_books', item: { condition: 'מצב טוב',
+        dimensions: { values: [{ label: 'width', value: 80, unit: 'cm' }] }, ...item }, missingFacts: [] } });
+    const generate = jest.fn().mockResolvedValueOnce(reply({ title: 'כתב יד עתיק' })).mockResolvedValueOnce(reply({}));
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    await adapter.analyze('יש לי כתב יד עתיק 80 ס״מ במצב טוב', 'photo-title');
+    const result = await adapter.analyze('הנה תמונה', 'photo-title');
+    expect(result.item.title).toBe('כתב יד עתיק');
+  });
 });

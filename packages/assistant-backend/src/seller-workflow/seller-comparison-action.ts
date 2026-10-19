@@ -3,8 +3,14 @@ export type SellerComparisonAction = 'searchSellerComparables' | 'getSellerCompa
 export function requestedSellerComparison(input: string): SellerComparisonAction | null {
   if (isGeneralAuctionQuestion(input)) return null;
   if (/\b(?:don't|do not|cancel)\b|\u05dc\u05d0\s+(?:\u05e8\u05d5\u05e6\u05d4|\u05de\u05e2\u05d5\u05e0\u05d9\u05d9?\u05df)|\u05d1\u05d8\u05dc/i.test(input)) return null;
+  // Seeing or editing the drafted text opens the item details, where the saved description is shown and editable.
+  if (/(?:הצג|תציג|תציגי|הראה|תראה|תראי|להראות|לראות|ראה|ערוך|תערוך|תערכי|לערוך|עריכת|\b(?:show|see|view|edit)\b).{0,30}(?:טיוט|ניסוח|נוסח|תיאור|קטלוג|\b(?:draft|description|catalog(?:ue)?)\b)/i.test(input)
+    && !/פני{1,2}ה|enquir(?:y|ies)/i.test(input)) return 'getSellerItemDetails';
   if (/(?:מחיר|prices?).*(?:השתנ|שנים|לאורך\s+זמן|changes?|changed|over\s+(?:time|the\s+years))|(?:השתנ|changes?|changed).*(?:מחיר|prices?)/i.test(input)) return 'getSellerPriceTrend';
   if (/תיאור.*קטלוג|קטלוג.*תיאור|catalog(?:ue)?\s+(?:description|draft)/i.test(input)) return 'getSellerCatalogDraft';
+  // "Draft for the item" is the short item description, not the auction-house enquiry.
+  if (/טיוט(?:ת|ה)\s+(?:(?:ל|של\s+)?(?:ה)?פריט|(?:ה)?קטלוג)|item\s+draft|draft\s+(?:for|of)\s+(?:the|my)\s+item/i.test(input)
+    && !/פני{1,2}ה|enquir(?:y|ies)/i.test(input)) return 'getSellerCatalogDraft';
   if (/תיאור\s+(?:מקצועי|לפריט|של\s+(?:ה)?פריט)|(?:כתוב|תכתוב|כתבי|תכתבי|לכתוב|נסח|תנסח|נסחי|לנסח)(?![֐-׿]).{0,30}תיאור|professional\s+description|(?:write|draft)\b.{0,30}description/i.test(input)) return 'getSellerCatalogDraft';
   if (/(?:שלח|הכן|הכיני|טיוטת|ליצור|צור|כתבי|כתוב).*פני{1,2}ה|(?:prepare|send|create|write).*enquir(?:y|ies)/i.test(input)) return 'getSellerEnquiryPreview';
   if (/(?:איפה|היכן).*למכור|where.*sell|הבדל.*(?:בתי|בית)\s+מכירות/i.test(input)) return 'getSellerHouseRecommendation';

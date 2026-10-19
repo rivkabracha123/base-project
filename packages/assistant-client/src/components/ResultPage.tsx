@@ -27,7 +27,6 @@ export function ResultsPage({ outcome: suppliedOutcome }: ResultsPageProps) {
   if (!suppliedOutcome && !lots.length) {
     return <div className="mx-auto max-w-5xl p-6" dir={isRtl ? 'rtl' : 'ltr'}>
       <p role="status">{isRtl ? 'אין תוצאות חיפוש להצגה.' : 'There are no search results to display.'}</p>
-      <button type="button" onClick={() => navigate('/chat/buyer')} className="mt-4 underline">{isRtl ? 'חיפוש פריטים' : 'Find items'}</button>
     </div>;
   }
 

@@ -41,20 +41,6 @@ export function AppHeader() {
           >
             {t('navigation.dashboard')}
           </Link>
-          {/* S5 Week 4: open the house recommendation / choice screen */}
-          <Link
-            to="/seller/houses"
-            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
-          >
-            {t('navigation.houses')}
-          </Link>
-          <Link
-            to="/seller/enquiry"
-            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
-          >
-            {t('navigation.enquiry')}
-          </Link>
-
           {import.meta.env.DEV && (
             <Link
               to="/seller/gallery"

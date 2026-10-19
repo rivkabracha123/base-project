@@ -105,7 +105,9 @@ export function SellerChat() {
   function showItemDraft(draft: SellerItemDraft) {
     draftShown.current = true;
     addMessage({ speaker: 'system', text: language === 'he' ? 'פרטי הפריט שלי' : 'My item details',
-      comparison: { mode: 'details', item: draft.item, evidence: draft.evidence } });
+      comparison: { mode: 'details', item: draft.item, evidence: draft.evidence,
+        // Before a catalog draft or seller edit, item.description holds raw chat text, so it stays hidden.
+        descriptionWritten: (draft.revisionHistory ?? []).some(revision => revision.changes.includes('description')) } });
   }
 
   async function handleEnquiryContact(text: string, alreadyShownAsSeller = false) {

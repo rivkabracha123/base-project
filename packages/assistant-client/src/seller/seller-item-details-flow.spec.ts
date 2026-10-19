@@ -24,7 +24,12 @@ describe('saved seller item details', () => {
       expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ profileId: 'p',
         structuredAnswer: { functionToRun: functionName, object: functionName === 'getSellerCatalogDraft'
           ? { sessionId: 's', language: expect.stringMatching(/^(?:he|en)$/) } : { sessionId: 's' } } });
-      expect(update).toHaveBeenCalledWith(expect.objectContaining({ action: expect.objectContaining({ kind: functionName === 'calculateSellerValuation' ? 'valuation' : 'catalog' }) }));
+      if (functionName === 'calculateSellerValuation') {
+        expect(update).toHaveBeenCalledWith(expect.objectContaining({ action: expect.objectContaining({ kind: 'valuation' }) }));
+      } else {
+        // The catalog text stays in the item details until the seller asks to see it.
+        expect(update).toHaveBeenCalledWith({ speaker: 'system', text: expect.stringMatching(/ניסחתי טיוטת תיאור לקטלוג|I drafted a catalog description/) });
+      }
     } finally { vi.unstubAllGlobals(); }
   });
   it('displays general auction advice without asking intake questions or showing the draft', async () => {

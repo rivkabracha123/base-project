@@ -8,7 +8,7 @@ import {
   type SellerDraftCorrectionValue,
 } from './connect-seller-correction';
 import { connectSellerPhotos } from './connect-seller-photos';
-import { evidenceUrl } from '../app/api';
+import { EvidenceImage } from '../app/EvidenceImage';
 
 type Item = SellerItemDraft['item'];
 type EditableField = 'title' | 'category' | 'description' | 'materials' | 'dimensions' | 'condition' | 'marks' | 'signatures' | 'provenance';
@@ -131,7 +131,8 @@ export function SellerItemDetailsCard({ item: initialItem, language, evidence = 
     ['materials', item.materials.join(', ')],
     ['dimensions', dimensionsText(item, language)],
     ['condition', item.condition],
-    ['marks', item.markings],
+    // "Signed on the back" is often saved as both a marking and a signature; show it once.
+    ['marks', item.markings?.trim() === item.signatures?.trim() ? undefined : item.markings],
     ['signatures', item.signatures],
     ['provenance', item.provenance],
   ] as [EditableField, string | undefined][]).filter(([, value]) => value);
@@ -188,7 +189,8 @@ export function SellerItemDetailsCard({ item: initialItem, language, evidence = 
       <div className="mb-4 space-y-3">
         <ul className="flex flex-wrap gap-3">
           {photos.map(photo => <li key={photo.id}>
-            <img src={evidenceUrl(photo.previewUri ?? photo.uri ?? '')} alt={photo.originalName ?? (language === 'he' ? 'תמונת הפריט' : 'Item photo')} className="h-32 w-32 rounded-lg object-contain" />
+            {/* The photo route needs the session header, which a plain <img src> cannot send. */}
+            <EvidenceImage path={photo.previewUri ?? photo.uri ?? ''} alt={photo.originalName ?? (language === 'he' ? 'תמונת הפריט' : 'Item photo')} className="h-32 w-32 rounded-lg object-contain" />
             {isEditing && <button type="button" disabled={photoBusy || isSaving} onClick={() => void removePhoto(photo.id)} className="mt-1 block text-sm underline">{language === 'he' ? 'הסרת תמונה' : 'Remove photo'}</button>}
           </li>)}
         </ul>
