@@ -556,6 +556,7 @@ describe('BuyerChat', () => {
 
     await waitFor(() => expect(screen.getByRole('textbox')).toBeDisabled());
     expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
+    expect(await screen.findByText('Checking your request…')).toBeInTheDocument();
 
     await act(async () => finish());
 

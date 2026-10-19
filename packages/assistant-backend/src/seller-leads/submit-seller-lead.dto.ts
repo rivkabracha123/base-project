@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   Validate,
   ValidateIf,
@@ -178,6 +179,12 @@ export class SellerLeadValuationDto {
 
 /** S5 Week 5: body for POST /api/seller-leads/:id/final. */
 export class SubmitSellerLeadDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(8000)
+  enquiryText?: string;
+
   @ValidateNested()
   @Type(() => CatalogDraftDto)
   catalogDraft: CatalogDraftDto;

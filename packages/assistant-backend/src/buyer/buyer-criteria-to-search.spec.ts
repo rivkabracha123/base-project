@@ -33,7 +33,7 @@ describe('Pass refined criteria to search (session → orchestrator)', () => {
         price: { max: 10000, currency: 'USD' },
       },
     });
-    expect(session.conversation.missing).toEqual(['location']);
+    expect(session.conversation.missing).toEqual([]);
     expect(criteria.hardConstraints.length).toBeGreaterThan(0);
   });
 

@@ -1,13 +1,18 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { SellerLeadContactDto } from './create-seller-lead.dto';
 import { SubmitSellerLeadDto } from './submit-seller-lead.dto';
 
-/** One internal enquiry: rank once, save choice, persist catalog + valuation. Never contacts a house. */
+/** Internal enquiry: optionally targets a chosen house, but never contacts one externally. */
 export class CompleteSellerEnquiryDto extends SubmitSellerLeadDto {
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  houseId: string;
+  houseId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  generalEnquiry?: boolean;
 
   @ValidateNested()
   @Type(() => SellerLeadContactDto)

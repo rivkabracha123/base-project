@@ -1,0 +1,121 @@
+{
+  "description": "Recorded OpenAI-compatible provider replies used as the P4 Week 6 baseline. Each case is replayed through RealProviderService and ProviderGatewayService with a stubbed fetch; no hosted model is called. Malformed shapes marked 'recorded' were returned by gpt-4o-mini in json_object mode during the 2026-10-18 local smoke run; their text is synthetic and contains no contact data.",
+  "model": { "baseUrl": "https://api.openai.com/v1", "modelName": "gpt-4o-mini" },
+  "cases": [
+    {
+      "id": "buyer-he-valid",
+      "role": "buyer",
+      "language": "he",
+      "prompt": "אני מחפשת כתב יד עתיק עד 100000 דולר",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "summary": "מחפשים כתב יד עתיק.", "recommendation": "אפשר לחפש לפי זה.", "nextAction": "יש תקופה מועדפת?", "confidence": "low", "structuredAnswer": { "role": "buyer", "language": "he", "intent": "search", "category": "rare_books", "creators": null, "periods": null, "keywords": ["manuscript"], "geography": null, "price": { "min": null, "max": 100000, "currency": "USD" }, "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "accepted", "providerCalls": 1 }
+    },
+    {
+      "id": "buyer-en-valid",
+      "role": "buyer",
+      "language": "en",
+      "prompt": "Rare books by Abravanel under $3000",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "summary": "Searching for rare books by Abravanel.", "recommendation": "I can search with these details.", "nextAction": "Any specific titles in mind?", "confidence": "medium", "structuredAnswer": { "role": "buyer", "language": "en", "intent": "search", "category": "rare_books", "creators": ["Abravanel"], "periods": null, "keywords": null, "geography": null, "price": { "min": null, "max": 3000, "currency": "USD" }, "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "accepted", "providerCalls": 1 }
+    },
+    {
+      "id": "seller-he-valid",
+      "role": "seller",
+      "language": "he",
+      "prompt": "יש לי כתב יד עתיק במצב טוב",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "summary": "כתב יד עתיק במצב טוב.", "recommendation": "נאסוף עוד פרטים.", "nextAction": "מה המידות?", "confidence": "medium", "functionCall": { "functionToRun": null, "argumentsJson": null }, "structuredAnswer": { "role": "seller", "language": "he", "intent": "sell", "category": "rare_books", "item": { "title": "כתב יד עתיק", "dimensions": null, "condition": "מצב טוב", "markings": null, "signature": null, "provenance": null, "notes": null }, "missingFacts": ["dimensions"], "confirmedFacts": [], "uncertainFacts": [], "sellerConfirmation": { "required": true, "status": "pending" }, "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "accepted", "providerCalls": 1 }
+    },
+    {
+      "id": "seller-en-valid",
+      "role": "seller",
+      "language": "en",
+      "prompt": "60x80 cm",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "summary": "I noted the dimensions.", "recommendation": "Please share the item type.", "nextAction": "What kind of item is it?", "confidence": "medium", "functionCall": { "functionToRun": null, "argumentsJson": null }, "structuredAnswer": { "role": "seller", "language": "en", "intent": "sell", "category": "unknown", "item": { "title": null, "dimensions": { "values": [{ "label": "width", "value": 60, "unit": "cm" }, { "label": "height", "value": 80, "unit": "cm" }] }, "condition": null, "markings": null, "signature": null, "provenance": null, "notes": null }, "missingFacts": ["condition"], "confirmedFacts": [], "uncertainFacts": [], "sellerConfirmation": { "required": true, "status": "pending" }, "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "accepted", "providerCalls": 1 }
+    },
+    {
+      "id": "buyer-en-creators-as-string",
+      "recorded": true,
+      "role": "buyer",
+      "language": "en",
+      "prompt": "Rare books by Abravanel under $3000",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "summary": "Searching for rare books by Abravanel.", "recommendation": "I can help find those books.", "nextAction": "Any specific titles in mind?", "confidence": "low", "structuredAnswer": { "role": "buyer", "language": "en", "intent": "Find rare books", "category": "books", "creators": "Abravanel", "periods": null, "keywords": "rare", "geography": null, "price": { "min": null, "max": 3000, "currency": "USD" }, "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "unavailable", "reason": "invalid_response_invalid_handoff_contract", "providerCalls": 2 }
+    },
+    {
+      "id": "seller-he-empty-structured-answer",
+      "recorded": true,
+      "role": "seller",
+      "language": "he",
+      "prompt": "מצב טוב",
+      "reply": { "status": 200, "content": { "isRelevant": false, "error": null, "summary": "הפרטים חסרים כדי להמשיך.", "recommendation": "אנא ספק מידע נוסף על הפריט.", "nextAction": "מהו סוג הפריט?", "confidence": "low", "structuredAnswer": {} } },
+      "expected": { "outcome": "unavailable", "reason": "invalid_response_wrong_structured_answer_role", "providerCalls": 2 }
+    },
+    {
+      "id": "seller-en-missing-item",
+      "recorded": true,
+      "role": "seller",
+      "language": "en",
+      "prompt": "60x80 cm",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "summary": "I noted the dimensions of 60x80 cm.", "recommendation": "Please specify the item category.", "nextAction": "What type of item are you referring to?", "confidence": "medium", "structuredAnswer": { "category": "unknown", "role": "seller", "language": "en", "intent": "seller_handoff", "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "unavailable", "reason": "invalid_response_seller_missing_item", "providerCalls": 2 }
+    },
+    {
+      "id": "buyer-en-prose-not-json",
+      "role": "buyer",
+      "language": "en",
+      "prompt": "I want a painting",
+      "reply": { "status": 200, "content": "Sure! Here are some paintings you might like." },
+      "expected": { "outcome": "unavailable", "reason": "invalid_response_non_json", "providerCalls": 2 }
+    },
+    {
+      "id": "buyer-he-missing-summary",
+      "role": "buyer",
+      "language": "he",
+      "prompt": "ציור עד 5000 שקל",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "recommendation": "אפשר לחפש.", "nextAction": "יש תקופה מועדפת?", "confidence": "low", "structuredAnswer": { "role": "buyer", "language": "he", "intent": "search", "category": "painting", "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "unavailable", "reason": "invalid_response_invalid_handoff_contract", "providerCalls": 2 }
+    },
+    {
+      "id": "seller-en-echoes-contact",
+      "role": "seller",
+      "language": "en",
+      "prompt": "Old manuscript",
+      "reply": { "status": 200, "content": { "isRelevant": true, "error": null, "summary": "Contact the seller at dana@example.com.", "recommendation": "Collect details.", "nextAction": "What are the dimensions?", "confidence": "low", "functionCall": { "functionToRun": null, "argumentsJson": null }, "structuredAnswer": { "role": "seller", "language": "en", "intent": "sell", "category": "rare_books", "item": {}, "missingFacts": [], "confirmedFacts": [], "uncertainFacts": [], "sellerConfirmation": { "required": true, "status": "pending" }, "hasContactDetails": false, "hasImages": false } } },
+      "expected": { "outcome": "unavailable", "reason": "invalid_response_restricted", "providerCalls": 2 }
+    },
+    {
+      "id": "buyer-en-empty-content",
+      "role": "buyer",
+      "language": "en",
+      "prompt": "I want a painting",
+      "reply": { "status": 200, "content": "" },
+      "expected": { "outcome": "unavailable", "reason": "invalid_response_no_content", "providerCalls": 2 }
+    },
+    {
+      "id": "buyer-he-rate-limited",
+      "role": "buyer",
+      "language": "he",
+      "prompt": "ציור עד 5000 שקל",
+      "reply": { "status": 429, "content": "Rate limit reached" },
+      "expected": { "outcome": "unavailable", "reason": "http_429", "providerCalls": 1 }
+    },
+    {
+      "id": "seller-en-provider-503",
+      "role": "seller",
+      "language": "en",
+      "prompt": "60x80 cm",
+      "reply": { "status": 503, "content": "Service unavailable" },
+      "expected": { "outcome": "unavailable", "reason": "http_503", "providerCalls": 2 }
+    },
+    {
+      "id": "buyer-en-network-error",
+      "role": "buyer",
+      "language": "en",
+      "prompt": "I want a painting",
+      "reply": { "networkError": true },
+      "expected": { "outcome": "unavailable", "reason": "unavailable", "providerCalls": 2 }
+    }
+  ]
+}

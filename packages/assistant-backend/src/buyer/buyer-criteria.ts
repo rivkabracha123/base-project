@@ -213,21 +213,29 @@ function collectMoneyValues(text: string, options?: { lenientPlainNumbers?: bool
   return values;
 }
 
-function toPriceRange(values: number[]): BuyerPriceRange | undefined {
+function currencyFromText(text: string): string {
+  if (/₪|שקלים?|ש["״']?ח/i.test(text)) return 'ILS';
+  return 'USD';
+}
+
+function toPriceRange(values: number[], currency: string): BuyerPriceRange | undefined {
   if (values.length === 0) {
     return undefined;
   }
   return values.length === 1
-    ? { max: values[0], currency: 'USD' }
-    : { min: Math.min(...values), max: Math.max(...values), currency: 'USD' };
+    ? { max: values[0], currency }
+    : { min: Math.min(...values), max: Math.max(...values), currency };
 }
 
 function extractCorrectionPrice(text: string): BuyerPriceRange | undefined {
-  return toPriceRange(collectMoneyValues(text, { lenientPlainNumbers: true }));
+  return toPriceRange(collectMoneyValues(text, { lenientPlainNumbers: true }), currencyFromText(text));
 }
 
 const extractPrice = (text: string, options?: { lenientPlainNumbers?: boolean }): BuyerPriceRange | undefined =>
-  toPriceRange(collectMoneyValues(text, { ...options, lenientPlainNumbers: options?.lenientPlainNumbers || /תקציב|דולר|dollars?|USD|budget/i.test(text) }));
+  toPriceRange(
+    collectMoneyValues(text, { ...options, lenientPlainNumbers: options?.lenientPlainNumbers || /תקציב|דולר|dollars?|USD|budget/i.test(text) }),
+    currencyFromText(text),
+  );
 
 export function isBudgetAnswer(text: string): boolean {
   return extractPrice(text, { lenientPlainNumbers: true }) !== undefined;
@@ -237,6 +245,8 @@ const parseCategory = (text: string): string | null => {
   const lower = text.toLowerCase();
   if (/\brings?\b|\u05d8\u05d1\u05e2(?:\u05ea|\u05d5\u05ea)/i.test(lower)) return 'rings';
   if (/\b(?:manuscripts?|rare books?)\b|\u05db\u05ea\u05d1\u05d9?\s+\u05d9\u05d3|\u05e1\u05e4\u05e8(?:\u05d9\u05dd)?\s+\u05e0\u05d3\u05d9\u05e8/i.test(lower)) return 'rare_books';
+  // Rare books are the only book category; "\u05e1\u05e4\u05e8 \u05dc\u05d9" ("tell me") is a verb, not a book.
+  if (/\bbooks?\b|(?:^|[\s,;.!?"'\u05f4\u05f3])\u05d4?\u05e1\u05e4\u05e8(?:\u05d9\u05dd)?(?![\u0590-\u05ff])(?!\s+\u05dc(?:\u05d9|\u05e0\u05d5)(?![\u0590-\u05ff]))/i.test(lower)) return 'rare_books';
   if (/\bjewelry\b|\u05ea\u05db\u05e9\u05d9\u05d8/i.test(lower)) return 'jewelry';
   if (/\bjudaica\b|\u05d9\u05d5\u05d3\u05d0\u05d9\u05e7\u05d4/i.test(lower)) return 'judaica';
   if (/\bwatches?\b|\u05e9\u05e2\u05d5\u05df|\u05e9\u05e2\u05d5\u05e0\u05d9\u05dd/i.test(lower)) return 'watches';
@@ -246,12 +256,31 @@ const parseCategory = (text: string): string | null => {
   return null;
 };
 
+// "$2000" or "2000 שקל" is a budget, not a year.
+const PRICE_BEFORE = /(?:[$₪€£]|\b(?:usd|ils|eur|nis|budget(?:\s+of)?)|תקציב(?:\s+של)?)\s*$/i;
+const PRICE_AFTER = /^\s*(?:[$₪€£]|usd\b|ils\b|eur\b|nis\b|dollars?\b|shekels?\b|דולר|שקל|ש["״']?ח|אירו)/i;
+
 const parsePeriod = (text: string): string | null => {
-  const match = text.match(/(19th|20th|(?:19|20)\d{2})/i);
-  if (!match) return null;
-  const value = match[0].toLowerCase();
-  return value.includes('19th') ? '19th' : value.includes('20th') ? '20th' : value;
+  for (const match of text.matchAll(/19th|20th|(?<![\d,.])(?:19|20)\d{2}(?![\d,.]*\d)/gi)) {
+    const value = match[0].toLowerCase();
+    if (value === '19th' || value === '20th') return value;
+    const index = match.index ?? 0;
+    if (PRICE_BEFORE.test(text.slice(0, index)) || PRICE_AFTER.test(text.slice(index + value.length))) continue;
+    return value;
+  }
+  return null;
 };
+
+function hasCreatorRefinement(text: string): boolean {
+  return (
+    /\b(?:by|artist|creator|maker)\s+[A-Z][\p{L}'’-]+/iu.test(text) ||
+    /^(?:monet|picasso|rembrandt|van gogh)$/i.test(text.trim())
+  );
+}
+
+export function isBuyerCriteriaRefinement(text: string): boolean {
+  return isBudgetAnswer(text) || parsePeriod(text) !== null || parseCategory(text) !== null || hasCreatorRefinement(text);
+}
 
 const KEYWORD_HINTS: Array<{ pattern: RegExp; keyword: string }> = [
   { pattern: /\bblue\b|כחול/i, keyword: 'blue' },
@@ -307,34 +336,25 @@ const FOCUSED_QUESTIONS: Record<SearchFact, Record<BuyerLanguage, string>> = {
 };
 
 const READY_TO_CONTINUE: Record<BuyerLanguage, string> = {
-  he: 'יש את העובדות העיקריות לחיפוש. אפשר להמשיך?',
-  en: 'I have the main search facts. Should I continue?',
+  he: 'מחפשת פריטים מתאימים לפי מה שציינת.',
+  en: 'I’m looking for matching items based on what you shared.',
 };
 
 const GUIDED_FALLBACK_QUESTION: Record<BuyerLanguage, string> = {
-  he: 'לא הצלחתי לקרוא את הבקשה אוטומטית. תארו במילים שלכם מה מחפשים — סוג פריט, תקציב, או תקופה.',
-  en: 'I could not read that automatically. Describe what you want in your own words — item type, budget, or period.',
+  he: 'לא הצלחתי להבין איזה פריט לחפש. אפשר לתאר אותו בכמה מילים?',
+  en: 'I couldn’t tell what item to search for. What are you looking for?',
 };
 
 function hasPrice(criteria: BuyerCriteria): boolean {
   return criteria.price?.min != null || criteria.price?.max != null;
 }
 
-function isSkipped(conversation: BuyerCriteriaConversation, field: SearchFact): boolean {
-  return conversation.skipped.includes(field);
-}
-
 export const buildMissingFields = (
   criteria: BuyerCriteria,
-  conversation: BuyerCriteriaConversation,
+  _conversation: BuyerCriteriaConversation,
 ): SearchFact[] => {
-  const missing: SearchFact[] = [];
-  if (!hasPrice(criteria) && !isSkipped(conversation, 'budget')) missing.push('budget');
-  if (!hasSearchIntent(criteria) && !isSkipped(conversation, 'category')) missing.push('category');
-  if (criteria.creators.length === 0 && !isSkipped(conversation, 'creator')) missing.push('creator');
-  if (criteria.periods.length === 0 && !isSkipped(conversation, 'period')) missing.push('period');
-  if (criteria.geography.length === 0 && !isSkipped(conversation, 'location')) missing.push('location');
-  return missing;
+  if (hasSearchIntent(criteria)) return [];
+  return ['category'];
 };
 
 export function currentMissingField(
@@ -428,9 +448,11 @@ function withConversation(
 function normalizeStructuredCategory(category: string | undefined): string | null {
   if (!category?.trim()) return null;
   const trimmed = category.trim();
+  // The bridge stores "unknown" when the AI found no category; treat it as missing so the buyer is asked.
+  if (/^(?:unknown|general|other|items?|null|none|לא ידוע|פריט)$/i.test(trimmed)) return null;
   if (trimmed.includes('ציור')) return 'painting';
   if (trimmed.includes('פסל')) return 'sculpture';
-  return trimmed;
+  return parseCategory(trimmed) === 'rare_books' ? 'rare_books' : trimmed;
 }
 
 function criteriaFromStructuredAiExtract(structured: StructuredAiExtract): BuyerCriteria {
@@ -545,7 +567,7 @@ export function applyCriteriaCorrection(
 ): BuyerCriteriaResponse {
   const trimmed = message.trim();
   const criteriaUpdate: Partial<BuyerCriteria> = {};
-  if (/\bbudget\b|תקציב|\$|דולר|dollars?|USD/i.test(trimmed)) {
+  if (/\bbudget\b|תקציב|₪|שקלים?|ש["״']?ח|\$|דולר|dollars?|USD|ILS/i.test(trimmed)) {
     const price = extractCorrectionPrice(trimmed) ?? extractPrice(trimmed);
     if (price) {
       criteriaUpdate.price = price;
@@ -628,8 +650,26 @@ export function applyBuyerAnswer(
 ): BuyerCriteriaResponse {
   const field = currentMissingField(criteria, conversation);
   const trimmed = message.trim();
-  if (!field || !trimmed) {
+  if (!trimmed) {
     return withConversation(criteria, conversation);
+  }
+
+  if (!field) {
+    const criteriaUpdate: Partial<BuyerCriteria> = {};
+    const price = extractPrice(trimmed, { lenientPlainNumbers: true });
+    const period = parsePeriod(trimmed);
+    const category = parseCategory(trimmed);
+    if (price && /budget|תקציב|₪|שקלים?|ש["״']?ח|\$|דולר|dollars?|USD|ILS/i.test(trimmed)) criteriaUpdate.price = price;
+    if (period) criteriaUpdate.periods = appendUnique(criteria.periods, period);
+    if (category) criteriaUpdate.categories = appendUnique(criteria.categories, category);
+    if (hasCreatorRefinement(trimmed)) {
+      const creator = trimmed.match(/\b(?:by|artist|creator|maker)\s+([A-Z][\p{L}'’-]+)/iu)?.[1];
+      criteriaUpdate.creators = appendUnique(criteria.creators, creator ?? trimmed);
+    }
+    if (Object.keys(criteriaUpdate).length === 0) return withConversation(criteria, conversation);
+    return mergeResponse(criteria, conversation, criteriaUpdate, {
+      notes: [`Refined search: ${trimmed}`],
+    });
   }
 
   const criteriaUpdate: Partial<BuyerCriteria> = {};
@@ -643,6 +683,8 @@ export function applyBuyerAnswer(
       const category = parseCategory(trimmed);
       if (category) {
         criteriaUpdate.categories = appendUnique(criteria.categories, category);
+      } else if (/^(?:no|none|לא|אין)[.!?\s]*$/i.test(trimmed)) {
+        return withConversation(criteria, conversation);
       } else {
         criteriaUpdate.keywords = appendUnique(criteria.keywords, trimmed);
       }
@@ -689,7 +731,7 @@ export function applyClarificationTurn(state: ClarificationTurnInput): BuyerCrit
     return applyCriteriaRemoval(state.criteria, state.conversation, message);
   }
   if (isCriteriaCorrectionMessage(message)
-    || (/תקציב|\bbudget\b|\$|דולר|dollars?|USD/i.test(message) && extractPrice(message))) {
+    || (/תקציב|\bbudget\b|₪|שקלים?|ש["״']?ח|\$|דולר|dollars?|USD|ILS/i.test(message) && extractPrice(message))) {
     return applyCriteriaCorrection(state.criteria, state.conversation, message);
   }
   return applyBuyerAnswer(state.criteria, state.conversation, message);

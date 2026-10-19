@@ -23,7 +23,8 @@ export class SellerIntakeController {
   // מנתח טיוטת intake; שומר אותה רק כש-profileId ו-sessionId נשלחים יחד.
   // Analyzes an intake draft; persists it only when both profileId and sessionId are sent.
   async createDraft(@Body() body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
-    const { input, sessionId, profileId } = body;
+    const { input, sessionId, profileId, language: requestedLanguage } = body;
+    const language = requestedLanguage === 'he' || requestedLanguage === 'en' ? requestedLanguage : undefined;
     if (typeof input !== 'string' || input.trim().length === 0) {
       throw new BadRequestException('input must be a non-empty string');
     }
@@ -37,7 +38,7 @@ export class SellerIntakeController {
     const hasScope = hasProfileId && hasSessionId;
 
     if (!hasScope) {
-      const { sessionId: _sessionId, ...analysis } = await this.sellerIntakeAi.analyze(input);
+      const { sessionId: _sessionId, ...analysis } = await this.sellerIntakeAi.analyze(input, undefined, language);
       return analysis;
     }
 
@@ -78,8 +79,11 @@ export class SellerIntakeController {
     const { sessionId: _sessionId, structuredAnswer, functionCall, ai, ...analysis } = await this.sellerIntakeAi.analyze(
       input,
       scopedSessionId,
+      language,
     );
-    if (ai?.isRelevant === false || ai?.generalInformation) {
+    // "כמה היא שווה?" can read as general advice to the AI, but it is a valuation request for this item.
+    const wantsValuation = asksValuation && !declinesValuation;
+    if (ai?.isRelevant === false || (ai?.generalInformation && !wantsValuation)) {
       if (previousComparison) this.pendingComparisons.set(scopedSessionId, previousComparison);
       else this.pendingComparisons.delete(scopedSessionId);
       if (previousValuation) this.pendingValuations.add(scopedSessionId);

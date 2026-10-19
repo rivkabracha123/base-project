@@ -126,6 +126,12 @@ export async function deleteCurrentProfile(): Promise<void> {
   if (!response.ok) throw new Error(`Profile deletion failed with status ${response.status}`);
 }
 
+// Forget this browser's anonymous identifier after the profile was deleted,
+// so the next visit starts clean instead of re-creating a profile under the old id.
+export function resetAnonymousSession(): void {
+  localStorage.removeItem(anonymousSessionStorageKey);
+}
+
 // Keep dashboard data limited to the fields required for manual review.
 const staffLeadListSchema = z.array(z.object({
   id: z.string().min(1),
@@ -277,6 +283,7 @@ const sellerLeadDashboardDetailSchema = z.object({
       reason: z.string().min(1),
     }),
   ]).nullable(),
+  enquiryText: z.string().max(8000).nullable().optional(),
   recommendation: z.record(z.unknown()).nullable(),
   alternatives: z.array(z.record(z.unknown())),
   sellerChoice: z.record(z.unknown()).nullable(),
@@ -561,7 +568,7 @@ export async function rankHousesForLead(
 ): Promise<HouseRanking> {
   const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/house-rankings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...profileHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(item),
     signal,
   });
@@ -596,7 +603,7 @@ export async function saveSellerHouseChoice(
 ): Promise<SellerChoice> {
   const response = await fetch(`${apiBaseUrl}/seller-leads/${encodeURIComponent(leadId)}/choice`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...profileHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ houseId }),
     signal,
   });
@@ -642,7 +649,11 @@ async function evidenceRequest<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}${path}`, init);
+  // Evidence routes are owner-only: every request must prove which browser session it comes from.
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    headers: { ...profileHeaders(), ...(init?.headers as Record<string, string> | undefined) },
+  });
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as
@@ -653,6 +664,16 @@ async function evidenceRequest<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+/**
+ * Loads an evidence file as a temporary browser URL.
+ * An <img src> or <a href> cannot send the session header, so the file is fetched with it instead.
+ */
+export async function fetchEvidenceObjectUrl(path: string, signal?: AbortSignal): Promise<string> {
+  const response = await fetch(evidenceUrl(path), { headers: profileHeaders(), signal });
+  if (!response.ok) throw new Error(`Evidence file request failed (${response.status})`);
+  return URL.createObjectURL(await response.blob());
 }
 
 /** Fetch all evidence for a profile. The ordering endpoint requires the full profile list. */
@@ -723,10 +744,12 @@ export function evidenceUrl(path: string): string {
   return new URL(path, apiBaseUrl).toString();
 }
 
-/** One persist call: rank once, save choice, submit. Used by the enquiry screen. */
+/** Persist an internal enquiry; a general request intentionally has no house choice. */
 export async function completeSellerEnquiry(
   input: {
-    houseId: string;
+    houseId?: string;
+    generalEnquiry?: boolean;
+    enquiryText?: string;
     handoff: SubmitSellerLead;
     contact: { preferredName: string; email?: string; phone?: string };
     profileId?: string;
@@ -742,7 +765,9 @@ export async function completeSellerEnquiry(
       'x-anonymous-session-id': anonymousSessionId(),
     },
     body: JSON.stringify({
-      houseId: input.houseId,
+      ...(input.houseId ? { houseId: input.houseId } : {}),
+      ...(input.generalEnquiry ? { generalEnquiry: true } : {}),
+      ...(input.enquiryText ? { enquiryText: input.enquiryText } : {}),
       ...input.handoff,
       contact: input.contact,
       ...(input.profileId ? { profileId: input.profileId } : {}),
@@ -755,7 +780,9 @@ export async function completeSellerEnquiry(
   const summary = sellerLeadSummarySchema.parse(await response.json());
   emitSellerEnquiryEvent({
     kind: 'internal_enquiry',
-    houseName: summary.sellerChoice?.houseName ?? summary.recommendation?.recommendation?.house.name ?? 'Monabid',
+    houseName: input.generalEnquiry
+      ? 'Monabid'
+      : summary.sellerChoice?.houseName ?? summary.recommendation?.recommendation?.house.name ?? 'Monabid',
   });
   return summary;
 }

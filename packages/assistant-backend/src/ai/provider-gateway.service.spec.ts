@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { FixtureProviderService } from './fixture-provider.service';
 import { ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
@@ -251,6 +251,22 @@ describe('ProviderGatewayService', () => {
     expect(realProvider.generate).toHaveBeenCalledTimes(2);
     expect(result.provider).toBe('real');
     expect(result.fallbackMode).toBeUndefined();
+  });
+
+  it('does not retry a rate-limited provider and reports it as unavailable for guided fallback', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const realProvider = {
+      generate: jest.fn().mockRejectedValue(new Error('Real provider request failed: 429 Too Many Requests')),
+    } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    // A second call would only spend more of the exhausted quota.
+    await expect(service.generate(
+      { prompt: 'I want a rare Hebrew book', role: 'buyer', language: 'en' },
+      [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'token' }],
+    )).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+    expect(realProvider.generate).toHaveBeenCalledTimes(1);
   });
 
   it('logs only a coarse failure reason, without prompt, contact data, or credentials', async () => {

@@ -19,7 +19,7 @@ describe('Criteria from AI extract response', () => {
     const response = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingHe());
 
     expect(response.criteria.language).toBe('he');
-    expect(response.conversation.nextQuestion).toBe('יש אמן או יוצר מסוים?');
+    expect(response.conversation.nextQuestion).toBe('מחפשת פריטים מתאימים לפי מה שציינת.');
   });
 
   it('prefers structured AI fields over free-text content', () => {
@@ -30,7 +30,7 @@ describe('Criteria from AI extract response', () => {
     expect(response.criteria.keywords).toEqual(['blue']);
     expect(response.criteria.language).toBe('he');
     expect(response.conversation.notes).toContain(aiResponse.structuredAnswer!.intent);
-    expect(response.conversation.missing).toContain('budget');
+    expect(response.conversation.missing).toEqual([]);
   });
 
   it('rejects irrelevant AI extract before parsing criteria', () => {

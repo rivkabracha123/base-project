@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -67,8 +68,8 @@ function demandRepository() {
 async function compileBuyerModule(lots: AuctionLot[]) {
   const demand = demandRepository();
   const moduleRef = await Test.createTestingModule({
-    // AiModule reads configuration; an empty config is enough since this test never calls the AI provider.
-    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => ({})] }), BuyerModule],
+    // This test never calls the AI provider; uploads only need a writable storage path.
+    imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [() => ({ LOCAL_STORAGE_PATH: tmpdir() })] }), BuyerModule],
   })
     .overrideProvider(getRepositoryToken(AuctionLotEntity))
     .useValue(lotsRepository(lots))

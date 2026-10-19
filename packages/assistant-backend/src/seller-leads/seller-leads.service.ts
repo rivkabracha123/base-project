@@ -51,6 +51,7 @@ function claimText(payload: SubmitSellerLeadDto): string {
   return [
     payload.catalogDraft.he,
     payload.catalogDraft.en,
+    payload.enquiryText ?? '',
     payload.item.title,
     payload.valuation.reason ?? '',
   ].join(' ');
@@ -61,6 +62,9 @@ function toStoredValuation(valuation: SubmitSellerLeadDto['valuation']): SellerL
   return sellerLeadValuationSchema.parse(valuation);
 }
 
+/** An anonymous session id, or an internal workflow caller that already resolved its profile. */
+export type LeadCaller = string | { profileId: string };
+
 /** S5 service: internal seller leads. Never emails or contacts an auction house. */
 @Injectable()
 export class SellerLeadsService {
@@ -70,6 +74,7 @@ export class SellerLeadsService {
     @Optional()
     @Inject(Logger)
     private readonly logger: LoggerService = new Logger(SellerLeadsService.name),
+    // Optional only so lightweight unit tests can build the service; ownership checks fail closed without it.
     @Optional()
     private readonly profiles?: ProfilesService,
     @Optional()
@@ -99,9 +104,18 @@ export class SellerLeadsService {
     };
   }
 
-  /** S5 Week 2: persist an internal lead. Logs the id only — never email/phone. */
-  async draft(enquiry: CreateSellerLeadDto, sessionId?: string): Promise<SellerLeadEntity> {
-    const payload = await this.applyP3Profile(enquiry, sessionId);
+  /**
+   * S5 Week 2: persist an internal lead. Logs the id only — never email/phone/session id.
+   * `sessionId` comes from the x-anonymous-session-id header (identifies the caller);
+   * `enquiry.profileId` comes from the request body (only a claim by the caller).
+   */
+  async draft(caller: LeadCaller, enquiry: CreateSellerLeadDto): Promise<SellerLeadEntity> {
+    // Security check: the claimed profile must belong to the caller.
+    // Throws 404 otherwise, BEFORE anything is written, so nobody can attach
+    // a lead to somebody else's profile.
+    await this.assertOwnsProfile(caller, enquiry.profileId);
+
+    const payload = await this.applyP3Profile(enquiry, typeof caller === 'string' ? caller : undefined);
     const lead = await this.sellerLeads.save(
       this.sellerLeads.create({
         profileId: payload.profileId,
@@ -197,7 +211,11 @@ export class SellerLeadsService {
    * Display already ranked via s1-handoff. Persist ranks once, stores choice, then submits.
    * Week 4 stepwise APIs stay for house-choice and contract tests.
    */
-  async completeEnquiry(payload: CompleteSellerEnquiryDto, sessionId?: string): Promise<SellerLeadEntity> {
+  async completeEnquiry(payload: CompleteSellerEnquiryDto, sessionId: string): Promise<SellerLeadEntity> {
+    const generalEnquiry = payload.generalEnquiry === true;
+    if (generalEnquiry === Boolean(payload.houseId)) {
+      throw new BadRequestException('Choose a house or explicitly submit a general internal enquiry');
+    }
     const enquiry = await this.applyP3Profile(
       {
         profileId: payload.profileId ?? 'profile-synthetic-seller-1',
@@ -206,20 +224,27 @@ export class SellerLeadsService {
       },
       sessionId,
     );
-    const lead = await this.draft(enquiry);
-    const ranking = this.rankHouses({
-      category: payload.item.category,
-      geography: payload.geography,
-      preferredLanguage: payload.preferredLanguage,
-    });
-    await this.attachRanking(lead.id, ranking);
-    await this.saveSellerChoice(lead.id, payload.houseId);
-    return this.submitFinal(lead.id, payload);
+    const lead = await this.draft(sessionId, enquiry);
+    if (!generalEnquiry) {
+      const ranking = this.rankHouses({
+        category: payload.item.category,
+        geography: payload.geography,
+        preferredLanguage: payload.preferredLanguage,
+      });
+      await this.attachRanking(sessionId, lead.id, ranking);
+      await this.saveSellerChoice(sessionId, lead.id, payload.houseId!);
+    }
+    return this.submitFinal(lead.id, payload, generalEnquiry);
   }
 
   /** S5 Week 3: write the ranking onto the lead without touching sellerChoice. */
-  async attachRanking(leadId: string, ranking: HouseRanking): Promise<SellerLeadEntity> {
-    const lead = await this.requireLead(leadId);
+  async attachRanking(
+    caller: LeadCaller,
+    leadId: string,
+    ranking: HouseRanking,
+  ): Promise<SellerLeadEntity> {
+    // Ownership is verified before the lead is modified.
+    const lead = await this.requireOwnedLead(caller, leadId);
     lead.recommendation = ranking;
     lead.history = [...(lead.history ?? []), historyEvent('ranked', 'system')];
     const saved = await this.sellerLeads.save(lead);
@@ -231,8 +256,13 @@ export class SellerLeadsService {
    * S5 Week 4: store the seller’s override in sellerChoice.
    * The pick must be an active ranked house. The stored recommendation must stay the same.
    */
-  async saveSellerChoice(leadId: string, houseId: string): Promise<SellerLeadEntity> {
-    const lead = await this.requireLead(leadId);
+  async saveSellerChoice(
+    caller: LeadCaller,
+    leadId: string,
+    houseId: string,
+  ): Promise<SellerLeadEntity> {
+    // Ownership is verified before the lead is read for modification.
+    const lead = await this.requireOwnedLead(caller, leadId);
     const ranking = lead.recommendation;
     if (!ranking) {
       throw new BadRequestException('Rank active houses before saving a seller choice');
@@ -269,7 +299,7 @@ export class SellerLeadsService {
    * S5 Week 5: attach the S1 catalog draft and S4 valuation, then mark the internal lead submitted.
    * Does not email, call, or otherwise contact an auction house.
    */
-  async submitFinal(leadId: string, payload: SubmitSellerLeadDto): Promise<SellerLeadEntity> {
+  async submitFinal(leadId: string, payload: SubmitSellerLeadDto, allowNoHouseChoice = false): Promise<SellerLeadEntity> {
     const lead = await this.requireLead(leadId);
 
     if (lead.status === 'submitted') {
@@ -278,7 +308,7 @@ export class SellerLeadsService {
     if (!hasRequiredContact(lead)) {
       throw new BadRequestException('Lead requires a name and email or phone');
     }
-    if (!lead.sellerChoice) {
+    if (!lead.sellerChoice && !allowNoHouseChoice) {
       throw new BadRequestException('Save a seller house choice before creating the final lead');
     }
     if (UNSUPPORTED_CLAIM.test(claimText(payload))) {
@@ -286,12 +316,13 @@ export class SellerLeadsService {
     }
 
     const previousRecommendationId = lead.recommendation?.recommendation?.house.id;
-    const previousChoiceId = lead.sellerChoice.houseId;
+    const previousChoiceId = lead.sellerChoice?.houseId;
 
     lead.catalogDraft = payload.catalogDraft;
     lead.item = payload.item;
     lead.evidence = payload.evidence;
     lead.valuation = toStoredValuation(payload.valuation);
+    if (payload.enquiryText !== undefined) lead.enquiryText = payload.enquiryText;
     lead.comparables = payload.comparables ?? lead.comparables;
     lead.status = 'submitted';
     lead.history = [...(lead.history ?? []), historyEvent('submitted', 'seller')];
@@ -302,7 +333,7 @@ export class SellerLeadsService {
     if (saved.recommendation?.recommendation?.house.id !== previousRecommendationId) {
       throw new Error('Final lead must not overwrite the stored recommendation');
     }
-    if (saved.sellerChoice?.houseId !== previousChoiceId) {
+    if (previousChoiceId && saved.sellerChoice?.houseId !== previousChoiceId) {
       throw new Error('Final lead must not overwrite the stored seller choice');
     }
 
@@ -317,6 +348,33 @@ export class SellerLeadsService {
   /** S5 handoff: P5 list (internal). Dashboard detail uses get(). */
   async list(): Promise<SellerLeadEntity[]> {
     return this.sellerLeads.find({ order: { createdAt: 'DESC' } });
+  }
+
+  /**
+   * Loads a lead only if it belongs to the caller.
+   * Chain: session -> owns -> profile -> source of -> lead (lead stores profileId).
+   * If the lead's profile is not owned by this session, the same 404 is returned
+   * as for a missing profile, so lead IDs of other users cannot be probed.
+   */
+  private async requireOwnedLead(caller: LeadCaller, leadId: string): Promise<SellerLeadEntity> {
+    const lead = await this.requireLead(leadId);
+    await this.assertOwnsProfile(caller, lead.profileId);
+    return lead;
+  }
+
+  /**
+   * A string caller is an anonymous session id and is checked against the stored profile owner.
+   * A { profileId } caller is an internal workflow that already resolved the profile itself.
+   */
+  private async assertOwnsProfile(caller: LeadCaller, profileId: string): Promise<void> {
+    if (typeof caller === 'string') {
+      if (!this.profiles) throw new NotFoundException('Profile not found');
+      await this.profiles.getOwnedProfileEntity(caller, profileId);
+      return;
+    }
+    if (caller.profileId !== profileId) {
+      throw new NotFoundException('Profile not found');
+    }
   }
 
   private async requireLead(leadId: string): Promise<SellerLeadEntity> {

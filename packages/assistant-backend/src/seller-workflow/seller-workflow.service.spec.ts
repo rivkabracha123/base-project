@@ -40,18 +40,77 @@ describe('SellerWorkflowService', () => {
     jest.clearAllMocks();
   });
 
-  it('copies the saved catalog and previews an enquiry without creating or submitting a lead', async () => {
+  it('writes a professional catalog description with AI from the stated facts only', async () => {
+    const item = { id: 'saved-item', category: 'rare_books', title: 'כתב יד הלכות', dimensions: { values: [
+      { label: 'width', value: 80, unit: 'cm' }, { label: 'height', value: 70, unit: 'cm' }] },
+      condition: 'מצב טוב', markings: 'Not yet confirmed', catalogDraft: { he: '', en: '' } };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue('כתב יד הלכתי על קלף, 80 × 70 ס״מ, במצב טוב.') };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const result = await connected.execute({ profileId,
+      structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1', language: 'he' } } });
+    const prompt: string = p4.generateSellerText.mock.calls[0][0].prompt;
+    expect(prompt).toContain('80 × 70 cm');
+    expect(prompt).not.toContain('Not yet confirmed');
+    expect(result.result).toEqual({ title: 'כתב יד הלכות', he: 'כתב יד הלכתי על קלף, 80 × 70 ס״מ, במצב טוב.', en: '', generatedByAi: true });
+    expect(drafts.correctDraft).toHaveBeenCalledWith(profileId, 's1', 'description', { he: 'כתב יד הלכתי על קלף, 80 × 70 ס״מ, במצב טוב.' });
+  });
+
+  it.each([
+    ['כתב יד על קלף.\n\nהכתב יד במצב טוב.\n\nאין פרטים נוספים על סימנים, חתימות או מקור.', 'כתב יד על קלף.\n\nהכתב יד במצב טוב.'],
+    ['A manuscript on parchment. It is in good condition. No specific markings or signatures are provided.', 'A manuscript on parchment. It is in good condition.'],
+  ])('drops sentences about missing facts from the AI description', async (generated, expected) => {
+    const item = { id: 'i', category: 'rare_books', title: 'Manuscript', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'Good' };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue(generated) };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const language = /[֐-׿]/.test(generated) ? 'he' : 'en';
+    const result = await connected.execute({ profileId,
+      structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1', language } } });
+    expect((result.result as Record<string, string>)[language]).toBe(expected);
+  });
+
+  it('builds a catalog template from saved facts and previews an enquiry without creating or submitting a lead', async () => {
     const item = { id: 'saved-item', category: 'rare_books', title: 'Manuscript', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'Good', catalogDraft: { he: 'מקור לא אושר', en: 'Origin unconfirmed' } };
     const draft = { item, evidence: [] };
     const drafts = { getDraft: jest.fn().mockResolvedValue({ draft }) };
     const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
     expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1' } } })).result)
-      .toEqual({ title: 'Manuscript', ...item.catalogDraft });
-    expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1' } } })).result)
-      .toMatchObject({ draft });
+      .toEqual({ title: 'Manuscript', he: 'Manuscript. מידות: 20 cm. מצב: Good.', en: '', generatedByAi: false });
+    const preview = await connected.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },
+    });
+    expect(preview.result).toMatchObject({ draft, generatedByAi: false, enquiryText: expect.stringContaining('Hello,') });
     expect(drafts.getDraft).toHaveBeenCalledWith(profileId, 's1');
     expect(leads.draft).not.toHaveBeenCalled();
     expect(leads.submitFinal).not.toHaveBeenCalled();
+  });
+
+  it('uses the AI-generated plain-text enquiry when available', async () => {
+    const item = { id: 'saved-item', category: 'rare_books', title: 'Manuscript',
+      dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] },
+      condition: 'Good', catalogDraft: { he: 'כתב יד עתיק', en: 'An old manuscript' } };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue('Dear Sir or Madam, please review this manuscript.') };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const result = await connected.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },
+    });
+    expect(p4.generateSellerText).toHaveBeenCalledWith(expect.objectContaining({
+      language: 'en',
+      sessionId: 's1',
+      prompt: expect.stringContaining('"dimensions":"20 cm"'),
+    }));
+    expect(p4.generateSellerText.mock.calls[0][0].prompt).not.toContain('An old manuscript');
+    expect(result.result).toMatchObject({
+      enquiryText: 'Dear Sir or Madam, please review this manuscript.',
+      generatedByAi: true,
+    });
   });
 
   it('blocks catalog and enquiry previews when mandatory facts are missing', async () => {
@@ -98,7 +157,7 @@ describe('SellerWorkflowService', () => {
     }
 
     for (const [, handler] of calls) expect(handler).toHaveBeenCalled();
-    expect(leads.attachRanking).toHaveBeenCalledWith('lead-1', expect.any(Object));
+    expect(leads.attachRanking).toHaveBeenCalledWith({ profileId }, 'lead-1', expect.any(Object));
   });
 
   it('returns null without dispatch when no function is requested', async () => {
@@ -166,7 +225,7 @@ describe('SellerWorkflowService', () => {
     });
 
     expect(draft.functionToRun).toBe('createSellerLeadDraft');
-    expect(leads.draft).toHaveBeenCalledWith({
+    expect(leads.draft).toHaveBeenCalledWith({ profileId }, {
       profileId,
       contact: { preferredName: 'Seller', phone: '555' },
       serviceConsent: true,
@@ -202,8 +261,8 @@ describe('SellerWorkflowService', () => {
       } } },
     });
 
-    expect(leads.attachRanking).toHaveBeenCalledWith('lead-1', expect.any(Object));
-    expect(leads.saveSellerChoice).toHaveBeenCalledWith('lead-1', 'house-1');
+    expect(leads.attachRanking).toHaveBeenCalledWith({ profileId }, 'lead-1', expect.any(Object));
+    expect(leads.saveSellerChoice).toHaveBeenCalledWith({ profileId }, 'lead-1', 'house-1');
     expect(leads.submitFinal).toHaveBeenCalledWith('lead-1', expect.objectContaining({ item: { id: 'item-001', category: 'paintings', title: 'Abstract landscape study', evidenceIds: ['evidence-001'] } }));
     await expect(service.execute({
       profileId,

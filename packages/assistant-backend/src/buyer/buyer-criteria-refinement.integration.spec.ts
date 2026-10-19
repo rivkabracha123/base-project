@@ -15,11 +15,11 @@ describe('Criteria refinement across chat and search', () => {
       const response = service.startCriteriaSessionFromAiResponse(structuredAiExtractSamples.blueRingHe());
       const session = service.getSessionResponse(response.sessionId);
 
-      expect(response.text).toBe('יש טווח תקציב שכדאי להישאר בתוכו?');
+      expect(response.text).toBe('מחפשת פריטים מתאימים לפי מה שציינת.');
       expect(response.speaker).toBe('system');
       expect(response).not.toHaveProperty('criteria');
       expect(session.criteria.categories).toEqual(['טבעות']);
-      expect(session.conversation.missing).toContain('budget');
+      expect(session.conversation.missing).toEqual([]);
     });
 
     it('still supports legacy content-only AI extract fixtures', () => {
@@ -57,7 +57,7 @@ describe('Criteria refinement across chat and search', () => {
       });
       const afterSkip = service.getSessionResponse(first.sessionId);
 
-      expect(afterSkip.conversation.skipped).toContain('creator');
+      expect(afterSkip.conversation.skipped).toEqual([]);
       expect(afterSkip.criteria.categories).toEqual(['טבעות']);
       expect(afterSkip.criteria.price).toEqual(afterBudget.price);
       expect(service.getHistory(first.sessionId)).toEqual(

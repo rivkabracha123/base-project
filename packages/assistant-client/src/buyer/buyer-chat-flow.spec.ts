@@ -3,13 +3,31 @@ import type { BuyerChatUpdate } from './buyer-chat-updates';
 import { BUYER_CHAT_SKIP, getBuyerChatFlowSnapshot, restoreBuyerChatFlowState, selectBuyerLot, resetBuyerChatFlowForTests, submitBuyerChatMessage } from './buyer-chat-flow';
 import { soldLotFixture } from '../test/fixtures/auction-lots';
 
+function streamResponse(sessionId: string, updates: unknown[], turn: unknown = {}) {
+  const events = [
+    { type: 'started' },
+    { type: 'session', sessionId },
+    ...updates.flatMap((update, index) => {
+      const speaker = (update as { speaker?: string }).speaker;
+      return speaker === 'system' || speaker === 'results-found'
+        ? [{ type: 'update', index, update }]
+        : [];
+    }),
+    { type: 'complete', response: { sessionId, updates, turn } },
+  ];
+  return new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+
 describe('submitBuyerChatMessage', () => {
   it('resolves the first result before sending a natural-language details request', async () => {
     restoreBuyerChatFlowState({ sessionId: 'session-ordinal', results: [soldLotFixture] });
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ sessionId: 'session-ordinal',
-      turn: { p4: { intentRoute: { functionName: 'getLotById' } } },
-      updates: [{ speaker: 'result-group', title: 'Item details', lots: [soldLotFixture] }],
-    })));
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse('session-ordinal',
+      [{ speaker: 'result-group', title: 'Item details', lots: [soldLotFixture] }],
+      { p4: { intentRoute: { functionName: 'getLotById' } } },
+    ));
     vi.stubGlobal('fetch', fetchMock);
     await submitBuyerChatMessage('תראה לי פרטים נוספים על הפריט הראשון', vi.fn(), { language: 'he' });
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
@@ -48,14 +66,8 @@ describe('submitBuyerChatMessage', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation(async (url: string) => {
-        if (url.endsWith('/buyer/conversation/message')) {
-          return new Response(
-            JSON.stringify({
-              sessionId: 'session-1',
-              updates: [{ speaker: 'system', text: 'Is there a specific artist?' }],
-            }),
-            { status: 200 },
-          );
+        if (url.endsWith('/buyer/conversation/message/stream')) {
+          return streamResponse('session-1', [{ speaker: 'system', text: 'Is there a specific artist?' }]);
         }
         throw new Error(`Unexpected fetch: ${url}`);
       }),
@@ -69,24 +81,12 @@ describe('submitBuyerChatMessage', () => {
 
   it('forwards sessionId on follow-up messages', async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (url.endsWith('/buyer/conversation/message')) {
+      if (url.endsWith('/buyer/conversation/message/stream')) {
         const body = JSON.parse(String(init?.body)) as { sessionId?: string; message: string };
         if (!body.sessionId) {
-          return new Response(
-            JSON.stringify({
-              sessionId: 'session-2',
-              updates: [{ speaker: 'system', text: 'Artist?' }],
-            }),
-            { status: 200 },
-          );
+          return streamResponse('session-2', [{ speaker: 'system', text: 'Artist?' }]);
         }
-        return new Response(
-          JSON.stringify({
-            sessionId: 'session-2',
-            updates: [{ speaker: 'system', text: 'Location?' }],
-          }),
-          { status: 200 },
-        );
+        return streamResponse('session-2', [{ speaker: 'system', text: 'Location?' }]);
       }
       throw new Error(`Unexpected fetch: ${url}`);
     });
@@ -101,5 +101,36 @@ describe('submitBuyerChatMessage', () => {
     };
     expect(secondCallBody.sessionId).toBe('session-2');
     expect(secondCallBody.message).toBe(BUYER_CHAT_SKIP);
+  });
+
+  it('renders a streamed search update before the request completes', async () => {
+    const onUpdate = vi.fn();
+    let finish!: () => void;
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ type: 'started' })}\n\n` +
+          `data: ${JSON.stringify({ type: 'session', sessionId: 'session-live' })}\n\n` +
+          `data: ${JSON.stringify({ type: 'update', index: 0, update: { speaker: 'system', text: 'Searching for lots by category: rings…' } })}\n\n`,
+        ));
+        finish = () => {
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ type: 'complete', response: { sessionId: 'session-live', updates: [{ speaker: 'system', text: 'Searching for lots by category: rings…' }], turn: {} } })}\n\n`,
+          ));
+          controller.close();
+        };
+      },
+    }), { headers: { 'Content-Type': 'text/event-stream' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = submitBuyerChatMessage('I want a ring', onUpdate, { language: 'en' });
+    await vi.waitFor(() => expect(onUpdate).toHaveBeenCalledWith({
+      speaker: 'system',
+      text: 'Searching for lots by category: rings…',
+    }));
+    finish();
+    await request;
+    expect(onUpdate).toHaveBeenCalledTimes(1);
   });
 });

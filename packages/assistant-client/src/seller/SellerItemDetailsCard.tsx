@@ -18,28 +18,54 @@ const editableFields: EditableField[] = [
   'title', 'category', 'materials', 'dimensions', 'condition', 'marks', 'signatures', 'provenance',
 ];
 
-function dimensionsText(item: Item): string {
+function measurementLabel(label: string, language: 'he' | 'en'): string {
+  const labels: Record<string, { he: string; en: string }> = {
+    width: { he: 'רוחב', en: 'width' },
+    height: { he: 'גובה', en: 'height' },
+    depth: { he: 'עומק', en: 'depth' },
+    'ring size': { he: 'מידת טבעת', en: 'ring size' },
+  };
+  return labels[label.trim().toLowerCase()]?.[language] ?? label;
+}
+
+function dimensionsText(item: Item, language: 'he' | 'en'): string {
   if (item.dimensions.values.length) {
-    return item.dimensions.values.map(({ label, value, unit }) => `${label}: ${value} ${unit}`).join('\n');
+    return item.dimensions.values
+      .map(({ label, value, unit }) => `${measurementLabel(label, language)}: ${value} ${unit}`)
+      .join('\n');
   }
   if (item.dimensions.widthCm !== undefined && item.dimensions.heightCm !== undefined) {
-    return `width: ${item.dimensions.widthCm} cm\nheight: ${item.dimensions.heightCm} cm`;
+    return `${measurementLabel('width', language)}: ${item.dimensions.widthCm} cm\n${measurementLabel('height', language)}: ${item.dimensions.heightCm} cm`;
   }
   return '';
 }
 
 function valuesForItem(item: Item, language: 'he' | 'en'): EditValues {
   return {
-    title: item.titleTranslations?.[language] ?? item.title,
+    title: displayTitle(item, language),
     category: item.category,
     description: item.description[language],
     materials: item.materials.join(', '),
-    dimensions: dimensionsText(item),
+    dimensions: dimensionsText(item, language),
     condition: item.condition ?? '',
     marks: item.markings ?? '',
     signatures: item.signatures ?? '',
     provenance: item.provenance ?? '',
   };
+}
+
+function displayTitle(item: Item, language: 'he' | 'en'): string {
+  if (item.title === 'Rare Hebrew book from seller intake') {
+    return language === 'he' ? 'כתב יד או ספר נדיר' : 'Rare Hebrew book';
+  }
+  if (item.title === 'כתב יד או ספר נדיר') {
+    return language === 'he' ? item.title : 'Rare Hebrew book';
+  }
+  if (item.title === 'Painting from seller intake') {
+    return language === 'he' ? 'ציור' : 'Painting';
+  }
+  if (item.title === 'ציור') return language === 'he' ? item.title : 'Painting';
+  return item.titleTranslations?.[language] ?? item.title;
 }
 
 function parseDimensions(value: string): { label: string; value: number; unit: string }[] | null {
@@ -59,7 +85,13 @@ function correctionValue(field: EditableField, value: string, language: 'he' | '
   return value;
 }
 
-export function SellerItemDetailsCard({ item: initialItem, language, evidence = [] }: { item: Item; language: 'he' | 'en'; evidence?: SellerItemDraft['evidence'] }) {
+export function SellerItemDetailsCard({ item: initialItem, language, evidence = [], showDescription = false }: {
+  item: Item;
+  language: 'he' | 'en';
+  evidence?: SellerItemDraft['evidence'];
+  /** Only a written description (seller edit or AI catalog text); before that the field holds raw chat text. */
+  showDescription?: boolean;
+}) {
   const { t } = useTranslation();
   const [item, setItem] = useState(initialItem);
   const [isEditing, setIsEditing] = useState(false);
@@ -95,9 +127,9 @@ export function SellerItemDetailsCard({ item: initialItem, language, evidence = 
   const [values, setValues] = useState(() => valuesForItem(initialItem, language));
   const [savedValues, setSavedValues] = useState(() => valuesForItem(initialItem, language));
   const displayFields = ([
-    ['category', item.category],
+    ['category', t(`chat.itemEdit.categories.${item.category}`, { defaultValue: item.category })],
     ['materials', item.materials.join(', ')],
-    ['dimensions', dimensionsText(item)],
+    ['dimensions', dimensionsText(item, language)],
     ['condition', item.condition],
     ['marks', item.markings],
     ['signatures', item.signatures],
@@ -146,7 +178,7 @@ export function SellerItemDetailsCard({ item: initialItem, language, evidence = 
     <section className="mt-4 w-full rounded-xl border border-neutral-300 bg-white p-4 text-start text-neutral-900">
       <h2 className="mb-3 text-lg font-semibold">{t('chat.itemEdit.title')}</h2>
       <div className="mb-3 flex items-start justify-between gap-3">
-        <h3 className="text-base font-semibold">{item.titleTranslations?.[language] ?? item.title}</h3>
+        <h3 className="text-base font-semibold">{displayTitle(item, language)}</h3>
         {!isEditing && (
           <button type="button" className="rounded-lg border border-neutral-400 px-3 py-1 text-sm" onClick={() => setIsEditing(true)}>
             {t('chat.itemEdit.edit')}
@@ -207,6 +239,12 @@ export function SellerItemDetailsCard({ item: initialItem, language, evidence = 
         </div>
       ) : (
         <dl className="grid gap-2 text-sm sm:grid-cols-2">
+          {showDescription && item.description[language]?.trim() ? (
+            <div className="sm:col-span-2">
+              <dt className="font-medium">{t('chat.itemEdit.fields.description')}</dt>
+              <dd className="whitespace-pre-line leading-relaxed">{item.description[language]}</dd>
+            </div>
+          ) : null}
           {displayFields.map(([field, value]) => (
             <div key={field}>
               <dt className="font-medium">{t(`chat.itemEdit.fields.${field}`)}</dt>

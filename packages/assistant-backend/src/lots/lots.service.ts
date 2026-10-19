@@ -11,7 +11,11 @@ import {
   resolvePeriodAlias,
 } from './lot-alias';
 import type { ListFacet, LotSearchResult, UnrecognizedFilters } from './lot-match';
+import { splitQueryTerms } from './lot-query-terms';
 import type { LotFiltersDto, LotSearchDto } from './lot-search.dto';
+
+// Share of the query words a lot must match to be returned, rounded up (3 words need 2).
+const MIN_MATCHED_WORDS_RATIO = 0.5;
 
 function hasAnyFilter(filters?: LotFiltersDto): boolean {
   if (!filters) return false;
@@ -31,25 +35,30 @@ function hasAnyFilter(filters?: LotFiltersDto): boolean {
 }
 
 // A lot matches a field when the partial (LIKE) or the full-text condition finds
-// the term in its English or Hebrew text. Used by both the filter and the ranking,
+// the word in its English or Hebrew text. The word is bound as `:like<index>` (with
+// LIKE wildcards) and `:fts<index>` (plain). Used by both the filter and the ranking,
 // so a returned lot always gets a consistent rank.
-function textMatch(field: 'title' | 'description'): string {
+function textMatch(field: 'title' | 'description', index: number): string {
   return `(
-    LOWER(lot.payload->'${field}'->>'en') LIKE LOWER(:query) ESCAPE '\\' OR
-    LOWER(lot.payload->'${field}'->>'he') LIKE LOWER(:query) ESCAPE '\\' OR
-    to_tsvector('english', lot.payload->'${field}'->>'en') @@ plainto_tsquery('english', :ftsQuery) OR
-    to_tsvector('simple', lot.payload->'${field}'->>'he') @@ plainto_tsquery('simple', :ftsQuery)
+    LOWER(lot.payload->'${field}'->>'en') LIKE LOWER(:like${index}) ESCAPE '\\' OR
+    LOWER(lot.payload->'${field}'->>'he') LIKE LOWER(:like${index}) ESCAPE '\\' OR
+    to_tsvector('english', lot.payload->'${field}'->>'en') @@ plainto_tsquery('english', :fts${index}) OR
+    to_tsvector('simple', lot.payload->'${field}'->>'he') @@ plainto_tsquery('simple', :fts${index})
   )`;
 }
 
-// The SQL decides where the free text matched and returns that as the
-// `title_match` / `description_match` flags on each raw row; they are absent when
-// there was no free text, so no reason is reported then.
-function queryReasons(row: Record<string, unknown> | undefined): MatchReason[] {
-  const reasons: MatchReason[] = [];
-  if (Number(row?.title_match) === 1) reasons.push({ field: 'query', detail: 'title' });
-  if (Number(row?.description_match) === 1) reasons.push({ field: 'query', detail: 'description' });
-  return reasons;
+// A word matches a lot when it is found in the title or in the description.
+function wordMatch(index: number): string {
+  return `(${textMatch('title', index)} OR ${textMatch('description', index)})`;
+}
+
+// The SQL returns a `word_match_<index>` flag per query word on each raw row; a
+// flagged word is reported as it was sent. The flags are absent when there was no
+// free text, so no reason is reported then.
+function queryReasons(row: Record<string, unknown> | undefined, terms: string[]): MatchReason[] {
+  return terms
+    .filter((_, index) => Number(row?.[`word_match_${index}`]) === 1)
+    .map((term) => ({ field: 'query', detail: term }));
 }
 
 // A list filter that was sent: its values as sent, and the tokens they resolve to.
@@ -109,10 +118,11 @@ export class LotsService {
   async search(criteria: LotSearchDto): Promise<LotSearchResult> {
     const { query = '', page = 1, limit = 10, filters } = criteria;
     const normalizedQuery = query.trim();
+    const terms = splitQueryTerms(normalizedQuery);
 
     // Nothing to search on — no text and no filter — yields an empty page
     // without touching the database.
-    if (!normalizedQuery && !hasAnyFilter(filters)) {
+    if (!terms.length && !hasAnyFilter(filters)) {
       return {
         data: [],
         total: 0,
@@ -124,20 +134,21 @@ export class LotsService {
 
     const qb = this.lots.createQueryBuilder('lot');
 
-    // Free-text match over the bilingual title and description, two ways: a
-    // partial (substring) match and a Postgres full-text match, OR'd together
-    // so either one finding the lot is enough. `%` / `_` in the LIKE term are
-    // escaped so they match literally (e.g. "25%"); the full-text side takes
-    // the unescaped term since `plainto_tsquery` has its own tokenizing, not
-    // LIKE wildcard semantics. Hebrew has no built-in Postgres dictionary, so
-    // its full-text config is `simple` (tokenizes only, no stemming) while
-    // English uses `english` (stemmed).
-    if (normalizedQuery) {
-      const escapedQuery = normalizedQuery.replace(/[\\%_]/g, (char) => `\\${char}`);
-      qb.andWhere(`(${textMatch('title')} OR ${textMatch('description')})`, {
-        query: `%${escapedQuery}%`,
-        ftsQuery: normalizedQuery,
+    // SQL expression counting how many of the query words match the lot; used by
+    // both the filter and the ranking.
+    const matchedWords = terms.map((_, index) => `CASE WHEN ${wordMatch(index)} THEN 1 ELSE 0 END`).join(' + ');
+
+    // Each word is matched on its own, by partial (LIKE) or full-text match, in the
+    // title or description. A lot is returned when at least half of the words
+    // (rounded up) match. LIKE words are escaped so `%` and `_` match literally;
+    // Hebrew full-text uses `simple` since Postgres has no Hebrew dictionary.
+    if (terms.length) {
+      const wordParams: Record<string, string | number> = { requiredMatches: Math.ceil(terms.length * MIN_MATCHED_WORDS_RATIO) };
+      terms.forEach((term, index) => {
+        wordParams[`like${index}`] = `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+        wordParams[`fts${index}`] = term;
       });
+      qb.andWhere(`(${matchedWords}) >= :requiredMatches`, wordParams);
     }
 
     // Each populated list facet adds an `IN` clause on its JSON path. Values are
@@ -220,13 +231,15 @@ export class LotsService {
     const offset = (page - 1) * limit;
 
     // Ranking only orders rows that already passed the filters, never adds or drops
-    // one. Strongest first: title match, description match, newest sale, then id so
-    // the order is identical on every run.
+    // one. Most matched words first, then newest sale, then id so the order is
+    // identical on every run.
     const ranking: Array<[string, 'ASC' | 'DESC']> = [];
-    if (normalizedQuery) {
-      qb.addSelect(`CASE WHEN ${textMatch('title')} THEN 1 ELSE 0 END`, 'title_match');
-      qb.addSelect(`CASE WHEN ${textMatch('description')} THEN 1 ELSE 0 END`, 'description_match');
-      ranking.push(['title_match', 'DESC'], ['description_match', 'DESC']);
+    if (terms.length) {
+      qb.addSelect(`(${matchedWords})`, 'matched_words');
+      terms.forEach((_, index) =>
+        qb.addSelect(`CASE WHEN ${wordMatch(index)} THEN 1 ELSE 0 END`, `word_match_${index}`),
+      );
+      ranking.push(['matched_words', 'DESC']);
     }
     qb.addSelect("lot.payload->>'saleDate'", 'sale_date');
     ranking.push(['sale_date', 'DESC'], ['lot.id', 'ASC']);
@@ -248,7 +261,7 @@ export class LotsService {
       data: entities.map((entity, index) => ({
         lot: entity.payload,
         matchReasons: [
-          ...queryReasons(raw[index]),
+          ...queryReasons(raw[index], terms),
           ...facetReasons(raw[index], filters, facetKeys),
           ...dateRangeReasons(filters),
           ...priceReasons(raw[index]),

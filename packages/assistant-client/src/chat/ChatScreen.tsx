@@ -17,8 +17,15 @@ interface ChatScreenProps<T extends { id: string }> {
   retryLabel: string;
   inputLabel: string;
   sendLabel: string;
+  placeholder?: string;
+  busyLabel?: string;
+  tone?: 'default' | 'journey';
   // תוכן נוסף בשורת הכתיבה, לפני שדה ההקלדה (למשל לחצן צירוף תמונה). אופציונלי.
   composerExtra?: ReactNode;
+  // תוכן מעל שורת הכתיבה (למשל תצוגות מקדימות של תמונות שממתינות לשליחה).
+  composerAbove?: ReactNode;
+  // מאפשר שליחה בלי טקסט, למשל כשיש קבצים ממתינים בקומפוזר.
+  canSendEmpty?: boolean;
 }
 
 // Generic chat screen shell shared by every conversation role (buyer, seller, ...): the message
@@ -38,8 +45,14 @@ export function ChatScreen<T extends { id: string }>({
   retryLabel,
   inputLabel,
   sendLabel,
+  placeholder,
+  busyLabel,
+  tone = 'default',
   composerExtra,
+  composerAbove,
+  canSendEmpty = false,
 }: ChatScreenProps<T>) {
+  const journey = tone === 'journey';
   // הטקסט שנמצא כרגע בשדה הכתיבה.
   const [draft, setDraft] = useState('');
   // הפניה לאלמנט בתחתית השיחה, כדי לגלול אליו.
@@ -73,7 +86,7 @@ export function ChatScreen<T extends { id: string }>({
   // שולח את תוכן השדה דרך onSend ומנקה את השדה.
   function sendDraft() {
     const text = draft.trim();
-    if (!text) return;
+    if (!text && !canSendEmpty) return;
     onSend(text);
     setDraft('');
     inputRef.current?.focus();
@@ -95,7 +108,7 @@ export function ChatScreen<T extends { id: string }>({
 
   return (
     // רקע קרם למסך הצ'אט בלבד; #f7efe2 הוא צבע זמני עד שיתקבל טוקן המותג הרשמי של Monabid.
-    <div className="min-h-screen bg-[#f7efe2]">
+    <div className={`min-h-screen ${journey ? 'bg-[#f6f1e8]' : 'bg-[#f7efe2]'}`}>
       <PageShell>
         {/* flex+min-h-screen+gap-4: כשהשיחה קצרה, mt-auto בטופס דוחף אותו לתחתית המסך בפועל
             (במקום שיישאר תקוע מיד אחרי ההודעה האחרונה), וה-gap-4 שומר רווח קבוע של 1rem בין
@@ -112,6 +125,11 @@ export function ChatScreen<T extends { id: string }>({
             {loadingLabel}
           </p>
         )}
+        {isBusy && busyLabel ? (
+          <p role="status" dir={dir} className="self-end text-sm text-stone-400">
+            {busyLabel}
+          </p>
+        ) : null}
         {/* מצב שגיאה: הודעה + כפתור שמבקש את השיחה שוב. */}
         {isError && (
           <div role="alert" dir={dir} className="mt-4 flex flex-col items-start gap-2 text-sm text-red-900">
@@ -129,23 +147,29 @@ export function ChatScreen<T extends { id: string }>({
         <div ref={bottomRef} aria-hidden="true" className="scroll-mb-28" />
 
         {/* שדה כתיבת הודעה וכפתור שליחה. mt-auto דוחף אותו לתחתית ה-flex גם כששיחה קצרה. */}
-        <form onSubmit={handleSubmit} dir={dir} className="sticky bottom-0 mt-auto flex flex-col gap-2 bg-[#f7efe2] py-3">
-          {composerExtra && <div className="flex items-center gap-2">{composerExtra}</div>}
-          <div className="flex w-full items-start gap-2">
+        <form onSubmit={handleSubmit} dir={dir} className={`sticky bottom-0 mt-auto flex flex-col gap-2 py-3 ${journey ? 'bg-[#f6f1e8]' : 'bg-[#f7efe2]'}`}>
+          {composerAbove}
+          <div className={`flex w-full items-end gap-2 ${journey ? 'rounded-full border border-[#e6d9c4] bg-white px-2 py-1.5 shadow-sm' : ''}`}>
+          {composerExtra}
           <textarea
             ref={inputRef}
             aria-label={inputLabel}
+            placeholder={placeholder}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isLoading || isBusy}
             rows={1}
-            className="min-h-11 max-h-40 min-w-0 flex-1 resize-none overflow-y-auto rounded-xl border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100"
+            className={journey
+              ? 'min-h-10 max-h-40 min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-3 py-2 text-sm text-stone-700 placeholder:text-stone-400 focus:outline-none disabled:opacity-60'
+              : 'min-h-11 max-h-40 min-w-0 flex-1 resize-none overflow-y-auto rounded-xl border border-neutral-300 px-3 py-2 text-sm disabled:bg-neutral-100'}
           />
           <button
             type="submit"
             disabled={isLoading || isBusy}
-            className="h-11 shrink-0 rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className={journey
+              ? 'h-10 shrink-0 rounded-full bg-[#c4a574] px-5 text-sm font-medium text-white hover:bg-[#b08948] disabled:opacity-50'
+              : 'h-11 shrink-0 rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50'}
           >
             {sendLabel}
           </button>

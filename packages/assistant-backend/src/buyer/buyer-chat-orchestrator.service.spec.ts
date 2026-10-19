@@ -12,23 +12,18 @@ import { BuyerSearchExecutionService } from './buyer-search-execution.service';
 import { DefaultBuyerResultsPresentationService } from './default-buyer-results-presentation.service';
 import { FixtureLotsSearchClient } from './fixture-lots-search.client';
 import { findBuyerFixtureLot, resolveBuyerFixtureLots } from './fixture-lots.pool';
+import { appendBuyerConversationContext } from './buyer-criteria-session.store';
+import { buildFixtureAiExtract } from '../ai/fixture-ai-extract';
 
 describe('BuyerChatOrchestratorService', () => {
-  it('continues through a provider outage and searches only after all questions are answered or explicitly skipped', async () => {
+  it('starts the search with the known item when the provider is unavailable', async () => {
     const criteria = new BuyerCriteriaService();
     const p4 = { generateBuyerExtract: jest.fn().mockRejectedValue(new ServiceUnavailableException()) };
     const bridge = new BuyerP4BridgeService(p4 as never, criteria);
     const executor = { execute: jest.fn().mockResolvedValue(false) };
     const orchestrator = new BuyerChatOrchestratorService(bridge, criteria, executor as never);
     const opened = await orchestrator.handleMessage({ message: 'I want a blue ring', language: 'en' });
-    expect(opened.updates.length).toBeGreaterThan(0);
-    const answered = await orchestrator.handleMessage({ sessionId: opened.sessionId, message: 'no' });
-    expect(answered.updates).toContainEqual({ speaker: 'system', text: 'Is there a specific artist or maker?' });
-    expect(criteria.getSessionResponse(opened.sessionId).conversation.skipped).toEqual(['budget']);
-    expect(executor.execute.mock.calls.some(call => call[1]?.criteriaComplete === true)).toBe(false);
-    for (let index = 0; index < 3; index++) {
-      await orchestrator.handleMessage({ sessionId: opened.sessionId, message: 'no' });
-    }
+    expect(criteria.getSessionResponse(opened.sessionId).conversation.missing).toEqual([]);
     expect(executor.execute).toHaveBeenLastCalledWith(
       expect.objectContaining({ intentRoute: expect.objectContaining({ functionName: 'searchLots', readyForFunction: true }) }),
       expect.objectContaining({ criteriaComplete: true }), expect.any(Array),
@@ -37,9 +32,9 @@ describe('BuyerChatOrchestratorService', () => {
     expect(criteria.getCriteriaForSession(opened.sessionId).creators).toEqual([]);
     expect(criteria.getCriteriaForSession(opened.sessionId).periods).toEqual([]);
     expect(criteria.getCriteriaForSession(opened.sessionId).geography).toEqual([]);
-    expect(criteria.getSessionResponse(opened.sessionId).conversation.skipped).toEqual(['budget', 'creator', 'period', 'location']);
+    expect(criteria.getSessionResponse(opened.sessionId).conversation.skipped).toEqual([]);
   });
-  it('treats no as a budget skip without classifying it as off-topic', async () => {
+  it('does not route a budget refinement through AI after results can be searched', async () => {
     const criteria = new BuyerCriteriaService();
     const chat = criteria.startCriteriaSessionFromAiResponse({ provider: 'real', mode: 'real', isRelevant: true,
       content: 'ring', summary: '', recommendation: '', nextAction: '', confidence: 'medium',
@@ -47,18 +42,38 @@ describe('BuyerChatOrchestratorService', () => {
     const bridge = { routeBuyerMessage: jest.fn(), evaluateSearchReadiness: jest.fn().mockResolvedValue({ functionName: 'searchLots', readyForFunction: true }) };
     const executor = { execute: jest.fn() };
     const orchestrator = new BuyerChatOrchestratorService(bridge as never, criteria, executor as never);
-    const result = await orchestrator.handleMessage({ sessionId: chat.sessionId, message: 'לא', language: 'he' });
+    const result = await orchestrator.handleMessage({ sessionId: chat.sessionId, message: '250 שקלים', language: 'he' });
     expect(bridge.routeBuyerMessage).not.toHaveBeenCalled();
-    expect(criteria.getSessionResponse(chat.sessionId).conversation.skipped).toContain('budget');
-    expect(result.turn.buyer.message).toBe('לא');
-    expect(result.turn.buyer.skipped).toBe(true);
+    expect(criteria.getCriteriaForSession(chat.sessionId).price).toEqual({ max: 250, currency: 'ILS' });
+    expect(result.turn.buyer.message).toBe('250 שקלים');
+    expect(result.turn.buyer.skipped).toBe(false);
+  });
+  it('records a period refinement locally without asking AI to re-interpret it', async () => {
+    const criteria = new BuyerCriteriaService();
+    const chat = criteria.startCriteriaSessionFromAiResponse({ provider: 'real', mode: 'real', isRelevant: true,
+      content: 'painting', summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+      structuredAnswer: { role: 'buyer', language: 'en', intent: 'search', category: 'painting', hasContactDetails: false, hasImages: false } });
+    const bridge = {
+      routeBuyerMessage: jest.fn(),
+      evaluateSearchReadiness: jest.fn().mockResolvedValue({ functionName: 'searchLots', readyForFunction: true }),
+    };
+    const executor = { execute: jest.fn() };
+    const orchestrator = new BuyerChatOrchestratorService(bridge as never, criteria, executor as never);
+
+    await orchestrator.handleMessage({ sessionId: chat.sessionId, message: 'from 1920', language: 'en' });
+
+    expect(bridge.routeBuyerMessage).not.toHaveBeenCalled();
+    expect(criteria.getCriteriaForSession(chat.sessionId).periods).toEqual(['1920']);
   });
   it('records a budget answer locally even if the model would reject the short reply', async () => {
     const criteria = new BuyerCriteriaService();
     const chat = criteria.startCriteriaSessionFromAiResponse({ provider: 'real', mode: 'real', isRelevant: true,
       content: 'manuscript', summary: '', recommendation: '', nextAction: '', confidence: 'medium',
       structuredAnswer: { role: 'buyer', language: 'he', intent: 'search', category: 'rare_books', keywords: ['manuscript'], hasContactDetails: false, hasImages: false } });
-    const bridge = { routeBuyerMessage: jest.fn(), evaluateSearchReadiness: jest.fn() };
+    const bridge = {
+      routeBuyerMessage: jest.fn(),
+      evaluateSearchReadiness: jest.fn().mockResolvedValue({ functionName: 'searchLots', readyForFunction: true }),
+    };
     const executor = { execute: jest.fn() };
     const orchestrator = new BuyerChatOrchestratorService(bridge as never, criteria, executor as never);
 
@@ -66,7 +81,44 @@ describe('BuyerChatOrchestratorService', () => {
 
     expect(bridge.routeBuyerMessage).not.toHaveBeenCalled();
     expect(criteria.getCriteriaForSession(chat.sessionId).price).toEqual({ max: 250, currency: 'USD' });
-    expect(criteria.getSessionResponse(chat.sessionId).conversation.missing[0]).toBe('creator');
+    expect(criteria.getSessionResponse(chat.sessionId).conversation.missing).toEqual([]);
+  });
+
+  it('does not turn yes into a new search when answering the assistant follow-up question', async () => {
+    const criteria = new BuyerCriteriaService();
+    const chat = criteria.startCriteriaSessionFromAiResponse(buildFixtureAiExtract('', 'he'));
+    appendBuyerConversationContext(chat.sessionId, { speaker: 'buyer', text: 'איזה יהלום נמכר במחיר הגבוה ביותר?' });
+    appendBuyerConversationContext(chat.sessionId, { speaker: 'assistant', text: 'היהלום הכחול נמכר בסכום שיא. תרצי לשמוע פרטים נוספים?' });
+    const routedAi = {
+      extract: { ...buildFixtureAiExtract('כן', 'he'), summary: 'בשמחה, הנה פרטים נוספים על המכירה.' },
+      generalInformation: false,
+      readyForFunction: true,
+      intentRoute: { functionName: 'searchLots', readyForFunction: true },
+      functionParameters: null,
+    };
+    const bridge = {
+      routeBuyerMessage: jest.fn().mockResolvedValue(routedAi),
+      evaluateSearchReadiness: jest.fn(),
+    };
+    const executor = { execute: jest.fn() };
+    const orchestrator = new BuyerChatOrchestratorService(bridge as never, criteria, executor as never);
+
+    const result = await orchestrator.handleMessage({ sessionId: chat.sessionId, message: 'כן', language: 'he' });
+
+    const routed = bridge.routeBuyerMessage.mock.calls[0];
+    expect(routed?.[0]).toBe('כן');
+    expect(routed?.[2]).toEqual(expect.objectContaining({ sessionId: chat.sessionId }));
+    expect(routed?.[3]).toContainEqual({
+      speaker: 'assistant',
+      text: 'היהלום הכחול נמכר בסכום שיא. תרצי לשמוע פרטים נוספים?',
+    });
+    expect(result.updates).toHaveLength(1);
+    expect(result.updates[0]).toMatchObject({
+      speaker: 'system',
+      text: expect.stringContaining('בשמחה, הנה פרטים נוספים על המכירה.'),
+    });
+    expect(executor.execute).not.toHaveBeenCalled();
+    expect(bridge.evaluateSearchReadiness).not.toHaveBeenCalled();
   });
 
   function createOrchestrator() {
@@ -107,6 +159,27 @@ describe('BuyerChatOrchestratorService', () => {
     expect(result.sessionId).toBeTruthy();
     expect(result.updates.length).toBeGreaterThanOrEqual(1);
     expect(result.updates[0]?.speaker).toBe('system');
+  });
+
+  it('streams the search-step update as soon as the search starts', async () => {
+    const { orchestrator } = createOrchestrator();
+    const streamed: Array<{ update: { speaker: string; text?: string }; index: number }> = [];
+    const sessions: string[] = [];
+
+    const result = await orchestrator.handleMessage(
+      { message: 'I want a blue ring', language: 'en' },
+      {
+        onSessionId: (sessionId) => sessions.push(sessionId),
+        onUpdate: (update, index) => streamed.push({ update, index }),
+      },
+    );
+
+    expect(sessions).toEqual([result.sessionId]);
+    expect(streamed).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        update: expect.objectContaining({ speaker: 'system', text: expect.stringContaining('Searching for lots') }),
+      }),
+    ]));
   });
 
   it('finds manuscript results after Hebrew budget and optional skips without real AI', async () => {

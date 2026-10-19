@@ -41,6 +41,7 @@ import { AddSellerLeadChoice1788220800002 } from './database/1788220800002-add-s
 import { AddSellerLeadFinal1788220800003 } from './database/1788220800003-add-seller-lead-final';
 import { AddSellerLeadDashboard1788220800004 } from './database/1788220800004-add-seller-lead-dashboard';
 import { CreateSellerIntakeDrafts1788220800005 } from './database/1788220800005-create-seller-intake-drafts';
+import { AddSellerEnquiryText1788220800007 } from './database/1788220800007-add-seller-enquiry-text';
 import { ComparablesModule } from './comparables/comparables.module';
 import { SellerIntakeModule } from './seller-intake/seller-intake.module';
 import { SellerLeadsModule } from './seller-leads/seller-leads.module';
@@ -90,6 +91,7 @@ export function databaseOptions(config: ConfigService): TypeOrmModuleOptions {
       AddSellerLeadDashboard1788220800004,
       CreateSellerIntakeDrafts1788220800005,
       AlignLegacySellerLeads1788220800006,
+      AddSellerEnquiryText1788220800007,
     ],
     synchronize: false,
   };

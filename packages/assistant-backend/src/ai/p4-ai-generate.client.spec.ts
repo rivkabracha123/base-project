@@ -32,6 +32,27 @@ describe('P4AiGenerateClient', () => {
       fetchMock.mockRestore();
     }
   });
+  it('uses AI_API_KEY when the P4-specific key is not configured', async () => {
+    const config = {
+      get: (key: string) => ({
+        AI_PROVIDER_MODE: 'real',
+        AI_GENERATE_URL: 'http://localhost/ai',
+        AI_API_KEY: 'test-api-key',
+      })[key],
+    } as ConfigService;
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+    try {
+      await new P4AiGenerateClient(config).generateBuyerExtract({ prompt: 'find items', language: 'en' });
+      expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+        Authorization: 'Bearer test-api-key',
+      });
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
   it('returns fixture extract when AI_PROVIDER_MODE is fixture', async () => {
     const config = {
       get: (key: string) => (key === 'AI_PROVIDER_MODE' ? 'fixture' : undefined),

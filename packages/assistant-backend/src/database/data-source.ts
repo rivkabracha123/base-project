@@ -29,6 +29,7 @@ import { AddSellerLeadChoice1788220800002 } from './1788220800002-add-seller-lea
 import { AddSellerLeadFinal1788220800003 } from './1788220800003-add-seller-lead-final';
 import { AddSellerLeadDashboard1788220800004 } from './1788220800004-add-seller-lead-dashboard';
 import { CreateSellerIntakeDrafts1788220800005 } from './1788220800005-create-seller-intake-drafts';
+import { AddSellerEnquiryText1788220800007 } from './1788220800007-add-seller-enquiry-text';
 
 const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://monabid:monabid@localhost:5432/monabid';
 
@@ -66,6 +67,7 @@ const AppDataSource = new DataSource({
     AddSellerLeadDashboard1788220800004,
     CreateSellerIntakeDrafts1788220800005,
     AlignLegacySellerLeads1788220800006,
+    AddSellerEnquiryText1788220800007,
   ],
   synchronize: false,
   logging: false,

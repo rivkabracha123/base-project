@@ -1,3 +1,4 @@
+import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { FixtureProviderService } from './fixture-provider.service';
 import { RealProviderService } from './real-provider.service';
@@ -54,5 +55,28 @@ describe('AiService', () => {
     });
 
     expect(response.intentRoute).toBeUndefined();
+  });
+  describe('generateText', () => {
+    const realConfig = (values: Record<string, string>) =>
+      ({ get: jest.fn((key: string, fallback?: string) => values[key] ?? fallback) }) as never;
+    const profiles = { captureContactIfPresent: jest.fn() } as unknown as ProfilesService;
+
+    it('refuses free text in fixture mode so callers use their own template', async () => {
+      const service = new AiService({} as FixtureProviderService, {} as RealProviderService, realConfig({}), profiles);
+      await expect(service.generateText({ prompt: 'Describe the item' })).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('turns a provider failure into 503 and logs only the coarse reason', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      const realProvider = { generateText: jest.fn().mockRejectedValue(new Error('Real provider request failed: 429 key=secret-key')) };
+      const service = new AiService({} as FixtureProviderService, realProvider as unknown as RealProviderService,
+        realConfig({ AI_PROVIDER_MODE: 'real', AI_BASE_URL: 'https://example.com/v1', AI_MODEL_NAME: 'm', AI_API_KEY: 'secret-key' }), profiles);
+
+      await expect(service.generateText({ prompt: 'Describe the item', language: 'he' })).rejects.toBeInstanceOf(ServiceUnavailableException);
+      const logged = warn.mock.calls.map((call) => String(call[0])).join(' | ');
+      expect(logged).toContain('http_429');
+      expect(logged).not.toContain('secret-key');
+      warn.mockRestore();
+    });
   });
 });

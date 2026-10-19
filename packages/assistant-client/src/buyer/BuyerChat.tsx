@@ -175,6 +175,7 @@ export function BuyerChat() {
       onSend={handleSend}
       dir={dir}
       loadingLabel={t('chat.loading')}
+      busyLabel={t('chat.buyerProcessing')}
       errorLabel={t('chat.error')}
       retryLabel={t('chat.retry')}
       inputLabel={t('chat.inputLabel')}

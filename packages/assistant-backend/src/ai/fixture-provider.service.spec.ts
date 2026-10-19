@@ -12,30 +12,28 @@ describe('FixtureProviderService', () => {
     expect(result.structuredAnswer.item).not.toHaveProperty('dimensions');
     expect(result.structuredAnswer.item).toEqual(expect.objectContaining({ condition: 'provided' }));
   });
-  it('asks a Hebrew pink-ring buyer for budget and optional period', async () => {
+  it('starts a Hebrew pink-ring search without asking optional questions', async () => {
     const result = await new FixtureProviderService().generate({ prompt: 'אני מחפש טבעת וורודה', role: 'buyer', language: 'he' });
     expect(result.summary).toContain('טבעת ורודה');
-    expect(result.nextAction).toContain('מה התקציב');
-    expect(result.nextAction).toContain('שנה או תקופה');
-    expect(result.nextAction).toContain('אין העדפה');
+    expect(result.nextAction).toContain('מתחילה לחפש');
+    expect(result.nextAction).not.toMatch(/תקציב|שנה|תקופה/);
   });
 
   it.each([
-    ['אני מחפשת טבעת עד 5000 שקל', false, true],
-    ['אני מחפשת טבעת משנת 2021', true, false],
-    ['אני מחפשת טבעת משנת 2021 עד 5000 שקל', false, false],
-    ['אני מחפשת טבעת וינטג עד 5000 שקל', false, false],
-    ['אני מחפשת טבעת ללא הגבלת תקציב ולא משנה השנה', false, false],
-  ])('only asks for missing buyer preferences: %s', async (prompt, budget, period) => {
+    'אני מחפשת טבעת עד 5000 שקל',
+    'אני מחפשת טבעת משנת 2021',
+    'אני מחפשת טבעת משנת 2021 עד 5000 שקל',
+    'אני מחפשת טבעת וינטג עד 5000 שקל',
+    'אני מחפשת טבעת ללא הגבלת תקציב ולא משנה השנה',
+  ])('does not ask for optional buyer preferences: %s', async (prompt) => {
     const result = await new FixtureProviderService().generate({ prompt, role: 'buyer', language: 'he' });
-    expect(result.nextAction.includes('מה התקציב')).toBe(budget);
-    expect(result.nextAction.includes('שנה או תקופה')).toBe(period);
+    expect(result.nextAction).not.toMatch(/מה התקציב|שנה או תקופה/);
   });
 
-  it('asks focused questions in English too', async () => {
+  it('starts a concise English search without optional questions', async () => {
     const result = await new FixtureProviderService().generate({ prompt: 'I want a pink ring', role: 'buyer', language: 'en' });
-    expect(result.nextAction).toContain('What is your budget');
-    expect(result.nextAction).toContain('preferred year or period');
+    expect(result.nextAction).toContain('searching');
+    expect(result.nextAction).not.toMatch(/budget|period|year/);
   });
 
   it('understands the English pink ring request and returns English display text', async () => {

@@ -32,6 +32,14 @@ describe('LotSearchDto', () => {
     await expect(validateBody({ page: 1.5 })).rejects.toThrow();
   });
 
+  it.each([[123], [true], [['a']], [{}]])('rejects a query that is not a string (%j)', async (query: unknown) => {
+    await expect(validateBody({ query })).rejects.toThrow();
+  });
+
+  it.each([['query'], ['language'], ['page'], ['limit'], ['filters']])('rejects a null %s', async (field: string) => {
+    await expect(validateBody({ [field]: null })).rejects.toThrow();
+  });
+
   it('leaves page and limit undefined when omitted (service owns the default)', async () => {
     const result = await validateBody({ query: 'book' });
     expect(result.page).toBeUndefined();
@@ -176,6 +184,15 @@ describe('LotSearchDto', () => {
       await expect(
         validateBody({ filters: { price: { max: 1500, curency: 'USD' } } }),
       ).rejects.toThrow();
+    });
+
+    // A null budget must not pass as "no budget": the bound would be dropped silently.
+    it.each([
+      ['price', { price: null }],
+      ['min', { price: { min: null } }],
+      ['max', { price: { max: null } }],
+    ])('rejects a null %s', async (_label: string, filters: unknown) => {
+      await expect(validateBody({ filters })).rejects.toThrow();
     });
   });
 
