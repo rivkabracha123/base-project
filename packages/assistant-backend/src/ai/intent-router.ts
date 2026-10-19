@@ -42,7 +42,7 @@ export function routeBuyerIntent(prompt: string, context: RouterContext = {}): I
   }
 
   if (/(?:בית|בתי)\s+מכירות|auction\s+houses?/i.test(normalizedPrompt) &&
-      /מתמח|התמחות|מתאים|מומל|speciali[sz]|expert|recommend|best|suitable/i.test(normalizedPrompt)) {
+      /מתמח|התמחות|מתאי(?:ם|מ)|מומל|speciali[sz]|expert|recommend|best|suitable/i.test(normalizedPrompt)) {
     const category = context.category?.trim();
     const missingFields = category && !['כללי', 'general', 'unknown'].includes(category.toLowerCase()) ? [] : ['category'];
     return {
