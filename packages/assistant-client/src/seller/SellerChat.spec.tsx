@@ -238,6 +238,25 @@ describe('SellerChat', () => {
     expect(update.closest('li')).toHaveAttribute('data-speaker', 'system');
   });
 
+  it('shows the comparing and found lines as step lines one after another', async () => {
+    vi.mocked(connectSellerLevels).mockImplementation(async (_message, onUpdate) => {
+      onUpdate({ speaker: 'system', text: 'Comparing with past deals…' });
+      onUpdate({ speaker: 'system', text: 'Found 3 past sales' });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Show past sales' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    const comparing = (await screen.findByText('Comparing with past deals…')).closest('li')!;
+    expect(comparing).toHaveAttribute('data-step', 'true');
+    expect(comparing).toHaveTextContent('📊');
+    expect(screen.queryByText('Found 3 past sales')).not.toBeInTheDocument();
+    const found = (await screen.findByText('Found 3 past sales', {}, { timeout: 2000 })).closest('li')!;
+    expect(found).toHaveTextContent('🗂️');
+  }, 10000);
+
   it('continues an enquiry through ordinary chat messages instead of a styled contact form', async () => {
     await i18n.changeLanguage('en');
     vi.mocked(connectSellerLevels).mockImplementation(async (_message, onUpdate) => {

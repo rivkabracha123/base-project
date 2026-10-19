@@ -11,7 +11,8 @@ import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
 import { getBuyerChatFlowSnapshot, selectBuyerLot, getBuyerHouseCategory } from './buyer-chat-flow';
 import { BuyerLotCard, type BuyerLotCardLabels } from './BuyerLotCard';
-import { BuyerStepLine, buyerRevealDelays, isBuyerStepMessage, useBuyerReveal } from './BuyerStepLine';
+import { StepLine, isStepMessage, useStepReveal } from '../chat/StepLine';
+import { withBuyerSteps } from './buyer-step-updates';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
 
@@ -62,28 +63,27 @@ export function BuyerChat() {
       fetch: (signal) => getConversation(language, signal),
     },
     userMessage: (text) => ({ speaker: 'buyer', skipped: false, text }),
-    connect: (text, onUpdate) => connectLevels(text, onUpdate, language),
+    connect: (text, onUpdate) => connectLevels(text, withBuyerSteps(onUpdate, language), language),
     errorText: t('chat.sendError'),
     // מזהה השיחה האמיתי שהשרת של B2 החזיר (null לפני ההודעה הראשונה).
     getSessionId: () => getBuyerChatFlowSnapshot().sessionId,
   });
 
-  // Search steps show one after another and what follows them waits, so the screen only scrolls to what is visible.
-  const visibleMessages = useBuyerReveal(messages);
-  const revealDelays = buyerRevealDelays(messages);
+  // Step lines show one after another and what follows them waits, so the screen only scrolls to what is visible.
+  const { visible: visibleMessages, delayed } = useStepReveal(messages);
 
-  // Fades in what was held back behind the search steps.
+  // Fades in what was held back behind the step lines.
   function renderMessage(message: BuyerMessage) {
     const element = renderMessageContent(message);
-    if (isBuyerStepMessage(message) || !revealDelays.get(message.id)) return element;
+    if (!delayed.has(message.id)) return element;
     return cloneElement(element, { className: `${element.props.className ?? ''} buyer-reveal` });
   }
 
   // Renders a single conversation message in the form that fits its kind.
   function renderMessageContent(message: BuyerMessage) {
-    // Search progress lines: small animated steps instead of chat bubbles.
-    if (isBuyerStepMessage(message) && 'text' in message) {
-      return <BuyerStepLine speaker={message.speaker} text={message.text} />;
+    // Progress lines: small animated steps instead of chat bubbles.
+    if (isStepMessage(message) && 'text' in message) {
+      return <StepLine speaker={message.speaker} text={message.text} />;
     }
     // Lots from other categories: a card that shows each lot's category and the reasons the search reported.
     if (message.speaker === 'result-group' && message.variant === 'other-categories') {
