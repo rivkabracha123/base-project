@@ -10,6 +10,7 @@ import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
 import { getBuyerChatFlowSnapshot, selectBuyerLot, getBuyerHouseCategory } from './buyer-chat-flow';
 import { BuyerLotCard, type BuyerLotCardLabels } from './BuyerLotCard';
+import { BuyerStepLine, buyerStepPositions, isBuyerStepMessage } from './BuyerStepLine';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
 
@@ -66,8 +67,14 @@ export function BuyerChat() {
     getSessionId: () => getBuyerChatFlowSnapshot().sessionId,
   });
 
+  const stepPositions = buyerStepPositions(messages);
+
   // Renders a single conversation message in the form that fits its kind.
   function renderMessage(message: BuyerMessage) {
+    // Search progress lines: small animated steps instead of chat bubbles.
+    if (isBuyerStepMessage(message) && 'text' in message) {
+      return <BuyerStepLine speaker={message.speaker} text={message.text} position={stepPositions.get(message.id) ?? 0} />;
+    }
     // Lots from other categories: a card that shows each lot's category and the reasons the search reported.
     if (message.speaker === 'result-group' && message.variant === 'other-categories') {
       return (

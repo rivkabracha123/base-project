@@ -51,6 +51,20 @@ function renderChatWithError() {
 
 // Tests for the buyer chat screen.
 describe('BuyerChat', () => {
+  it('shows search progress as staggered step lines with icons, not chat bubbles', async () => {
+    renderChat([
+      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching for lots by category: rare books…' },
+      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 2 upcoming lots that match this request.' },
+      { id: 'step-3', sessionId: 's1', speaker: 'results-found', text: 'We also checked the sales archive: 8 similar past sales found.' },
+    ]);
+    const searching = (await screen.findByText(/Searching for lots/)).closest('li')!;
+    const archive = screen.getByText(/sales archive/).closest('li')!;
+    expect(searching).toHaveAttribute('data-step', 'true');
+    expect(searching).toHaveTextContent('🔍');
+    expect(archive).toHaveTextContent('🗂️');
+    expect(archive.style.animationDelay).toBe('800ms');
+  });
+
   it('renders specialist houses inline without seller selection controls', async () => {
     const ranking = houseRankingSchema.parse({ recommendation: {
       house: { id: 'house-specialist', name: 'Manuscript specialist', active: true, categories: ['rare_books'], languages: ['he', 'en'], geography: 'Israel', comparableSoldCountByCategory: { rare_books: 3 } },
