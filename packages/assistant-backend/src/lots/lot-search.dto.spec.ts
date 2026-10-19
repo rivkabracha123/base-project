@@ -162,6 +162,12 @@ describe('LotSearchDto', () => {
       ).rejects.toThrow();
     });
 
+    it('rejects a range whose min is greater than its max', async () => {
+      await expect(
+        validateBody({ filters: { price: { min: 1500, max: 800, currency: 'USD' } } }),
+      ).rejects.toThrow();
+    });
+
     it('rejects a non-numeric amount', async () => {
       await expect(
         validateBody({ filters: { price: { max: '1500', currency: 'USD' } } }),
