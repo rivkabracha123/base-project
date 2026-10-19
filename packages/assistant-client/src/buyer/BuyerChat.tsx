@@ -1,3 +1,4 @@
+import { cloneElement } from 'react';
 import { type ItemCardLabels } from '@monabid/ui';
 import { Link, useNavigate } from 'react-router-dom';
 import { SellerComparisonResults } from '../seller/SellerComparisonResults';
@@ -10,7 +11,7 @@ import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
 import { getBuyerChatFlowSnapshot, selectBuyerLot, getBuyerHouseCategory } from './buyer-chat-flow';
 import { BuyerLotCard, type BuyerLotCardLabels } from './BuyerLotCard';
-import { BuyerStepLine, buyerStepPositions, isBuyerStepMessage } from './BuyerStepLine';
+import { BuyerStepLine, buyerRevealDelays, buyerStepPositions, isBuyerStepMessage } from './BuyerStepLine';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
 
@@ -68,9 +69,21 @@ export function BuyerChat() {
   });
 
   const stepPositions = buyerStepPositions(messages);
+  const revealDelays = buyerRevealDelays(messages);
+
+  // Holds back what follows the search steps until the steps finished appearing.
+  function renderMessage(message: BuyerMessage) {
+    const element = renderMessageContent(message);
+    const delay = revealDelays.get(message.id);
+    if (!delay) return element;
+    return cloneElement(element, {
+      className: `${element.props.className ?? ''} buyer-reveal`,
+      style: { animationDelay: `${delay}ms` },
+    });
+  }
 
   // Renders a single conversation message in the form that fits its kind.
-  function renderMessage(message: BuyerMessage) {
+  function renderMessageContent(message: BuyerMessage) {
     // Search progress lines: small animated steps instead of chat bubbles.
     if (isBuyerStepMessage(message) && 'text' in message) {
       return <BuyerStepLine speaker={message.speaker} text={message.text} position={stepPositions.get(message.id) ?? 0} />;

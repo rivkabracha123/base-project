@@ -17,6 +17,9 @@ function stepIcon(text: string): string {
   return '📚';
 }
 
+// Time the sweep takes on one step line; matches buyer-step-shimmer in index.css.
+const STEP_SHIMMER_MS = 1600;
+
 // Position of each step line inside its run of consecutive step lines, keyed by message id.
 export function buyerStepPositions(messages: BuyerMessage[]): Map<string, number> {
   const positions = new Map<string, number>();
@@ -26,6 +29,24 @@ export function buyerStepPositions(messages: BuyerMessage[]): Map<string, number
     else run = 0;
   }
   return positions;
+}
+
+// Delay for the messages that come right after a run of steps (cards, no-results), so they appear once the last step finished.
+export function buyerRevealDelays(messages: BuyerMessage[]): Map<string, number> {
+  const delays = new Map<string, number>();
+  let run = 0;
+  let waiting = 0;
+  for (const message of messages) {
+    if (isBuyerStepMessage(message)) {
+      run++;
+      continue;
+    }
+    if (run > 0) waiting = (run - 1) * STEP_STAGGER_MS + STEP_SHIMMER_MS;
+    run = 0;
+    if (message.speaker === 'buyer') waiting = 0;
+    if (waiting > 0) delays.set(message.id, waiting);
+  }
+  return delays;
 }
 
 // One search progress line: small grey text with an icon that slides in and shimmers once.

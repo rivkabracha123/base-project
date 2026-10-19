@@ -65,6 +65,17 @@ describe('BuyerChat', () => {
     expect(archive.style.animationDelay).toBe('800ms');
   });
 
+  it('holds the result cards back until the search steps finished appearing', async () => {
+    renderChat([
+      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'Searching for lots by category: rare books…' },
+      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 1 upcoming lots that match this request.' },
+      { id: 'cards', sessionId: 's1', speaker: 'result-group', title: 'Upcoming lots', lots: [soldLotFixture] },
+    ]);
+    const cards = (await screen.findByRole('heading', { name: 'Upcoming lots' })).closest('li')!;
+    expect(cards).toHaveClass('buyer-reveal');
+    expect(cards.style.animationDelay).toBe('2000ms');
+  });
+
   it('renders specialist houses inline without seller selection controls', async () => {
     const ranking = houseRankingSchema.parse({ recommendation: {
       house: { id: 'house-specialist', name: 'Manuscript specialist', active: true, categories: ['rare_books'], languages: ['he', 'en'], geography: 'Israel', comparableSoldCountByCategory: { rare_books: 3 } },

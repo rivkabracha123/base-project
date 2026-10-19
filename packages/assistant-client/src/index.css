@@ -16,7 +16,7 @@
 
 /* Buyer search steps: each line slides up into place, then a light sweep brightens its text once. */
 @layer components {
-  .buyer-step { animation: buyer-step-in 500ms ease-out both; }
+  .buyer-step, .buyer-reveal { animation: buyer-step-in 500ms ease-out both; }
   .buyer-step-text {
     color: transparent;
     background: linear-gradient(90deg, #a8a29e 40%, #f5f5f4 50%, #a8a29e 60%) 100% 0 / 300% 100% no-repeat;
@@ -37,5 +37,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .buyer-step, .buyer-step-text { animation: none; }
+  .buyer-step, .buyer-step-text, .buyer-reveal { animation: none; }
 }
