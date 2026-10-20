@@ -13,6 +13,7 @@ import { sellerItemReady } from './seller-item-readiness';
 export class SellerIntakeController {
   private readonly pendingValuations = new Set<string>();
   private readonly pendingComparisons = new Map<string, SellerComparisonAction>();
+  private readonly lastActions = new Map<string, string>();
   constructor(
     @Inject(SELLER_INTAKE_AI_PROVIDER) private readonly sellerIntakeAi: SellerIntakeAiProvider,
     private readonly drafts: SellerIntakeDraftsService,
@@ -23,6 +24,18 @@ export class SellerIntakeController {
   // מנתח טיוטת intake; שומר אותה רק כש-profileId ו-sessionId נשלחים יחד.
   // Analyzes an intake draft; persists it only when both profileId and sessionId are sent.
   async createDraft(@Body() body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
+    const result = await this.analyzeDraft(body);
+    // Remember the action just returned so a short follow-up ("I'd like to see it") can refer to it.
+    if (typeof body.profileId === 'string' && typeof body.sessionId === 'string') {
+      const scopedSessionId = `${body.profileId}:${body.sessionId}`;
+      const action = result.functionCall?.functionToRun;
+      if (action) this.lastActions.set(scopedSessionId, action);
+      else this.lastActions.delete(scopedSessionId);
+    }
+    return result;
+  }
+
+  private async analyzeDraft(body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
     const { input, sessionId, profileId, language: requestedLanguage } = body;
     const language = requestedLanguage === 'he' || requestedLanguage === 'en' ? requestedLanguage : undefined;
     if (typeof input !== 'string' || input.trim().length === 0) {
@@ -46,7 +59,10 @@ export class SellerIntakeController {
     const previousComparison = this.pendingComparisons.get(scopedSessionId);
     const previousValuation = this.pendingValuations.has(scopedSessionId);
     if (/\b(?:cancel|don't|do not)\b|בטל|לא\s+(?:רוצה|מעוניי?נ)/i.test(input)) this.pendingComparisons.delete(scopedSessionId);
-    const comparison = requestedSellerComparison(input);
+    // Right after a catalog draft, "I'd like to see it" or "edit it" means the drafted description in the item details.
+    const followsCatalogDraft = this.lastActions.get(scopedSessionId) === 'getSellerCatalogDraft' && input.trim().length <= 40
+      && /לראות|תראה|תראי|הראה|הצג|תציג|תציגי|להציג|לערוך|ערוך|תערוך|תערכי|\b(?:show|see|view|edit)\b/i.test(input);
+    const comparison = requestedSellerComparison(input) ?? (followsCatalogDraft ? 'getSellerItemDetails' : null);
     if (comparison) this.pendingComparisons.set(scopedSessionId, comparison);
     if (comparison) {
       try {

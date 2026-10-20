@@ -695,4 +695,76 @@ describe('SellerIntakeAiAdapter', () => {
       }),
     }));
   });
+  it('keeps the unit answered in an earlier turn when the seller asks for a catalog draft', async () => {
+    const reply = (item: Record<string, unknown>) => ({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+      summary: 'כתב יד בגודל 80x70 ס״מ.', recommendation: '', nextAction: '',
+      structuredAnswer: { ...handoff, category: 'rare_books', item: { title: 'כתב יד', ...item }, missingFacts: [] } });
+    const adapter = new SellerIntakeAiAdapter(intake, {
+      generateSellerExtract: jest.fn(async () => reply({ condition: 'מצב טוב' })),
+    } as never);
+    const unitless = await adapter.analyze('80*70 במצב טוב עם חתימה מאחורה', 'unit-session');
+    expect(unitless.nextQuestion?.he).toContain('באיזו יחידה');
+    // The model assumed centimetres; that guess must not be shown next to the unit question.
+    expect(unitless.ai.summary).toBe('');
+    const answered = await adapter.analyze('ס״מ', 'unit-session');
+    expect(answered.item.dimensions.values.map(value => value.unit)).toEqual(['cm', 'cm']);
+    const catalog = await adapter.analyze('אני רוצה שתנסח לי טיוטת קטלוג עבור המוצר שלי', 'unit-session');
+    expect(catalog.requiredMissingFields).toEqual([]);
+    expect(catalog.nextQuestion?.field).not.toBe('dimensions');
+    expect(catalog.item.dimensions.values).toHaveLength(2);
+  });
+  it.each(['getSellerEnquiryPreview', 'getSellerCatalogDraft', 'calculateSellerValuation'])('ignores %s when the model volunteers it on an unrelated turn', async (functionToRun) => {
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: jest.fn(async () => ({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+      functionCall: { functionToRun, object: {} },
+      structuredAnswer: { ...handoff, category: 'rare_books', item: { title: 'כתב יד', condition: 'מצב טוב',
+        dimensions: { values: [{ label: 'width', value: 80, unit: 'cm' }] } }, missingFacts: [] } })) } as never);
+    const result = await adapter.analyze('80*70 ס״מ במצב טוב עם חתימה מאחורה', `volunteer-${functionToRun}`);
+    expect(result.functionCall?.functionToRun ?? null).toBeNull();
+  });
+  it('keeps the item name when a later turn such as "here is a photo" has no title', async () => {
+    const reply = (item: Record<string, unknown>) => ({ provider: 'real', mode: 'real', isRelevant: true, error: null,
+      structuredAnswer: { ...handoff, category: 'rare_books', item: { condition: 'מצב טוב',
+        dimensions: { values: [{ label: 'width', value: 80, unit: 'cm' }] }, ...item }, missingFacts: [] } });
+    const generate = jest.fn().mockResolvedValueOnce(reply({ title: 'כתב יד עתיק' })).mockResolvedValueOnce(reply({}));
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    await adapter.analyze('יש לי כתב יד עתיק 80 ס״מ במצב טוב', 'photo-title');
+    const result = await adapter.analyze('הנה תמונה', 'photo-title');
+    expect(result.item.title).toBe('כתב יד עתיק');
+  });
+});
+
+// A watch conversation as gpt-4o-mini answered it on 2026-10-20.
+describe('SellerIntakeAiAdapter measurements in a watch conversation', () => {
+  const watch = (item: SellerHandoffContract['item'], missingFacts: string[]) => ({
+    provider: 'real', mode: 'real', isRelevant: true, error: null, summary: 'ok', nextAction: 'ok',
+    structuredAnswer: { ...handoff, language: 'he', category: 'watches', item: { title: 'שעון יד', ...item }, missingFacts },
+  });
+
+  it('keeps a diameter answer out of the field that was asked about and does not invent an axis', async () => {
+    const generate = jest.fn()
+      // "20 סמ" names no axis; the model called it height.
+      .mockResolvedValueOnce(watch({ dimensions: { values: [{ label: 'height', value: 20, unit: 'cm' }] } }, ['condition']))
+      // It then kept its invented height next to the stated diameter.
+      .mockResolvedValueOnce(watch({ dimensions: { values: [
+        { label: 'height', value: 20, unit: 'cm' }, { label: 'diameter', value: 20, unit: 'cm' }] } }, ['condition']));
+    const adapter = new SellerIntakeAiAdapter(new SellerIntakeAiMock(new SellerIntakeService()), { generateSellerExtract: generate } as never);
+
+    const sized = await adapter.analyze('אני רוצה למכור שעון יד, 20 סמ', 'watch-session', 'he');
+    expect(sized.item.dimensions.values).toEqual([{ label: 'size', value: 20, unit: 'cm' }]);
+    expect(sized.nextQuestion?.field).toBe('condition');
+
+    // The answer is a measurement, so it must not become the condition that was asked about.
+    const answered = await adapter.analyze('הוא בקוטר 20', 'watch-session', 'he');
+    expect(answered.item.dimensions.values).toEqual([{ label: 'diameter', value: 20, unit: 'cm' }]);
+    expect(answered.item.condition ?? '').not.toContain('קוטר');
+    expect(answered.nextQuestion?.field).toBe('condition');
+  });
+
+  it('keeps width and height for an unlabelled pair', async () => {
+    const generate = jest.fn().mockResolvedValue(watch({ condition: 'טוב', dimensions: { values: [
+      { label: 'width', value: 80, unit: 'cm' }, { label: 'height', value: 70, unit: 'cm' }] } }, []));
+    const adapter = new SellerIntakeAiAdapter(new SellerIntakeAiMock(new SellerIntakeService()), { generateSellerExtract: generate } as never);
+    const result = await adapter.analyze('תמונה 80 על 70 ס"מ במצב טוב', 'pair-session', 'he');
+    expect(result.item.dimensions.values.map(entry => entry.label)).toEqual(['width', 'height']);
+  });
 });

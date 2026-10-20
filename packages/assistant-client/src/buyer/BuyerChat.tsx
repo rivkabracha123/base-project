@@ -1,3 +1,4 @@
+import { cloneElement } from 'react';
 import { type ItemCardLabels } from '@monabid/ui';
 import { Link, useNavigate } from 'react-router-dom';
 import { SellerComparisonResults } from '../seller/SellerComparisonResults';
@@ -10,6 +11,8 @@ import { MessageBubble } from '../chat/MessageBubble';
 import { useChatFlow } from '../chat/useChatFlow';
 import { getBuyerChatFlowSnapshot, selectBuyerLot, getBuyerHouseCategory } from './buyer-chat-flow';
 import { BuyerLotCard, type BuyerLotCardLabels } from './BuyerLotCard';
+import { StepLine, isStepMessage, useStepReveal } from '../chat/StepLine';
+import { withBuyerSteps } from './buyer-step-updates';
 import { connectLevels } from './connect-levels';
 import { buyerMessageSchema, type BuyerMessage } from './messages';
 
@@ -60,7 +63,7 @@ export function BuyerChat() {
       fetch: (signal) => getConversation(language, signal),
     },
     userMessage: (text) => ({ speaker: 'buyer', skipped: false, text }),
-    connect: (text, onUpdate) => connectLevels(text, onUpdate, language),
+    connect: (text, onUpdate) => connectLevels(text, withBuyerSteps(onUpdate, language), language),
     errorText: t('chat.sendError'),
     storageKey: `monabid.chat.buyer.${language}`,
     chatRole: 'buyer',
@@ -69,8 +72,22 @@ export function BuyerChat() {
     getSessionId: () => getBuyerChatFlowSnapshot().sessionId,
   });
 
-  // Renders a single conversation message in the form that fits its kind.
+  // Step lines show one after another and what follows them waits, so the screen only scrolls to what is visible.
+  const { visible: visibleMessages, delayed } = useStepReveal(messages);
+
+  // Fades in what was held back behind the step lines.
   function renderMessage(message: BuyerMessage) {
+    const element = renderMessageContent(message);
+    if (!delayed.has(message.id)) return element;
+    return cloneElement(element, { className: `${element.props.className ?? ''} buyer-reveal` });
+  }
+
+  // Renders a single conversation message in the form that fits its kind.
+  function renderMessageContent(message: BuyerMessage) {
+    // Progress lines: small animated steps instead of chat bubbles.
+    if (isStepMessage(message) && 'text' in message) {
+      return <StepLine speaker={message.speaker} text={message.text} />;
+    }
     // Lots from other categories: a card that shows each lot's category and the reasons the search reported.
     if (message.speaker === 'result-group' && message.variant === 'other-categories') {
       return (
@@ -152,7 +169,7 @@ export function BuyerChat() {
 
   return (
     <ChatScreen
-      messages={messages}
+      messages={visibleMessages}
       renderMessage={renderMessage}
       isLoading={isLoading}
       isError={isError}

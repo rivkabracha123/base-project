@@ -68,6 +68,17 @@ function withoutMissingFactSentences(text: string): string {
     .join('\n\n');
 }
 
+// Handwritten or printed, from what the seller wrote, so a manuscript is valued only against manuscripts and scrolls.
+// The generic category label "manuscript or rare book" names both, so it is ignored.
+export function sellerItemFormat(item: SellerDraftItem): 'handwritten' | 'printed' | undefined {
+  const text = [item.title, item.description?.he, item.description?.en]
+    .filter(Boolean).join(' ')
+    .replace(/כתב יד או ספר נדיר|manuscript or rare book/gi, ' ');
+  if (/כתב(?:י)?[\s-]+יד|מגיל|קלף|manuscript|scroll|handwritten|parchment/i.test(text)) return 'handwritten';
+  if (/דפוס|מודפס|ספר|printed|\bbook\b|incunabul/i.test(text)) return 'printed';
+  return undefined;
+}
+
 function sellerCatalogTemplate(item: SellerDraftItem, language: 'he' | 'en'): string {
   const dimensions = formatDimensions(item);
   const parts = language === 'he'
@@ -201,21 +212,37 @@ export class SellerWorkflowService {
         const sessionId = requiredString(action.object, 'sessionId');
         const item = saved.draft.item;
         if (action.functionToRun === 'getSellerCatalogDraft') {
-          const prompt = [
-            'Write a professional auction-catalog description of this item in two or three flowing paragraphs.',
-            'Use rich, elegant and precise catalog language: open with what the item is, then weave the facts below into a fluent description of its material, format, dimensions and condition.',
+          // Nothing is saved here: the chat shows the text and saves it only after the seller approves it.
+          const revision = optionalString(action.object, 'revision');
+          const previous = optionalString(action.object, 'previous');
+          const prompt = revision && previous ? [
+            'Revise this auction-catalog description according to the seller\'s request.',
+            'If the request is itself a complete description, return it as the new description, correcting only spelling.',
+            'Keep it a single paragraph. Add only facts the seller states in the request or that appear in the item facts; never add value, rarity, date, maker or authenticity claims on your own.',
+            `Current description:\n${previous}`,
+            `Seller's request:\n${revision}`,
+            JSON.stringify(sellerCatalogFacts(item)),
+          ].join('\n\n') : [
+            // This is the short description line in the item details; the auction-house enquiry is the longer text.
+            'Write a short auction-catalog description of this item: two or three sentences, about 40 to 60 words, as a single paragraph.',
+            'Write it as a polished catalog entry, not a list of facts: open with an evocative phrase about what the item is, then weave its material, format, dimensions and condition into flowing, elegant prose.',
+            'Do not simply restate the facts in one sentence such as "An old manuscript, 80 × 70 cm, in good condition."',
             'Elaborate only through wording, never through new facts: no claims about value, rarity, importance, date, era, maker, or authenticity that are not in the facts.',
             JSON.stringify(sellerCatalogFacts(item)),
           ].join('\n\n');
           const generated = await this.generateSellerText(prompt, language, sessionId);
           const description = generated && withoutMissingFactSentences(generated);
-          // Fill the item's description field so the details card, enquiry and staff dashboard show it.
-          if (description) await this.drafts.correctDraft(profileId, sessionId, 'description', { [language]: description });
+          // Without AI a revision can still be applied when the seller wrote the whole new text.
+          const fallback = revision && previous
+            ? (revision.length >= 40 ? revision : previous)
+            : sellerCatalogTemplate(item, language);
+          const text = description ?? fallback;
           return {
             title: item.title,
-            he: language === 'he' ? description ?? sellerCatalogTemplate(item, 'he') : '',
-            en: language === 'en' ? description ?? sellerCatalogTemplate(item, 'en') : '',
+            he: language === 'he' ? text : '',
+            en: language === 'en' ? text : '',
             generatedByAi: description !== null,
+            ...(revision && previous ? { revised: text !== previous } : {}),
           };
         }
         // Same stated facts as the catalog: the saved catalogDraft is a "not confirmed" checklist the model would copy.
@@ -250,8 +277,10 @@ export class SellerWorkflowService {
         if (!sellerItemReady(item)) {
           throw new BadRequestException('Seller valuation requires category, dimensions and condition');
         }
-        const report = await this.itemValuation.calculateFromItem({ itemId: item.id, itemVersion: `v${saved.version}`, item });
-        const evidence = this.comparables ? await this.comparables.findComparables(item) : undefined;
+        const format = sellerItemFormat(item);
+        const valuedItem = { ...item, ...(format ? { format } : {}) };
+        const report = await this.itemValuation.calculateFromItem({ itemId: item.id, itemVersion: `v${saved.version}`, item: valuedItem });
+        const evidence = this.comparables ? await this.comparables.findComparables(valuedItem) : undefined;
         const ids = new Set(report.includedComparableIds ?? []);
         return { ...report, lots: evidence?.included.filter(entry => entry.lot.status === 'sold' && ids.has(entry.lot.id)).map(entry => entry.lot) ?? [] };
       }

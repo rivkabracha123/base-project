@@ -18,6 +18,7 @@ import {
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerLotsResolverService } from './buyer-lots-resolver.service';
+import { archiveStepText, searchingStepText, upcomingStepText } from './buyer-search-steps';
 import {
   BuyerSessionSearchService,
   type BuyerOtherCategoriesSearchResponse,
@@ -115,6 +116,12 @@ export class BuyerP4FunctionExecutor {
         .filter((entry) => entry.lot.status === status && entry.lot.category === category && entry.score >= 0.8 && entry.lot.id !== anchor?.id)
         .filter((entry) => lotMatchesPrice(entry.lot, criteria.price))
         .map((entry) => entry.lot);
+      // Same step lines as the lots search: "searching…", then how many were found.
+      updates.push({ speaker: 'system', text: searchingStepText({ ...criteria, language: ctx.language }) });
+      if (lots.length) {
+        updates.push({ speaker: 'results-found', text: status === 'sold'
+          ? archiveStepText(lots.length, ctx.language) : upcomingStepText(lots.length, ctx.language) });
+      }
       updates.push(lots.length ? { speaker: 'result-group', title: ctx.language === 'he' ? '\u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd \u05dc\u05e4\u05d9 \u05e7\u05d8\u05d2\u05d5\u05e8\u05d9\u05d4' : 'Similar items by category', lots }
         : { speaker: 'no-results', text: ctx.language === 'he' ? '\u05dc\u05d0 \u05e0\u05de\u05e6\u05d0\u05d5 \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd.' : 'No similar items were found.' });
       return true;

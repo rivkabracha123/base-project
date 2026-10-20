@@ -12,7 +12,7 @@ import {
   type ShilatAiGenerateRequest,
 } from '../ai/p4-ai.types';
 import { BuyerChatSystemMessage } from './buyer-chat-messages';
-import { buildMissingFields, detectBuyerLanguage, parseCriteriaFromAiResponse } from './buyer-criteria';
+import { buildMissingFields, detectBuyerLanguage, extractKeywords, parseCriteriaFromAiResponse } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { getBuyerCriteriaSession, type BuyerConversationContextMessage } from './buyer-criteria-session.store';
 import type { OpenBuyerConversationRequest } from './buyer-conversation.dto';
@@ -43,6 +43,11 @@ export class BuyerP4BridgeService {
       const explicitCategory = explicitCriteria.categories.at(-1);
       ai.extract.structuredAnswer.category = sellerComparisonCategory(explicitCategory || ai.extract.structuredAnswer.category || 'unknown', request.message);
       if (explicitCriteria.price) ai.extract.structuredAnswer.price = explicitCriteria.price;
+      // The model sometimes returns only the broad category, which matches every lot in it.
+      const explicitKeywords = extractKeywords(request.message);
+      if (explicitKeywords.length) {
+        ai.extract.structuredAnswer.keywords = [...new Set([...(ai.extract.structuredAnswer.keywords ?? []), ...explicitKeywords])];
+      }
     }
     this.routeHouseRanking(request.message, language, ai, undefined, request.context);
     const chat = this.criteriaService.startCriteriaSessionFromAiResponse(ai.generalInformation

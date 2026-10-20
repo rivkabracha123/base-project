@@ -43,7 +43,7 @@ export function SellerHouseChoicePage() {
     mutationFn: async (houseId: string) => {
       const granted = await grantP3ServiceConsent();
       if (!granted) throw new Error('P3 service consent is required');
-      const leadId = await createSellerLead();
+      const leadId = await createSellerLead(undefined, undefined, { profileId: granted.id, serviceConsent: true });
       await rankHousesForLead(leadId, undefined, rankingItem);
       return saveSellerHouseChoice(leadId, houseId);
     },

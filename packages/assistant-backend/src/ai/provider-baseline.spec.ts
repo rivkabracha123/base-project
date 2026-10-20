@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
+import { P4AiGenerateClient } from './p4-ai-generate.client';
 import type { AiRole } from './ai.dto';
 import { isBuyerHandoffContract } from './buyer-handoff';
 import { FixtureProviderService } from './fixture-provider.service';
@@ -82,5 +84,46 @@ describe('P4 provider baseline (recorded replies, no hosted model)', () => {
     };
     // Measured with this corpus; see docs/ai-provider-baseline.md. Not a quality threshold.
     expect(totals).toEqual({ cases: 14, accepted: 4, rejectedMalformed: 7, unavailableOrLimited: 3, providerCalls: 23 });
+  });
+});
+
+// Week 7 checkpoint trace: a named fixture through the adapter and gateway into the client B2 and S1 call.
+describe('P4 fixture trace into B2 and S1 (docs/ai-provider-handoff.md)', () => {
+  const caseById = (id: string) => corpus.cases.find((entry) => entry.id === id)!;
+  const clientConfig = { get: (key: string) => ({ AI_PROVIDER_MODE: 'real', AI_GENERATE_URL: 'http://localhost/api/ai/generate' })[key] } as ConfigService;
+
+  async function throughClient<T>(status: number, body: unknown, call: (client: P4AiGenerateClient) => Promise<T>) {
+    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: status < 400, status, json: async () => body } as Response);
+    try {
+      return await call(new P4AiGenerateClient(clientConfig));
+    } finally {
+      fetchMock.mockRestore();
+    }
+  }
+
+  it('buyer-he-valid reaches B2 as a validated Hebrew buyer extract', async () => {
+    const { response } = await replay(caseById('buyer-he-valid'));
+    const b2 = await throughClient(201, response, (client) => client.generateBuyerExtract({ prompt: caseById('buyer-he-valid').prompt, language: 'he' }));
+    expect(b2.extract).toMatchObject({ provider: 'real', mode: 'real', isRelevant: true, summary: 'מחפשים כתב יד עתיק.' });
+    expect(b2.extract.structuredAnswer).toMatchObject({ role: 'buyer', language: 'he', category: 'rare_books', price: { max: 100000, currency: 'USD' } });
+  });
+
+  it('seller-he-valid reaches S1 as a validated seller handoff', async () => {
+    const { response } = await replay(caseById('seller-he-valid'));
+    const s1 = await throughClient(201, response, (client) => client.generateSellerExtract({ prompt: caseById('seller-he-valid').prompt, language: 'he' }));
+    expect(s1.provider).toBe('real');
+    expect(isSellerHandoffContract(s1.structuredAnswer)).toBe(true);
+    expect(s1.structuredAnswer).toMatchObject({ role: 'seller', category: 'rare_books', missingFacts: ['dimensions'],
+      item: { title: 'כתב יד עתיק', condition: 'מצב טוב' }, sellerConfirmation: { status: 'pending' } });
+  });
+
+  it('buyer-he-rate-limited reaches B2 and S1 as the 503 they turn into guided input', async () => {
+    const { outcome, reason } = await replay(caseById('buyer-he-rate-limited'));
+    expect({ outcome, reason }).toEqual({ outcome: 'unavailable', reason: 'http_429' });
+    // The controller answers 503; both clients surface it as ServiceUnavailableException.
+    await expect(throughClient(503, {}, (client) => client.generateBuyerExtract({ prompt: 'x', language: 'he' })))
+      .rejects.toBeInstanceOf(ServiceUnavailableException);
+    await expect(throughClient(503, {}, (client) => client.generateSellerExtract({ prompt: 'x', language: 'he' })))
+      .rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 });

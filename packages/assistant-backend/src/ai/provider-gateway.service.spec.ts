@@ -1,6 +1,6 @@
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { FixtureProviderService } from './fixture-provider.service';
-import { ProviderGatewayService } from './provider-gateway.service';
+import { classifyProviderFailure, ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
 import { isSellerHandoffContract } from './seller-handoff';
 
@@ -269,6 +269,24 @@ describe('ProviderGatewayService', () => {
     expect(realProvider.generate).toHaveBeenCalledTimes(1);
   });
 
+  it('does not retry a provider call that timed out, so guided input starts after one wait', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const realProvider = {
+      generate: jest.fn().mockRejectedValue(new DOMException('The operation was aborted due to timeout', 'TimeoutError')),
+    } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider: new FixtureProviderService(), realProvider });
+    try {
+      await expect(service.generate(
+        { prompt: 'I want a rare Hebrew book', role: 'buyer', language: 'en' },
+        [{ kind: 'real', enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'token' }],
+      )).rejects.toBeInstanceOf(ServiceUnavailableException);
+      expect(realProvider.generate).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls.at(-1)?.[0]).toBe('Falling back to guided input: timeout');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('logs only a coarse failure reason, without prompt, contact data, or credentials', async () => {
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const fixtureProvider = new FixtureProviderService();
@@ -348,6 +366,23 @@ describe('ProviderGatewayService', () => {
 
     expect(realProvider.generate).not.toHaveBeenCalled();
     expect(fixtureProvider.generate).not.toHaveBeenCalled();
+  });
+
+  it('logs which variable names are missing, never their values, when real mode is incomplete', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const realProvider = { generate: jest.fn() } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider: new FixtureProviderService(), realProvider });
+    try {
+      await expect(service.generate(
+        { prompt: 'a blue ring', language: 'en' },
+        [{ kind: 'real', enabled: true, baseUrl: 'https://private.example/v1', modelName: 'gpt-4o-mini', apiKey: '' }],
+      )).rejects.toBeInstanceOf(ServiceUnavailableException);
+      const logged = warn.mock.calls.map(call => String(call[0])).join('\n');
+      expect(logged).toBe('Falling back to guided input: not_configured (missing AI_API_KEY)');
+      expect(logged).not.toContain('private.example');
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   // test 9 - fail closed after invalid real response
@@ -453,5 +488,55 @@ describe('ProviderGatewayService', () => {
 
     expect(realProvider.generate).toHaveBeenCalledTimes(2);
     expect(fixtureProvider.generate).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProviderGatewayService wrong-language retry', () => {
+  const config = [{ kind: 'real' as const, enabled: true, baseUrl: 'https://example.com/v1', modelName: 'model', apiKey: 'token' }];
+
+  it('retries once when a Hebrew chat gets an English reply', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const good = await new FixtureProviderService().generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' });
+    const hebrew = { ...good, provider: 'real', mode: 'real', summary: 'טבעת כחולה נמצאה.', nextAction: 'מה התקציב?' };
+    const english = { ...hebrew, summary: 'A blue ring was found.', nextAction: 'What is your budget?' };
+    const realProvider = {
+      generate: jest.fn().mockResolvedValueOnce(english).mockResolvedValueOnce(hebrew),
+    } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' }, config);
+
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(result.summary).toBe('טבעת כחולה נמצאה.');
+  });
+
+  it('keeps the second reply even if it is still in the wrong language', async () => {
+    const fixtureProvider = new FixtureProviderService();
+    const good = await new FixtureProviderService().generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' });
+    const english = { ...good, provider: 'real', mode: 'real', summary: 'A blue ring was found.', nextAction: 'What is your budget?' };
+    const realProvider = { generate: jest.fn().mockResolvedValue(english) } as unknown as RealProviderService;
+    const service = new ProviderGatewayService({ fixtureProvider, realProvider });
+
+    const result = await service.generate({ prompt: 'טבעת כחולה', role: 'buyer', language: 'he' }, config);
+
+    expect(realProvider.generate).toHaveBeenCalledTimes(2);
+    expect(result.provider).toBe('real');
+  });
+});
+
+// The reason codes documented in docs/ai-provider-handoff.md.
+describe('classifyProviderFailure', () => {
+  it.each([
+    ['Real provider request failed: 429 slow down', 'http_429'],
+    ['Real provider request failed: 503 down', 'http_503'],
+    ['Real provider returned a response that failed schema validation: seller_missing_item.', 'invalid_response_seller_missing_item'],
+    ['Real provider is not configured. Set AI_BASE_URL, AI_MODEL_NAME and AI_API_KEY.', 'not_configured'],
+    ['Real provider returned non-JSON content.', 'invalid_response_non_json'],
+    ['Real provider returned restricted contact or image data.', 'invalid_response_restricted'],
+    ['Real provider returned no content.', 'invalid_response_no_content'],
+    ['Real provider returned a malformed response payload.', 'invalid_response_malformed'],
+    ['fetch failed', 'unavailable'],
+  ])('classifies "%s" as %s', (message, reason) => {
+    expect(classifyProviderFailure(new Error(message))).toBe(reason);
   });
 });

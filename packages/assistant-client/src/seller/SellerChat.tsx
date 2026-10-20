@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { cloneElement, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getSellerConversation } from '../app/api';
 import { EvidenceImage } from '../app/EvidenceImage';
 import { ChatScreen } from '../chat/ChatScreen';
 import { MessageBubble } from '../chat/MessageBubble';
+import { StepLine, isStepMessage, useStepReveal } from '../chat/StepLine';
 import { useChatFlow } from '../chat/useChatFlow';
 import { connectSellerLevels, isSellerDraftReady } from './connect-seller-levels';
 import { connectSellerPhotos } from './connect-seller-photos';
@@ -108,7 +109,9 @@ export function SellerChat() {
   function showItemDraft(draft: SellerItemDraft) {
     draftShown.current = true;
     addMessage({ speaker: 'system', text: language === 'he' ? 'פרטי הפריט שלי' : 'My item details',
-      comparison: { mode: 'details', item: draft.item, evidence: draft.evidence } });
+      comparison: { mode: 'details', item: draft.item, evidence: draft.evidence,
+        // Before a catalog draft or seller edit, item.description holds raw chat text, so it stays hidden.
+        descriptionWritten: (draft.revisionHistory ?? []).some(revision => revision.changes.includes('description')) } });
   }
 
   async function handleEnquiryContact(text: string, alreadyShownAsSeller = false) {
@@ -212,9 +215,14 @@ export function SellerChat() {
           }
           addMessage(update);
         });
-        if (draftShown.current) {
-          const draft = await getCurrentSellerDraft();
-          if (draft) showItemDraft(draft);
+        // A photo alone gets an answer too; the item details are not shown again after an upload.
+        if (!text.trim()) {
+          const hasItem = draftShown.current || Boolean(await getCurrentSellerDraft().catch(() => null));
+          addMessage({ speaker: 'system', text: hasItem
+            ? (language === 'he' ? 'קיבלתי את התמונה וצירפתי אותה לפריט. אפשר להמשיך לספר על הפריט.'
+              : 'I received the photo and attached it to your item. You can keep telling me about the item.')
+            : (language === 'he' ? 'קיבלתי את התמונה ושמרתי אותה. כדי להמשיך, אפשר לכתוב מה הפריט: סוג, מידות ומצב.'
+              : 'I received the photo and saved it. To continue, please write what the item is: type, dimensions and condition.') });
         }
       } catch {
         showError('photo-upload-failed');
@@ -250,8 +258,13 @@ export function SellerChat() {
     }
   }
 
+  // Step lines show one after another and what follows them waits, so the screen only scrolls to what is visible.
+  const { visible: visibleMessages, delayed } = useStepReveal(messages);
+
   // Renders a single conversation message as a bubble: the photo (if any) above the text (if any).
   function renderMessageContent(message: SellerMessage) {
+    // Progress lines: small animated steps instead of chat bubbles.
+    if (message.speaker === 'system' && isStepMessage(message)) return <StepLine speaker={message.speaker} text={message.text} />;
     if (message.speaker === 'system' && message.action) return <li data-speaker="system" className="w-full min-w-0">
       <SellerActionCard
         action={message.action}
@@ -311,8 +324,11 @@ export function SellerChat() {
     );
   }
 
+  // Fades in what was held back behind the step lines.
   function renderMessage(message: SellerMessage) {
-    return renderMessageContent(message);
+    const element = renderMessageContent(message);
+    if (!delayed.has(message.id)) return element;
+    return cloneElement(element, { className: `${element.props.className ?? ''} buyer-reveal` });
   }
 
   // לחצן צירוף תמונה: תווית שמפעילה שדה קובץ מוסתר, ואזהרה כשהקובץ שנבחר אינו תמונה תקינה.
@@ -363,7 +379,7 @@ export function SellerChat() {
 
   return (
     <ChatScreen
-      messages={messages}
+      messages={visibleMessages}
       renderMessage={renderMessage}
       isLoading={isLoading}
       isError={isError}

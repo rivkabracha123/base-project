@@ -61,6 +61,24 @@ describe('Seller valuation routing', () => {
     expect((await controller.createDraft({ ...scope, input: 'Good condition' })).functionCall)
       .toEqual({ functionToRun: 'getSellerHouseRecommendation', object: { sessionId: 'house-session' } });
   });
+  it('opens the item details when the seller asks to see the catalog draft that was just written', async () => {
+    const ready = { item: { category: 'rare_books', condition: 'Good', dimensions: { values: [{ label: 'width', value: 80, unit: 'cm' }] } },
+      missingFields: [], evidence: [] };
+    // The model guesses an unrelated action for the vague follow-up.
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: ready.item, seller: {}, requiredMissingFields: [],
+      functionCall: { functionToRun: 'calculateSellerValuation', object: {} } }) };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: ready }), saveIntakeTurn: jest.fn() };
+    const controller = new SellerIntakeController(provider as never, drafts as never, {} as never);
+    const scope = { profileId: 'draft-profile', sessionId: 'draft-session' };
+    expect((await controller.createDraft({ ...scope, input: 'אני רוצה שתנסח לי טיוטה לפריט' })).functionCall?.functionToRun)
+      .toBe('getSellerCatalogDraft');
+    expect((await controller.createDraft({ ...scope, input: 'אשמח לראות אותה' })).functionCall)
+      .toEqual({ functionToRun: 'getSellerItemDetails', object: { sessionId: 'draft-session' } });
+    // Without a catalog draft just before, the same words go through the normal analysis.
+    const other = { profileId: 'draft-profile', sessionId: 'other-session' };
+    expect((await controller.createDraft({ ...other, input: 'אשמח לראות אותה' })).functionCall?.functionToRun)
+      .not.toBe('getSellerItemDetails');
+  });
   it('remembers a requested valuation until required fields are filled, then runs only once', async () => {
     const incomplete = { item: {}, seller: {}, requiredMissingFields: ['condition'], functionCall: null };
     const complete = { ...incomplete, requiredMissingFields: [] };

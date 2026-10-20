@@ -61,6 +61,25 @@ function renderChatWithError() {
 }
 
 describe('SellerChat', () => {
+  it.each([
+    ['without an item yet', null, 'I received the photo and saved it. To continue, please write what the item is: type, dimensions and condition.'],
+    ['for an existing item', { item: { title: 'Manuscript' } }, 'I received the photo and attached it to your item. You can keep telling me about the item.'],
+  ])('answers a photo sent without text %s, without showing the item details again', async (_case, draft, reply) => {
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+    vi.spyOn(sellerCorrection, 'getCurrentSellerDraft').mockResolvedValue(draft as never);
+    vi.mocked(connectSellerPhotos).mockResolvedValue(undefined);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], 'item.jpg', { type: 'image/jpeg' })] } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText(reply)).toBeInTheDocument();
+    expect(connectSellerPhotos).toHaveBeenCalledTimes(1);
+    expect(connectSellerLevels).not.toHaveBeenCalled();
+    expect(screen.queryByText('My item details')).not.toBeInTheDocument();
+  });
+
   it('automatically shows the editable draft after answering the final required question', async () => {
     await i18n.changeLanguage('en');
     vi.mocked(connectSellerLevels).mockImplementation(async (_input, update, ready) => {
@@ -245,6 +264,25 @@ describe('SellerChat', () => {
     const update = await screen.findByText('Checking the details...');
     expect(update.closest('li')).toHaveAttribute('data-speaker', 'system');
   });
+
+  it('shows the comparing and found lines as step lines one after another', async () => {
+    vi.mocked(connectSellerLevels).mockImplementation(async (_message, onUpdate) => {
+      onUpdate({ speaker: 'system', text: 'Comparing with past deals…' });
+      onUpdate({ speaker: 'system', text: 'Found 3 past sales' });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Show past sales' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    const comparing = (await screen.findByText('Comparing with past deals…')).closest('li')!;
+    expect(comparing).toHaveAttribute('data-step', 'true');
+    expect(comparing).toHaveTextContent('📊');
+    expect(screen.queryByText('Found 3 past sales')).not.toBeInTheDocument();
+    const found = (await screen.findByText('Found 3 past sales', {}, { timeout: 2000 })).closest('li')!;
+    expect(found).toHaveTextContent('🗂️');
+  }, 10000);
 
   it('continues an enquiry through ordinary chat messages instead of a styled contact form', async () => {
     await i18n.changeLanguage('en');

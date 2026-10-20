@@ -27,4 +27,25 @@ describe('seller demonstration requests', () => {
   it('does not prepare a declined enquiry', () => {
     expect(requestedSellerComparison('לא רוצה לשלוח פנייה לבית המכירות')).toBeNull();
   });
+  it.each([
+    'תראה לי את הטיוטה',
+    'אני רוצה לראות את הניסוח',
+    'אני רוצה לערוך את תיאור הקטלוג',
+    'תראה לי את טיוטת הפריט',
+    'show me the catalog draft',
+    'edit the description',
+  ])('opens the item details to see or edit the drafted text: %s', (input) => {
+    expect(requestedSellerComparison(input)).toBe('getSellerItemDetails');
+  });
+  it.each([
+    'אני רוצה שתנסח לי תיאור לקטלוג',
+    'אני רוצה שתנסח לי טיוטת פריט',
+    'תכין טיוטה לפריט שלי',
+    'write a catalog description',
+  ])('still drafts a new catalog description: %s', (input) => {
+    expect(requestedSellerComparison(input)).toBe('getSellerCatalogDraft');
+  });
+  it('keeps enquiry edits on the enquiry flow', () => {
+    expect(requestedSellerComparison('אני רוצה לערוך את טיוטת הפנייה')).not.toBe('getSellerItemDetails');
+  });
 });

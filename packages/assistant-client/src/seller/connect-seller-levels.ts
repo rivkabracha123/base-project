@@ -6,6 +6,9 @@ import { houseRankingSchema } from '@monabid/shared';
 import { sellerActionResultSchema } from './seller-action-result';
 import type { SellerItemDraft } from '@monabid/shared';
 import { correctSellerDraftField, getCurrentSellerDraft } from './connect-seller-correction';
+import { sellerComparisonFoundStepText, sellerHousesFoundStepText, sellerSearchingStepText } from './seller-steps';
+import { selectableHouses } from '../app/SellerJourneyChrome';
+import { continueSellerCatalogReview, startSellerCatalogReview } from './seller-catalog-review';
 
 interface SellerIntakeResponse {
   ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; generalInformation?: boolean; summary?: string; recommendation?: string; nextAction?: string };
@@ -19,6 +22,9 @@ interface SellerIntakeResponse {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const PENDING_UPLOAD_ITEM_KEY = 'monabid.seller.pendingEvidenceItemId';
 const DRAFT_READY_STORAGE_KEY = 'monabid.seller.itemDraftReady';
+const ITEM_DETAILS_REQUEST = /item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט/i;
+// The request with its lead-in ("ותן לי את", "and show me the"), so only the rest of the message remains.
+const ITEM_DETAILS_REQUEST_PHRASE = /(?:\s*(?:,|ו)?\s*(?:אני\s+)?(?:(?:רוצה|אפשר)\s+)?(?:(?:תן|תני|תנו|תציג|תציגי|הצג|הציגי|תראה|תראי|לראות|להציג)\s+)?(?:לי\s+)?(?:את\s+)?|\s*(?:,|and\b)?\s*(?:(?:please\s+)?(?:show|give|send)\s+(?:me\s+)?)?(?:the\s+|my\s+)?)(?:item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט)/i;
 
 export function getPendingSellerEvidenceItemId(): string | undefined {
   return typeof sessionStorage === 'undefined'
@@ -97,10 +103,10 @@ export function getSystemText(response: SellerIntakeResponse): string {
   }
   const nextQuestion = response.nextQuestion;
   if (nextQuestion) {
+    // The fixed intake question replaces the model's own question so the seller is asked one thing at a time.
     return compactVisibleAiText([
       response.ai?.summary,
       response.ai?.recommendation,
-      response.ai?.nextAction,
       nextQuestion[language],
     ], language).replaceAll('\n', ' ');
   }
@@ -225,7 +231,11 @@ export async function connectSellerLevels(
     if (!input) throw new Error('יש להזין הודעה לפני השליחה.');
 
     const { profileId, sessionId } = await getSellerMessageIds();
-    if (onDraftReady && /item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט/i.test(input)) {
+    if (await continueSellerCatalogReview(input, { profileId, sessionId }, onUpdate)) return;
+    if (onDraftReady && ITEM_DETAILS_REQUEST.test(input)) {
+      // "כן יש חריטה מאחורה ותן לי פרטי הפריט": save the answer first, then show the details.
+      const content = input.replace(ITEM_DETAILS_REQUEST_PHRASE, ' ').replace(/[\s,.!]+$/, '').trim();
+      if (content.replace(/[^\p{L}\p{N}]+/gu, '').length >= 3) await connectSellerLevels(content, onUpdate);
       const draft = await getCurrentSellerDraft();
       if (!draft) throw new Error(i18n.language.startsWith('he') ? 'עדיין אין פריט שמור בשיחה הזו.' : 'There is no saved item in this conversation yet.');
       await sendSellerMessage(i18n.language.startsWith('he') ? 'פרטי הפריט שלך:' : 'Your item details:', onUpdate);
@@ -276,6 +286,8 @@ export async function connectSellerLevels(
             sessionId,
             ...(['getSellerEnquiryPreview', 'getSellerCatalogDraft'].includes(functionCall.functionToRun) ? { language } : {}),
           } } : functionCall;
+      const searchingStep = sellerSearchingStepText(functionCall.functionToRun, language);
+      if (searchingStep) await sendSellerMessage(searchingStep, onUpdate);
       const workflowResponse = await fetch(`${API_BASE_URL}/seller-workflow/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -308,8 +320,13 @@ export async function connectSellerLevels(
         });
         return;
       }
+      // Show only the drafted text and ask whether to save or update it; it is saved on the item after approval.
+      if (functionCall.functionToRun === 'getSellerCatalogDraft') {
+        await startSellerCatalogReview(sessionId, language, workflowResult.result, onUpdate);
+        return;
+      }
       const kinds: Record<string, 'catalog' | 'valuation'> = {
-        getSellerCatalogDraft: 'catalog', calculateSellerValuation: 'valuation',
+        calculateSellerValuation: 'valuation',
       };
       if (kinds[functionCall.functionToRun]) {
         const action = sellerActionResultSchema.safeParse({
@@ -333,6 +350,8 @@ export async function connectSellerLevels(
           ? houseRankingSchema.safeParse((result as Record<string, unknown>).recommendation) : direct;
         if (nested.success) {
           const category = functionCall.object?.category ?? (result && typeof result === 'object' ? (result as Record<string, unknown>).category : undefined);
+          await sendSellerMessage(sellerHousesFoundStepText(selectableHouses(nested.data)
+            .filter((row) => typeof category !== 'string' || row.house.categories.includes(category)).length, language), onUpdate);
           await onUpdate({ speaker: 'system', text: language === 'he' ? 'בתי מכירות מומלצים' : 'Recommended auction houses',
             houseRanking: nested.data,
             ...(typeof category === 'string' ? { houseCategory: category } : {}),
@@ -351,6 +370,9 @@ export async function connectSellerLevels(
           trend: { he: '\u05d2\u05e8\u05e3 \u05de\u05d7\u05d9\u05e8\u05d9\u05dd \u05e9\u05dc \u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd', en: 'Prices of similar items' },
           details: { he: '\u05e4\u05e8\u05d8\u05d9 \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e9\u05dc\u05d9', en: 'My item details' },
         };
+        if (comparison.mode !== 'details') {
+          await sendSellerMessage(sellerComparisonFoundStepText(comparison.mode, comparison.lots.length, language), onUpdate);
+        }
         await onUpdate({ speaker: 'system', text: titles[mode][language], comparison });
         return;
       }

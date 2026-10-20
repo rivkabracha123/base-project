@@ -1,6 +1,8 @@
 import type { OnChatUpdate } from '../chat/chat-types';
 import { sellerImagesSchema, type SellerMessage } from './messages';
 import { getSellerMessageIds } from './seller-ids';
+import { sellerPhotosStepText } from './seller-steps';
+import i18n, { getBrowserLanguage } from '../i18n';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 
@@ -20,6 +22,7 @@ export async function connectSellerPhotos(
 ): Promise<void> {
   if (files.length === 0) throw new Error('No photos to upload');
 
+  onUpdate({ speaker: 'system', text: sellerPhotosStepText(getBrowserLanguage(i18n.language)) });
   const { profileId, sessionId } = await getSellerMessageIds();
   const body = new FormData();
   files.forEach((file) => body.append('files', file, file.name));

@@ -1,0 +1,198 @@
+{
+  "id": "buyer-search-strict-constraints",
+  "description": "Strict constraints, no results, invalid input and approved refinement for the buyer search, measured against the real LotsService over four lots copied from fixtures/auction-data/lots.json: three sold and one upcoming (only the database repository is faked; it returns lots in the lots search's documented order: newest sale first, then lot id). Each scenario's `criteria` is merged over emptyBuyerCriteria(language). `expected.request` is exactly what the buyer search sends to the lots search (null when nothing is sent); `expected.kind` is the buyer search outcome; `expected.lotIds` is the measured result order handed to the result cards; `expected.invalidFields` names the fields the lots search DTO rejected. Budgets follow the lots search price rule: a sold lot is compared by its realized price, an unsold lot by whether its estimate band overlaps the budget; amounts are compared as-is (all four lots are USD). Only the upcoming lot carries a creator, so creator filters match that lot alone.",
+  "lotsSource": "fixtures/demo-scenarios/buyer-search-strict-constraints.lots.json",
+  "namedLotId": "lot-kestenbaum-54554-121421",
+  "scenarios": [
+    {
+      "name": "strict-budget-two-lots",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "price": { "min": 900, "max": 1300, "currency": "USD" } },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "en",
+          "filters": { "categories": ["rare_books"], "price": { "min": 900, "max": 1300, "currency": "USD" } }
+        },
+        "kind": "results",
+        "lotIds": ["lot-kestenbaum-54554-121421", "lot-kedem-61201-88421"],
+        "approvedRefinements": []
+      }
+    },
+    {
+      "name": "hebrew-category-alias-same-lots",
+      "language": "he",
+      "criteria": { "categories": ["ספרים נדירים"], "price": { "min": 900, "max": 1300, "currency": "USD" } },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "he",
+          "filters": { "categories": ["ספרים נדירים"], "price": { "min": 900, "max": 1300, "currency": "USD" } }
+        },
+        "kind": "results",
+        "lotIds": ["lot-kestenbaum-54554-121421", "lot-kedem-61201-88421"],
+        "approvedRefinements": []
+      }
+    },
+    {
+      "name": "strict-budget-no-result",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "price": { "min": 100, "max": 500, "currency": "USD" } },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "en",
+          "filters": { "categories": ["rare_books"], "price": { "min": 100, "max": 500, "currency": "USD" } }
+        },
+        "kind": "unmatched",
+        "relaxationOptions": ["categories", "price"],
+        "appliedCriteria": ["price", "categories"],
+        "recovery": "no_relaxation_no_invention",
+        "demandRecorded": true
+      }
+    },
+    {
+      "name": "approved-budget-relaxation",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "price": { "min": 100, "max": 500, "currency": "USD" } },
+      "approvedRelaxations": ["price"],
+      "expected": {
+        "request": { "query": "", "language": "en", "filters": { "categories": ["rare_books"] } },
+        "kind": "results",
+        "lotIds": [
+          "lot-kestenbaum-2026-spring-12",
+          "lot-kestenbaum-54554-121421",
+          "lot-kedem-61201-88421",
+          "lot-kestenbaum-54554-121488"
+        ],
+        "approvedRefinements": ["price"]
+      }
+    },
+    {
+      "name": "other-filter-approved-budget-kept",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "price": { "min": 100, "max": 500, "currency": "USD" } },
+      "approvedRelaxations": ["categories"],
+      "expected": {
+        "request": { "query": "", "language": "en", "filters": { "price": { "min": 100, "max": 500, "currency": "USD" } } },
+        "kind": "unmatched",
+        "relaxationOptions": ["price"],
+        "appliedCriteria": ["price"],
+        "recovery": "approved_relaxation_no_invention",
+        "demandRecorded": true
+      }
+    },
+    {
+      "name": "strict-creator-upcoming-lot",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "creators": ["Yitzhak Abrabanel"] },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "en",
+          "filters": { "categories": ["rare_books"], "creators": ["Yitzhak Abrabanel"] }
+        },
+        "kind": "results",
+        "lotIds": ["lot-kestenbaum-2026-spring-12"],
+        "approvedRefinements": []
+      }
+    },
+    {
+      "name": "hebrew-creator-budget-overlaps-estimate",
+      "language": "he",
+      "criteria": { "creators": ["יצחק אברבנאל"], "price": { "min": 2000, "max": 3000, "currency": "USD" } },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "he",
+          "filters": { "creators": ["יצחק אברבנאל"], "price": { "min": 2000, "max": 3000, "currency": "USD" } }
+        },
+        "kind": "results",
+        "lotIds": ["lot-kestenbaum-2026-spring-12"],
+        "approvedRefinements": []
+      }
+    },
+    {
+      "name": "creator-budget-below-estimate-no-result",
+      "language": "en",
+      "criteria": {
+        "categories": ["rare_books"],
+        "creators": ["Yitzhak Abrabanel"],
+        "price": { "min": 900, "max": 1300, "currency": "USD" }
+      },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "en",
+          "filters": {
+            "categories": ["rare_books"],
+            "creators": ["Yitzhak Abrabanel"],
+            "price": { "min": 900, "max": 1300, "currency": "USD" }
+          }
+        },
+        "kind": "unmatched",
+        "relaxationOptions": ["creators", "categories", "price"],
+        "appliedCriteria": ["price", "categories", "creators"],
+        "recovery": "no_relaxation_no_invention",
+        "demandRecorded": true
+      }
+    },
+    {
+      "name": "inverted-budget-sent-unchanged",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "price": { "min": 1500, "max": 900, "currency": "USD" } },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "en",
+          "filters": { "categories": ["rare_books"], "price": { "min": 1500, "max": 900, "currency": "USD" } }
+        },
+        "kind": "unmatched",
+        "relaxationOptions": ["categories", "price"],
+        "appliedCriteria": ["price", "categories"],
+        "recovery": "no_relaxation_no_invention",
+        "demandRecorded": true
+      }
+    },
+    {
+      "name": "invalid-negative-budget",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "price": { "min": -100, "max": 500, "currency": "USD" } },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "en",
+          "filters": { "categories": ["rare_books"], "price": { "min": -100, "max": 500, "currency": "USD" } }
+        },
+        "kind": "error",
+        "invalidFields": ["filters.price.min"],
+        "demandRecorded": false
+      }
+    },
+    {
+      "name": "invalid-sale-date",
+      "language": "en",
+      "criteria": { "categories": ["rare_books"], "dateRange": { "from": "2025-13-40" } },
+      "expected": {
+        "request": {
+          "query": "",
+          "language": "en",
+          "filters": { "categories": ["rare_books"], "dateRange": { "from": "2025-13-40" } }
+        },
+        "kind": "error",
+        "invalidFields": ["filters.dateRange.from"],
+        "demandRecorded": false
+      }
+    },
+    {
+      "name": "nothing-searchable",
+      "language": "he",
+      "criteria": { "keywords": ["   "], "periods": ["המאה ה-19"], "geography": ["ירושלים"] },
+      "expected": {
+        "request": null,
+        "kind": "insufficient-criteria",
+        "demandRecorded": false
+      }
+    }
+  ]
+}
