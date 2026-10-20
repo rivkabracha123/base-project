@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ZodType } from 'zod';
 import type { BaseChatMessage, ChatUpdate, OnChatUpdate } from './chat-types';
+import { sanitizeChatForLocalStorage, sanitizeChatForServer } from './local-chat-storage';
+import { syncChatSnapshot } from '../app/api';
 
 // Placeholder session id for locally-created messages until the client is wired to the real P3 anonymous session.
 export const LOCAL_SESSION_ID = 'local-session';
@@ -35,6 +37,11 @@ interface UseChatFlowOptions<TMessage extends BaseChatMessage> {
   connect: (message: string, onUpdate: OnChatUpdate<TMessage>) => Promise<void>;
   // הטקסט שמוצג למשתמש כשמשהו משתבש.
   errorText: string;
+  // מפתח localStorage ייעודי לשמירת השיחה הפעילה בדפדפן.
+  storageKey?: string;
+  // התפקיד והשפה משמשים לשמירת השיחה בשרת לצד הפרופיל.
+  chatRole?: 'buyer' | 'seller';
+  chatLanguage?: 'he' | 'en';
   // מזהה השיחה האמיתי כשהוא כבר ידוע (השרת מחזיר אותו אחרי ההודעה הראשונה); null או חסר = עדיין לא ידוע.
   getSessionId?: () => string | null;
 }
@@ -45,6 +52,9 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
   userMessage,
   connect,
   errorText,
+  storageKey,
+  chatRole,
+  chatLanguage,
   getSessionId,
 }: UseChatFlowOptions<TMessage>) {
   // השיחה הקיימת, כפי שנטענה מהשרת.
@@ -57,6 +67,37 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
   const [liveMessages, setLiveMessages] = useState<TMessage[]>([]);
   // true כל עוד החיבור עובד (חושב או מחפש); בזמן הזה אי אפשר לשלוח.
   const [isBusy, setIsBusy] = useState(false);
+  const messages = useMemo(() => [...(query.data ?? []), ...liveMessages], [query.data, liveMessages]);
+
+  useEffect(() => {
+    if (!storageKey || messages.length === 0) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(sanitizeChatForLocalStorage(messages)));
+    } catch (error) {
+      console.error(`Failed to save chat to local storage (${storageKey})`, error);
+      return;
+    }
+
+    // לא שומרים בשרת את שיחת הדוגמה עד שהמשתמש הוסיף הודעה מקומית.
+    if (liveMessages.length === 0 || !chatRole || !chatLanguage || query.isError) return;
+
+    // לשרת נשלחת השיחה עם ההפניות לתמונות (fileId), ש-localStorage לא שומר.
+    void syncChatSnapshot(
+      storageKey,
+      sanitizeChatForServer(messages) as unknown[],
+      chatRole,
+      chatLanguage,
+    ).catch((error) => {
+      console.error(`Failed to sync chat snapshot (${storageKey})`, error);
+    });
+  }, [
+    chatLanguage,
+    chatRole,
+    liveMessages.length,
+    messages,
+    query.isError,
+    storageKey,
+  ]);
 
   // מזהה השיחה שמוטבע על כל הודעה: האמיתי כשהוא ידוע, ואחרת המזהה המקומי (לפני התשובה הראשונה של השרת).
   function currentSessionId(): string {
@@ -88,7 +129,7 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
       addToScreen(parsed.data);
       return;
     }
-    console.warn('Invalid chat update ignored', update, parsed.error);
+    console.warn('Invalid chat update ignored');
     showError('invalid-update');
   };
 
@@ -111,7 +152,7 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
 
   return {
     // כל השיחה לציור: מה שנטען מהשרת, ואחריו ההודעות שנוספו מקומית.
-    messages: [...(query.data ?? []), ...liveMessages],
+    messages,
     isLoading: query.isPending,
     isError: query.isError,
     refetch: () => query.refetch(),

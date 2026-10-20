@@ -14,6 +14,50 @@ import {
 import { sampleAiExtractResponses, sampleClarificationTurns, structuredAiExtractSamples } from './buyer-criteria.fixtures';
 
 describe('BuyerCriteria extraction', () => {
+  it('treats a 250 dollar budget as a ceiling and replaces an older lower bound during refinement', () => {
+    const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
+    const updated = applyClarificationTurn({ ...initial, action: 'answer', message: 'אני רוצה תקציב של 250 דולר' });
+    expect(updated.criteria.price).toEqual({ max: 250, currency: 'USD' });
+    expect(updated.criteria.categories).toEqual(initial.criteria.categories);
+  });
+  it.each([
+    ['Looking for silver Judaica under $2000', []],
+    ['manuscript up to 1900 USD', []],
+    ['ספר עד 2000 שקל', []],
+    ['manuscript under $12000', []],
+    ['manuscript from 1920 under $2000', ['1920']],
+  ])('does not read a price as a period in %s', (content, periods) => {
+    const result = parseCriteriaFromAiResponse({
+      provider: 'fixture', mode: 'fixture', content,
+      summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+    });
+    expect(result.criteria.periods).toEqual(periods);
+  });
+  it.each([
+    ['ספרים', ['rare_books']],
+    ['ספר חסידים', ['rare_books']],
+    ['old books', ['rare_books']],
+    ['ספר לי על מכירות פומביות', []],
+  ])('maps book wording in %s', (content, categories) => {
+    const result = parseCriteriaFromAiResponse({
+      provider: 'fixture', mode: 'fixture', content,
+      summary: '', recommendation: '', nextAction: '', confidence: 'medium',
+    });
+    expect(result.criteria.categories).toEqual(categories);
+  });
+  it.each([
+    ['unknown', [], true],
+    ['books', ['rare_books'], false],
+    ['manuscripts', ['rare_books'], false],
+  ])('normalizes an AI category of %s', (category, categories, asksCategory) => {
+    const result = parseCriteriaFromAiResponse({
+      provider: 'real', mode: 'real', content: '{}',
+      summary: '', recommendation: '', nextAction: '', confidence: 'low',
+      structuredAnswer: { role: 'buyer', language: 'he', intent: 'search', category, hasContactDetails: false, hasImages: false },
+    } as never);
+    expect(result.criteria.categories).toEqual(categories);
+    expect(result.conversation.missing.includes('category')).toBe(asksCategory);
+  });
   it.each(['אני רוצה כתבי יד עתיקים', 'כתבי יד עתיק', 'כתב יד עתיק'])(
     'recognizes manuscript category and keywords in %s',
     (content) => {
@@ -43,10 +87,10 @@ describe('BuyerCriteria extraction', () => {
     expect(result.criteria.categories).toEqual(['painting']);
     expect(result.criteria.keywords).toEqual(['blue']);
     expect(result.criteria.periods).toEqual(['19th']);
-    expect(result.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+    expect(result.criteria.price).toEqual({ max: 10000, currency: 'USD' });
     expect(result.criteria.language).toBe('en');
-    expect(result.conversation.missing).toEqual(['creator', 'location']);
-    expect(result.conversation.nextQuestion).toBe('Is there a specific artist or maker?');
+    expect(result.conversation.missing).toEqual([]);
+    expect(result.conversation.nextQuestion).toBe('I’m looking for matching items based on what you shared.');
   });
 
   it('preserves existing criteria while asking only for missing useful facts', () => {
@@ -83,11 +127,11 @@ describe('BuyerCriteria extraction', () => {
       currency: 'USD',
     }));
 
-    expect(result.conversation.missing).toEqual(['creator', 'location']);
+    expect(result.conversation.missing).toEqual([]);
     expect(result.conversation.missing).not.toContain('category');
     expect(result.conversation.missing).not.toContain('period');
     expect(result.conversation.missing).not.toContain('budget');
-    expect(result.conversation.nextQuestion).toBe('Is there a specific artist or maker?');
+    expect(result.conversation.nextQuestion).toBe('I’m looking for matching items based on what you shared.');
   });
 });
 
@@ -100,16 +144,37 @@ describe('Week 3 focused questions', () => {
     expect(fromCode.criteria.categories).toEqual(['painting']);
   });
 
-  it('asks one Hebrew question for the first missing search fact', () => {
+  it('starts a search without asking for optional details when the item is known', () => {
     const result = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingHe());
 
     expect(result.criteria.language).toBe('he');
-    expect(result.conversation.missing[0]).toBe('creator');
-    expect(result.conversation.nextQuestion).toBe('יש אמן או יוצר מסוים?');
-    expect(result.conversation.nextQuestion).not.toMatch(/את |אתה |את מחפש|אתה מחפש/);
+    expect(result.conversation.missing).toEqual([]);
+    expect(result.conversation.nextQuestion).toBe('מחפשת פריטים מתאימים לפי מה שציינת.');
   });
 
-  it('asks only about budget when search facts are still empty', () => {
+  it('asks only for an item when the search intent is still unknown', () => {
+    expect(nextFocusedQuestion(['category'], 'en')).toBe(
+      'What kind of item are you looking for — for example a painting or a sculpture?',
+    );
+    expect(nextFocusedQuestion(['category'], 'he')).toBe(
+      'איזה סוג פריט מחפשים — למשל ציור או פסל?',
+    );
+  });
+
+  it('keeps a vague yes/no answer from becoming an item keyword', () => {
+    const criteria = emptyBuyerCriteria('en');
+    const updated = applyBuyerAnswer(criteria, {
+      skipped: [],
+      missing: ['category'],
+      nextQuestion: 'What kind of item are you looking for?',
+      notes: [],
+    }, 'no');
+
+    expect(updated.criteria.keywords).toEqual([]);
+    expect(updated.conversation.missing).toEqual(['category']);
+  });
+
+  it('still supports focused-question copy for optional preferences if explicitly requested', () => {
     expect(nextFocusedQuestion(['budget', 'category', 'creator'], 'en')).toBe(
       'Is there a budget range I should stay within?',
     );
@@ -118,7 +183,7 @@ describe('Week 3 focused questions', () => {
     );
   });
 
-  it('moves to the next missing fact after one answer, without erasing price', () => {
+  it('accepts optional refinements after search without asking a sequence of questions', () => {
     const criteria = emptyBuyerCriteria('he');
     criteria.price = { min: 10000, max: 10000, currency: 'USD' };
     criteria.categories = ['painting'];
@@ -127,36 +192,49 @@ describe('Week 3 focused questions', () => {
 
     const afterCreator = applyBuyerAnswer(criteria, {
       skipped: [],
-      missing: ['creator', 'location'],
-      nextQuestion: 'יש אמן או יוצר מסוים?',
+      missing: [],
+      nextQuestion: 'מחפשת פריטים מתאימים לפי מה שציינת.',
       notes: [],
-    }, 'Monet');
+    }, 'by Monet');
 
     expect(afterCreator.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
     expect(afterCreator.criteria.creators).toEqual(['Monet']);
-    expect(afterCreator.conversation.missing).toEqual(['location']);
-    expect(afterCreator.conversation.nextQuestion).toBe('יש מקום או מקור שחשוב?');
+    expect(afterCreator.conversation.missing).toEqual([]);
+    expect(afterCreator.conversation.nextQuestion).toBe('מחפשת פריטים מתאימים לפי מה שציינת.');
   });
 
-  it('skips an optional question and moves to the next missing fact', () => {
+  it('accepts a period refinement after the initial search', () => {
+    const criteria = emptyBuyerCriteria('en');
+    criteria.categories = ['painting'];
+    const updated = applyBuyerAnswer(criteria, {
+      skipped: [],
+      missing: [],
+      nextQuestion: '',
+      notes: [],
+    }, 'from 1920');
+
+    expect(updated.criteria.periods).toEqual(['1920']);
+  });
+
+  it('does not offer optional criteria as blocking questions', () => {
     const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
     const afterSkip = skipCurrentQuestion(initial.criteria, initial.conversation);
 
-    expect(initial.conversation.missing[0]).toBe('creator');
-    expect(afterSkip.conversation.skipped).toEqual(['creator']);
-    expect(afterSkip.conversation.missing).toEqual(['location']);
-    expect(afterSkip.conversation.nextQuestion).toBe('Is there a place or origin that matters?');
-    expect(afterSkip.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
+    expect(initial.conversation.missing).toEqual([]);
+    expect(afterSkip.conversation.skipped).toEqual([]);
+    expect(afterSkip.conversation.missing).toEqual([]);
+    expect(afterSkip.conversation.nextQuestion).toBe('I’m looking for matching items based on what you shared.');
+    expect(afterSkip.criteria.price).toEqual({ max: 10000, currency: 'USD' });
   });
 
   it('does not skip category when search intent is still missing', () => {
     const unclear = parseCriteriaFromAiResponse(sampleAiExtractResponses.vagueEn());
 
-    expect(unclear.conversation.missing[0]).toBe('budget');
+    expect(unclear.conversation.missing[0]).toBe('category');
 
     const afterBudgetSkip = skipCurrentQuestion(unclear.criteria, unclear.conversation);
 
-    expect(afterBudgetSkip.conversation.skipped).toEqual(['budget']);
+    expect(afterBudgetSkip.conversation.skipped).toEqual([]);
     expect(afterBudgetSkip.conversation.missing[0]).toBe('category');
 
     const afterCategorySkipAttempt = skipCurrentQuestion(
@@ -164,7 +242,7 @@ describe('Week 3 focused questions', () => {
       afterBudgetSkip.conversation,
     );
 
-    expect(afterCategorySkipAttempt.conversation.skipped).toEqual(['budget']);
+    expect(afterCategorySkipAttempt.conversation.skipped).toEqual([]);
     expect(afterCategorySkipAttempt.conversation.missing[0]).toBe('category');
   });
 
@@ -174,7 +252,7 @@ describe('Week 3 focused questions', () => {
     expect(result.criteria.categories).toEqual(['rare_books']);
     expect(result.criteria.keywords).toEqual(expect.arrayContaining(['rare', 'Hebrew', 'manuscript']));
     expect(result.conversation.missing).not.toContain('category');
-    expect(result.conversation.missing[0]).toBe('creator');
+    expect(result.conversation.missing).toEqual([]);
   });
 
   it('stores a free-text category answer as keywords when no known category matches', () => {
@@ -187,18 +265,18 @@ describe('Week 3 focused questions', () => {
         notes: [],
       },
       action: 'answer',
-      message: 'rare Hebrew books',
+      message: 'vintage cameras',
     });
 
     expect(afterAnswer.criteria.categories).toEqual([]);
-    expect(afterAnswer.criteria.keywords).toEqual(['rare Hebrew books']);
-    expect(afterAnswer.conversation.missing[0]).toBe('creator');
+    expect(afterAnswer.criteria.keywords).toEqual(['vintage cameras']);
+    expect(afterAnswer.conversation.missing).toEqual([]);
   });
 
   it('uses guided fallback criteria when AI extract is irrelevant', () => {
     const fallback = createGuidedFallbackCriteriaResponse('en');
     expect(fallback.conversation.notes).toContain('guided_fallback');
-    expect(fallback.conversation.nextQuestion).toMatch(/Describe what you want/i);
+    expect(fallback.conversation.nextQuestion).toMatch(/What are you looking for/i);
   });
 
   it('removes budget when the buyer asks to drop it', () => {
@@ -212,35 +290,32 @@ describe('Week 3 focused questions', () => {
     const initial = parseCriteriaFromAiResponse(sampleAiExtractResponses.paintingEn());
     const corrected = applyCriteriaCorrection(initial.criteria, initial.conversation, 'change budget to $8000');
     expect(corrected.criteria.price?.max).toBe(8000);
-    expect(corrected.criteria.price?.min).toBe(8000);
+    expect(corrected.criteria.price?.min).toBeUndefined();
     expect(corrected.criteria.categories).toEqual(initial.criteria.categories);
   });
 
-  it('accepts plain and worded budget answers when the buyer is answering the budget question', () => {
+  it('accepts clearly worded budget refinements after the search starts', () => {
     const criteria = emptyBuyerCriteria('en');
+    criteria.categories = ['painting'];
     const conversation: BuyerCriteriaConversation = {
       skipped: [],
-      missing: ['budget', 'category', 'creator', 'period', 'location'],
-      nextQuestion: 'Is there a budget range I should stay within?',
+      missing: [],
+      nextQuestion: 'I’m looking for matching items based on what you shared.',
       notes: [],
     };
 
-    expect(applyBuyerAnswer(criteria, conversation, '600').criteria.price).toEqual({
-      min: 600,
-      max: 600,
-      currency: 'USD',
+    expect(applyClarificationTurn({ criteria, conversation, action: 'answer', message: 'budget 600' }).criteria.price).toEqual({
+      max: 600, currency: 'USD',
     });
-    expect(applyBuyerAnswer(criteria, conversation, '600 thousand').criteria.price).toEqual({
-      min: 600_000,
+    expect(applyClarificationTurn({ criteria, conversation, action: 'answer', message: 'budget 600 thousand' }).criteria.price).toEqual({
       max: 600_000,
       currency: 'USD',
     });
-    expect(applyBuyerAnswer(criteria, conversation, '600 אלף').criteria.price).toEqual({
-      min: 600_000,
+    expect(applyClarificationTurn({ criteria, conversation, action: 'answer', message: 'תקציב 600 אלף' }).criteria.price).toEqual({
       max: 600_000,
       currency: 'USD',
     });
-    expect(applyBuyerAnswer(criteria, conversation, '500-1500').criteria.price).toEqual({
+    expect(applyClarificationTurn({ criteria, conversation, action: 'answer', message: 'budget 500-1500' }).criteria.price).toEqual({
       min: 500,
       max: 1500,
       currency: 'USD',
@@ -252,13 +327,13 @@ describe('Week 3 focused questions', () => {
 
     expect(afterAnswer.criteria.creators).toEqual(['Monet']);
     expect(afterAnswer.criteria.price).toEqual({ min: 10000, max: 10000, currency: 'USD' });
-    expect(afterAnswer.conversation.missing).toEqual(['location']);
+    expect(afterAnswer.conversation.missing).toEqual([]);
 
     const afterSkip = applyClarificationTurn(sampleClarificationTurns.skipLocation());
 
-    expect(afterSkip.conversation.skipped).toEqual(['location']);
+    expect(afterSkip.conversation.skipped).toEqual([]);
     expect(afterSkip.conversation.missing).toEqual([]);
-    expect(afterSkip.conversation.nextQuestion).toBe('I have the main search facts. Should I continue?');
+    expect(afterSkip.conversation.nextQuestion).toBe('I’m looking for matching items based on what you shared.');
   });
 });
 

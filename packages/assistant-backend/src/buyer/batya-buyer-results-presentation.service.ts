@@ -8,12 +8,18 @@ import type {
 } from './buyer-results-presentation.port';
 import { BuyerSearchExecutionService } from './buyer-search-execution.service';
 import type { BuyerSearchProgress } from './buyer-search.orchestrator';
+import { searchingStepText, unfilteredStepText, upcomingStepText } from './buyer-search-steps';
 import { LotsService } from '../lots/lots.service';
 import type { PresentPriceTrendInput, PresentPriceTrendResult, PriceTrendPoint } from './buyer-results-presentation.port';
 
 const UNMATCHED_TEXT = {
   he: 'לא נמצאו פריטים שמתאימים לבקשה בלי לוותר על המסננים.',
   en: 'No lots matched this request without relaxing your filters.',
+} as const;
+
+const NO_UPCOMING_TEXT = {
+  he: 'אין כרגע פריטים קרובים למכירה שמתאימים לבקשה.',
+  en: 'No upcoming lots match this request right now.',
 } as const;
 
 /**
@@ -34,10 +40,13 @@ export class BatyaBuyerResultsPresentationService implements BuyerResultsPresent
     const { searchContextId, criteria, onUpdate, selectedLotId } = input;
     const searchedAt = new Date().toISOString();
 
-    onUpdate({ type: 'loading' });
-
     const relayProgress = (progress: BuyerSearchProgress): void => {
-      if (progress.stage === 'error') {
+      // The buyer sees what is searched, and any requested detail the search cannot filter by.
+      if (progress.stage === 'searching') {
+        onUpdate({ type: 'loading', text: searchingStepText(criteria) });
+        const unfiltered = unfilteredStepText(criteria);
+        if (unfiltered) onUpdate({ type: 'progress', text: unfiltered });
+      } else if (progress.stage === 'error') {
         onUpdate({
           type: 'error',
           code: 'search_failed',
@@ -68,12 +77,16 @@ export class BatyaBuyerResultsPresentationService implements BuyerResultsPresent
       return { groups: [], outcome };
     }
 
-    const groups = groupsFromResults(criteria, outcome.results.current, []);
+    const { current, historical } = outcome.results;
+    const groups = groupsFromResults(criteria, current, []);
+    if (groups.length > 0) {
+      onUpdate({ type: 'progress', text: upcomingStepText(current.length, criteria.language) });
+    }
+    // Past sales stay price evidence; the similar-items search reports only upcoming lots. Past sales have their own request.
     if (groups.length === 0) {
-      onUpdate({ type: 'unmatched', text: UNMATCHED_TEXT[criteria.language] });
+      onUpdate({ type: 'unmatched', text: historical.length > 0 ? NO_UPCOMING_TEXT[criteria.language] : UNMATCHED_TEXT[criteria.language] });
       return { groups, outcome };
     }
-    onUpdate({ type: 'progress', text: progressText(outcome.results.current.length, criteria.language) });
     onUpdate({ type: 'result_cards', groups });
     return { groups, outcome };
   }
@@ -146,8 +159,3 @@ function groupsFromResults(
   return groups;
 }
 
-function progressText(count: number, language: 'he' | 'en'): string {
-  return language === 'he'
-    ? `נמצאו ${count} פריטים שמתאימים לבקשה.`
-    : `Found ${count} lots that match this request.`;
-}

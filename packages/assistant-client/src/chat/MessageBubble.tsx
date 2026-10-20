@@ -1,17 +1,20 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 interface MessageBubbleProps {
   speaker: string;
   // true כשההודעה נשלחה על ידי המשתמש עצמו (קונה / מוכר); false לכל דובר אחר.
   isOwn: boolean;
   children: ReactNode;
+  // מחלקות וסגנון נוספים מבחוץ (למשל אנימציית הופעה). אופציונלי.
+  className?: string;
+  style?: CSSProperties;
 }
 
 // מחזירה את מחלקות העיצוב לפי סוג הדובר: בועה שחורה למשתמש עצמו, טקסט על הרקע למערכת, בלוק אדום לשגיאה.
 function bubbleClass(speaker: string, isOwn: boolean) {
   const base = 'max-w-lg whitespace-pre-wrap text-sm';
   if (isOwn) {
-    return `${base} self-end rounded-2xl bg-neutral-900 px-4 py-2 text-white`;
+    return `${base} self-end rounded-full bg-[#2b2438] px-4 py-2 text-white`;
   }
   if (speaker === 'error') {
     return `${base} self-start rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-red-900`;
@@ -20,9 +23,9 @@ function bubbleClass(speaker: string, isOwn: boolean) {
 }
 
 // Text bubble shared by every conversation role (buyer, seller, ...): one list item styled by who spoke.
-export function MessageBubble({ speaker, isOwn, children }: MessageBubbleProps) {
+export function MessageBubble({ speaker, isOwn, children, className, style }: MessageBubbleProps) {
   return (
-    <li data-speaker={speaker} className={bubbleClass(speaker, isOwn)}>
+    <li data-speaker={speaker} className={`${bubbleClass(speaker, isOwn)} ${className ?? ''}`.trim()} style={style}>
       {children}
     </li>
   );

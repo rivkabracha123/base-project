@@ -4,6 +4,7 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerP4BridgeService } from './buyer-p4-bridge.service';
 import { getBuyerCriteriaSession, resetBuyerCriteriaSessions } from './buyer-criteria-session.store';
+import { appendBuyerConversationContext, getBuyerConversationContext } from './buyer-criteria-session.store';
 
 describe('BuyerP4BridgeService house ranking', () => {
   it.each([undefined, { id: 'selected-sale' }])('overrides an AI search route for an explicit history request', async selectedLot => {
@@ -16,7 +17,7 @@ describe('BuyerP4BridgeService house ranking', () => {
     expect(ai.intentRoute).toMatchObject({ functionName: 'getComparableSaleHistory', readyForFunction: !!selectedLot });
   });
   afterEach(() => resetBuyerCriteriaSessions());
-  it('opens and completes guided criteria when the AI is unavailable without clearing saved facts', async () => {
+  it('opens a guided search immediately when the AI is unavailable', async () => {
     const criteria = new BuyerCriteriaService();
     const p4 = { generateBuyerExtract: jest.fn().mockRejectedValue(new ServiceUnavailableException()) };
     const bridge = new BuyerP4BridgeService(p4 as never, criteria);
@@ -24,14 +25,47 @@ describe('BuyerP4BridgeService house ranking', () => {
     const id = opened.chat.sessionId;
     expect(criteria.getCriteriaForSession(id).categories).toEqual(['rings']);
     expect(criteria.getCriteriaForSession(id).keywords).toContain('blue');
-    expect(await bridge.evaluateSearchReadiness(id)).toMatchObject({ readyForFunction: false });
+    expect(criteria.getSessionResponse(id).conversation.missing).toEqual([]);
+    expect(await bridge.evaluateSearchReadiness(id)).toMatchObject({ functionName: 'searchLots', readyForFunction: true });
     const followup = await bridge.routeBuyerMessage('similar items', 'en', { sessionId: id });
     expect(followup.intentRoute).toMatchObject({ intent: 'search_similar_lots', readyForFunction: true });
-    for (let index = 0; index < 4; index++) {
-      criteria.continueCriteriaSessionFromChat({ id: `skip-${index}`, sessionId: id, speaker: 'buyer', skipped: true });
-    }
     expect(await bridge.evaluateSearchReadiness(id)).toMatchObject({ functionName: 'searchLots', readyForFunction: true });
     expect(criteria.getCriteriaForSession(id).categories).toEqual(['rings']);
+  });
+
+  it('keeps the item type from the opening message when the AI returns only the broad category', async () => {
+    const criteria = new BuyerCriteriaService();
+    // Live gpt-4o-mini reply on 2026-10-20: rare_books alone matched all 16 lots, printed books included.
+    const extract = buildFixtureAiExtract('אני רוצה לחפש כתב יד', 'he');
+    extract.provider = 'real';
+    extract.structuredAnswer = { role: 'buyer', language: 'he', intent: 'Find a manuscript', category: 'rare_books',
+      hasContactDetails: false, hasImages: false } as never;
+    const p4 = { generateBuyerExtract: jest.fn().mockResolvedValue({ extract, readyForFunction: false,
+      intentRoute: { functionName: null, readyForFunction: false }, functionParameters: null }) };
+    const opened = await new BuyerP4BridgeService(p4 as never, criteria).openConversation({ message: 'אני רוצה לחפש כתב יד', language: 'he' });
+    expect(criteria.getCriteriaForSession(opened.chat.sessionId)).toMatchObject({ categories: ['rare_books'], keywords: ['manuscript'] });
+  });
+
+  it('includes earlier chat turns when routing a contextual follow-up', async () => {
+    const criteria = new BuyerCriteriaService();
+    const extract = buildFixtureAiExtract('yes', 'he');
+    const p4 = { generateBuyerExtract: jest.fn().mockResolvedValue({
+      extract,
+      readyForFunction: false,
+      intentRoute: { functionName: null, readyForFunction: false },
+      functionParameters: null,
+    }) };
+    const bridge = new BuyerP4BridgeService(p4 as never, criteria);
+    const session = criteria.startCriteriaSessionFromAiResponse(extract);
+    appendBuyerConversationContext(session.sessionId, { speaker: 'buyer', text: 'איזה יהלום נמכר במחיר הגבוה ביותר?' });
+    appendBuyerConversationContext(session.sessionId, { speaker: 'assistant', text: 'היהלום הכחול נמכר בסכום שיא. תרצי לשמוע פרטים נוספים?' });
+
+    await bridge.routeBuyerMessage('כן', 'he', { sessionId: session.sessionId }, getBuyerConversationContext(session.sessionId));
+
+    expect(p4.generateBuyerExtract).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining('היהלום הכחול נמכר בסכום שיא. תרצי לשמוע פרטים נוספים?'),
+    }));
+    expect(p4.generateBuyerExtract.mock.calls[0]?.[0].prompt).toContain('Latest buyer message:\nכן');
   });
 
   it('does not hide programming errors as provider failures', async () => {

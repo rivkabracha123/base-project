@@ -56,6 +56,7 @@ export interface DashboardSellerLeadSourceRecord {
   alternatives: Record<string, unknown>[];
   sellerChoice: Record<string, unknown> | null;
   catalogDraft: Record<string, unknown> | null;
+  enquiryText?: string | null;
   contact: DashboardSellerLeadContact;
   history: DashboardSellerLeadHistoryItem[];
 }

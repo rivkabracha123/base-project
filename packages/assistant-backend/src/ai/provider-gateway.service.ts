@@ -3,7 +3,7 @@ import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService, type FixtureProviderRequest, type FixtureProviderResponse } from './fixture-provider.service';
 import { RealProviderService, type RealProviderRequest, type RealProviderResponse } from './real-provider.service';
 import type { AiRole } from './ai.dto';
-import { isExplicitlyOffTopic, offTopicCopy } from './off-topic';
+import { isExplicitlyOffTopic, mentionsAuctionIntent, offTopicCopy } from './off-topic';
 
 export type ProviderConfig = {
   kind: 'fixture' | 'real';
@@ -18,6 +18,7 @@ export type ProviderGatewayRequest = FixtureProviderRequest & {
   baseUrl?: string;
   modelName?: string;
   apiKey?: string;
+  timeoutMs?: number;
 };
 
 //choose the provider
@@ -30,17 +31,33 @@ function isValidProviderGatewayResponse(value: unknown, expectedRole?: AiRole): 
 
 // Only a coarse reason is logged; provider messages may echo user content.
 export function classifyProviderFailure(error: unknown): string {
+  // AbortSignal.timeout rejects with a DOMException named TimeoutError.
+  if ((error as { name?: unknown } | null)?.name === 'TimeoutError') return 'timeout';
   const message = error instanceof Error ? error.message : '';
   const status = message.match(/request failed: (\d{3})/)?.[1];
   if (status) return `http_${status}`;
   const schemaReason = message.match(/schema validation: ([a-z0-9_]+)/i)?.[1];
   if (schemaReason) return `invalid_response_${schemaReason.toLowerCase()}`;
+  if (/not configured/i.test(message)) return 'not_configured';
   if (/non-JSON/i.test(message)) return 'invalid_response_non_json';
   if (/restricted/i.test(message)) return 'invalid_response_restricted';
   if (/no content/i.test(message)) return 'invalid_response_no_content';
   if (/malformed/i.test(message)) return 'invalid_response_malformed';
   if (/schema validation|malformed|non-JSON|no content|restricted/i.test(message)) return 'invalid_response';
   return 'unavailable';
+}
+
+// gpt-4o-mini sometimes answers in English during a Hebrew chat; the client hides that text,
+// leaving only the fixed intake question, so such a reply is worth one retry.
+export function isReplyInWrongLanguage(
+  response: Pick<ProviderGatewayResponse, 'summary' | 'nextAction'>,
+  language?: 'he' | 'en',
+): boolean {
+  if (!language) return false;
+  const text = `${response.summary ?? ''} ${response.nextAction ?? ''}`;
+  const hebrewLetters = text.match(/[א-ת]/g)?.length ?? 0;
+  const latinLetters = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return language === 'he' ? latinLetters > hebrewLetters : hebrewLetters > latinLetters;
 }
 
 //2 providers - fixture and real
@@ -79,6 +96,11 @@ export class ProviderGatewayService {
     const hasValidRealConfig = Boolean(realBaseUrl && realModelName && realApiKey);
 
     if (enabledReal && !hasValidRealConfig) {
+      // Names only: the values may be secrets.
+      const missing = [
+        ['AI_BASE_URL', realBaseUrl], ['AI_MODEL_NAME', realModelName], ['AI_API_KEY', realApiKey],
+      ].filter(([, value]) => !value).map(([name]) => name);
+      this.logger.warn(`Falling back to guided input: not_configured (missing ${missing.join(', ')})`);
       throw new ServiceUnavailableException('Real AI provider is enabled but not fully configured.');
     }
 
@@ -101,10 +123,20 @@ export class ProviderGatewayService {
               throw new Error('Real provider returned a malformed response payload.');
             }
             result = candidate;
+            if (attempt === 0 && isReplyInWrongLanguage(candidate, input.language)) {
+              this.logger.warn('Real provider attempt 1 answered in the wrong language; retrying.');
+              continue;
+            }
+            // "I inherited a manuscript and am not sure whether to sell it" is sometimes judged unrelated.
+            if (attempt === 0 && !candidate.isRelevant && mentionsAuctionIntent(input.prompt)) {
+              this.logger.warn('Real provider attempt 1 judged a buy/sell message unrelated; retrying.');
+              continue;
+            }
             break;
           } catch (error) {
             this.logger.warn(`Real provider attempt ${attempt + 1} failed: ${classifyProviderFailure(error)}`);
-            if (attempt === 1 || classifyProviderFailure(error) === 'http_429') {
+            // A second wait after a rate limit or a timeout would only delay the guided fallback.
+            if (attempt === 1 || ['http_429', 'timeout'].includes(classifyProviderFailure(error))) {
               throw error;
             }
           }

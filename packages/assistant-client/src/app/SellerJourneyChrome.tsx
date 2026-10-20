@@ -28,29 +28,27 @@ export function HouseRankingPicker({
   onSelect: (houseId: string) => void;
 }) {
   const { t } = useTranslation();
+  const options = selectableHouses(ranking);
+  const recommendedId = ranking.recommendation?.house.id;
+
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        {ranking.recommendation ? (
-          <HouseJourneyCard
-            row={ranking.recommendation}
-            selectedId={houseId}
-            recommended
-            onSelect={onSelect}
-          />
-        ) : (
+        {options.length === 0 ? (
           <p className="text-stone-600">{t('houses.none')}</p>
+        ) : (
+          options.map((row) => (
+            <HouseJourneyCard
+              key={row.house.id}
+              row={row}
+              selectedId={houseId}
+              recommended={row.house.id === recommendedId}
+              onSelect={onSelect}
+            />
+          ))
         )}
-        {ranking.alternatives.map((row) => (
-          <HouseJourneyCard
-            key={row.house.id}
-            row={row}
-            selectedId={houseId}
-            onSelect={onSelect}
-          />
-        ))}
       </div>
-      {ranking.alternatives.length === 0 ? (
+      {ranking.alternatives.filter((row) => row.house.active).length === 0 ? (
         <p className="text-sm text-stone-500">{t('houses.noAlternatives')}</p>
       ) : null}
     </>
@@ -81,6 +79,7 @@ export function HouseJourneyCard({
   const instanceId = useId();
   const inputId = `${instanceId}-journey-house-${row.house.id}`;
   const selected = selectedId === row.house.id;
+  const highlighted = selected || (recommended && !selectedId);
   const location = row.house.geography
     ? row.house.geography.toLowerCase() === 'israel'
       ? t('houses.locationIsrael')
@@ -90,10 +89,10 @@ export function HouseJourneyCard({
   return (
     <label
       htmlFor={onSelect ? inputId : undefined}
-      className={`relative flex ${onSelect ? 'cursor-pointer' : ''} flex-col rounded-2xl border px-5 py-5 shadow-sm ${
-        recommended || selected
-          ? 'border-[#c4a574] bg-[#f3ead8]'
-          : 'border-stone-200 bg-white'
+      className={`relative flex ${onSelect ? 'cursor-pointer' : ''} flex-col rounded-2xl border px-6 py-6 shadow-sm ${
+        highlighted
+          ? 'border-[#d8c4a0] bg-[#f3ead8]'
+          : 'border-[#eadfd0] bg-white'
       }`}
     >
       {onSelect && <input
@@ -107,7 +106,7 @@ export function HouseJourneyCard({
         aria-label={row.house.name}
       />}
       {recommended ? (
-        <span className="absolute start-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-[#e6d7b8] text-sm text-amber-900" aria-hidden>
+        <span className="absolute left-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-[#e6d7b8] text-sm text-amber-900" aria-hidden>
           ★
         </span>
       ) : null}

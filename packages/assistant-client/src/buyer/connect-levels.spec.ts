@@ -2,17 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetBuyerChatFlowForTests } from './buyer-chat-flow';
 import { connectLevels } from './connect-levels';
 
-// Helper: a fake buyer server. It answers POST /buyer/conversation/message with the updates
+// Helper: a fake buyer server. It streams updates from POST /buyer/conversation/message/stream
 // that the given function builds from the buyer's text and language.
 function stubBuyerServer(updatesFor: (message: string, language: string) => unknown[]) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (_url: string, init?: RequestInit) => {
       const { message, language } = JSON.parse(String(init?.body)) as { message: string; language: string };
-      return new Response(
-        JSON.stringify({ sessionId: 'session-1', updates: updatesFor(message, language), turn: {} }),
-        { status: 200 },
-      );
+      const updates = updatesFor(message, language);
+      const events = [
+        { type: 'started' },
+        { type: 'session', sessionId: 'session-1' },
+        ...updates.flatMap((update, index) => {
+          const speaker = (update as { speaker?: string }).speaker;
+          return speaker === 'system' || speaker === 'results-found'
+            ? [{ type: 'update', index, update }]
+            : [];
+        }),
+        { type: 'complete', response: { sessionId: 'session-1', updates, turn: {} } },
+      ];
+      return new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
     }),
   );
 }

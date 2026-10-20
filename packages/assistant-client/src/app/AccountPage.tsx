@@ -50,7 +50,7 @@ export function AccountPage() {
     onSuccess: () => {
       resetAnonymousSession();
       queryClient.clear();
-      navigate('/results', { replace: true });
+      navigate('/chat/buyer', { replace: true });
     },
   });
 

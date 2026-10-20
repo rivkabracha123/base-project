@@ -23,6 +23,15 @@ function matchedMaterials(lot: AuctionLot, materials: string[] | undefined): str
   return materials.filter(m => text.includes(m.toLowerCase()));
 }
 
+// Handwritten or printed, from the lot's canonical medium token (e.g. parchment_manuscript, printed_book).
+// Undefined when the medium is missing or says neither, so such lots keep category-only matching.
+function lotFormatOf(lot: AuctionLot): 'handwritten' | 'printed' | undefined {
+  if (!lot.medium) return undefined;
+  if (/manuscript|scroll/.test(lot.medium)) return 'handwritten';
+  if (/printed/.test(lot.medium)) return 'printed';
+  return undefined;
+}
+
 // No confirmed materials to check against is treated as neutral (full credit) so the Week 2
 // { category } shape keeps scoring exactly as before.
 function materialsOverlap(matched: string[], materials: string[] | undefined): number {
@@ -68,6 +77,17 @@ export function scoreComparable(lot: AuctionLot, item: SellerItem): ScoredCompar
       included: false,
       matchReason: `Different category ('${lot.category}' vs '${item.category}')`,
       exclusionReason: `Category does not match — '${lot.category}' is not '${item.category}'`,
+    };
+  }
+
+  const lotFormat = lotFormatOf(lot);
+  if (item.format && lotFormat && lotFormat !== item.format) {
+    return {
+      lot,
+      score,
+      included: false,
+      matchReason: `Same category '${item.category}', completed sale with realized price`,
+      exclusionReason: `Different format — a ${lotFormat} lot is not comparable to a ${item.format} item`,
     };
   }
 

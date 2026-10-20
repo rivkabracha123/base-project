@@ -6,6 +6,9 @@ export const sellerItemSchema = z.object({
   // Week 3 — optional confirmed facts (Heni Cohen / S3) from S1's confirmedFacts shape.
   // Optional so the Week 2 { category } shape keeps working unchanged.
   materials: z.array(z.string()).optional(),
+  // Handwritten (manuscript, scroll) or printed. A manuscript priced against printed books gives a meaningless
+  // range, so when known, only lots of the same format count. Optional: unknown keeps category-only matching.
+  format: z.enum(['handwritten', 'printed']).optional(),
 });
 
 export const scoredComparableSchema = z.object({

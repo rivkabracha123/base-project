@@ -58,6 +58,8 @@ describe('SellerLeadsController', () => {
         recommendation: null,
         sellerChoice: null,
         catalogDraft: null,
+        // The seller-written enquiry text (added Week 6); none was saved for this lead.
+        enquiryText: null,
         item: null,
         evidence: null,
         valuation: null,

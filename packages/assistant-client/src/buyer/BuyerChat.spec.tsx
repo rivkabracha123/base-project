@@ -51,6 +51,58 @@ function renderChatWithError() {
 
 // Tests for the buyer chat screen.
 describe('BuyerChat', () => {
+  it('shows search progress as step lines with icons, not chat bubbles', async () => {
+    renderChat([
+      { id: 'step-1', sessionId: 's1', speaker: 'system', text: 'מחפש…' },
+      { id: 'step-2', sessionId: 's1', speaker: 'results-found', text: 'Found 2 similar lots in upcoming sales' },
+      { id: 'step-3', sessionId: 's1', speaker: 'results-found', text: 'Found 8 similar lots in the past sales archive' },
+    ]);
+    const searching = (await screen.findByText('מחפש…')).closest('li')!;
+    expect(searching).toHaveAttribute('data-step', 'true');
+    expect(searching).toHaveTextContent('🔍');
+    expect(screen.getByText(/upcoming sales/).closest('li')).toHaveTextContent('📚');
+    expect(screen.getByText(/past sales archive/).closest('li')).toHaveTextContent('🗂️');
+  });
+
+  it('shows "searching" first, the found lines a second later, and the cards only after them', async () => {
+    vi.mocked(connectLevels).mockImplementation(async (_message, onUpdate) => {
+      onUpdate({ speaker: 'system', text: 'Searching…' });
+      onUpdate({ speaker: 'results-found', text: 'Found 1 similar lots in upcoming sales' });
+      onUpdate({ speaker: 'result-group', title: 'Upcoming lots', lots: [soldLotFixture] });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I am looking for a mock lot');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Looking for a watch' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText('Searching…')).toBeInTheDocument();
+    expect(screen.queryByText(/upcoming sales/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/upcoming sales/, {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Upcoming lots' })).not.toBeInTheDocument();
+    const cards = (await screen.findByRole('heading', { name: 'Upcoming lots' }, { timeout: 3000 })).closest('li')!;
+    expect(cards).toHaveClass('buyer-reveal');
+  }, 10000);
+
+  it('introduces auction houses with "searching auction houses" and how many fit', async () => {
+    const ranking = houseRankingSchema.parse({ recommendation: {
+      house: { id: 'house-specialist', name: 'Manuscript specialist', active: true, categories: ['rare_books'], languages: ['he', 'en'], geography: 'Israel', comparableSoldCountByCategory: { rare_books: 3 } },
+      score: 10, reasons: ['Category expertise'],
+    }, alternatives: [], excluded: [] });
+    vi.mocked(connectLevels).mockImplementation(async (_message, onUpdate) => {
+      onUpdate({ speaker: 'house-ranking', ranking, category: 'rare_books' });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I am looking for a mock lot');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Which auction houses?' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect((await screen.findByText('Searching auction houses…')).closest('li')).toHaveTextContent('🔍');
+    expect((await screen.findByText('Found 1 matching auction houses', {}, { timeout: 2000 })).closest('li')).toHaveTextContent('🏛️');
+    expect(await screen.findByRole('heading', { name: 'Manuscript specialist' }, { timeout: 3000 })).toBeInTheDocument();
+  }, 10000);
+
   it('renders specialist houses inline without seller selection controls', async () => {
     const ranking = houseRankingSchema.parse({ recommendation: {
       house: { id: 'house-specialist', name: 'Manuscript specialist', active: true, categories: ['rare_books'], languages: ['he', 'en'], geography: 'Israel', comparableSoldCountByCategory: { rare_books: 3 } },
@@ -66,6 +118,14 @@ describe('BuyerChat', () => {
     expect(await screen.findByRole('heading', { name: 'Previous sales' })).toBeInTheDocument();
     expect(screen.getByText('Test Auction House · 2025-01-23')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Sale details' })).toHaveLength(1);
+  });
+  it('shows the price trend chart without repeating its sales as item cards', async () => {
+    renderChat([{ id: 'trend-test', sessionId: 's1', speaker: 'price-trend', title: 'Price trend',
+      lots: [soldLotFixture, { ...soldLotFixture, id: 'second-sale', saleDate: '2026-01-23' }],
+      points: [] }]);
+    expect(await screen.findByRole('img', { name: /Similar-item sale prices/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: soldLotFixture.title.en })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View original listing' })).not.toBeInTheDocument();
   });
   // Verifies the screen shows the text of the first buyer message in the conversation.
   it('shows the first buyer message', async () => {
@@ -122,6 +182,118 @@ describe('BuyerChat', () => {
     ]);
     const message = await screen.findByText('No matching items were found. Your request has been saved for our team.');
     expect(message.closest('li')).toHaveAttribute('data-speaker', 'no-results');
+  });
+
+  // A no-results message keeps the plain text style of the other assistant lines, with no frame of its own.
+  it('shows a no-results message in the same plain style as a system message', async () => {
+    renderChat([
+      ...mockConversation.en,
+      { speaker: 'no-results', id: 'nr-2', sessionId: 'mock-session-en', text: 'No matching items were found.' },
+    ]);
+    const noResults = (await screen.findByText('No matching items were found.')).closest('li');
+    const system = screen.getByText('Searching for you…').closest('li');
+    expect(noResults?.className).toBe(system?.className);
+    expect(noResults?.className).not.toContain('border');
+  });
+
+  // Follow-up "similar items in other categories": the group marked by the server gets the card with the category.
+  describe('result group from other categories', () => {
+    const groupLots = mockConversation.en.flatMap((message) => (message.speaker === 'result-group' ? message.lots : []));
+    const otherCategoriesGroup = (extra: Record<string, unknown> = {}) => ({
+      speaker: 'result-group',
+      id: 'oc-1',
+      sessionId: 'mock-session-en',
+      title: 'Past sales',
+      lots: groupLots,
+      variant: 'other-categories',
+      ...extra,
+    });
+
+    it('shows the category of each lot, in the buyer language', async () => {
+      renderChat([otherCategoriesGroup()]);
+
+      const category = await screen.findByTestId('lot-category');
+      expect(category).toHaveTextContent('Rare books');
+      expect(category.closest('li[data-speaker]')).toHaveAttribute('data-variant', 'other-categories');
+    });
+
+    it('draws each lot with the buyer lot card, one card per lot', async () => {
+      const [lot] = groupLots;
+      if (!lot) throw new Error('mock conversation has no lot');
+      renderChat([otherCategoriesGroup({ lots: [lot, { ...lot, id: 'mock-lot-2', title: { en: 'A second mock lot' } }] })]);
+
+      // The buyer lot card titles a lot with a level-3 heading under the group title; the shared card uses level 2.
+      expect(await screen.findByRole('heading', { level: 3, name: 'A mock lot' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'A second mock lot' })).toBeInTheDocument();
+      expect(screen.getAllByTestId('lot-category')).toHaveLength(2);
+    });
+
+    it('shows a category that has no translation as the data names it', async () => {
+      renderChat([otherCategoriesGroup({ lots: groupLots.map((lot) => ({ ...lot, category: 'test_category' })) })]);
+
+      expect(await screen.findByTestId('lot-category')).toHaveTextContent('test category');
+    });
+
+    it('shows the match reasons the server sent for a lot', async () => {
+      const [lot] = groupLots;
+      if (!lot) throw new Error('mock conversation has no lot');
+      renderChat([
+        otherCategoriesGroup({
+          matchReasons: {
+            [lot.id]: [
+              { field: 'creators', detail: 'Test Maker' },
+              { field: 'unlisted_field', detail: 'silver' },
+            ],
+          },
+        }),
+      ]);
+
+      expect(await screen.findByText('Creator: Test Maker')).toBeInTheDocument();
+      expect(screen.getByText('silver')).toBeInTheDocument();
+    });
+
+    it('shows no reasons section when the server sent none', async () => {
+      renderChat([otherCategoriesGroup()]);
+
+      await screen.findByTestId('lot-category');
+      expect(screen.queryByText('Why this item matches')).not.toBeInTheDocument();
+    });
+
+    it('shows the card in Hebrew with Hebrew labels', async () => {
+      await i18n.changeLanguage('he');
+      renderChat([otherCategoriesGroup()]);
+
+      expect(await screen.findByTestId('lot-category')).toHaveTextContent('ספרים נדירים');
+      expect(screen.getByRole('heading', { name: 'פריט לדוגמה' })).toBeInTheDocument();
+    });
+
+    it('keeps the regular result group on the shared card, with no category badge or reasons', async () => {
+      renderChat(mockConversation.en);
+
+      const title = await screen.findByRole('heading', { level: 2, name: 'A mock lot' });
+      expect(title.closest('li[data-speaker]')).not.toHaveAttribute('data-variant');
+      expect(screen.queryByRole('heading', { level: 3 })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('lot-category')).not.toBeInTheDocument();
+      expect(screen.queryByText('Why this item matches')).not.toBeInTheDocument();
+    });
+
+    it('keeps a regular result group on the shared card even when the server sent match reasons with it', async () => {
+      const [lot] = groupLots;
+      if (!lot) throw new Error('mock conversation has no lot');
+      renderChat([
+        {
+          speaker: 'result-group',
+          id: 'rg-1',
+          sessionId: 'mock-session-en',
+          lots: [lot],
+          matchReasons: { [lot.id]: [{ field: 'creators', detail: 'Test Maker' }] },
+        },
+      ]);
+
+      await screen.findByRole('heading', { level: 2, name: 'A mock lot' });
+      expect(screen.queryByTestId('lot-category')).not.toBeInTheDocument();
+      expect(screen.queryByText('Creator: Test Maker')).not.toBeInTheDocument();
+    });
   });
 
   // Verifies the conversation is laid out right-to-left when the language is Hebrew.
@@ -329,6 +501,10 @@ describe('BuyerChat', () => {
 
     const sent = await screen.findByText('Hello there');
     expect(sent.closest('li')).toHaveAttribute('data-speaker', 'buyer');
+    await waitFor(() => {
+      const savedMessages = JSON.parse(localStorage.getItem('monabid.chat.buyer.en') ?? '[]') as { text?: string }[];
+      expect(savedMessages.some((message) => message.text === 'Hello there')).toBe(true);
+    });
   });
 
   // בודק שלחיצה על Enter בשדה שולחת את ההודעה, בלי הכפתור.
@@ -403,6 +579,7 @@ describe('BuyerChat', () => {
 
     await waitFor(() => expect(screen.getByRole('textbox')).toBeDisabled());
     expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
+    expect(await screen.findByText('Checking your request…')).toBeInTheDocument();
 
     await act(async () => finish());
 

@@ -310,9 +310,10 @@ describe('SellerLeadsService', () => {
     const { service, stored, saved, logged } = createHarness();
     stored.push(rankedLead());
 
-    const submitted = await service.submitFinal('lead-1', handoff);
+    const submitted = await service.submitFinal('lead-1', { ...handoff, enquiryText: 'Please review this manuscript.' });
 
     expect(submitted.status).toBe('submitted');
+    expect(submitted.enquiryText).toBe('Please review this manuscript.');
     expect(submitted.catalogDraft).toEqual(handoff.catalogDraft);
     expect(submitted.item?.evidenceIds).toEqual(['evidence-001']);
     expect(submitted.valuation?.status).toBe('supported');
@@ -424,7 +425,7 @@ describe('SellerLeadsService', () => {
     expect(itemValuation.calculateFromItem).toHaveBeenCalledWith({
       itemId: 'item-001',
       itemVersion: 'confirmed',
-      item: { category: 'paintings', materials: ['oil'] },
+      item: { category: 'paintings' },
     });
     expect(received.valuation?.status).toBe('supported');
     expect(received.valuation && 'valuationRange' in received.valuation && received.valuation.valuationRange).toEqual({
@@ -453,6 +454,28 @@ describe('SellerLeadsService', () => {
     expect(submitted.recommendation?.recommendation?.house.id).toBe('house-judaica-specialist');
     expect(stored[0]?.status).toBe('submitted');
     expect(JSON.stringify(logged)).not.toContain(enquiry.contact.email);
+  });
+
+  it('submits a general internal enquiry without selecting or recommending one auction house', async () => {
+    const { service, stored } = createHarness();
+    const submitted = await service.completeEnquiry({
+      ...handoff,
+      generalEnquiry: true,
+      contact: enquiry.contact,
+    }, 'session-1');
+
+    expect(submitted.status).toBe('submitted');
+    expect(submitted.sellerChoice).toBeNull();
+    expect(submitted.recommendation).toBeNull();
+    expect(stored[0]).toMatchObject({ status: 'submitted', sellerChoice: null, recommendation: null });
+  });
+
+  it('requires an explicit general-enquiry flag when no house is selected', async () => {
+    const { service } = createHarness();
+    await expect(service.completeEnquiry({
+      ...handoff,
+      contact: enquiry.contact,
+    } as never, 'session-1')).rejects.toThrow('Choose a house or explicitly submit a general internal enquiry');
   });
 });
 

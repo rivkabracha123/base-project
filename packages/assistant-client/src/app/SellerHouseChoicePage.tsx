@@ -5,17 +5,17 @@ import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   createSellerLead,
-  getS1SellerDraft,
   grantP3ServiceConsent,
   rankHouses,
   rankHousesForLead,
-  rankingItemFromS1Draft,
+  sellerRankingItem,
   saveSellerHouseChoice,
 } from './api';
 import { HouseRankingPicker, JourneyBubble, selectableHouses } from './SellerJourneyChrome';
+import { getCurrentSellerDraft } from '../seller/connect-seller-correction';
 
 export function SellerHouseChoicePage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // S5: which radio is selected. Undefined means “keep the S5 recommendation”.
   const location = useLocation();
   const [selectedHouseId, setSelectedHouseId] = useState<string | undefined>(
@@ -25,9 +25,13 @@ export function SellerHouseChoicePage() {
   // Show ranking without storing a lead (P3 consent is only required when saving).
   const s1DraftQuery = useQuery({
     queryKey: ['s1-seller-draft'],
-    queryFn: ({ signal }) => getS1SellerDraft(signal),
+    queryFn: () => getCurrentSellerDraft(),
   });
-  const rankingItem = useMemo(() => rankingItemFromS1Draft(s1DraftQuery.data), [s1DraftQuery.data]);
+  const rankingItem = useMemo(() => {
+    const category = s1DraftQuery.data?.item.category;
+    return category ? { category: ['manuscript', 'manuscripts'].includes(category) ? 'rare_books' : category,
+      preferredLanguage: i18n.language.startsWith('he') ? 'he' : 'en' } : sellerRankingItem;
+  }, [s1DraftQuery.data, i18n.language]);
   const rankingQuery = useQuery({
     queryKey: ['seller-house-ranking', rankingItem],
     enabled: s1DraftQuery.isFetched,
@@ -39,7 +43,7 @@ export function SellerHouseChoicePage() {
     mutationFn: async (houseId: string) => {
       const granted = await grantP3ServiceConsent();
       if (!granted) throw new Error('P3 service consent is required');
-      const leadId = await createSellerLead();
+      const leadId = await createSellerLead(undefined, undefined, { profileId: granted.id, serviceConsent: true });
       await rankHousesForLead(leadId, undefined, rankingItem);
       return saveSellerHouseChoice(leadId, houseId);
     },

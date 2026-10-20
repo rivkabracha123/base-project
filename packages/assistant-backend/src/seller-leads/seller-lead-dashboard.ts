@@ -83,6 +83,7 @@ export function toSellerLeadDashboardDetail(lead: SellerLeadEntity): SellerLeadD
     evidence: safeEvidence(lead),
     comparables: safeComparables(lead),
     valuation: toDashboardValuation(lead.valuation),
+    enquiryText: lead.enquiryText ?? null,
     recommendation: ranking?.recommendation ?? null,
     alternatives: ranking?.alternatives ?? [],
     sellerChoice: lead.sellerChoice ?? null,

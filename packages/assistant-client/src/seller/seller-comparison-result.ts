@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { auctionLotSchema, sellerItemDraftSchema } from '@monabid/shared';
 
 export const sellerComparisonResultSchema = z.discriminatedUnion('mode', [
-  z.object({ mode: z.literal('details'), item: sellerItemDraftSchema.shape.item.extend({
+  z.object({ mode: z.literal('details'), evidence: sellerItemDraftSchema.shape.evidence.optional(), descriptionWritten: z.boolean().optional(), item: sellerItemDraftSchema.shape.item.extend({
     materials: z.array(z.string()),
     dimensions: sellerItemDraftSchema.shape.item.shape.dimensions.extend({
       values: z.array(sellerItemDraftSchema.shape.item.shape.dimensions.shape.values.removeDefault().element),

@@ -79,6 +79,37 @@ describe('StaffOperationsService', () => {
     }));
   });
 
+  it('retains the complete ordered status transition history across updates', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-18T09:00:00.000Z'));
+    let storedLead = {
+      id: 'pipeline-history-lead', type: 'buyer', clientName: 'Synthetic Buyer', status: 'new',
+      requestDetails: 'Looking for a manuscript.', createdAt: new Date('2026-09-01T10:00:00.000Z'), payload: {},
+    };
+    const repository = {
+      findOneBy: jest.fn().mockImplementation(async () => storedLead),
+      save: jest.fn().mockImplementation(async (lead) => {
+        storedLead = lead;
+        return lead;
+      }),
+    };
+    const service = createService(repository);
+
+    try {
+      await service.updatePipeline('pipeline-history-lead', { status: 'reviewing' });
+      jest.setSystemTime(new Date('2026-10-18T09:05:00.000Z'));
+      const result = await service.updatePipeline('pipeline-history-lead', { status: 'contacted' });
+
+      expect(result.statusHistory).toEqual([
+        { at: '2026-09-01T10:00:00.000Z', from: null, to: 'new' },
+        { at: '2026-10-18T09:00:00.000Z', from: 'new', to: 'reviewing' },
+        { at: '2026-10-18T09:05:00.000Z', from: 'reviewing', to: 'contacted' },
+      ]);
+      expect(repository.save).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('does not persist a skipped pipeline status', async () => {
     const repository = {
       findOneBy: jest.fn().mockResolvedValue({
@@ -268,7 +299,9 @@ describe('StaffOperationsService', () => {
     };
     const service = createService(repository, {}, sellerLeadDashboardSource);
 
-    await expect(service.getSellerLeadDetail('11111111-1111-4111-8111-111111111111')).resolves.toMatchObject({
+    const result = await service.getSellerLeadDetail('11111111-1111-4111-8111-111111111111');
+
+    expect(result).toMatchObject({
       id: '11111111-1111-4111-8111-111111111111',
       type: 'seller',
       item: { title: 'Synthetic silver menorah', category: 'judaica' },
@@ -285,6 +318,10 @@ describe('StaffOperationsService', () => {
       },
       history: [{ at: '2026-09-14T11:00:00.000Z', event: 'submitted', actor: 'seller' }],
     });
+    expect(result).not.toHaveProperty('profileId');
+    expect(result).not.toHaveProperty('sessionId');
+    expect(result).not.toHaveProperty('marketingConsent');
+    expect(result).not.toHaveProperty('evidencePath');
     expect(sellerLeadDashboardSource.getSellerLead).toHaveBeenCalledWith('11111111-1111-4111-8111-111111111111');
   });
 

@@ -2,6 +2,14 @@ import { routeBuyerIntent } from './intent-router';
 import { buildCompletionState } from './completion-state';
 
 describe('routeBuyerIntent', () => {
+  it('ignores earlier assistant text when routing the latest buyer message', () => {
+    const prompt = 'Conversation so far:\nBuyer: כתב יד עתיק\nAssistant: בדקנו גם בארכיון המכירות: נמצאו 7 מכירות קודמות דומות.\n\nLatest buyer message:\nרק מכירות עתידיות';
+    expect(routeBuyerIntent(prompt, { category: 'rare_books' }).intent).not.toBe('search_similar_lots');
+  });
+  it('searches sold lots when the buyer asks how similar items sold before', () => {
+    expect(routeBuyerIntent('כמה נמכרו פריטים דומים בעבר?', { category: 'rare_books' }).arguments)
+      .toEqual(expect.objectContaining({ status: 'sold', category: 'rare_books' }));
+  });
   it('routes the demo wording about changing prices to a trend, not item history', () => {
     expect(routeBuyerIntent('איך המחירים של כתבי יד כאלה השתנו בשנים האחרונות?', { lots: [{ id: 'sold-1' }] }))
       .toMatchObject({ functionName: 'getPriceTrend', readyForFunction: true });
@@ -33,6 +41,11 @@ describe('routeBuyerIntent', () => {
       intent: 'buyer_house_ranking', functionName: 'rankSellerHouses', readyForFunction: true,
       missingFields: [], arguments: { category: 'judaica', geography: 'Israel', language: 'he' },
     });
+  });
+  it('routes "matching auction houses" in every Hebrew form of the word', () => {
+    for (const prompt of ['איזה בתי מכירות מתאימים?', 'איזה בית מכירות מתאים?', 'בית מכירות מתאימה לפריט']) {
+      expect(routeBuyerIntent(prompt, { category: 'rare_books', language: 'he' })).toMatchObject({ functionName: 'rankSellerHouses', readyForFunction: true });
+    }
   });
   it('requires a category rather than inventing one for house rankings', () => {
     expect(routeBuyerIntent('Which auction house specializes in this category?', { language: 'en' })).toMatchObject({

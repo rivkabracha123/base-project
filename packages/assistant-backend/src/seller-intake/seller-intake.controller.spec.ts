@@ -11,6 +11,36 @@ import { SellerIntakeDraftsService } from './seller-intake-drafts.service';
 import { UploadsService } from '../uploads/uploads.service';
 
 describe('Seller valuation routing', () => {
+  it('prioritizes the explicit valuation request over a different AI-selected function', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rare_books' }, seller: {}, requiredMissingFields: [],
+      functionCall: { functionToRun: 'getSellerCatalogDraft', object: {} } }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'אני רוצה הערכת שווי', profileId: 'p', sessionId: 's' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 's' } });
+  });
+  it('runs the valuation when the AI labels a Hebrew worth question as general advice', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rings' }, seller: {}, requiredMissingFields: [],
+      ai: { isRelevant: true, generalInformation: true, summary: 'Ring values vary' }, functionCall: null }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'כמה היא שווה?', profileId: 'p', sessionId: 's' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 's' } });
+  });
+  it('does not save general auction advice as seller item facts', async () => {
+    const drafts = { saveIntakeTurn: jest.fn() };
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {},
+      ai: { isRelevant: true, generalInformation: true, summary: 'Auction advice' }, functionCall: null }) };
+    const controller = new SellerIntakeController(provider as never, drafts as never, {} as never);
+    const result = await controller.createDraft({ profileId: 'p', sessionId: 's', input: 'What is an auction reserve?' });
+    expect(result.ai.generalInformation).toBe(true);
+    expect(drafts.saveIntakeTurn).not.toHaveBeenCalled();
+  });
+  it('uses the current session for valuation even when AI supplies a different payload', async () => {
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: { category: 'rare_books' }, seller: {}, requiredMissingFields: [],
+      functionCall: { functionToRun: 'calculateSellerValuation', object: { itemId: 'model-item' } } }) };
+    const controller = new SellerIntakeController(provider as never, { saveIntakeTurn: jest.fn() } as never, {} as never);
+    const result = await controller.createDraft({ input: 'Please estimate value', profileId: 'profile-1', sessionId: 'session-1' });
+    expect(result.functionCall).toEqual({ functionToRun: 'calculateSellerValuation', object: { sessionId: 'session-1' } });
+  });
   it('does not persist unrelated input or dispatch a function from it', async () => {
     const drafts = { saveIntakeTurn: jest.fn() };
     const provider = { analyze: jest.fn().mockResolvedValue({ item: {}, seller: {}, ai: { isRelevant: false }, requiredMissingFields: [],
@@ -30,6 +60,24 @@ describe('Seller valuation routing', () => {
     expect((await controller.createDraft({ ...scope, input: 'Find an auction house for my item' })).functionCall).toBeNull();
     expect((await controller.createDraft({ ...scope, input: 'Good condition' })).functionCall)
       .toEqual({ functionToRun: 'getSellerHouseRecommendation', object: { sessionId: 'house-session' } });
+  });
+  it('opens the item details when the seller asks to see the catalog draft that was just written', async () => {
+    const ready = { item: { category: 'rare_books', condition: 'Good', dimensions: { values: [{ label: 'width', value: 80, unit: 'cm' }] } },
+      missingFields: [], evidence: [] };
+    // The model guesses an unrelated action for the vague follow-up.
+    const provider = { analyze: jest.fn().mockResolvedValue({ item: ready.item, seller: {}, requiredMissingFields: [],
+      functionCall: { functionToRun: 'calculateSellerValuation', object: {} } }) };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: ready }), saveIntakeTurn: jest.fn() };
+    const controller = new SellerIntakeController(provider as never, drafts as never, {} as never);
+    const scope = { profileId: 'draft-profile', sessionId: 'draft-session' };
+    expect((await controller.createDraft({ ...scope, input: 'אני רוצה שתנסח לי טיוטה לפריט' })).functionCall?.functionToRun)
+      .toBe('getSellerCatalogDraft');
+    expect((await controller.createDraft({ ...scope, input: 'אשמח לראות אותה' })).functionCall)
+      .toEqual({ functionToRun: 'getSellerItemDetails', object: { sessionId: 'draft-session' } });
+    // Without a catalog draft just before, the same words go through the normal analysis.
+    const other = { profileId: 'draft-profile', sessionId: 'other-session' };
+    expect((await controller.createDraft({ ...other, input: 'אשמח לראות אותה' })).functionCall?.functionToRun)
+      .not.toBe('getSellerItemDetails');
   });
   it('remembers a requested valuation until required fields are filled, then runs only once', async () => {
     const incomplete = { item: {}, seller: {}, requiredMissingFields: ['condition'], functionCall: null };

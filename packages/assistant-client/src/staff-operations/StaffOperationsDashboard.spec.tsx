@@ -188,9 +188,15 @@ describe('StaffOperationsDashboard Week 3', () => {
 
     renderDashboard();
 
-    fireEvent.click(await screen.findByRole('button', { name: new RegExp(resources.he.translation.dashboard.syntheticBuyer) }));
+    const selectedLeadCard = await screen.findByRole('button', { name: new RegExp(resources.he.translation.dashboard.syntheticBuyer) });
+    fireEvent.click(selectedLeadCard);
 
     expect(await screen.findAllByText(/כתב יד עברי נדיר/)).toHaveLength(2);
+    const selectedLeadItem = selectedLeadCard.closest('li');
+    if (!selectedLeadItem) throw new Error('Selected lead is not contained in the lead list');
+    expect(selectedLeadItem).toContainElement(screen.getByRole('heading', { name: resources.he.translation.dashboard.criteria }));
+    expect(selectedLeadCard).toHaveAttribute('aria-expanded', 'true');
+    expect(selectedLeadCard).toHaveClass('rounded-b-none');
     expect(screen.getByText((_, element) => (
       element?.tagName === 'LI' && element.textContent === '121421 · נוכחי'
     ))).toBeInTheDocument();
@@ -200,6 +206,10 @@ describe('StaffOperationsDashboard Week 3', () => {
     expect(screen.queryByText('internal-profile-id')).not.toBeInTheDocument();
     expect(screen.queryByText('never-render-session')).not.toBeInTheDocument();
     expect(screen.queryByText('never render this')).not.toBeInTheDocument();
+
+    fireEvent.click(selectedLeadCard);
+    expect(screen.queryByRole('heading', { name: resources.he.translation.dashboard.criteria })).not.toBeInTheDocument();
+    expect(selectedLeadCard).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('shows synthetic contact details only when service consent is ready', async () => {
@@ -510,6 +520,30 @@ describe('StaffOperationsDashboard Week 5 filters', () => {
     expect(screen.queryByRole('button', { name: /קונה יודאיקה/ })).not.toBeInTheDocument();
   });
 
+  it('clears every filter and restores the full lead list', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(filterLeads), { status: 200 })));
+
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: resources.he.translation.dashboard.filters }));
+    fireEvent.change(screen.getByLabelText(resources.he.translation.dashboard.filterLeadType), { target: { value: 'buyer' } });
+    fireEvent.change(screen.getByLabelText(resources.he.translation.dashboard.filterStatus), { target: { value: 'new' } });
+    fireEvent.change(screen.getByLabelText(resources.he.translation.dashboard.filterCategory), { target: { value: 'manuscripts' } });
+    fireEvent.change(screen.getByLabelText(resources.he.translation.dashboard.filterFromDate), { target: { value: '2026-09-01' } });
+    fireEvent.change(screen.getByLabelText(resources.he.translation.dashboard.filterToDate), { target: { value: '2026-09-30' } });
+
+    expect(screen.getAllByRole('button', { name: /קונה כתבי יד/ })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: resources.he.translation.dashboard.clearFilters }));
+
+    expect(screen.getByLabelText(resources.he.translation.dashboard.filterLeadType)).toHaveValue('');
+    expect(screen.getByLabelText(resources.he.translation.dashboard.filterStatus)).toHaveValue('');
+    expect(screen.getByLabelText(resources.he.translation.dashboard.filterCategory)).toHaveValue('');
+    expect(screen.getByLabelText(resources.he.translation.dashboard.filterFromDate)).toHaveValue('');
+    expect(screen.getByLabelText(resources.he.translation.dashboard.filterToDate)).toHaveValue('');
+    expect(screen.getAllByRole('button', { name: /קונה|מוכר/ })).toHaveLength(3);
+  });
+
   it('explains when no lead matches the chosen filters', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(filterLeads), { status: 200 })));
 
@@ -627,5 +661,87 @@ describe('StaffOperationsDashboard Week 5 manual pipeline', () => {
     })));
     expect(await screen.findByText(resources.he.translation.dashboard.pipelineSaved)).toBeInTheDocument();
     expect(screen.getByDisplayValue('לחזור אל הפונה ביום ראשון.')).toBeInTheDocument();
+  });
+});
+
+describe('StaffOperationsDashboard Week 6 reliability fixtures', () => {
+  it('makes a missing seller valuation explicit rather than hiding it', async () => {
+    await i18n.changeLanguage('en');
+    const lead = {
+      id: '66666666-6666-4666-8666-666666666666', type: 'seller' as const, clientName: 'Pending valuation seller', status: 'submitted',
+      requestDetails: 'A synthetic seller lead awaiting valuation.', createdAt: '2026-10-02T09:00:00.000Z',
+    };
+    const detail = {
+      leadId: '66666666-6666-4666-8666-666666666666', status: 'submitted',
+      createdAt: '2026-10-02T09:00:00.000Z', updatedAt: '2026-10-02T09:00:00.000Z',
+      item: { id: 'synthetic-object', category: 'judaica', title: 'Synthetic object', evidenceIds: [] }, evidence: [], comparables: [], valuation: null,
+      recommendation: null, alternatives: [], sellerChoice: null, catalogDraft: null,
+      contact: { preferredName: 'Pending valuation seller', email: null, phone: null, serviceConsentGranted: false }, history: [],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input) => {
+      if (String(input).endsWith('/seller-leads/66666666-6666-4666-8666-666666666666')) return Promise.resolve(new Response(JSON.stringify(detail), { status: 200 }));
+      if (String(input).endsWith('/pipeline')) return Promise.resolve(new Response(JSON.stringify({ status: 'new', nextAction: null, statusHistory: [], activityNotes: [] }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify([lead]), { status: 200 }));
+    }));
+
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Pending valuation seller/ }));
+    expect(await screen.findByRole('heading', { name: 'Valuation' })).toBeInTheDocument();
+    expect(screen.getByText('No valuation has been provided yet.')).toBeInTheDocument();
+  });
+
+  it('renders a deterministic larger lead fixture without losing any lead', async () => {
+    const largerFixture = Array.from({ length: 80 }, (_, index) => ({
+      id: `large-lead-${index + 1}`,
+      type: index % 2 === 0 ? 'buyer' as const : 'seller' as const,
+      clientName: `Synthetic lead ${String(index + 1).padStart(3, '0')}`,
+      status: index % 2 === 0 ? 'new' : 'reviewing',
+      category: index % 2 === 0 ? 'manuscripts' : 'judaica',
+      requestDetails: `Synthetic request ${index + 1}.`,
+      createdAt: `2026-10-${String((index % 28) + 1).padStart(2, '0')}T10:00:00.000Z`,
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(largerFixture), { status: 200 })));
+
+    renderDashboard();
+
+    expect(await screen.findByRole('button', { name: /Synthetic lead 001/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Synthetic lead/ })).toHaveLength(80);
+    expect(screen.getByRole('button', { name: /Synthetic lead 080/ })).toBeInTheDocument();
+  });
+
+  it('shows every saved status transition in the staff workflow history', async () => {
+    await i18n.changeLanguage('en');
+    const lead = {
+      id: 'history-lead', type: 'buyer' as const, clientName: 'History fixture', status: 'contacted',
+      requestDetails: 'A synthetic workflow history.', createdAt: '2026-10-01T09:00:00.000Z',
+    };
+    const detail = {
+      id: 'history-lead', type: 'buyer' as const, status: 'contacted', criteria: {}, hardConstraints: [], results: [], unmatchedDemand: null,
+      contact: { preferredName: null, email: null, phone: null, followUpStatus: 'contact_missing', serviceConsent: { granted: false } },
+    };
+    const pipeline = {
+      status: 'contacted', nextAction: null,
+      statusHistory: [
+        { at: '2026-10-01T09:00:00.000Z', from: null, to: 'new' },
+        { at: '2026-10-01T10:00:00.000Z', from: 'new', to: 'reviewing' },
+        { at: '2026-10-01T11:00:00.000Z', from: 'reviewing', to: 'contacted' },
+      ],
+      activityNotes: [],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/staff-operations/leads/history-lead')) return Promise.resolve(new Response(JSON.stringify(detail), { status: 200 }));
+      if (url.endsWith('/pipeline')) return Promise.resolve(new Response(JSON.stringify(pipeline), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify([lead]), { status: 200 }));
+    }));
+
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('button', { name: /History fixture/ }));
+    expect(await screen.findByRole('heading', { name: 'Status history' })).toBeInTheDocument();
+    expect(screen.getAllByText(/New/)).toHaveLength(2);
+    expect(screen.getByText(/New → Under review/)).toBeInTheDocument();
+    expect(screen.getByText(/Under review → Contacted/)).toBeInTheDocument();
   });
 });

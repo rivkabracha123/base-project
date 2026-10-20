@@ -207,23 +207,17 @@ export function SellerEnquiryPage() {
                 if (canSubmit) submitMutation.mutate();
               }}
             >
-              <p className="max-w-[90%] rounded-2xl bg-white px-4 py-2 text-sm text-stone-800 shadow-sm">
-                {intakeInput}
-              </p>
+              <JourneyBubble>{intakeInput}</JourneyBubble>
 
               <JourneyBubble>{t('enquiry.promptCatalog')}</JourneyBubble>
-              <section className="rounded-2xl border border-stone-200 bg-white px-6 py-6 shadow-sm">
-                <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-stone-400">
-                  {t('enquiry.catalog')}
-                </p>
+              <section className="rounded-[1.5rem] border border-[#eadfd0] bg-white px-8 py-8 shadow-sm">
                 {missingCatalog ? (
-                  <p role="status" className="mt-4 text-center text-stone-600">{t('enquiry.missingCatalog')}</p>
+                  <p role="status" className="text-center text-stone-600">{t('enquiry.missingCatalog')}</p>
                 ) : (
                   <>
-                    <h2 className="mt-3 text-center text-lg font-semibold leading-snug text-stone-950">{item.title}</h2>
-                    <p className="mt-2 text-center text-xs uppercase tracking-wide text-stone-500">{item.category}</p>
-                    <p className="mt-4 text-center text-sm text-stone-600">{catalogDraft.en}</p>
-                    <p className="mt-3 text-center text-sm leading-relaxed text-stone-700" lang="he" dir="rtl">
+                    <h2 className="text-center text-xl font-semibold leading-snug text-stone-950">{item.title}</h2>
+                    <p className="mt-4 text-center text-sm leading-relaxed text-stone-500">{catalogDraft.en}</p>
+                    <p className="mt-4 text-center text-sm leading-relaxed text-stone-700" lang="he" dir="rtl">
                       {catalogDraft.he}
                     </p>
                   </>
@@ -301,7 +295,7 @@ export function SellerEnquiryPage() {
               ) : null}
 
               <JourneyBubble>{t('enquiry.promptSend')}</JourneyBubble>
-              <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+              <section className="rounded-[1.5rem] border border-[#eadfd0] bg-white p-5 shadow-sm">
                 <dl className="space-y-3 text-sm">
                   <div className="flex justify-between gap-4">
                     <dt className="text-stone-500">{t('enquiry.to')}</dt>
@@ -360,6 +354,11 @@ export function SellerEnquiryPage() {
                 >
                   {t('enquiry.submit')}
                 </button>
+                {selectedHouse ? (
+                  <p className="mt-3 text-center text-sm text-[#b08948]">
+                    {t('enquiry.similarAtHouse', { house: selectedHouse.house.name })}
+                  </p>
+                ) : null}
                 <p className="mt-3 text-center text-xs text-amber-800/80">{t('enquiry.internalOnly')}</p>
               </section>
             </form>
