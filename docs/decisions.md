@@ -26,7 +26,9 @@ The assistant is a separate, independently deployable application with explicit 
 
 1. The seller starts anonymously and uploads one or more photographs.
 2. The assistant asks for missing evidence, including dimensions, condition, markings, signatures, provenance, and documents.
+   An explicit Hebrew or English skip records the field as skipped but still missing; it does not count as evidence or satisfy a required-field gate for recommendations.
 3. The seller reviews and corrects the structured item description.
+   A corrected fact updates the draft immediately but is marked unconfirmed and excluded from confirmed-fact handoffs until the seller explicitly confirms it.
 4. The system retrieves and ranks historical comparable sales.
 5. It provides an indicative value range only when sufficient evidence exists.
 6. It explains confidence, limitations, and how corrected facts affect the result.

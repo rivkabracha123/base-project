@@ -20,3 +20,4 @@ coverage/
 # Repository configuration that must remain tracked
 !.github/
 !.github/**
+/packages/assistant-backend/.env.example

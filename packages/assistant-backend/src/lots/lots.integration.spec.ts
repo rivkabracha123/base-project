@@ -223,4 +223,15 @@ describe('Lots API (integration)', () => {
     expect(body.map((historyLot: AuctionLot) => historyLot.id)).toEqual(expectedHistory.map((historyLot) => historyLot.id));
     expect(body.every((historyLot: AuctionLot) => historyLot.status === 'sold')).toBe(true);
   });
+
+  it('answers a database failure with a 500 that leaks no internal detail', async () => {
+    queryBuilder.getRawAndEntities.mockRejectedValueOnce(
+      new Error('password authentication failed for user "secret_user"'),
+    );
+
+    const response = await postSearch({ query: 'Abrabanel' });
+
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain('secret_user');
+  });
 });

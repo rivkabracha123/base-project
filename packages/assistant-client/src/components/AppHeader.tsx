@@ -41,20 +41,6 @@ export function AppHeader() {
           >
             {t('navigation.dashboard')}
           </Link>
-          {/* S5 Week 4: open the house recommendation / choice screen */}
-          <Link
-            to="/seller/houses"
-            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
-          >
-            {t('navigation.houses')}
-          </Link>
-          <Link
-            to="/seller/enquiry"
-            className="text-sm font-medium text-stone-700 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-700"
-          >
-            {t('navigation.enquiry')}
-          </Link>
-
           {import.meta.env.DEV && (
             <Link
               to="/seller/gallery"
@@ -85,12 +71,6 @@ export function AppHeader() {
           </Button>
         </div>
       </div>
-      {/* השמירה בשרת נכשלה: השפה נשארת כמו שהיא, והכפתור פתוח לניסיון חוזר. */}
-      {languageMutation.isError && (
-        <p role="alert" className="mx-auto max-w-5xl px-4 pb-3 text-sm text-red-700 sm:px-6">
-          {t('languageError')}
-        </p>
-      )}
     </header>
   );
 }

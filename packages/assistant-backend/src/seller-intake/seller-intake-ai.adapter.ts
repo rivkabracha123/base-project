@@ -7,10 +7,64 @@ import type { AiFunctionCall } from '../ai/ai.dto';
 import type { SellerItemDraft } from '@monabid/shared';
 import { requestedSellerComparison } from '../seller-workflow/seller-comparison-action';
 import { hasSellerCondition, sellerComparisonCategory } from './seller-item-readiness';
+import { guidedDimensions } from './guided-dimensions';
+import { isGeneralAuctionQuestion } from '../ai/off-topic';
+
+// The model sometimes volunteers these on an unrelated turn (an enquiry card after the seller gave dimensions).
+// They run only when the seller's own words ask for them, which requestedReadAction and the controller detect.
+const EXPLICIT_REQUEST_ONLY = new Set([
+  'rankSellerHouses', 'getSellerEnquiryPreview', 'getSellerCatalogDraft', 'calculateSellerValuation',
+  'createSellerLeadDraft', 'createSellerLead', 'submitFinalSellerLead',
+]);
+
+// An axis word, or a number with a length unit: the answer is a measurement.
+const MEASUREMENT_ANSWER = /קוטר|רוחב|גובה|אורך|עומק|משקל|מידות|\b(?:diameter|width|height|length|depth|weight|dimensions?)\b|\d\s*(?:ס["״']?מ|מ["״']?מ|סנטימטר|מילימטר|אינץ|cm\b|mm\b|in\b|inch)/i;
+
+const AXIS_WORDS: Record<string, RegExp> = {
+  height: /גובה|גבוה|\b(?:height|tall|high)\b/i,
+  width: /רוחב|רחב|\b(?:width|wide)\b/i,
+  length: /אורך|ארוך|\b(?:length|long)\b/i,
+  depth: /עומק|עמוק|\b(?:depth|deep)\b/i,
+  diameter: /קוטר|\bdiameter\b/i,
+  weight: /משקל|שוקל|גרם|ק["״]ג|\b(?:weight|weighs|grams?|kg)\b/i,
+};
+
+// The model names an axis for "20 ס״מ" on its own ("length" for a watch). Keep only what the seller said:
+// drop an unstated axis that repeats a stated one, and call a lone unstated measurement "size".
+function withStatedAxes<T extends { label: string; value: number; unit: string }>(values: T[], sellerText: string): T[] {
+  const stated = (entry: T) => AXIS_WORDS[entry.label.toLowerCase()]?.test(sellerText) ?? true;
+  const unstated = values.filter(entry => !stated(entry));
+  return values.flatMap((entry) => {
+    if (stated(entry)) return [entry];
+    if (values.some(other => stated(other) && other.value === entry.value && other.unit === entry.unit)) return [];
+    // Two or more unstated values ("80 על 70") keep the width × height convention of guidedDimensions.
+    return unstated.length === 1 ? [{ ...entry, label: 'size' }] : [entry];
+  });
+}
+
+// The combined history still holds the unitless "80*70" after the seller answered "ס״מ" in a later turn.
+// Ask for the unit only when the latest message brings new measurements; otherwise keep the saved ones.
+function currentDimensions(
+  combinedInput: string,
+  latestInput: string,
+  unitHint: string | undefined,
+  saved: { values: Array<{ label: string; value: number; unit: string }> } | undefined,
+): ReturnType<typeof guidedDimensions> {
+  const parsed = guidedDimensions(combinedInput, unitHint);
+  if (parsed?.needsUnit && saved?.values.length && !guidedDimensions(latestInput, unitHint)) {
+    return { values: saved.values as NonNullable<ReturnType<typeof guidedDimensions>>['values'], needsUnit: false };
+  }
+  return parsed;
+}
 
 function requestedReadAction(input: string, category: string, language: 'he' | 'en'): AiFunctionCall | null {
+  if (isGeneralAuctionQuestion(input)) return null;
   if (/^(?:list my saved enquiries|\u05d4\u05e6\u05d2 \u05d0\u05ea \u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea \u05e9\u05dc\u05d9)[.!?\s]*$/i.test(input)) {
     return { functionToRun: 'listSellerLeads', object: {} };
+  }
+  const requestedAction = requestedSellerComparison(input);
+  if (requestedAction && requestedAction !== 'getSellerHouseRecommendation') {
+    return { functionToRun: requestedAction, object: {} };
   }
   if (/auction houses?|(?:\u05d1\u05d9\u05ea|\u05d1\u05ea\u05d9)\s+\u05de\u05db\u05d9\u05e8\u05d5\u05ea/i.test(input)
     && /recommend|suitable|find|show|which|where|difference|looking for|איפה|כדאי|הבדל|\u05de\u05d5\u05de\u05dc[\u05e6\u05e5]|\u05de\u05ea\u05d0\u05d9\u05dd|\u05e8\u05d5\u05e6\u05d4|\u05de\u05d7\u05e4\u05e9|\u05ea\u05de\u05e6\u05d0|\u05d4\u05e6\u05d2|\u05d0\u05d9\u05d6\u05d4/i.test(input)
@@ -31,6 +85,15 @@ const FACT_TO_INTAKE_FIELD: Record<string, string> = {
   provenance: 'provenance',
 };
 
+function requestedSellerTitleCorrection(input: string): string | undefined {
+  const match = input.trim().match(
+    /(?:^|[\s,;.!])(?:אני\s+)?(?:רוצה\s+)?(?:לשנות|שנה|תשנה|לעדכן|עדכן|תעדכן|לרשום|רשום|תרשום)\s+(?:לי\s+)?(?:את\s+)?(?:ה)?(?:שם|כותרת)(?:\s+(?:של\s+)?(?:ה)?פריט)?(?:\s+(?:לשם|לכותרת|ל|כ|בתור))?\s*[:\-]?\s*(.+)$/i,
+  ) ?? input.trim().match(
+    /(?:^|[\s,;.!])(?:please\s+)?(?:change|rename|update)\s+(?:the\s+)?(?:item\s+)?(?:name|title)(?:\s+of\s+(?:the\s+)?item)?(?:\s+(?:to|as))?\s+(.+)$/i,
+  );
+  return match?.[1]?.trim().replace(/^[\s"'״׳]+|[\s"'״׳]+$/g, '') || undefined;
+}
+
 export function mapAiFactsToIntakeFields(facts: string[]): string[] {
   const mapped = facts
     .map((fact) => FACT_TO_INTAKE_FIELD[fact])
@@ -41,7 +104,7 @@ export function mapAiFactsToIntakeFields(facts: string[]): string[] {
 // P4 extracts the seller facts; S1 only stores and presents the result.
 @Injectable()
 export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
-  private readonly sessions = new Map<string, { input: string; dimensions: SellerHandoffContract['item']['dimensions']; nextField?: string; facts?: Record<string, string>; result?: SellerIntakeAiResult }>();
+  private readonly sessions = new Map<string, { input: string; dimensions: SellerHandoffContract['item']['dimensions']; nextField?: string; facts?: Record<string, string>; skippedFields: string[]; result?: SellerIntakeAiResult }>();
   constructor(
     private readonly intake: SellerIntakeAiMock,
     private readonly p4: P4AiGenerateClient,
@@ -53,13 +116,47 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     if (!result.item.category.trim() || result.item.category === 'unknown') requiredMissingFields.push('category');
     if (!result.item.dimensions.values.length) requiredMissingFields.push('dimensions');
     if (!hasSellerCondition(result.item.condition)) requiredMissingFields.push('condition');
-    const functionCall = requiredMissingFields.length && result.functionCall?.functionToRun === 'rankSellerHouses'
+    const functionCall = requiredMissingFields.length
+      && ['rankSellerHouses', 'getSellerEnquiryPreview', 'searchSellerComparables', 'getSellerComparableHistory',
+        'getSellerPriceTrend', 'getSellerItemDetails', 'getSellerCatalogDraft', 'getSellerProvenanceAdvice',
+        'getSellerHouseRecommendation', 'calculateSellerValuation'].includes(result.functionCall?.functionToRun ?? '')
       ? null : result.functionCall;
-    return { ...result, requiredMissingFields, functionCall,
+    const missingFields = [...new Set([
+      ...(result.missingFields ?? []),
+      ...requiredMissingFields,
+      ...(result.skippedFields ?? []),
+    ])];
+    const unansweredFields = missingFields.filter(
+      (field) => !result.skippedFields?.includes(field),
+    );
+    const unansweredRequiredFields = requiredMissingFields.filter(
+      (field) => !result.skippedFields?.includes(field),
+    );
+    const asksForDimensionsAndCondition =
+      unansweredRequiredFields.includes('dimensions') && unansweredRequiredFields.includes('condition');
+    return { ...result, requiredMissingFields, missingFields, functionCall,
       nextQuestion: functionCall?.functionToRun ? null
-        : requiredMissingFields.includes('category')
-          ? { field: 'category', he: '\u05d0\u05d9\u05d6\u05d4 \u05e1\u05d5\u05d2 \u05e4\u05e8\u05d9\u05d8 \u05d1\u05e8\u05e6\u05d5\u05e0\u05da \u05dc\u05de\u05db\u05d5\u05e8?', en: 'What type of item would you like to sell?' }
-          : this.intake.nextQuestionForAiFields(requiredMissingFields) };
+        : unansweredRequiredFields.includes('category')
+          ? { field: 'category', he: 'איזה סוג פריט מדובר?', en: 'What kind of item would you like to sell?' }
+          : asksForDimensionsAndCondition
+            ? {
+                field: 'dimensions',
+                he: 'כדי להכין טיוטה, מה המידות ומה מצב הפריט? אפשר לענות על שניהם יחד.',
+                en: 'To prepare a draft, what are its dimensions and condition? You can share both together.',
+              }
+            : this.intake.nextQuestionForAiFields(unansweredRequiredFields) };
+  }
+
+  private skippedFieldsStillMissing(result: SellerIntakeAiResult, skippedFields: string[]): string[] {
+    const hasValue: Record<string, boolean> = {
+      category: result.item.category !== 'unknown',
+      dimensions: result.item.dimensions.values.length > 0,
+      condition: Boolean(result.item.condition?.trim()),
+      marks: Boolean(result.item.markings?.trim()),
+      signatures: Boolean(result.item.signatures?.trim()),
+      provenance: Boolean(result.item.provenance?.trim()),
+    };
+    return skippedFields.filter((field) => !hasValue[field]);
   }
 
   hasSession(sessionId: string): boolean {
@@ -68,44 +165,87 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
 
   restoreSession(sessionId: string, draft: SellerItemDraft): void {
     if (this.hasSession(sessionId)) return;
-    const item = draft.item;
+    const item = draft.confirmedFacts.materials
+      ? draft.item
+      : { ...draft.item, materials: [] };
     const facts: Record<string, string> = {};
     for (const key of ['condition', 'markings', 'provenance'] as const) {
       if (item[key]?.trim()) facts[key] = item[key];
     }
     if (item.signatures?.trim()) facts.signature = item.signatures;
+    if (item.title?.trim() && item.title !== `${item.category} from seller intake`) facts.title = item.title;
     const missingFields = ['dimensions', 'condition', 'marks', 'signatures', 'provenance'].filter(field =>
       field === 'dimensions' ? !item.dimensions.values.length
         : !facts[field === 'marks' ? 'markings' : field === 'signatures' ? 'signature' : field]);
     const result = this.applyRequiredFieldPolicy({
-      ...draft, provider: 'fixture-mock', missingFields,
+      ...draft, item, provider: 'fixture-mock', missingFields,
       nextQuestion: this.intake.nextQuestionForAiFields(missingFields), structuredAnswer: null,
       ai: { provider: null, mode: null, isRelevant: true, error: null, aiMissingFields: missingFields },
     });
+    const skippedFields = draft.skippedFields ?? [];
+    const restored = this.applyRequiredFieldPolicy({ ...result, skippedFields });
     this.sessions.set(sessionId, { input: item.description.he || item.description.en,
-      dimensions: item.dimensions, facts, nextField: result.nextQuestion?.field, result });
+      dimensions: item.dimensions, facts, skippedFields, nextField: restored.nextQuestion?.field, result: restored });
   }
 
-  async analyze(input: string, sessionId?: string): Promise<SellerIntakeAiResult> {
+  async analyze(input: string, sessionId?: string, preferredLanguage?: 'he' | 'en'): Promise<SellerIntakeAiResult> {
     const previous = sessionId ? this.sessions.get(sessionId) : undefined;
-    const language = /[\u0590-\u05FF]/.test(input) ? 'he' : 'en';
+    const language = preferredLanguage ?? (/[\u0590-\u05FF]/.test(input) ? 'he' : 'en');
     if (previous?.result) {
       const comparison = requestedSellerComparison(input);
       if (comparison) return this.applyRequiredFieldPolicy({ ...previous.result,
-        functionCall: comparison === 'getSellerHouseRecommendation'
-          ? requestedReadAction(input, previous.result.item.category, language) : null });
+        functionCall: requestedReadAction(input, previous.result.item.category, language) });
       const action = requestedReadAction(input, previous.result.item.category, language);
       if (action) return this.applyRequiredFieldPolicy({ ...previous.result, functionCall: action });
+      const correctedTitle = requestedSellerTitleCorrection(input);
+      if (correctedTitle && sessionId) {
+        const facts = { ...previous.facts, title: correctedTitle };
+        const result = this.applyRequiredFieldPolicy({
+          ...previous.result,
+          item: { ...previous.result.item, title: correctedTitle },
+          functionCall: null,
+          ai: { ...previous.result.ai, summary: language === 'he' ? 'שם הפריט עודכן.' : 'The item name was updated.' },
+        });
+        this.sessions.set(sessionId, {
+          ...previous,
+          facts,
+          nextField: result.nextQuestion?.field,
+          result,
+        });
+        return result;
+      }
     }
     const facts = { ...previous?.facts };
     const currentFacts: Record<string, string> = {};
     const field = previous?.nextField;
     const itemField = field === 'marks' ? 'markings' : field === 'signatures' ? 'signature' : field;
     const answer = input.trim();
+    if (previous && field && this.isSkipResponse(answer)) {
+      const skippedFields = [...new Set([...previous.skippedFields, field])];
+      const result = this.applyRequiredFieldPolicy({
+        ...previous.result!,
+        skippedFields,
+      });
+      if (sessionId) {
+        this.sessions.set(sessionId, {
+          ...previous,
+          skippedFields,
+          nextField: result.nextQuestion?.field,
+          result,
+        });
+      }
+      return result;
+    }
     const isActionRequest = !!requestedSellerComparison(answer) || /valuation|apprais(?:al|e)|estimate(?:d)? (?:value|price)|הערכת?\s+שווי|auction houses?|saved enquiries|\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea|\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea/i.test(answer);
+    const statedCondition = answer.match(/\b(?:excellent|good|fair|poor|damaged|bad)\s+condition\b|מצב\s+(?:טוב|מצוין|סביר|ירוד|פגום)/i)?.[0];
+    if (statedCondition && !isActionRequest) {
+      currentFacts.condition = statedCondition.replace(/^[a-z]/i, firstLetter => firstLetter.toUpperCase());
+    }
     if (itemField && ['condition', 'markings', 'signature', 'provenance'].includes(itemField)
       && !isActionRequest
       && !/\b(?:condition|markings|signature|provenance)\b|\u05de\u05e6\u05d1|\u05e1\u05d9\u05de\u05d5\u05e0|\u05d7\u05ea\u05d9\u05de\u05d4|\u05de\u05e7\u05d5\u05e8/i.test(answer)
+      // "\u05d4\u05d5\u05d0 \u05d1\u05e7\u05d5\u05d8\u05e8 20" answers a measurement, not the markings question that was asked.
+      && !MEASUREMENT_ANSWER.test(answer)
       && answer && !/^(?:yes|\u05db\u05df)[.!\s]*$/i.test(answer)
       && !answer.includes('?') && !/^(?:what|why|how|\u05de\u05d4|\u05dc\u05de\u05d4)\s/i.test(answer)) {
       currentFacts[itemField] = answer;
@@ -136,6 +276,17 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       // from sharing basic item details. Keep the response explicitly marked as
       // fixture/guided so downstream code never treats it as real AI extraction.
       if (error instanceof HttpException && error.getStatus() === 503) {
+        if (isGeneralAuctionQuestion(input)) {
+          const preserved = previous?.result ?? this.intake.analyze('');
+          return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
+            ai: { provider: 'fixture', mode: 'fixture', fallbackMode: 'guided', isRelevant: true,
+              generalInformation: true, aiMissingFields: preserved.missingFields ?? [],
+              error: 'General auction information is unavailable because the AI provider failed.',
+              summary: language === 'he' ? 'זו שאלה על מכירות פומביות, אבל שירות ה־AI אינו זמין כרגע. לא אוכל לענות עליה באופן אמין כרגע.' : 'This is an auction question, but the AI service is unavailable. I cannot answer it reliably right now.' } };
+        }
+        const unitHint = previous?.nextField === 'dimensions' ? answer : undefined;
+        const parsedDimensions = isActionRequest ? undefined : currentDimensions(combinedInput, contextualInput, unitHint, dimensions);
+        if (parsedDimensions?.values.length) dimensions = { values: parsedDimensions.values };
         if (!isActionRequest) {
           const fieldPatterns: Record<string, RegExp> = {
             condition: /\bcondition\b|\u05de\u05e6\u05d1/i,
@@ -158,7 +309,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
           !facts[missing === 'marks' ? 'markings' : missing === 'signatures' ? 'signature' : missing]);
         guided.missingFields = remaining;
         guided.nextQuestion = this.intake.nextQuestionForAiFields(remaining);
-        const result = this.applyRequiredFieldPolicy({
+        let result = this.applyRequiredFieldPolicy({
           ...guided,
           functionCall: requestedReadAction(input, guided.item.category, language),
           ai: {
@@ -167,12 +318,21 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
             error: 'Real AI is temporarily unavailable; guided seller intake was used.',
           },
         });
-        if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: result.item.dimensions, nextField: result.nextQuestion?.field, facts, result });
+        const skippedFields = this.skippedFieldsStillMissing(result, previous?.skippedFields ?? []);
+        result = this.applyRequiredFieldPolicy({ ...result, skippedFields });
+        if (parsedDimensions?.needsUnit && result.nextQuestion?.field === 'dimensions') {
+          result.nextQuestion = {
+            field: 'dimensions',
+            he: 'באיזו יחידה המידות שציינת — ס״מ, מ״מ או אינץ׳?',
+            en: 'What unit are those measurements in — cm, mm, or inches?',
+          };
+        }
+        if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: result.item.dimensions, nextField: result.nextQuestion?.field, facts, skippedFields, result });
         return result;
       }
       throw error;
     }
-    if (response.isRelevant === false) {
+    if (response.isRelevant === false && !isGeneralAuctionQuestion(input)) {
       const preserved = previous?.result ?? this.intake.analyze('');
       return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
         ai: { provider: response.provider, mode: response.mode, isRelevant: false, error: response.error,
@@ -185,9 +345,49 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
             : 'Continue with the details you already shared, or describe another item you want to buy or sell.',
         } };
     }
-    const structuredAnswer: SellerHandoffContract = response.structuredAnswer;
+    if (response.isRelevant === false && isGeneralAuctionQuestion(input)) {
+      const preserved = previous?.result ?? this.intake.analyze('');
+      return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
+        ai: { provider: response.provider, mode: response.mode, isRelevant: true, error: response.error,
+            generalInformation: true, aiMissingFields: preserved.missingFields ?? [],
+            summary: language === 'he'
+              ? 'זו שאלה כללית על מכירות פומביות. אין לי כרגע מידע מאומת כדי לענות עליה במדויק, אבל אפשר לשאול אותי על תהליך המכירה ועל בתי מכירות.'
+              : 'That is a general auction question. I do not have verified information to answer it accurately right now, but I can help explain the auction process and auction houses.',
+        } };
+    }
+    const structuredAnswer: SellerHandoffContract = {
+      ...response.structuredAnswer,
+      item: {
+        ...response.structuredAnswer.item,
+        ...(response.structuredAnswer.item.dimensions
+          ? {
+              dimensions: {
+                ...response.structuredAnswer.item.dimensions,
+                values: [...response.structuredAnswer.item.dimensions.values],
+              },
+            }
+          : {}),
+      },
+    };
+    if (structuredAnswer.intent === 'general_information' || isGeneralAuctionQuestion(input)) {
+      const preserved = previous?.result ?? this.intake.analyze('');
+      // "I have an old manuscript, should I sell it?" reads as general advice to the AI, but it still names
+      // the item. Keep that wording so later turns do not ask for the category again.
+      const describesItem = !isGeneralAuctionQuestion(input)
+        && (sellerComparisonCategory(structuredAnswer.category, input) !== 'unknown'
+          || this.intake.analyze(input).item.category !== 'unknown');
+      if (sessionId && describesItem) {
+        this.sessions.set(sessionId, { ...previous, input: combinedInput, dimensions, facts,
+          skippedFields: previous?.skippedFields ?? [] });
+      }
+      return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
+        ai: { provider: response.provider, mode: response.mode, isRelevant: true, error: response.error,
+          generalInformation: true, aiMissingFields: preserved.missingFields ?? [],
+          summary: response.summary, recommendation: response.recommendation, nextAction: response.nextAction } };
+    }
+    const genericCategory = /^(?:unknown|item|object|other|general|פריט|לא ידוע)$/i.test(structuredAnswer.category.trim());
     structuredAnswer.category = sellerComparisonCategory(structuredAnswer.category, `${combinedInput}\n${structuredAnswer.item.title ?? ''}`);
-    if (structuredAnswer.category === 'unknown') {
+    if (genericCategory || structuredAnswer.category === 'unknown') {
       const previousCategory = previous?.result?.item.category;
       structuredAnswer.category = previousCategory && previousCategory !== 'unknown'
         ? previousCategory : this.intake.analyze(combinedInput).item.category;
@@ -200,44 +400,78 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       const value = structuredAnswer.item[key];
       if (value?.trim()) facts[key] = value;
     }
+    if (facts.title) structuredAnswer.item.title = facts.title;
+    // A turn like "here is a photo" carries no title; without this the whole chat text became the item name.
+    else if (!structuredAnswer.item.title?.trim() && previous?.result?.item.title?.trim()) {
+      structuredAnswer.item.title = previous.result.item.title;
+    }
     if (!structuredAnswer.item.dimensions?.values.length && dimensions?.values.length) {
       structuredAnswer.item.dimensions = dimensions;
     }
-    const missingFields = mapAiFactsToIntakeFields(structuredAnswer.missingFacts)
+    if (structuredAnswer.item.dimensions?.values.length) {
+      structuredAnswer.item.dimensions = {
+        ...structuredAnswer.item.dimensions,
+        values: withStatedAxes(structuredAnswer.item.dimensions.values, combinedInput),
+      };
+    }
+    const aiMissingFields = mapAiFactsToIntakeFields(structuredAnswer.missingFacts)
       .filter(field => (field !== 'dimensions' || !structuredAnswer.item.dimensions?.values.length)
         && (field !== 'marks' || !structuredAnswer.item.markings?.trim())
         && (field !== 'signatures' || !structuredAnswer.item.signature?.trim())
         && (field !== 'condition' || !structuredAnswer.item.condition?.trim())
         && (field !== 'provenance' || !structuredAnswer.item.provenance?.trim()));
-    if (missingFields.length === 0) {
-      const item = structuredAnswer.item;
-      if (!item.dimensions?.values.length) missingFields.push('dimensions');
-      if (!item.condition?.trim()) missingFields.push('condition');
-      if (!item.markings?.trim()) missingFields.push('marks');
-      if (!item.signature?.trim()) missingFields.push('signatures');
-      if (!item.provenance?.trim()) missingFields.push('provenance');
+    const unitHint = previous?.nextField === 'dimensions' ? answer : undefined;
+    const explicitDimensions = currentDimensions(combinedInput, contextualInput, unitHint, dimensions);
+    if (explicitDimensions?.needsUnit) {
+      structuredAnswer.item.dimensions = { values: [] };
+      dimensions = undefined;
+    } else if (explicitDimensions?.values.length) {
+      structuredAnswer.item.dimensions = { values: explicitDimensions.values };
     }
+    const missingFields = [...aiMissingFields];
+    const item = structuredAnswer.item;
+    if (!item.dimensions?.values.length) missingFields.push('dimensions');
+    if (!item.condition?.trim()) missingFields.push('condition');
+    if (!item.markings?.trim()) missingFields.push('marks');
+    if (!item.signature?.trim()) missingFields.push('signatures');
+    if (!item.provenance?.trim()) missingFields.push('provenance');
+    const uniqueMissingFields = [...new Set(missingFields)];
     const draft = this.intake.createDraftFromAiExtraction(combinedInput, structuredAnswer);
     const result = this.applyRequiredFieldPolicy({
       ...draft,
       provider: 'fixture-mock' as const,
-      missingFields,
-      nextQuestion: this.intake.nextQuestionForAiFields(missingFields),
+      missingFields: uniqueMissingFields,
+      nextQuestion: this.intake.nextQuestionForAiFields(uniqueMissingFields),
       structuredAnswer,
       functionCall: requestedReadAction(input, structuredAnswer.category, language)
-        ?? (response.functionCall?.functionToRun === 'rankSellerHouses' ? null : response.functionCall ?? null),
+        ?? (EXPLICIT_REQUEST_ONLY.has(response.functionCall?.functionToRun ?? '') ? null : response.functionCall ?? null),
       ai: {
         provider: response.provider,
         mode: response.mode,
         isRelevant: response.isRelevant,
         error: response.error,
-        aiMissingFields: missingFields,
+        aiMissingFields,
         summary: response.summary,
         nextAction: response.nextAction,
       },
     });
+    const skippedFields = this.skippedFieldsStillMissing(result, previous?.skippedFields ?? []);
+    const resultWithSkips = this.applyRequiredFieldPolicy({ ...result, skippedFields });
+    if (explicitDimensions?.needsUnit && resultWithSkips.nextQuestion?.field === 'dimensions') {
+      resultWithSkips.nextQuestion = {
+        field: 'dimensions',
+        he: 'באיזו יחידה המידות — ס״מ, מ״מ או אינץ׳?',
+        en: 'What unit are the measurements in — cm, mm, or inches?',
+      };
+      // The model tends to assume a unit ("80x70 ס״מ") in its own text; show only the unit question.
+      resultWithSkips.ai = { ...resultWithSkips.ai, summary: '', recommendation: '', nextAction: '' };
+    }
     if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: structuredAnswer.item.dimensions,
-      nextField: result.nextQuestion?.field, facts, result });
-    return result;
+      nextField: resultWithSkips.nextQuestion?.field, facts, skippedFields, result: resultWithSkips });
+    return resultWithSkips;
+  }
+
+  private isSkipResponse(input: string): boolean {
+    return /^(?:skip|pass|not sure|prefer not to say|דלג|דלגי|דלגו|לא יודע|לא יודעת|לא בטוח|לא בטוחה|מעדיף לא לומר|מעדיפה לא לומר)[.!,\s]*$/i.test(input);
   }
 }

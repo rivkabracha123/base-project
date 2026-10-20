@@ -1,5 +1,6 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { submitSellerLeadSchema } from '@monabid/shared';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { submitSellerLeadSchema, type SellerItemDraft } from '@monabid/shared';
+import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider } from '../seller-intake/seller-intake-ai.provider';
 import { SellerLeadsService } from '../seller-leads/seller-leads.service';
 import { toSellerLeadDashboardDetail } from '../seller-leads/seller-lead-dashboard';
@@ -21,6 +22,74 @@ const SELLER_FUNCTIONS = new Set<SellerFunctionName>([
   'listSellerLeads', 'getSellerLead', 'listEvidence', 'uploadEvidence',
   'getEvidenceFile', 'reorderEvidence', 'deleteEvidence',
 ]);
+
+type SellerDraftItem = SellerItemDraft['item'];
+
+const NOT_STATED = /^(?:not yet confirmed|no markings reported|no signature reported)$/i;
+
+function statedFact(value: string | undefined): string | undefined {
+  const text = value?.trim();
+  return text && !NOT_STATED.test(text) ? text : undefined;
+}
+
+function formatDimensions(item: SellerDraftItem): string {
+  const values = item.dimensions?.values ?? [];
+  const unit = values[0]?.unit;
+  if (!unit) return '';
+  return values.every((entry) => entry.unit === unit)
+    ? `${values.map((entry) => entry.value).join(' × ')} ${unit}`
+    : values.map((entry) => `${entry.value} ${entry.unit}`).join(' × ');
+}
+
+// Only what the seller actually said; the model must not see placeholders it could repeat.
+function sellerCatalogFacts(item: SellerDraftItem) {
+  return Object.fromEntries(Object.entries({
+    title: item.title,
+    category: item.category,
+    description: item.description?.he || item.description?.en,
+    materials: item.materials?.length ? item.materials.join(', ') : undefined,
+    dimensions: formatDimensions(item) || undefined,
+    condition: statedFact(item.condition),
+    markings: statedFact(item.markings),
+    signature: statedFact(item.signatures),
+    provenance: statedFact(item.provenance),
+  }).filter(([, value]) => value));
+}
+
+// A catalog entry lists what is known; the model still sometimes adds "no markings were provided".
+const MISSING_FACT_SENTENCE = /^(?:אין|לא (?:צוינו|סופקו|נמסרו))\s.*(?:פרטים|מידע|סימונים|חתימ|מקור)|\bno (?:specific |further |additional )?(?:details|information|markings|signatures?|provenance)\b|\b(?:is|are|were) not (?:provided|known|specified)\b/i;
+
+function withoutMissingFactSentences(text: string): string {
+  return text.split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim().split(/(?<=[.!?])\s+/)
+      .filter((sentence) => !MISSING_FACT_SENTENCE.test(sentence.trim()))
+      .join(' '))
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+// Handwritten or printed, from what the seller wrote, so a manuscript is valued only against manuscripts and scrolls.
+// The generic category label "manuscript or rare book" names both, so it is ignored.
+export function sellerItemFormat(item: SellerDraftItem): 'handwritten' | 'printed' | undefined {
+  const text = [item.title, item.description?.he, item.description?.en]
+    .filter(Boolean).join(' ')
+    .replace(/כתב יד או ספר נדיר|manuscript or rare book/gi, ' ');
+  if (/כתב(?:י)?[\s-]+יד|מגיל|קלף|manuscript|scroll|handwritten|parchment/i.test(text)) return 'handwritten';
+  if (/דפוס|מודפס|ספר|printed|\bbook\b|incunabul/i.test(text)) return 'printed';
+  return undefined;
+}
+
+function sellerCatalogTemplate(item: SellerDraftItem, language: 'he' | 'en'): string {
+  const dimensions = formatDimensions(item);
+  const parts = language === 'he'
+    ? [item.title, dimensions && `מידות: ${dimensions}`, statedFact(item.condition) && `מצב: ${item.condition}`,
+      statedFact(item.markings) && `סימונים: ${item.markings}`, statedFact(item.signatures) && `חתימה: ${item.signatures}`,
+      statedFact(item.provenance) && `מקור: ${item.provenance}`]
+    : [item.title, dimensions && `Dimensions: ${dimensions}`, statedFact(item.condition) && `Condition: ${item.condition}`,
+      statedFact(item.markings) && `Markings: ${item.markings}`, statedFact(item.signatures) && `Signature: ${item.signatures}`,
+      statedFact(item.provenance) && `Provenance: ${item.provenance}`];
+  return parts.filter(Boolean).join('. ') + '.';
+}
 
 function requiredString(object: Record<string, unknown>, field: string): string {
   const value = object[field];
@@ -46,7 +115,19 @@ export class SellerWorkflowService {
     @Optional() private readonly drafts?: SellerIntakeDraftsService,
     @Optional() private readonly itemValuation?: ItemValuationService,
     @Optional() private readonly comparables?: ComparablesService,
+    @Optional() private readonly p4?: P4AiGenerateClient,
   ) {}
+
+  // AI prose for the seller, or null so the caller uses its template (fixture mode or provider outage).
+  private async generateSellerText(prompt: string, language: 'he' | 'en', sessionId: string): Promise<string | null> {
+    if (!this.p4) return null;
+    try {
+      return await this.p4.generateSellerText({ prompt, language, sessionId });
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) return null;
+      throw error;
+    }
+  }
 
   async execute(
     request: SellerWorkflowRequest,
@@ -101,7 +182,9 @@ export class SellerWorkflowService {
         if (!sellerItemReady(item)) {
           throw new BadRequestException('Seller actions require category, dimensions and condition');
         }
-        if (action.functionToRun === 'getSellerItemDetails') return { item };
+        // Until a description is written, item.description holds the raw chat text and should not be shown as one.
+        if (action.functionToRun === 'getSellerItemDetails') return { item, evidence: saved.draft.evidence,
+          descriptionWritten: (saved.draft.revisionHistory ?? []).some((revision) => revision.changes.includes('description')) };
         if (!this.comparables) throw new BadRequestException('Seller comparison service is unavailable');
         const category = sellerComparisonCategory(item.category, `${item.title}\n${item.description?.he ?? ''}\n${item.description?.en ?? ''}`);
         const criteria = { category, ...(saved.draft.confirmedFacts.materials?.length ? { materials: saved.draft.confirmedFacts.materials } : {}) };
@@ -119,13 +202,72 @@ export class SellerWorkflowService {
         if (!this.drafts) throw new BadRequestException('Seller draft service is unavailable');
         const saved = await this.drafts.getDraft(profileId, requiredString(action.object, 'sessionId'));
         if (!sellerItemReady(saved.draft.item)) throw new BadRequestException('Seller actions require category, dimensions and condition');
-        if (action.functionToRun === 'getSellerHouseRecommendation') return { ...this.sellerLeads.rankHouses({ category: saved.draft.item.category }), category: saved.draft.item.category };
+        const category = sellerComparisonCategory(saved.draft.item.category, saved.draft.item.title);
+        if (action.functionToRun === 'getSellerHouseRecommendation') return { ...this.sellerLeads.rankHouses({ category }), category };
         if (action.functionToRun === 'getSellerProvenanceAdvice') return { text: {
           he: 'תיעוד אמין של מקור הפריט עשוי לסייע בבדיקת הזיהוי והאותנטיות. אי אפשר לקבוע בכמה ישתנה השווי בלי לבדוק את התיעוד ואת הפריט. ההערכה הקיימת אינה כוללת תוספת שווי משוערת עבור תיעוד שלא נבדק.',
           en: 'Reliable provenance can help verify identity and authenticity. Its effect on value requires reviewing the documents and the item. The current valuation does not add an assumed premium for unverified provenance.',
         } };
-        if (action.functionToRun === 'getSellerCatalogDraft') return { title: saved.draft.item.title, ...saved.draft.item.catalogDraft };
-        return { draft: saved.draft, ranking: this.sellerLeads.rankHouses({ category: saved.draft.item.category }) };
+        const language = optionalString(action.object, 'language') === 'en' ? 'en' : 'he';
+        const sessionId = requiredString(action.object, 'sessionId');
+        const item = saved.draft.item;
+        if (action.functionToRun === 'getSellerCatalogDraft') {
+          // Nothing is saved here: the chat shows the text and saves it only after the seller approves it.
+          const revision = optionalString(action.object, 'revision');
+          const previous = optionalString(action.object, 'previous');
+          const prompt = revision && previous ? [
+            'Revise this auction-catalog description according to the seller\'s request.',
+            'If the request is itself a complete description, return it as the new description, correcting only spelling.',
+            'Keep it a single paragraph. Add only facts the seller states in the request or that appear in the item facts; never add value, rarity, date, maker or authenticity claims on your own.',
+            `Current description:\n${previous}`,
+            `Seller's request:\n${revision}`,
+            JSON.stringify(sellerCatalogFacts(item)),
+          ].join('\n\n') : [
+            // This is the short description line in the item details; the auction-house enquiry is the longer text.
+            'Write a short auction-catalog description of this item: two or three sentences, about 40 to 60 words, as a single paragraph.',
+            'Write it as a polished catalog entry, not a list of facts: open with an evocative phrase about what the item is, then weave its material, format, dimensions and condition into flowing, elegant prose.',
+            'Do not simply restate the facts in one sentence such as "An old manuscript, 80 × 70 cm, in good condition."',
+            'Elaborate only through wording, never through new facts: no claims about value, rarity, importance, date, era, maker, or authenticity that are not in the facts.',
+            JSON.stringify(sellerCatalogFacts(item)),
+          ].join('\n\n');
+          const generated = await this.generateSellerText(prompt, language, sessionId);
+          const description = generated && withoutMissingFactSentences(generated);
+          // Without AI a revision can still be applied when the seller wrote the whole new text.
+          const fallback = revision && previous
+            ? (revision.length >= 40 ? revision : previous)
+            : sellerCatalogTemplate(item, language);
+          const text = description ?? fallback;
+          return {
+            title: item.title,
+            he: language === 'he' ? text : '',
+            en: language === 'en' ? text : '',
+            generatedByAi: description !== null,
+            ...(revision && previous ? { revised: text !== previous } : {}),
+          };
+        }
+        // Same stated facts as the catalog: the saved catalogDraft is a "not confirmed" checklist the model would copy.
+        const facts = sellerCatalogFacts(item);
+        const prompt = [
+          'Write a concise, polished and respectful seller enquiry in the requested language.',
+          'The text should include a brief catalog-style description and a courteous request for the recipient to review the item for possible sale.',
+          'Do not name a specific auction house. Do not invent or infer facts, condition, attribution, provenance, authenticity, value, or acceptance.',
+          'Use only the supplied item facts. Return only the finished message as plain text, with no markdown or form fields.',
+          JSON.stringify(facts),
+        ].join('\n\n');
+        let enquiryText = await this.generateSellerText(prompt, language, sessionId);
+        const generatedByAi = enquiryText !== null;
+        if (!enquiryText) {
+          // The template already opens with the title.
+          const description = sellerCatalogTemplate(item, language);
+          enquiryText = language === 'he'
+            ? `שלום רב,\n\nאשמח לקבל את חוות דעתכם בנוגע לאפשרות להציע את הפריט הבא למכירה:\n${description}\n\nאודה לכם אם תוכלו לעיין בפרטים ולעדכן אם הפריט עשוי להתאים. אשמח למסור מידע נוסף לפי הצורך.\n\nתודה רבה.`
+            : `Hello,\n\nI would appreciate your opinion on whether the following item may be suitable for sale:\n${description}\n\nPlease review the details and let me know whether the item may be a fit. I would be happy to provide further information if needed.\n\nThank you.`;
+        }
+        return {
+          draft: saved.draft,
+          enquiryText,
+          generatedByAi,
+        };
       }
       case 'calculateSellerValuation': {
         if (!this.drafts || !this.itemValuation) throw new BadRequestException('Seller valuation is unavailable');
@@ -135,8 +277,10 @@ export class SellerWorkflowService {
         if (!sellerItemReady(item)) {
           throw new BadRequestException('Seller valuation requires category, dimensions and condition');
         }
-        const report = await this.itemValuation.calculateFromItem({ itemId: item.id, itemVersion: `v${saved.version}`, item });
-        const evidence = this.comparables ? await this.comparables.findComparables(item) : undefined;
+        const format = sellerItemFormat(item);
+        const valuedItem = { ...item, ...(format ? { format } : {}) };
+        const report = await this.itemValuation.calculateFromItem({ itemId: item.id, itemVersion: `v${saved.version}`, item: valuedItem });
+        const evidence = this.comparables ? await this.comparables.findComparables(valuedItem) : undefined;
         const ids = new Set(report.includedComparableIds ?? []);
         return { ...report, lots: evidence?.included.filter(entry => entry.lot.status === 'sold' && ids.has(entry.lot.id)).map(entry => entry.lot) ?? [] };
       }
@@ -168,7 +312,7 @@ export class SellerWorkflowService {
       }
       case 'rankSellerHouses':
         return this.sellerLeads.rankHouses({
-          category: requiredString(action.object, 'category'),
+          category: sellerComparisonCategory(requiredString(action.object, 'category'), ''),
           ...(optionalString(action.object, 'geography') ? { geography: optionalString(action.object, 'geography') } : {}),
           ...(optionalString(action.object, 'preferredLanguage') || optionalString(action.object, 'language')
             ? { preferredLanguage: optionalString(action.object, 'preferredLanguage') ?? optionalString(action.object, 'language') }
@@ -299,6 +443,7 @@ export class SellerWorkflowService {
     return {
       ...this.safeLeadSummary(lead),
       catalogDraft: lead.catalogDraft,
+      enquiryText: lead.enquiryText,
       evidence: (lead.evidence ?? []).map(({ id, type }) => ({ id, type })),
       valuation: lead.valuation,
     };

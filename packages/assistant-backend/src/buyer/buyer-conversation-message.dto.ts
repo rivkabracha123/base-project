@@ -32,3 +32,10 @@ export type BuyerConversationMessageResponse = {
   updates: BuyerChatUpdate[];
   turn: BuyerConversationTurnLog;
 };
+
+export type BuyerConversationMessageStreamEvent =
+  | { type: 'started' }
+  | { type: 'session'; sessionId: string }
+  | { type: 'update'; index: number; update: BuyerChatUpdate }
+  | { type: 'complete'; response: BuyerConversationMessageResponse }
+  | { type: 'failure'; status: number };

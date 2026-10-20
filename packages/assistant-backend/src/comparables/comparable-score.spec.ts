@@ -427,3 +427,29 @@ describe('Week 5 — inclusion/exclusion boundary', () => {
     expect(included.find(s => s.lot.id === 'w5-extreme')!.lot).toEqual(extreme);
   });
 });
+
+describe('scoreComparable format gate', () => {
+  const manuscript: AuctionLot = { ...base, id: 'lot-manuscript', medium: 'parchment_manuscript' };
+  const scroll: AuctionLot = { ...base, id: 'lot-scroll', medium: 'parchment_scroll' };
+  const printed: AuctionLot = { ...base, id: 'lot-printed', medium: 'printed_book' };
+
+  it('values a handwritten item only against manuscripts and scrolls', () => {
+    const handwritten = { category: 'rare_books', format: 'handwritten' as const };
+    expect(scoreComparable(manuscript, handwritten).included).toBe(true);
+    expect(scoreComparable(scroll, handwritten).included).toBe(true);
+    const excluded = scoreComparable(printed, handwritten);
+    expect(excluded.included).toBe(false);
+    expect(excluded.exclusionReason).toContain('Different format');
+  });
+
+  it('values a printed item only against printed books', () => {
+    const printedItem = { category: 'rare_books', format: 'printed' as const };
+    expect(scoreComparable(printed, printedItem).included).toBe(true);
+    expect(scoreComparable(manuscript, printedItem).included).toBe(false);
+  });
+
+  it('keeps category-only matching when the item format or lot medium is unknown', () => {
+    expect(scoreComparable(printed, item).included).toBe(true);
+    expect(scoreComparable(base, { category: 'rare_books', format: 'handwritten' }).included).toBe(true);
+  });
+});

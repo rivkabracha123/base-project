@@ -37,6 +37,34 @@ describe('BatyaBuyerResultsPresentationService', () => {
     expect(updates.some((update) => update.type === 'result_cards')).toBe(true);
   });
 
+  it('tells the buyer each search step: searching, then upcoming lots found, without an archive line', async () => {
+    const service = new BatyaBuyerResultsPresentationService(
+      new BuyerSearchExecutionService(new FixtureLotsSearchClient()),
+      {} as LotsService,
+    );
+    const criteria = emptyBuyerCriteria('he');
+    criteria.categories = ['rare_books'];
+    criteria.price = { max: 1300, currency: 'USD' };
+    // A period the lots search cannot read, so the buyer is told it was not filtered.
+    criteria.periods = ['תקופה לא מוכרת'];
+    const updates: BuyerFlowUpdate[] = [];
+
+    const result = await service.presentSearchResults({
+      searchContextId: 'session-steps',
+      criteria,
+      onUpdate: (update) => updates.push(update),
+    });
+
+    if (result.outcome.kind !== 'results') throw new Error('expected results');
+    const { current } = result.outcome.results;
+    expect(updates).toEqual([
+      { type: 'loading', text: 'מחפש…' },
+      { type: 'progress', text: 'שימו לב: לא ניתן לסנן לפי תקופה, לכן התוצאות לא הוגבלו לפי זה.' },
+      { type: 'progress', text: `נמצאו ${current.length} פריטים דומים במכירות הקרובות` },
+      expect.objectContaining({ type: 'result_cards' }),
+    ]);
+  });
+
   it('builds a trend only from B3-provided lot IDs with verified realized prices', async () => {
     const fixtureLots = resolveBuyerFixtureLots();
     const service = new BatyaBuyerResultsPresentationService(

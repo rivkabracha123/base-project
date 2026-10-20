@@ -39,6 +39,8 @@ describe('prepared draft-enquiry fixture', () => {
         recommendation: fixture.dashboardRow.recommendation ?? null,
         sellerChoice: null,
         catalogDraft: null,
+        // The seller-written enquiry text (added Week 6); the prepared fixture has none.
+        enquiryText: null,
         item: null,
         evidence: null,
         valuation: null,

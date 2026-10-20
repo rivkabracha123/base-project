@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { AlignLegacySellerLeads1788220800006 } from './1788220800006-align-legacy-seller-leads';
 import { AddAiConversations1750000000000 } from './1750000000000-add-ai-conversations';
 import { AiHistoryEntity } from './ai-history.entity';
 import { CreateAiHistory1740000000000 } from './1740000000000-create-ai-history';
@@ -19,6 +20,8 @@ import { SellerLeadEntity } from './seller-lead.entity';
 import { BuyerRequestEntity } from './buyer-request.entity';
 import { BuyerCriteriaEntity } from './buyer-criteria.entity';
 import { BuyerConversationEntity } from './buyer-conversation.entity';
+import { BuyerUnmatchedDemandEntity } from './buyer-unmatched-demand.entity';
+import { CreateBuyerUnmatchedDemand1740000000000 } from './1740000000000-create-buyer-unmatched-demand';
 import { SellerIntakeDraftEntity } from './seller-intake-draft.entity';
 import { CreateSellerLeads1788220800000 } from './1788220800000-create-seller-leads';
 import { AddSellerLeadRecommendation1788220800001 } from './1788220800001-add-seller-lead-recommendation';
@@ -26,8 +29,9 @@ import { AddSellerLeadChoice1788220800002 } from './1788220800002-add-seller-lea
 import { AddSellerLeadFinal1788220800003 } from './1788220800003-add-seller-lead-final';
 import { AddSellerLeadDashboard1788220800004 } from './1788220800004-add-seller-lead-dashboard';
 import { CreateSellerIntakeDrafts1788220800005 } from './1788220800005-create-seller-intake-drafts';
-import { BuyerUnmatchedDemandEntity } from './buyer-unmatched-demand.entity';
-import { CreateBuyerUnmatchedDemand1740000000000 } from './1740000000000-create-buyer-unmatched-demand';
+import { AddSellerEnquiryText1788220800007 } from './1788220800007-add-seller-enquiry-text';
+import { ChatConversationEntity } from './chat-conversation.entity';
+import { CreateChatConversations1790000000000 } from './1790000000000-create-chat-conversations';
 
 const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://monabid:monabid@localhost:5432/monabid';
 
@@ -44,9 +48,10 @@ const AppDataSource = new DataSource({
     BuyerRequestEntity,
     BuyerCriteriaEntity,
     BuyerConversationEntity,
+    BuyerUnmatchedDemandEntity,
     SellerIntakeDraftEntity,
     AiHistoryEntity,
-    BuyerUnmatchedDemandEntity,
+    ChatConversationEntity,
   ],
   migrations: [
     CreateAuctionLots1710000000000,
@@ -55,15 +60,18 @@ const AppDataSource = new DataSource({
     CreateBuyerTables1710000000002,
     CreateStaffOperations1725000000000,
     CreateUserProfiles1730000000000,
+    CreateBuyerUnmatchedDemand1740000000000,
     CreateAiHistory1740000000000,
     AddAiConversations1750000000000,
-    CreateBuyerUnmatchedDemand1740000000000,
     CreateSellerLeads1788220800000,
     AddSellerLeadRecommendation1788220800001,
     AddSellerLeadChoice1788220800002,
     AddSellerLeadFinal1788220800003,
     AddSellerLeadDashboard1788220800004,
     CreateSellerIntakeDrafts1788220800005,
+    AlignLegacySellerLeads1788220800006,
+    AddSellerEnquiryText1788220800007,
+    CreateChatConversations1790000000000,
   ],
   synchronize: false,
   logging: false,

@@ -3,13 +3,16 @@ import {
   SHILAT_FUNCTION_COMPARABLE_SALE_HISTORY,
   SHILAT_FUNCTION_GET_LOT_BY_ID,
   SHILAT_FUNCTION_PRICE_TREND,
+  SHILAT_INTENT_SEARCH_SIMILAR_LOTS,
 } from '../ai/p4-buyer-routing';
+import type { BuyerChatUpdate } from './buyer-chat-update';
 import type { BuyerLotsResolverService } from './buyer-lots-resolver.service';
 import type { LotsService } from '../lots/lots.service';
 import { BuyerComparableSaleHistoryService } from './buyer-comparable-sale-history.service';
 import { BuyerCriteriaService } from './buyer-criteria.service';
 import { BuyerP4FunctionExecutor } from './buyer-p4-function.executor';
 import { BuyerSearchExecutionService } from './buyer-search-execution.service';
+import { BuyerSessionSearchService } from './buyer-session-search.service';
 import { DefaultBuyerResultsPresentationService } from './default-buyer-results-presentation.service';
 import type { BuyerResultsPresentationPort } from './buyer-results-presentation.port';
 import { FixtureLotsSearchClient } from './fixture-lots-search.client';
@@ -162,6 +165,7 @@ describe('BuyerP4FunctionExecutor', () => {
   it('runs getPriceTrend with the previous B3 result IDs and relays its callback', async () => {
     const lotsResolver = createLotsResolver();
     const sampleLots = resolveBuyerFixtureLots().slice(0, 2);
+    const criteria = { getCriteriaForSession: jest.fn(() => ({ categories: ['rare_books'] })) };
     const presentation: BuyerResultsPresentationPort = {
       presentSearchResults: jest.fn(),
       presentPriceTrend: jest.fn(async ({ onUpdate }) => {
@@ -175,7 +179,7 @@ describe('BuyerP4FunctionExecutor', () => {
       }),
     };
     const executor = new BuyerP4FunctionExecutor(
-      createSaleHistory(), presentation, new BuyerCriteriaService(), lotsResolver,
+      createSaleHistory(), presentation, criteria as unknown as BuyerCriteriaService, lotsResolver,
     );
     const updates: import('./buyer-chat-update').BuyerChatUpdate[] = [];
 
@@ -189,5 +193,154 @@ describe('BuyerP4FunctionExecutor', () => {
     expect(handled).toBe(true);
     expect(presentation.presentPriceTrend).toHaveBeenCalledWith(expect.objectContaining({ lots: sampleLots.map((lot) => ({ id: lot.id })) }));
     expect(updates).toContainEqual(expect.objectContaining({ speaker: 'price-trend' }));
+  });
+
+  it('filters price trend evidence by the saved buyer budget before presenting it', async () => {
+    const sampleLots = resolveBuyerFixtureLots().filter((lot) => lot.status === 'sold').slice(0, 2);
+    const overBudget = { ...sampleLots[0]!, id: 'over-budget', realizedPrice: { amount: 260, currency: 'USD' as const } };
+    const inBudget = { ...sampleLots[1]!, id: 'in-budget', realizedPrice: { amount: 240, currency: 'USD' as const } };
+    const lotsResolver = { findLot: jest.fn(async (id: string) => ({ 'over-budget': overBudget, 'in-budget': inBudget }[id] ?? null)) };
+    const criteria = { getCriteriaForSession: jest.fn(() => ({ categories: ['rare_books'], price: { max: 250, currency: 'USD' } })) };
+    const presentation: BuyerResultsPresentationPort = {
+      presentSearchResults: jest.fn(),
+      presentPriceTrend: jest.fn(async () => ({ lots: [inBudget], points: [] })),
+    };
+    const executor = new BuyerP4FunctionExecutor(
+      createSaleHistory(), presentation, criteria as unknown as BuyerCriteriaService, lotsResolver as unknown as BuyerLotsResolverService,
+    );
+    const updates: import('./buyer-chat-update').BuyerChatUpdate[] = [];
+
+    await executor.execute({
+      extract: { provider: 'fixture', mode: 'fixture', content: '', summary: '', recommendation: '', nextAction: '', confidence: 'low' },
+      readyForFunction: true,
+      intentRoute: { functionName: SHILAT_FUNCTION_PRICE_TREND, readyForFunction: true },
+      functionParameters: null,
+    }, { sessionId: 's1', language: 'en', criteriaComplete: false, p4Context: { lots: [{ id: 'over-budget' }, { id: 'in-budget' }] } }, updates);
+
+    expect(presentation.presentPriceTrend).toHaveBeenCalledWith(expect.objectContaining({ lots: [{ id: 'in-budget' }] }));
+  });
+
+  describe('similar items in other categories', () => {
+    const similarLot = findBuyerFixtureLot('lot-history-sold-001');
+
+    // P4 reply for the follow-up question: similar-lots intent with no function name.
+    const similarAi: P4AiGenerateResponse = {
+      extract,
+      readyForFunction: false,
+      intentRoute: {
+        intent: SHILAT_INTENT_SEARCH_SIMILAR_LOTS,
+        functionName: null,
+        readyForFunction: false,
+        missingFields: ['similarLotsFunction'],
+      },
+      functionParameters: null,
+    };
+
+    function setup() {
+      const sessionSearch = new BuyerSessionSearchService(
+        {} as BuyerResultsPresentationPort,
+        new FixtureLotsSearchClient(),
+      );
+      const searchOtherCategories = jest.spyOn(sessionSearch, 'searchOtherCategoriesForSession');
+      const searchForSession = jest.spyOn(sessionSearch, 'searchForSession');
+      const executor = new BuyerP4FunctionExecutor(
+        {} as BuyerComparableSaleHistoryService,
+        {} as BuyerResultsPresentationPort,
+        new BuyerCriteriaService(),
+        createLotsResolver(),
+        undefined,
+        undefined,
+        sessionSearch,
+      );
+      const updates: BuyerChatUpdate[] = [];
+      const run = () => executor.execute(similarAi, { sessionId: 's1', language: 'he', criteriaComplete: true }, updates);
+      return { searchOtherCategories, searchForSession, updates, run };
+    }
+
+    it('asks the session search for other categories and never runs the regular search', async () => {
+      const { searchOtherCategories, searchForSession, run } = setup();
+      searchOtherCategories.mockResolvedValue({ kind: 'unmatched', message: 'אין' });
+
+      const handled = await run();
+
+      expect(handled).toBe(true);
+      expect(searchOtherCategories).toHaveBeenCalledTimes(1);
+      expect(searchOtherCategories).toHaveBeenCalledWith('s1');
+      expect(searchForSession).not.toHaveBeenCalled();
+    });
+
+    it('pushes a results-found line and one result-group per group', async () => {
+      if (!similarLot) throw new Error('fixture lot missing');
+      const { searchOtherCategories, updates, run } = setup();
+      searchOtherCategories.mockResolvedValue({
+        kind: 'results',
+        groups: [
+          {
+            title: 'מכירות קרובות',
+            lots: [similarLot],
+            matchReasons: { [similarLot.id]: [{ field: 'creators', detail: 'Yitzhak Abrabanel' }] },
+          },
+          { title: 'מכירות קודמות', lots: [similarLot, similarLot] },
+        ],
+      });
+
+      await run();
+
+      expect(updates.map((update) => update.speaker)).toEqual(['results-found', 'result-group', 'result-group']);
+      expect(updates[0]).toMatchObject({ text: expect.stringContaining('3') });
+      // Marked as other-categories for the chat, with the reasons passed through only where the search gave any.
+      expect(updates[1]).toEqual({
+        speaker: 'result-group',
+        title: 'מכירות קרובות',
+        lots: [similarLot],
+        variant: 'other-categories',
+        matchReasons: { [similarLot.id]: [{ field: 'creators', detail: 'Yitzhak Abrabanel' }] },
+      });
+      expect(updates[2]).toEqual({
+        speaker: 'result-group',
+        title: 'מכירות קודמות',
+        lots: [similarLot, similarLot],
+        variant: 'other-categories',
+      });
+    });
+
+    it('pushes no-results with the service message when nothing matched', async () => {
+      const { searchOtherCategories, updates, run } = setup();
+      searchOtherCategories.mockResolvedValue({ kind: 'unmatched', message: 'לא מצאנו פריטים דומים' });
+
+      await run();
+
+      expect(updates).toEqual([{ speaker: 'no-results', text: 'לא מצאנו פריטים דומים' }]);
+    });
+
+    it('pushes a system line asking for more details on insufficient criteria', async () => {
+      const { searchOtherCategories, updates, run } = setup();
+      searchOtherCategories.mockResolvedValue({ kind: 'insufficient-criteria', message: 'צריך פרט נוסף' });
+
+      await run();
+
+      expect(updates).toEqual([{ speaker: 'system', text: 'צריך פרט נוסף' }]);
+    });
+
+    it('pushes a similar_failed error when the search throws', async () => {
+      const { searchOtherCategories, updates, run } = setup();
+      searchOtherCategories.mockRejectedValue(new Error('lots search down'));
+
+      const handled = await run();
+
+      expect(handled).toBe(true);
+      expect(updates).toHaveLength(1);
+      expect(updates[0]).toMatchObject({ speaker: 'error', code: 'similar_failed' });
+    });
+
+    it('keeps the similar_not_wired error while the cross-category search is unavailable', async () => {
+      const { searchOtherCategories, updates, run } = setup();
+      searchOtherCategories.mockResolvedValue({ kind: 'unavailable' });
+
+      await run();
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0]).toMatchObject({ speaker: 'error', code: 'similar_not_wired' });
+    });
   });
 });

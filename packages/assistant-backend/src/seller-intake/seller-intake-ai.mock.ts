@@ -5,7 +5,7 @@ import { SellerIntakeService } from './seller-intake.service';
 import type { MissingSellerQuestion } from './seller-intake.service';
 import type { SellerIntakeAiProvider, SellerIntakeAiResult } from './seller-intake-ai.provider';
 
-const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
+export const createDeterministicSellerItemDraft = (): SellerItemDraft => ({
   id: 'seller-item-draft-001',
   feature: 'seller-conversation',
   developer: 's1',

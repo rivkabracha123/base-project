@@ -3,9 +3,14 @@ import ReactDOM from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
+import { clearLocalStorageOnNewTabSession } from './app/api';
+import { sanitizeExistingLocalChatStorage } from './chat/local-chat-storage';
 import { createQueryClient } from './app/query-client';
 import './i18n';
 import './index.css';
+
+clearLocalStorageOnNewTabSession();
+sanitizeExistingLocalChatStorage();
 
 const queryClient = createQueryClient();
 

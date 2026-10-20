@@ -4,7 +4,7 @@ import type { PriceTrendPoint } from './buyer-results-presentation.port';
 
 /** B2 → B1 screen updates (contract alias; Tamar maps to chat UI). */
 export type BuyerFlowUpdate =
-  | { type: 'loading' }
+  | { type: 'loading'; text?: string }
   | { type: 'progress'; text: string }
   | { type: 'result_cards'; groups: ResultCardGroup[] }
   | { type: 'price_trend'; title: string; lots: AuctionLot[]; points: PriceTrendPoint[] }

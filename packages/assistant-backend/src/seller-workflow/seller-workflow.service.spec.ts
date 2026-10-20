@@ -1,5 +1,22 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { SellerWorkflowService } from './seller-workflow.service';
+import { SellerWorkflowService, sellerItemFormat } from './seller-workflow.service';
+
+describe('sellerItemFormat', () => {
+  const item = (title: string, he = '') => ({ title, description: { he, en: '' } }) as never;
+  it.each([
+    ['כתב יד עתיק', 'handwritten'],
+    ['מגילת אסתר', 'handwritten'],
+    ['Decorated parchment manuscript', 'handwritten'],
+    ['ספר עתיק בדפוס ונציה', 'printed'],
+    ['An early printed book', 'printed'],
+  ])('reads %s as %s', (title, format) => {
+    expect(sellerItemFormat(item(title))).toBe(format);
+  });
+  it('ignores the generic category title and reads the seller wording instead', () => {
+    expect(sellerItemFormat(item('כתב יד או ספר נדיר', 'יש לי ספר ישן'))).toBe('printed');
+    expect(sellerItemFormat(item('כתב יד או ספר נדיר'))).toBeUndefined();
+  });
+});
 
 describe('SellerWorkflowService', () => {
   const profileId = 'profile-1';
@@ -40,18 +57,106 @@ describe('SellerWorkflowService', () => {
     jest.clearAllMocks();
   });
 
-  it('copies the saved catalog and previews an enquiry without creating or submitting a lead', async () => {
+  it('writes a professional catalog description with AI from the stated facts only', async () => {
+    const item = { id: 'saved-item', category: 'rare_books', title: 'כתב יד הלכות', dimensions: { values: [
+      { label: 'width', value: 80, unit: 'cm' }, { label: 'height', value: 70, unit: 'cm' }] },
+      condition: 'מצב טוב', markings: 'Not yet confirmed', catalogDraft: { he: '', en: '' } };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue('כתב יד הלכתי על קלף, 80 × 70 ס״מ, במצב טוב.') };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const result = await connected.execute({ profileId,
+      structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1', language: 'he' } } });
+    const prompt: string = p4.generateSellerText.mock.calls[0][0].prompt;
+    expect(prompt).toContain('80 × 70 cm');
+    expect(prompt).not.toContain('Not yet confirmed');
+    expect(result.result).toEqual({ title: 'כתב יד הלכות', he: 'כתב יד הלכתי על קלף, 80 × 70 ס״מ, במצב טוב.', en: '', generatedByAi: true });
+    // The chat saves the description only after the seller approves it.
+    expect(drafts.correctDraft).not.toHaveBeenCalled();
+  });
+
+  it('revises the shown description by the seller\'s request without saving it', async () => {
+    const item = { id: 'i', category: 'rare_books', title: 'כתב יד', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'טוב' };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue('כתב יד קצר על קלף.') };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const result = await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft',
+      object: { sessionId: 's1', language: 'he', previous: 'כתב יד מרהיב על קלף, ברוחב 20 ס״מ, במצב טוב.', revision: 'תקצר' } } });
+    const prompt: string = p4.generateSellerText.mock.calls[0][0].prompt;
+    expect(prompt).toContain('כתב יד מרהיב על קלף, ברוחב 20 ס״מ, במצב טוב.');
+    expect(prompt).toContain('תקצר');
+    expect(result.result).toEqual({ title: 'כתב יד', he: 'כתב יד קצר על קלף.', en: '', generatedByAi: true, revised: true });
+    expect(drafts.correctDraft).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a full replacement text written by the seller', 'כתב יד עברי על קלף, כתוב בדיו חומה, במצב טוב מאוד.', 'כתב יד עברי על קלף, כתוב בדיו חומה, במצב טוב מאוד.', true],
+    ['a short instruction it cannot apply', 'תקצר', 'התיאור הקודם.', false],
+  ])('without AI, a revision uses %s', async (_case, revision, expected, revised) => {
+    const item = { id: 'i', category: 'rare_books', title: 'כתב יד', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'טוב' };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
+    const result = await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft',
+      object: { sessionId: 's1', language: 'he', previous: 'התיאור הקודם.', revision } } });
+    expect(result.result).toMatchObject({ he: expected, generatedByAi: false, revised });
+  });
+
+  it.each([
+    ['כתב יד על קלף.\n\nהכתב יד במצב טוב.\n\nאין פרטים נוספים על סימנים, חתימות או מקור.', 'כתב יד על קלף.\n\nהכתב יד במצב טוב.'],
+    ['A manuscript on parchment. It is in good condition. No specific markings or signatures are provided.', 'A manuscript on parchment. It is in good condition.'],
+  ])('drops sentences about missing facts from the AI description', async (generated, expected) => {
+    const item = { id: 'i', category: 'rare_books', title: 'Manuscript', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'Good' };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue(generated) };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const language = /[֐-׿]/.test(generated) ? 'he' : 'en';
+    const result = await connected.execute({ profileId,
+      structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1', language } } });
+    expect((result.result as Record<string, string>)[language]).toBe(expected);
+  });
+
+  it('builds a catalog template from saved facts and previews an enquiry without creating or submitting a lead', async () => {
     const item = { id: 'saved-item', category: 'rare_books', title: 'Manuscript', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'Good', catalogDraft: { he: 'מקור לא אושר', en: 'Origin unconfirmed' } };
     const draft = { item, evidence: [] };
-    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft }) };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft }), correctDraft: jest.fn() };
     const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
     expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1' } } })).result)
-      .toEqual({ title: 'Manuscript', ...item.catalogDraft });
-    expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1' } } })).result)
-      .toMatchObject({ draft });
+      .toEqual({ title: 'Manuscript', he: 'Manuscript. מידות: 20 cm. מצב: Good.', en: '', generatedByAi: false });
+    expect(drafts.correctDraft).not.toHaveBeenCalled();
+    const preview = await connected.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },
+    });
+    expect(preview.result).toMatchObject({ draft, generatedByAi: false, enquiryText: expect.stringContaining('Hello,') });
     expect(drafts.getDraft).toHaveBeenCalledWith(profileId, 's1');
     expect(leads.draft).not.toHaveBeenCalled();
     expect(leads.submitFinal).not.toHaveBeenCalled();
+  });
+
+  it('uses the AI-generated plain-text enquiry when available', async () => {
+    const item = { id: 'saved-item', category: 'rare_books', title: 'Manuscript',
+      dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] },
+      condition: 'Good', catalogDraft: { he: 'כתב יד עתיק', en: 'An old manuscript' } };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue('Dear Sir or Madam, please review this manuscript.') };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const result = await connected.execute({
+      profileId,
+      structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },
+    });
+    expect(p4.generateSellerText).toHaveBeenCalledWith(expect.objectContaining({
+      language: 'en',
+      sessionId: 's1',
+      prompt: expect.stringContaining('"dimensions":"20 cm"'),
+    }));
+    expect(p4.generateSellerText.mock.calls[0][0].prompt).not.toContain('An old manuscript');
+    expect(result.result).toMatchObject({
+      enquiryText: 'Dear Sir or Madam, please review this manuscript.',
+      generatedByAi: true,
+    });
   });
 
   it('blocks catalog and enquiry previews when mandatory facts are missing', async () => {

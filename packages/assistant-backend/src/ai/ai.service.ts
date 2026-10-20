@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { isGenerateAiResponseDto } from './ai.dto';
 import { FixtureProviderService } from './fixture-provider.service';
-import { ProviderGatewayService } from './provider-gateway.service';
+import { classifyProviderFailure, ProviderGatewayService } from './provider-gateway.service';
 import { RealProviderService } from './real-provider.service';
 import { routeBuyerIntent, type IntentRoute } from './intent-router';
 import { ProfilesService } from '../profiles/profiles.service';
@@ -42,12 +42,37 @@ export type AiGenerateResponse = {
 //constructor
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
+
   constructor(
     private readonly fixtureProvider: FixtureProviderService,
     private readonly realProvider: RealProviderService,
     private readonly config: ConfigService,
     private readonly profilesService: ProfilesService,
   ) {}
+
+  private timeoutMs(): number | undefined {
+    const configured = Number(this.config.get('AI_TIMEOUT_MS'));
+    return Number.isFinite(configured) && configured > 0 ? configured : undefined;
+  }
+
+  async generateText(input: { prompt: string; language?: 'he' | 'en' }): Promise<string> {
+    if (this.config.get<string>('AI_PROVIDER_MODE', 'fixture') !== 'real') {
+      throw new ServiceUnavailableException('Free-text generation needs the real AI provider.');
+    }
+    try {
+      return await this.realProvider.generateText({
+        ...input,
+        baseUrl: this.config.get<string>('AI_BASE_URL'),
+        modelName: this.config.get<string>('AI_MODEL_NAME'),
+        apiKey: this.config.get<string>('AI_API_KEY'),
+        timeoutMs: this.timeoutMs(),
+      });
+    } catch (error) {
+      this.logger.warn(`Free-text generation failed: ${classifyProviderFailure(error)}`);
+      throw new ServiceUnavailableException('Real AI provider is unavailable.');
+    }
+  }
 
   async generate(input: AiGenerateRequest): Promise<AiGenerateResponse> {
     if (input.sessionId && (input.role ?? 'buyer') === 'buyer') {
@@ -72,7 +97,7 @@ export class AiService {
 
     //send a prompt and make sure that the result equals the provider shape
 
-    const result = await gateway.generate({ ...input, role: input.role ?? 'buyer' }, configuredProviders);
+    const result = await gateway.generate({ ...input, role: input.role ?? 'buyer', timeoutMs: this.timeoutMs() }, configuredProviders);
 
     if (!isGenerateAiResponseDto(result, input.role ?? 'buyer')) {
       throw new Error('AI service received an invalid response shape from the provider gateway.');

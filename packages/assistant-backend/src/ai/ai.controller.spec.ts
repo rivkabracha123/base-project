@@ -25,12 +25,14 @@ describe('AiController', () => {
     const second = await controller.generate({ prompt: 'My budget is 5000 ILS', role: 'buyer', language: 'en', conversationId: first.conversationId }, 'session-1');
     expect(second.isRelevant).toBe(true);
     expect(second.nextAction).not.toContain('What is your budget');
-    expect(second.nextAction).toContain('preferred year or period');
+    expect(second.structuredAnswer).toEqual(expect.objectContaining({ price: { max: 5000, currency: 'ILS' } }));
     const third = await controller.generate({ prompt: '1980', role: 'buyer', language: 'en', conversationId: first.conversationId }, 'session-1');
     expect(third.structuredAnswer).toEqual(expect.objectContaining({ price: { max: 5000, currency: 'ILS' }, periods: ['1980'] }));
-    expect(third.nextAction).toContain('continue searching');
+    expect(third.nextAction).toContain('searching with the details you shared');
+    // A new conversation must not inherit the earlier budget or period.
     const fresh = await controller.generate({ prompt: 'I want to buy a painting', role: 'buyer', language: 'en' }, 'session-1');
-    expect(fresh.nextAction).toContain('What is your budget');
+    expect(fresh.structuredAnswer).not.toEqual(expect.objectContaining({ price: expect.anything() }));
+    expect(fresh.structuredAnswer).not.toEqual(expect.objectContaining({ periods: ['1980'] }));
     expect(history.conversation).toHaveBeenCalledTimes(2);
     expect(history.conversation).toHaveBeenCalledWith('session-1', first.conversationId);
   });

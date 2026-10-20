@@ -72,9 +72,10 @@ export function sellerItemFromS1Draft(payload: unknown): SellerItem {
   const draft = confirmedItemDraftSchema.parse(payload);
   const facts = draft.confirmedFacts as { category?: string; materials?: unknown } | undefined;
   const item = draft.item as { category: string; materials?: unknown };
-  const materials = stringList(facts?.materials) ?? stringList(item.materials);
+  const hasConfirmationData = facts !== undefined;
+  const materials = stringList(facts?.materials) ?? (hasConfirmationData ? undefined : stringList(item.materials));
   return sellerItemSchema.parse({
-    category: facts?.category?.trim() || item.category,
+    category: facts?.category?.trim() || (hasConfirmationData ? 'unknown' : item.category),
     ...(materials ? { materials } : {}),
   });
 }
@@ -94,7 +95,8 @@ export function rankingItemFromS1Draft(
   draft: ConfirmedItemDraft | null | undefined,
   fallback: RankingItem = defaultRankingItem,
 ): RankingItem {
-  const category = draft?.confirmedFacts?.category?.trim() || draft?.item.category.trim();
+  const category = draft?.confirmedFacts?.category?.trim()
+    || (draft?.confirmedFacts ? 'unknown' : draft?.item.category.trim());
   if (!category) return fallback;
 
   const preferredLanguage = draft?.language?.preferred?.trim();
@@ -121,7 +123,8 @@ export function leadHandoffFromS1Draft(
     catalogDraft: draft.item.catalogDraft,
     item: {
       id: draft.item.id,
-      category: draft.confirmedFacts?.category?.trim() || draft.item.category,
+      category: draft.confirmedFacts?.category?.trim()
+        || (draft.confirmedFacts ? 'unknown' : draft.item.category),
       title: draft.item.title,
       evidenceIds: ids,
     },
@@ -156,7 +159,8 @@ export function receiveConfirmedItemHandoff(payload: unknown): {
     catalogDraft: draft.item.catalogDraft,
     item: {
       id: draft.item.id,
-      category: draft.confirmedFacts?.category?.trim() || draft.item.category,
+      category: draft.confirmedFacts?.category?.trim()
+        || (draft.confirmedFacts ? 'unknown' : draft.item.category),
       title: draft.item.title,
       evidenceIds: ids,
     },

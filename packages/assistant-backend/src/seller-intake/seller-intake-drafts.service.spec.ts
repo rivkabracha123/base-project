@@ -71,19 +71,82 @@ describe('SellerIntakeDraftsService', () => {
   it('persists corrections and confirmations across separate service calls', async () => {
     await service.saveDraft('profile-a', 'session-1', fixture);
     const corrected = await service.correctDraft('profile-a', 'session-1', 'provenance', 'Family archive');
-    const confirmed = await service.confirmFacts('profile-a', 'session-1', ['category', 'dimensions']);
+    expect(corrected.draft.item.provenance).toBe('Family archive');
+    expect(corrected.draft.confirmedFacts.provenance).toBeUndefined();
+    expect(corrected.draft.uncertainFacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'provenance', status: 'uncertain', value: 'Family archive' }),
+    ]));
+    const confirmed = await service.confirmFacts('profile-a', 'session-1', ['category', 'dimensions', 'provenance']);
     const loaded = await service.getDraft('profile-a', 'session-1');
 
     expect(corrected.version).toBe(2);
     expect(confirmed.version).toBe(3);
     expect(loaded.draft.confirmedFacts).toMatchObject({ category: 'paintings', provenance: 'Family archive' });
     expect(loaded.draft.item.catalogDraft.en).toContain('provenance: Family archive');
+    expect(loaded.draft.uncertainFacts.some((fact) => fact.field === 'provenance')).toBe(false);
     expect(loaded.draft.revisionHistory).toHaveLength(2);
     expect(loaded.draft.recalculationRequired).toBe(true);
     expect(loaded.draft.confirmedFacts.dimensions?.values).toEqual([
       { label: 'width', value: 40, unit: 'cm' },
       { label: 'height', value: 30, unit: 'cm' },
     ]);
+  });
+
+  it('persists seller-edited title and description without confirming facts', async () => {
+    fixture.item.description = { he: 'תיאור קודם', en: 'Previous description' };
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const titled = await service.correctDraft('profile-a', 'session-1', 'title', {
+      en: 'Updated painting title',
+    });
+    const described = await service.correctDraft('profile-a', 'session-1', 'description', {
+      en: 'Updated description',
+    });
+    const loaded = await service.getDraft('profile-a', 'session-1');
+
+    expect(titled.version).toBe(2);
+    expect(described.version).toBe(3);
+    expect(loaded.draft.item.title).toBe('Updated painting title');
+    expect(loaded.draft.item.titleTranslations).toEqual({ en: 'Updated painting title' });
+    expect(loaded.draft.item.description).toEqual({ he: 'תיאור קודם', en: 'Updated description' });
+    expect(loaded.draft.confirmedFacts).toEqual({});
+    expect(loaded.draft.revisionHistory).toEqual([
+      expect.objectContaining({ actor: 'seller', changes: ['title'] }),
+      expect.objectContaining({ actor: 'seller', changes: ['description'] }),
+    ]);
+    await expect(service.confirmFacts('profile-a', 'session-1', ['title']))
+      .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('uses the preferred Hebrew title for legacy single-title consumers', async () => {
+    fixture.language.preferred = 'he-IL';
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const corrected = await service.correctDraft('profile-a', 'session-1', 'title', {
+      he: 'כותרת בעברית',
+    });
+
+    expect(corrected.draft.item.title).toBe('כותרת בעברית');
+    expect(corrected.draft.item.titleTranslations).toEqual({ he: 'כותרת בעברית' });
+  });
+
+  it('keeps corrected arbitrary item measurements unconfirmed until explicitly confirmed', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+    const corrected = await service.correctDraft('profile-a', 'session-1', 'dimensions', {
+      values: [{ label: 'ring_size', value: 8, unit: 'size' }],
+    });
+
+    expect(corrected.draft.item.dimensions.values).toEqual([
+      { label: 'ring_size', value: 8, unit: 'size' },
+    ]);
+    expect(corrected.draft.confirmedFacts.dimensions).toBeUndefined();
+    expect(corrected.draft.uncertainFacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'dimensions', status: 'uncertain' }),
+    ]));
+    const confirmed = await service.confirmFacts('profile-a', 'session-1', ['dimensions']);
+    expect(confirmed.draft.confirmedFacts.dimensions?.values).toEqual([
+      { label: 'ring_size', value: 8, unit: 'size' },
+    ]);
+    expect(confirmed.draft.uncertainFacts.some((fact) => fact.field === 'dimensions')).toBe(false);
   });
 
   it('confirms generic measurements without requiring legacy rectangular dimensions', async () => {
@@ -138,11 +201,60 @@ describe('SellerIntakeDraftsService', () => {
     expect(attached).toBeNull();
   });
 
+  it('stores a photo uploaded before the first text without inventing item facts', async () => {
+    await service.attachEvidence('profile-a', 'session-1', [{ fileId: 'photo-first', profileId: 'profile-a', originalName: 'front.jpg', mimeType: 'image/jpeg', size: 100, previewUri: '/api/evidence/profile-a/photo-first' }]);
+    const saved = await service.getDraft('profile-a', 'session-1');
+    expect(saved.draft.item.category).toBe('unknown');
+    expect(saved.draft.confirmedFacts).toEqual({});
+    expect(saved.draft.item.evidenceIds).toEqual(['photo-first']);
+    expect(saved.draft.evidence).toHaveLength(1);
+    const removed = await service.detachEvidence('profile-a', 'session-1', 'photo-first');
+    expect(removed.draft.evidence).toEqual([]);
+    expect(removed.draft.item.evidenceIds).toEqual([]);
+    await expect(service.detachEvidence('profile-b', 'session-1', 'photo-first')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('rejects corrections with malformed values and attempts to confirm missing facts', async () => {
     await service.saveDraft('profile-a', 'session-1', fixture);
     await expect(service.correctDraft('profile-a', 'session-1', 'dimensions', { widthCm: 0, heightCm: 30 }))
       .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.correctDraft('profile-a', 'session-1', 'title', { he: '  ' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.correctDraft('profile-a', 'session-1', 'description', { fr: 'description' }))
+      .rejects.toBeInstanceOf(BadRequestException);
     await expect(service.confirmFacts('profile-a', 'session-1', ['provenance']))
       .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('corrects localized title and description without marking them as confirmed facts', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const title = await service.correctDraft('profile-a', 'session-1', 'title', { he: 'ציור עתיק' });
+    const description = await service.correctDraft('profile-a', 'session-1', 'description', { en: 'An oil painting' });
+
+    expect(title.draft.item.title).toBe('ציור עתיק');
+    expect(title.draft.item.titleTranslations).toEqual({ he: 'ציור עתיק' });
+    expect(description.draft.item.description).toEqual({ he: '', en: 'An oil painting' });
+    expect(description.draft.confirmedFacts).not.toHaveProperty('title');
+    expect(description.draft.confirmedFacts).not.toHaveProperty('description');
+  });
+
+  it('accepts arbitrary measurements and lets sellers clear optional facts', async () => {
+    await service.saveDraft('profile-a', 'session-1', fixture);
+
+    const dimensions = await service.correctDraft('profile-a', 'session-1', 'dimensions', [
+      { label: 'ring size', value: 8, unit: 'ring_size' },
+    ]);
+    const materials = await service.correctDraft('profile-a', 'session-1', 'materials', []);
+    const condition = await service.correctDraft('profile-a', 'session-1', 'condition', '');
+
+    expect(dimensions.draft.item.dimensions.values).toEqual([
+      { label: 'ring size', value: 8, unit: 'ring_size' },
+    ]);
+    expect(dimensions.draft.confirmedFacts.dimensions).toBeUndefined();
+    expect(dimensions.draft.uncertainFacts.some((fact) => fact.field === 'dimensions')).toBe(true);
+    expect(materials.draft.item.materials).toEqual([]);
+    expect(condition.draft.item.condition).toBeUndefined();
+    expect(condition.draft.missingFields).toContain('condition');
   });
 });

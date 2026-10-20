@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Inject, NotFoundException, Param, Patch, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { createHash, randomUUID } from 'node:crypto';
 import { MAX_FILES_PER_UPLOAD, MAX_FILE_SIZE_BYTES, type UploadedFile } from '../uploads/evidence.types';
@@ -13,6 +13,7 @@ import { sellerItemReady } from './seller-item-readiness';
 export class SellerIntakeController {
   private readonly pendingValuations = new Set<string>();
   private readonly pendingComparisons = new Map<string, SellerComparisonAction>();
+  private readonly lastActions = new Map<string, string>();
   constructor(
     @Inject(SELLER_INTAKE_AI_PROVIDER) private readonly sellerIntakeAi: SellerIntakeAiProvider,
     private readonly drafts: SellerIntakeDraftsService,
@@ -23,7 +24,20 @@ export class SellerIntakeController {
   // מנתח טיוטת intake; שומר אותה רק כש-profileId ו-sessionId נשלחים יחד.
   // Analyzes an intake draft; persists it only when both profileId and sessionId are sent.
   async createDraft(@Body() body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
-    const { input, sessionId, profileId } = body;
+    const result = await this.analyzeDraft(body);
+    // Remember the action just returned so a short follow-up ("I'd like to see it") can refer to it.
+    if (typeof body.profileId === 'string' && typeof body.sessionId === 'string') {
+      const scopedSessionId = `${body.profileId}:${body.sessionId}`;
+      const action = result.functionCall?.functionToRun;
+      if (action) this.lastActions.set(scopedSessionId, action);
+      else this.lastActions.delete(scopedSessionId);
+    }
+    return result;
+  }
+
+  private async analyzeDraft(body: Record<string, unknown>): Promise<Omit<SellerIntakeAiResult, 'sessionId'>> {
+    const { input, sessionId, profileId, language: requestedLanguage } = body;
+    const language = requestedLanguage === 'he' || requestedLanguage === 'en' ? requestedLanguage : undefined;
     if (typeof input !== 'string' || input.trim().length === 0) {
       throw new BadRequestException('input must be a non-empty string');
     }
@@ -37,7 +51,7 @@ export class SellerIntakeController {
     const hasScope = hasProfileId && hasSessionId;
 
     if (!hasScope) {
-      const { sessionId: _sessionId, ...analysis } = await this.sellerIntakeAi.analyze(input);
+      const { sessionId: _sessionId, ...analysis } = await this.sellerIntakeAi.analyze(input, undefined, language);
       return analysis;
     }
 
@@ -45,7 +59,10 @@ export class SellerIntakeController {
     const previousComparison = this.pendingComparisons.get(scopedSessionId);
     const previousValuation = this.pendingValuations.has(scopedSessionId);
     if (/\b(?:cancel|don't|do not)\b|בטל|לא\s+(?:רוצה|מעוניי?נ)/i.test(input)) this.pendingComparisons.delete(scopedSessionId);
-    const comparison = requestedSellerComparison(input);
+    // Right after a catalog draft, "I'd like to see it" or "edit it" means the drafted description in the item details.
+    const followsCatalogDraft = this.lastActions.get(scopedSessionId) === 'getSellerCatalogDraft' && input.trim().length <= 40
+      && /לראות|תראה|תראי|הראה|הצג|תציג|תציגי|להציג|לערוך|ערוך|תערוך|תערכי|\b(?:show|see|view|edit)\b/i.test(input);
+    const comparison = requestedSellerComparison(input) ?? (followsCatalogDraft ? 'getSellerItemDetails' : null);
     if (comparison) this.pendingComparisons.set(scopedSessionId, comparison);
     if (comparison) {
       try {
@@ -78,8 +95,11 @@ export class SellerIntakeController {
     const { sessionId: _sessionId, structuredAnswer, functionCall, ai, ...analysis } = await this.sellerIntakeAi.analyze(
       input,
       scopedSessionId,
+      language,
     );
-    if (ai?.isRelevant === false) {
+    // "כמה היא שווה?" can read as general advice to the AI, but it is a valuation request for this item.
+    const wantsValuation = asksValuation && !declinesValuation;
+    if (ai?.isRelevant === false || (ai?.generalInformation && !wantsValuation)) {
       if (previousComparison) this.pendingComparisons.set(scopedSessionId, previousComparison);
       else this.pendingComparisons.delete(scopedSessionId);
       if (previousValuation) this.pendingValuations.add(scopedSessionId);
@@ -94,13 +114,20 @@ export class SellerIntakeController {
       item: { ...analysis.item, id: `seller-item-${stableId}` },
     };
     await this.drafts.saveIntakeTurn(String(profileId), String(sessionId), persistedDraft);
+    if (asksValuation && !declinesValuation && analysis.requiredMissingFields?.length === 0) {
+      this.pendingValuations.delete(scopedSessionId);
+      this.pendingComparisons.delete(scopedSessionId);
+      return { ...persistedDraft, structuredAnswer, ai, nextQuestion: null,
+        functionCall: { functionToRun: 'calculateSellerValuation', object: { sessionId: String(sessionId) } } };
+    }
     const pendingComparison = this.pendingComparisons.get(scopedSessionId);
     if (pendingComparison && analysis.requiredMissingFields?.length === 0) {
       this.pendingComparisons.delete(scopedSessionId);
       return { ...persistedDraft, structuredAnswer, ai, nextQuestion: null,
         functionCall: { functionToRun: pendingComparison, object: { sessionId: String(sessionId) } } };
     }
-    if (this.pendingValuations.has(scopedSessionId) && analysis.requiredMissingFields?.length === 0 && !functionCall?.functionToRun) {
+    if (this.pendingValuations.has(scopedSessionId) && analysis.requiredMissingFields?.length === 0
+      && (!functionCall?.functionToRun || functionCall.functionToRun === 'calculateSellerValuation')) {
       this.pendingValuations.delete(scopedSessionId);
       return { ...persistedDraft, structuredAnswer, ai, nextQuestion: null,
         functionCall: { functionToRun: 'calculateSellerValuation', object: { sessionId: String(sessionId) } } };
@@ -135,6 +162,16 @@ export class SellerIntakeController {
     @Param('sessionId') sessionId: string,
   ) {
     return this.drafts.getDraft(profileId, sessionId);
+  }
+
+  @Delete('draft/:profileId/:sessionId/photos/:fileId')
+  async removePhoto(@Param('profileId') profileId: string, @Param('sessionId') sessionId: string, @Param('fileId') fileId: string) {
+    const saved = await this.drafts.getDraft(profileId, sessionId);
+    if (!saved.draft.evidence.some(entry => entry.id === fileId && entry.type === 'photo')) {
+      throw new NotFoundException('Photo was not found in this item');
+    }
+    await this.uploads.deleteEvidence(profileId, fileId);
+    return this.drafts.detachEvidence(profileId, sessionId, fileId);
   }
 
   @Patch('draft/:profileId/:sessionId/corrections')
