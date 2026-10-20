@@ -51,6 +51,11 @@ export class AiService {
     private readonly profilesService: ProfilesService,
   ) {}
 
+  private timeoutMs(): number | undefined {
+    const configured = Number(this.config.get('AI_TIMEOUT_MS'));
+    return Number.isFinite(configured) && configured > 0 ? configured : undefined;
+  }
+
   async generateText(input: { prompt: string; language?: 'he' | 'en' }): Promise<string> {
     if (this.config.get<string>('AI_PROVIDER_MODE', 'fixture') !== 'real') {
       throw new ServiceUnavailableException('Free-text generation needs the real AI provider.');
@@ -61,6 +66,7 @@ export class AiService {
         baseUrl: this.config.get<string>('AI_BASE_URL'),
         modelName: this.config.get<string>('AI_MODEL_NAME'),
         apiKey: this.config.get<string>('AI_API_KEY'),
+        timeoutMs: this.timeoutMs(),
       });
     } catch (error) {
       this.logger.warn(`Free-text generation failed: ${classifyProviderFailure(error)}`);
@@ -91,7 +97,7 @@ export class AiService {
 
     //send a prompt and make sure that the result equals the provider shape
 
-    const result = await gateway.generate({ ...input, role: input.role ?? 'buyer' }, configuredProviders);
+    const result = await gateway.generate({ ...input, role: input.role ?? 'buyer', timeoutMs: this.timeoutMs() }, configuredProviders);
 
     if (!isGenerateAiResponseDto(result, input.role ?? 'buyer')) {
       throw new Error('AI service received an invalid response shape from the provider gateway.');

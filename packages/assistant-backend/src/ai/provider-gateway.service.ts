@@ -18,6 +18,7 @@ export type ProviderGatewayRequest = FixtureProviderRequest & {
   baseUrl?: string;
   modelName?: string;
   apiKey?: string;
+  timeoutMs?: number;
 };
 
 //choose the provider
@@ -30,11 +31,14 @@ function isValidProviderGatewayResponse(value: unknown, expectedRole?: AiRole): 
 
 // Only a coarse reason is logged; provider messages may echo user content.
 export function classifyProviderFailure(error: unknown): string {
+  // AbortSignal.timeout rejects with a DOMException named TimeoutError.
+  if ((error as { name?: unknown } | null)?.name === 'TimeoutError') return 'timeout';
   const message = error instanceof Error ? error.message : '';
   const status = message.match(/request failed: (\d{3})/)?.[1];
   if (status) return `http_${status}`;
   const schemaReason = message.match(/schema validation: ([a-z0-9_]+)/i)?.[1];
   if (schemaReason) return `invalid_response_${schemaReason.toLowerCase()}`;
+  if (/not configured/i.test(message)) return 'not_configured';
   if (/non-JSON/i.test(message)) return 'invalid_response_non_json';
   if (/restricted/i.test(message)) return 'invalid_response_restricted';
   if (/no content/i.test(message)) return 'invalid_response_no_content';
@@ -92,6 +96,11 @@ export class ProviderGatewayService {
     const hasValidRealConfig = Boolean(realBaseUrl && realModelName && realApiKey);
 
     if (enabledReal && !hasValidRealConfig) {
+      // Names only: the values may be secrets.
+      const missing = [
+        ['AI_BASE_URL', realBaseUrl], ['AI_MODEL_NAME', realModelName], ['AI_API_KEY', realApiKey],
+      ].filter(([, value]) => !value).map(([name]) => name);
+      this.logger.warn(`Falling back to guided input: not_configured (missing ${missing.join(', ')})`);
       throw new ServiceUnavailableException('Real AI provider is enabled but not fully configured.');
     }
 
@@ -126,7 +135,8 @@ export class ProviderGatewayService {
             break;
           } catch (error) {
             this.logger.warn(`Real provider attempt ${attempt + 1} failed: ${classifyProviderFailure(error)}`);
-            if (attempt === 1 || classifyProviderFailure(error) === 'http_429') {
+            // A second wait after a rate limit or a timeout would only delay the guided fallback.
+            if (attempt === 1 || ['http_429', 'timeout'].includes(classifyProviderFailure(error))) {
               throw error;
             }
           }

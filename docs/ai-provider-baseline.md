@@ -2,6 +2,8 @@
 
 How the AI boundary behaves on valid replies, malformed replies, rate limits and outages. Every number below comes from a committed fixture and a test that fails if the behavior changes. No hosted model is called.
 
+Configuration, runbook, reason codes and known limits are in [ai-provider-handoff.md](ai-provider-handoff.md).
+
 ## Reproduce
 
 From the repository root:

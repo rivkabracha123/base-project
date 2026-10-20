@@ -11,6 +11,7 @@ export type RealProviderRequest = {
   modelName?: string;
   apiKey?: string;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
 };
 
 export type RealProviderResponse = {
@@ -29,6 +30,8 @@ export type RealProviderResponse = {
 };
 
 export const MAX_PROVIDER_PROMPT_LENGTH = 4000;
+// A ceiling, not a measured latency: live replies took 2.3-5 s on 2026-10-20 (docs/ai-provider-handoff.md).
+export const DEFAULT_PROVIDER_TIMEOUT_MS = 20_000;
 
 const SELLER_DOMAIN_RULES = [
   'Extract only facts present in the user message.',
@@ -49,13 +52,31 @@ const BUYER_DOMAIN_RULES = [
   'Do not invent prices, sources, comparables, or availability.',
 ] as const;
 
+const PHONE_LIKE = /(?<!\d)\+?\d[\d\s().-]{6,}\d(?!\d)/g;
+
+const CURRENCY = /[$€£₪]|\b(?:usd|ils|nis|eur|gbp|dollars?|euros?)\b|דולר|יורו|שקל|ש["״']?ח/i;
+
+// Item facts that the phone pattern also matches: an ascending year range ("1850-1900") or a
+// thousands-grouped amount next to a currency ("1 000 000 USD"). "1 800 123 456" stays a phone number.
+function isItemFact(match: string, offset: number, text: string): boolean {
+  const years = match.match(/^(1\d{3}|20\d{2})\s*-\s*(1\d{3}|20\d{2})$/);
+  if (years) return Number(years[1]) <= Number(years[2]);
+  if (!/^[1-9]\d{0,2}(?:( |\.)\d{3})(?:\1\d{3})*$/.test(match)) return false;
+  return CURRENCY.test(text.slice(Math.max(0, offset - 8), offset)) ||
+    CURRENCY.test(text.slice(offset + match.length, offset + match.length + 10));
+}
+
+function isPhoneLike(text: string): boolean {
+  return [...text.matchAll(PHONE_LIKE)].some((match) => !isItemFact(match[0], match.index ?? 0, text));
+}
+
 export function sanitizePrompt(prompt: string): string {
   return prompt
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
     .replace(/data:image\/[a-z0-9.+-]+;base64,[^\s]+/gi, '[image removed]')
     .replace(/https?:\/\/[^\s]+|www\.[^\s]+/gi, '[url removed]')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[contact removed]')
-    .replace(/(?<!\d)\+?\d[\d\s().-]{6,}\d(?!\d)/g, '[contact removed]')
+    .replace(PHONE_LIKE, (match: string, offset: number, text: string) => isItemFact(match, offset, text) ? match : '[contact removed]')
     .replace(/\b(?:verification\s+code|verify|otp|code|אימות|קוד)\s*[:#-]?\s*[A-Z0-9]{4,12}\b/gi, '[verification code removed]')
     .replace(/\b(?:api[_ -]?key|token|password|passwd|secret|credential)\s*[:=]\s*[^\s]+/gi, '[credential removed]')
     .slice(0, MAX_PROVIDER_PROMPT_LENGTH);
@@ -66,7 +87,7 @@ function containsRestrictedProviderContent(content: string): boolean {
     /data:image\/[a-z0-9.+-]+;base64,/i.test(content) ||
     /https?:\/\/[^\s"']+|www\.[^\s"']+/i.test(content) ||
     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(content) ||
-    /(?<!\d)\+?\d[\d\s().-]{6,}\d(?!\d)/.test(content) ||
+    isPhoneLike(content) ||
     /\b(?:verification\s+code|verify|otp|code|אימות|קוד)\s*[:#-]?\s*[A-Z0-9]{4,12}\b/i.test(content) ||
     /\b(?:api[_ -]?key|token|password|passwd|secret|credential)\s*[:=]\s*[^\s]+/i.test(content)
   );
@@ -188,10 +209,6 @@ function describeInvalidResponse(value: unknown, role: AiRole): string {
   return 'invalid_handoff_contract';
 }
 
-//inser the input to AI provider
-
-//option to switch between the mock and fetch for test
-
 // OpenAI models that support response_format json_schema with strict: true.
 const STRICT_SCHEMA_OPENAI_MODEL = /^(?:gpt-4o(?:-mini)?|gpt-4\.1(?:-mini|-nano)?)(?:-\d{4}-\d{2}-\d{2})?$/;
 
@@ -204,7 +221,7 @@ export class RealProviderService {
     const role = input.role ?? 'buyer';
 
     if (!baseUrl || !modelName || !apiKey) {
-      throw new Error('Real provider is not configured. Set baseUrl, modelName, and apiKey.');
+      throw new Error('Real provider is not configured. Set AI_BASE_URL, AI_MODEL_NAME and AI_API_KEY.');
     }
     const groqProvider = new URL(baseUrl).hostname === 'api.groq.com';
     // Without a strict JSON schema the model often breaks the handoff contract and every turn falls back to guided mode.
@@ -215,6 +232,7 @@ export class RealProviderService {
 
     //sent the actual request to the real provider
     const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      signal: AbortSignal.timeout(input.timeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS),
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -270,7 +288,6 @@ export class RealProviderService {
         ],
       }),
     });
-        //sent the actual request to AI provider
 
     // Check if the request was successful
     if (!response.ok) {
@@ -332,13 +349,14 @@ export class RealProviderService {
   }
 
   // Free-text writing (catalog descriptions, enquiry letters). No JSON schema: the caller wants finished prose.
-  async generateText(input: Pick<RealProviderRequest, 'prompt' | 'language' | 'baseUrl' | 'modelName' | 'apiKey' | 'fetchImpl'>): Promise<string> {
+  async generateText(input: Pick<RealProviderRequest, 'prompt' | 'language' | 'baseUrl' | 'modelName' | 'apiKey' | 'fetchImpl' | 'timeoutMs'>): Promise<string> {
     const { baseUrl, modelName, apiKey } = input;
     if (!baseUrl || !modelName || !apiKey) {
-      throw new Error('Real provider is not configured. Set baseUrl, modelName, and apiKey.');
+      throw new Error('Real provider is not configured. Set AI_BASE_URL, AI_MODEL_NAME and AI_API_KEY.');
     }
     const language = input.language === 'en' ? 'English' : 'Hebrew';
     const response = await (input.fetchImpl ?? fetch)(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      signal: AbortSignal.timeout(input.timeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS),
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
