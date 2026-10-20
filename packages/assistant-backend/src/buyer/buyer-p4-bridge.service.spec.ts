@@ -33,6 +33,19 @@ describe('BuyerP4BridgeService house ranking', () => {
     expect(criteria.getCriteriaForSession(id).categories).toEqual(['rings']);
   });
 
+  it('keeps the item type from the opening message when the AI returns only the broad category', async () => {
+    const criteria = new BuyerCriteriaService();
+    // Live gpt-4o-mini reply on 2026-10-20: rare_books alone matched all 16 lots, printed books included.
+    const extract = buildFixtureAiExtract('אני רוצה לחפש כתב יד', 'he');
+    extract.provider = 'real';
+    extract.structuredAnswer = { role: 'buyer', language: 'he', intent: 'Find a manuscript', category: 'rare_books',
+      hasContactDetails: false, hasImages: false } as never;
+    const p4 = { generateBuyerExtract: jest.fn().mockResolvedValue({ extract, readyForFunction: false,
+      intentRoute: { functionName: null, readyForFunction: false }, functionParameters: null }) };
+    const opened = await new BuyerP4BridgeService(p4 as never, criteria).openConversation({ message: 'אני רוצה לחפש כתב יד', language: 'he' });
+    expect(criteria.getCriteriaForSession(opened.chat.sessionId)).toMatchObject({ categories: ['rare_books'], keywords: ['manuscript'] });
+  });
+
   it('includes earlier chat turns when routing a contextual follow-up', async () => {
     const criteria = new BuyerCriteriaService();
     const extract = buildFixtureAiExtract('yes', 'he');
