@@ -54,11 +54,16 @@ describe("Seller intake evidence handoff", () => {
       [reference.fileId],
     );
 
-    const handoff = sellerIntake.buildHandoffPayload(reviewedDraft);
+    const correctedDraft = sellerIntake.applySellerDraftCorrection(
+      reviewedDraft,
+      "provenance",
+      "Synthetic family archive",
+    );
+    const handoff = sellerIntake.buildHandoffPayload(correctedDraft);
 
     // Evidence is attached to the current profile and item only.
-    expect(reviewedDraft.item.evidenceIds).toContain(reference.fileId);
-    expect(reviewedDraft.evidence).toEqual(
+    expect(correctedDraft.item.evidenceIds).toContain(reference.fileId);
+    expect(correctedDraft.evidence).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: reference.fileId,
@@ -74,10 +79,16 @@ describe("Seller intake evidence handoff", () => {
       ]),
     );
 
-    expect(reviewedDraft.factEvidence).toEqual({ marks: [reference.fileId] });
-    expect(reviewedDraft.confirmedFacts).toEqual({});
-    expect(handoff.evidence).toEqual(reviewedDraft.evidence);
+    expect(correctedDraft.factEvidence).toEqual({ marks: [reference.fileId] });
+    expect(correctedDraft.item.provenance).toBe("Synthetic family archive");
+    expect(correctedDraft.confirmedFacts.provenance).toBeUndefined();
+    expect(correctedDraft.uncertainFacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "provenance", status: "uncertain", value: "Synthetic family archive" }),
+    ]));
+    expect(handoff.evidence).toEqual(correctedDraft.evidence);
     expect(handoff.factEvidence).toEqual({ marks: [reference.fileId] });
+    expect(handoff.confirmedFacts.provenance).toBeUndefined();
+    expect(handoff.uncertainFacts).toEqual(correctedDraft.uncertainFacts);
 
     const serialized = JSON.stringify(handoff);
     expect(serialized).not.toMatch(/phone|email|password|credential|signed.?url/i);

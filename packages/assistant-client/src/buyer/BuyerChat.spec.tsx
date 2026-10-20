@@ -449,6 +449,10 @@ describe('BuyerChat', () => {
 
     const sent = await screen.findByText('Hello there');
     expect(sent.closest('li')).toHaveAttribute('data-speaker', 'buyer');
+    await waitFor(() => {
+      const savedMessages = JSON.parse(localStorage.getItem('monabid.chat.buyer.en') ?? '[]') as { text?: string }[];
+      expect(savedMessages.some((message) => message.text === 'Hello there')).toBe(true);
+    });
   });
 
   // בודק שלחיצה על Enter בשדה שולחת את ההודעה, בלי הכפתור.

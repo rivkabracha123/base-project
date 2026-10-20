@@ -30,6 +30,8 @@ import { AddSellerLeadFinal1788220800003 } from './1788220800003-add-seller-lead
 import { AddSellerLeadDashboard1788220800004 } from './1788220800004-add-seller-lead-dashboard';
 import { CreateSellerIntakeDrafts1788220800005 } from './1788220800005-create-seller-intake-drafts';
 import { AddSellerEnquiryText1788220800007 } from './1788220800007-add-seller-enquiry-text';
+import { ChatConversationEntity } from './chat-conversation.entity';
+import { CreateChatConversations1790000000000 } from './1790000000000-create-chat-conversations';
 
 const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://monabid:monabid@localhost:5432/monabid';
 
@@ -49,6 +51,7 @@ const AppDataSource = new DataSource({
     BuyerUnmatchedDemandEntity,
     SellerIntakeDraftEntity,
     AiHistoryEntity,
+    ChatConversationEntity,
   ],
   migrations: [
     CreateAuctionLots1710000000000,
@@ -68,6 +71,7 @@ const AppDataSource = new DataSource({
     CreateSellerIntakeDrafts1788220800005,
     AlignLegacySellerLeads1788220800006,
     AddSellerEnquiryText1788220800007,
+    CreateChatConversations1790000000000,
   ],
   synchronize: false,
   logging: false,

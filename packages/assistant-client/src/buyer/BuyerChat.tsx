@@ -62,6 +62,9 @@ export function BuyerChat() {
     userMessage: (text) => ({ speaker: 'buyer', skipped: false, text }),
     connect: (text, onUpdate) => connectLevels(text, onUpdate, language),
     errorText: t('chat.sendError'),
+    storageKey: `monabid.chat.buyer.${language}`,
+    chatRole: 'buyer',
+    chatLanguage: language,
     // מזהה השיחה האמיתי שהשרת של B2 החזיר (null לפני ההודעה הראשונה).
     getSessionId: () => getBuyerChatFlowSnapshot().sessionId,
   });

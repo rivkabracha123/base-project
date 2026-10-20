@@ -100,6 +100,9 @@ export function SellerChat() {
       draftShown.current,
     ),
     errorText: t('chat.sendError'),
+    storageKey: `monabid.chat.seller.${language}`,
+    chatRole: 'seller',
+    chatLanguage: language,
   });
 
   function showItemDraft(draft: SellerItemDraft) {

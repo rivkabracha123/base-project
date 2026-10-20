@@ -114,6 +114,98 @@ describe('SellerIntakeAiAdapter', () => {
     expect(asked.requiredMissingFields).toContain('condition');
     expect(asked.item.condition).not.toBe('Please estimate value');
   });
+  it.each(['skip', 'דלג'])('records an explicit skipped required question without inventing an answer (%s)', async skip => {
+    const generate = jest.fn().mockResolvedValue({
+      provider: 'real', mode: 'real', isRelevant: true, error: null,
+      structuredAnswer: { ...handoff, category: 'paintings', item: { title: 'Painting' }, missingFacts: [] },
+    });
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    const first = await adapter.analyze('I want to sell a painting', 'skip-required');
+    expect(first.nextQuestion?.field).toBe('dimensions');
+
+    const skipped = await adapter.analyze(skip, 'skip-required');
+    expect(skipped.skippedFields).toEqual(['dimensions']);
+    expect(skipped.missingFields).toContain('dimensions');
+    expect(skipped.requiredMissingFields).toContain('dimensions');
+    expect(skipped.nextQuestion?.field).toBe('condition');
+    expect(skipped.item.dimensions.values).toEqual([]);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+  it('asks every required detail, keeps skipped blockers missing, and restores skip state after restart', async () => {
+    const generate = jest.fn()
+      .mockResolvedValueOnce({
+        provider: 'real', mode: 'real', isRelevant: true, error: null,
+        structuredAnswer: { ...handoff, category: 'paintings', item: { title: 'Painting' }, missingFacts: [] },
+      })
+      .mockResolvedValue({
+        provider: 'real', mode: 'real', isRelevant: true, error: null,
+        structuredAnswer: {
+          ...handoff,
+          category: 'paintings',
+          item: {
+            title: 'Painting',
+            dimensions: { values: [{ label: 'width', value: 60, unit: 'cm' }] },
+            condition: 'Good',
+          },
+          missingFacts: [],
+        },
+      });
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    const first = await adapter.analyze('I want to sell a painting', 'skip-blocking');
+    const skipped = await adapter.analyze('prefer not to say', 'skip-blocking');
+    const afterSecondSkip = await adapter.analyze('דלג', 'skip-blocking');
+
+    expect(afterSecondSkip.skippedFields).toEqual(['dimensions', 'condition']);
+    expect(afterSecondSkip.requiredMissingFields).toEqual(['dimensions', 'condition']);
+    expect(afterSecondSkip.nextQuestion).toBeNull();
+    const recommendation = await adapter.analyze('Which auction houses are recommended?', 'skip-blocking');
+    expect(recommendation.functionCall).toBeNull();
+    expect(recommendation.nextQuestion).toBeNull();
+    expect(generate).toHaveBeenCalledTimes(1);
+    const answered = await adapter.analyze('It measures 60 cm and is in good condition.', 'skip-blocking');
+    expect(answered.skippedFields).toEqual([]);
+    expect(answered.missingFields).toEqual(expect.arrayContaining(['marks', 'signatures', 'provenance']));
+    expect(answered.requiredMissingFields).toEqual([]);
+    expect(answered.nextQuestion).toBeNull();
+
+    const restoredDraft = intake.analyze('painting');
+    restoredDraft.item.category = 'paintings';
+    restoredDraft.skippedFields = skipped.skippedFields;
+    const restored = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    restored.restoreSession('skip-restored', restoredDraft);
+    const resumed = await restored.analyze('skip', 'skip-restored');
+    expect(resumed.skippedFields).toEqual(['dimensions', 'condition']);
+    expect(resumed.missingFields).toEqual(expect.arrayContaining(['dimensions', 'condition']));
+    expect(resumed.requiredMissingFields).toEqual(['dimensions', 'condition']);
+    expect(resumed.nextQuestion).toBeNull();
+    expect(first.requiredMissingFields).toContain('dimensions');
+  });
+  it('asks only the required detail questions and keeps the other details missing when AI reports only one missing fact', async () => {
+    const generate = jest.fn().mockResolvedValue({
+      provider: 'real', mode: 'real', isRelevant: true, error: null,
+      structuredAnswer: { ...handoff, category: 'paintings', item: { title: 'Painting' }, missingFacts: ['provenance'] },
+    });
+    const adapter = new SellerIntakeAiAdapter(intake, { generateSellerExtract: generate } as never);
+    const expected = ['dimensions', 'condition', 'marks', 'signatures', 'provenance'];
+
+    let result = await adapter.analyze('I want to sell a painting', 'all-missing-details');
+    const asked: string[] = [];
+    while (result.nextQuestion) {
+      asked.push(result.nextQuestion.field);
+      expect(result.nextQuestion.he).toBeTruthy();
+      expect(result.nextQuestion.en).toBeTruthy();
+      result = await adapter.analyze('skip', 'all-missing-details');
+    }
+
+    expect(asked).toEqual(['dimensions', 'condition']);
+    expect(result.missingFields).toEqual(expect.arrayContaining(expected));
+    expect(result.confirmedFacts).toEqual({});
+    expect(result.item.condition).toBeUndefined();
+    expect(result.item.markings).toBeUndefined();
+    expect(result.item.signatures).toBeUndefined();
+    expect(result.item.provenance).toBeUndefined();
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
   it('normalizes an explicit ring from jewelry and does not consume an action as condition', async () => {
     const generate = jest.fn().mockResolvedValue({ provider: 'real', mode: 'real', isRelevant: true, error: null,
       structuredAnswer: { ...handoff, category: 'jewelry', item: { title: 'Blue ring', dimensions: { values: [{ label: 'size', value: 8, unit: 'size' }] } }, missingFacts: ['condition'] } });
@@ -524,8 +616,16 @@ describe('SellerIntakeAiAdapter', () => {
       item: { ...handoff.item, dimensions: { values: [] } },
     });
     expect(result.ai.aiMissingFields).toEqual(['marks', 'signatures']);
-    expect(result.missingFields).toEqual(['marks', 'signatures']);
+    expect(result.missingFields).toEqual(expect.arrayContaining([
+      'dimensions',
+      'condition',
+      'marks',
+      'signatures',
+      'provenance',
+    ]));
     expect(result.item.dimensions.values).toEqual([]);
+    expect(result.confirmedFacts).toEqual({});
+    expect(result.item.catalogDraft.en).toContain('category not confirmed');
   });
 
   it('uses AI-extracted axes and units for the draft instead of parsing dimensions from text', async () => {
