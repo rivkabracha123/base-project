@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { ChatConversationEntity } from '../database/chat-conversation.entity';
 import { ProfilesService } from '../profiles/profiles.service';
@@ -18,48 +19,49 @@ export class ChatConversationsService {
   ) {}
 
   /**
-   * Creates or updates the complete chat snapshot after verifying profile ownership.
-   * יוצרת או מעדכנת את תמונת השיחה המלאה לאחר אימות הבעלות של הפרופיל.
+   * Saves every chat change as a new row (messageId) under the same conversationId.
+   * שומרת כל שינוי בשיחה כשורה חדשה (messageId) תחת אותו מזהה שיחה, לאחר אימות הבעלות של הפרופיל.
    */
   async saveSnapshot(
     anonymousSessionId: string | undefined,
     conversationId: string,
     snapshot: SaveChatSnapshotDto,
-  ): Promise<{ conversationId: string; version: number; status: string }> {
+  ): Promise<{ conversationId: string; messageId: string; version: number; status: string }> {
     if (!anonymousSessionId?.trim() || anonymousSessionId.length > 200) {
       throw new BadRequestException('A valid anonymous session ID is required');
     }
 
     const profile = await this.profiles.getOrCreateBySessionId(anonymousSessionId);
-    const status = snapshot.completed ? 'completed' : 'active';
-    const endedAt = snapshot.completed ? new Date() : null;
+    const latest = await this.findLatest(conversationId);
 
-    // כתיבה מותנית אטומית מונעת מ-snapshot ישן או מפרופיל אחר לדרוס את השיחה.
-    const inserted = await this.conversations.query(
+    if (latest) {
+      if (latest.userId !== profile.id) {
+        throw new NotFoundException('Conversation not found');
+      }
+      if (latest.role !== snapshot.role || latest.language !== snapshot.language) {
+        throw new BadRequestException('Conversation role and language cannot be changed');
+      }
+      // גרסה ישנה או שווה כבר נשמרה - לא יוצרים שורה חדשה.
+      if (latest.snapshotVersion >= snapshot.version) {
+        return this.toResult(latest);
+      }
+    }
+
+    // שיחה שהסתיימה נשארת מסומנת כ-completed גם בגרסאות הבאות.
+    const completed = snapshot.completed || latest?.status === 'completed';
+    const status = completed ? 'completed' : 'active';
+    const endedAt = completed ? (latest?.endedAt ?? new Date()) : null;
+
+    // האינדקס הייחודי על (conversation_id, snapshot_version) מונע כפילות בשמירות מקבילות.
+    await this.conversations.query(
       `INSERT INTO "chat_conversations" (
-         "id", "user_id", "role", "language", "status", "messages",
-         "snapshot_version", "ended_at"
+         "message_id", "conversation_id", "user_id", "role", "language", "status",
+         "messages", "snapshot_version", "ended_at"
        )
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
-       ON CONFLICT ("id") DO UPDATE SET
-         "messages" = EXCLUDED."messages",
-         "snapshot_version" = EXCLUDED."snapshot_version",
-         "status" = CASE
-           WHEN EXCLUDED."status" = 'completed' THEN 'completed'
-           ELSE "chat_conversations"."status"
-         END,
-         "updated_at" = now(),
-         "ended_at" = CASE
-           WHEN EXCLUDED."status" = 'completed'
-             THEN COALESCE("chat_conversations"."ended_at", EXCLUDED."ended_at")
-           ELSE "chat_conversations"."ended_at"
-         END
-       WHERE "chat_conversations"."user_id" = EXCLUDED."user_id"
-         AND "chat_conversations"."role" = EXCLUDED."role"
-         AND "chat_conversations"."language" = EXCLUDED."language"
-         AND "chat_conversations"."snapshot_version" < EXCLUDED."snapshot_version"
-       RETURNING "id"`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
+       ON CONFLICT ("conversation_id", "snapshot_version") DO NOTHING`,
       [
+        randomUUID(),
         conversationId,
         profile.id,
         snapshot.role,
@@ -71,24 +73,31 @@ export class ChatConversationsService {
       ],
     );
 
-    const saved = await this.conversations.findOneBy({ id: conversationId });
+    const saved = await this.findLatest(conversationId);
     if (!saved || saved.userId !== profile.id) {
       throw new NotFoundException('Conversation not found');
     }
 
-    if (saved.role !== snapshot.role || saved.language !== snapshot.language) {
-      throw new BadRequestException('Conversation role and language cannot be changed');
-    }
+    return this.toResult(saved);
+  }
 
-    // אם הכתיבה המותנית לא החזירה שורה, זו גרסה ישנה או שווה שכבר נשמרה.
-    if (inserted.length === 0 && saved.snapshotVersion < snapshot.version) {
-      throw new Error('Chat snapshot could not be saved');
-    }
+  /**
+   * Returns the newest saved version of a conversation, if any.
+   * מחזירה את הגרסה האחרונה שנשמרה עבור השיחה, אם קיימת.
+   */
+  private findLatest(conversationId: string): Promise<ChatConversationEntity | null> {
+    return this.conversations.findOne({
+      where: { conversationId },
+      order: { snapshotVersion: 'DESC' },
+    });
+  }
 
+  private toResult(row: ChatConversationEntity) {
     return {
-      conversationId: saved.id,
-      version: saved.snapshotVersion,
-      status: saved.status,
+      conversationId: row.conversationId,
+      messageId: row.messageId,
+      version: row.snapshotVersion,
+      status: row.status,
     };
   }
 }

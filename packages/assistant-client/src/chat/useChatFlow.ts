@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ZodType } from 'zod';
 import type { BaseChatMessage, ChatUpdate, OnChatUpdate } from './chat-types';
-import { sanitizeChatForLocalStorage } from './local-chat-storage';
-import { syncChatSnapshotFromLocalStorage } from '../app/api';
+import { sanitizeChatForLocalStorage, sanitizeChatForServer } from './local-chat-storage';
+import { syncChatSnapshot } from '../app/api';
 
 // Placeholder session id for locally-created messages until the client is wired to the real P3 anonymous session.
 export const LOCAL_SESSION_ID = 'local-session';
@@ -81,8 +81,10 @@ export function useChatFlow<TMessage extends BaseChatMessage>({
     // לא שומרים בשרת את שיחת הדוגמה עד שהמשתמש הוסיף הודעה מקומית.
     if (liveMessages.length === 0 || !chatRole || !chatLanguage || query.isError) return;
 
-    void syncChatSnapshotFromLocalStorage(
+    // לשרת נשלחת השיחה עם ההפניות לתמונות (fileId), ש-localStorage לא שומר.
+    void syncChatSnapshot(
       storageKey,
+      sanitizeChatForServer(messages) as unknown[],
       chatRole,
       chatLanguage,
     ).catch((error) => {

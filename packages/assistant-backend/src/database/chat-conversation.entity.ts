@@ -6,8 +6,11 @@ export type ChatConversationStatus = 'active' | 'completed';
 
 @Entity({ name: 'chat_conversations' })
 export class ChatConversationEntity {
-  @PrimaryColumn('uuid')
-  id!: string;
+  @PrimaryColumn({ name: 'message_id', type: 'uuid' })
+  messageId!: string;
+
+  @Column({ name: 'conversation_id', type: 'uuid' })
+  conversationId!: string;
 
   @Column({ name: 'user_id', type: 'varchar' })
   userId!: string;

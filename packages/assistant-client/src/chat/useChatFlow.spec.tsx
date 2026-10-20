@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { baseMessageFields, errorMessageSchema, systemMessageSchema } from '@monabid/shared';
 import { createQueryClient } from '../app/query-client';
 import type { OnChatUpdate } from './chat-types';
-import { sanitizeChatForLocalStorage, sanitizeExistingLocalChatStorage } from './local-chat-storage';
+import { sanitizeChatForLocalStorage, sanitizeChatForServer, sanitizeExistingLocalChatStorage } from './local-chat-storage';
 import { useChatFlow } from './useChatFlow';
 
 // סכמת בדיקה קטנה: משתמש, מערכת ושגיאה — כמו הצורה המשותפת לקונה ולמוכר.
@@ -73,6 +73,46 @@ describe('useChatFlow', () => {
       speaker: 'user',
       text: 'My password: [REDACTED] and my API key: [REDACTED]',
       image: { description: 'safe image' },
+    });
+  });
+
+  it('keeps image references for the server snapshot but still removes private fields', () => {
+    const sanitized = sanitizeChatForServer({
+      speaker: 'seller',
+      text: 'My password is swordfish',
+      profileId: 'profile-private',
+      images: [{
+        fileId: 'file-1',
+        profileId: 'profile-private',
+        itemId: 'item-1',
+        originalName: 'watch.jpg',
+        mimeType: 'image/jpeg',
+        size: 1024,
+        previewUri: '/evidence/profile-private/file-1',
+        downloadUri: '/evidence/profile-private/file-1/download',
+      }],
+    });
+
+    expect(sanitized).toEqual({
+      speaker: 'seller',
+      text: 'My password: [REDACTED]',
+      images: [{
+        fileId: 'file-1',
+        itemId: 'item-1',
+        originalName: 'watch.jpg',
+        mimeType: 'image/jpeg',
+        size: 1024,
+      }],
+    });
+  });
+
+  it('still drops image references from local storage', () => {
+    expect(sanitizeChatForLocalStorage({
+      speaker: 'seller',
+      images: [{ fileId: 'file-1', itemId: 'item-1', mimeType: 'image/jpeg' }],
+    })).toEqual({
+      speaker: 'seller',
+      images: [{ mimeType: 'image/jpeg' }],
     });
   });
 

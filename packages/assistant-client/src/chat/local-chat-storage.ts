@@ -21,17 +21,45 @@ function sanitizeSensitiveText(text: string): string {
   );
 }
 
-export function sanitizeChatForLocalStorage(value: unknown): unknown {
+// בתמונות שנשלחות לשרת נשארים fileId ו-itemId כדי שאפשר יהיה למצוא את הקובץ שהועלה.
+// profileId והכתובות לא נשלחים - השרת כבר מכיר את הפרופיל ויכול לבנות אותן מחדש.
+const serverImageSensitiveKeyPattern = /password|passwd|pwd|passcode|secret|token|authorization|credential|api.?key|profile.?id|(?:preview|download).?uri/i;
+
+function sanitizeChat(value: unknown, keepImageReferences: boolean): unknown {
   if (typeof value === 'string') return sanitizeSensitiveText(value);
-  if (Array.isArray(value)) return value.map(sanitizeChatForLocalStorage);
+  if (Array.isArray(value)) return value.map((entry) => sanitizeChat(entry, keepImageReferences));
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value).flatMap(([key, entry]) =>
-        sensitiveStorageKeyPattern.test(key) ? [] : [[key, sanitizeChatForLocalStorage(entry)]],
-      ),
+      Object.entries(value).flatMap(([key, entry]) => {
+        if (keepImageReferences && key === 'images' && Array.isArray(entry)) {
+          return [[key, entry.map((image) => sanitizeImageReference(image))]];
+        }
+        return sensitiveStorageKeyPattern.test(key) ? [] : [[key, sanitizeChat(entry, keepImageReferences)]];
+      }),
     );
   }
   return value;
+}
+
+function sanitizeImageReference(image: unknown): unknown {
+  if (image === null || typeof image !== 'object' || Array.isArray(image)) return sanitizeChat(image, false);
+  return Object.fromEntries(
+    Object.entries(image).flatMap(([key, entry]) =>
+      serverImageSensitiveKeyPattern.test(key) ? [] : [[key, sanitizeChat(entry, false)]],
+    ),
+  );
+}
+
+export function sanitizeChatForLocalStorage(value: unknown): unknown {
+  return sanitizeChat(value, false);
+}
+
+/**
+ * Sanitizes the chat like local storage, but keeps image references (fileId, itemId) for the server snapshot.
+ * מנקה את השיחה כמו ב-localStorage, אבל משאירה את ההפניה לתמונות (fileId, itemId) לשמירה בשרת.
+ */
+export function sanitizeChatForServer(value: unknown): unknown {
+  return sanitizeChat(value, true);
 }
 
 export function sanitizeExistingLocalChatStorage(): void {

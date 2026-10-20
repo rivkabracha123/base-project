@@ -89,25 +89,18 @@ export function getAnonymousSessionId(): string {
 }
 
 /**
- * Reads the locally stored chat and sends its latest snapshot to the backend.
- * קוראת את השיחה שנשמרה מקומית ושולחת לשרת את תמונת המצב העדכנית שלה.
+ * Sends the latest chat snapshot (including image references) to the backend.
+ * The conversation ID and version counter are kept in localStorage under storageKey.
+ * שולחת לשרת את תמונת המצב העדכנית של השיחה (כולל הפניות לתמונות).
+ * מזהה השיחה ומונה הגרסאות נשמרים ב-localStorage תחת storageKey.
  */
-export async function syncChatSnapshotFromLocalStorage(
+export async function syncChatSnapshot(
   storageKey: string,
+  messages: unknown[],
   role: 'buyer' | 'seller',
   language: 'he' | 'en',
   completed = false,
 ): Promise<void> {
-  const storedMessages = localStorage.getItem(storageKey);
-  if (!storedMessages) {
-    throw new Error(`No local chat exists for key "${storageKey}"`);
-  }
-
-  const messages: unknown = JSON.parse(storedMessages);
-  if (!Array.isArray(messages)) {
-    throw new Error(`Stored chat for key "${storageKey}" is not an array`);
-  }
-
   const conversationIdKey = `${storageKey}.conversationId`;
   let conversationId = localStorage.getItem(conversationIdKey);
   if (!conversationId) {
