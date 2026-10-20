@@ -59,6 +59,7 @@ export class ChatConversationsService {
          "messages", "snapshot_version", "ended_at"
        )
        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
+  
        ON CONFLICT ("conversation_id", "snapshot_version") DO NOTHING`,
       [
         randomUUID(),
