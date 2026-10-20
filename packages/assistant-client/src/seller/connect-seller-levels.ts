@@ -8,6 +8,7 @@ import type { SellerItemDraft } from '@monabid/shared';
 import { correctSellerDraftField, getCurrentSellerDraft } from './connect-seller-correction';
 import { sellerComparisonFoundStepText, sellerHousesFoundStepText, sellerSearchingStepText } from './seller-steps';
 import { selectableHouses } from '../app/SellerJourneyChrome';
+import { continueSellerCatalogReview, startSellerCatalogReview } from './seller-catalog-review';
 
 interface SellerIntakeResponse {
   ai?: { fallbackMode?: 'guided'; isRelevant?: boolean; generalInformation?: boolean; summary?: string; recommendation?: string; nextAction?: string };
@@ -21,6 +22,9 @@ interface SellerIntakeResponse {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const PENDING_UPLOAD_ITEM_KEY = 'monabid.seller.pendingEvidenceItemId';
 const DRAFT_READY_STORAGE_KEY = 'monabid.seller.itemDraftReady';
+const ITEM_DETAILS_REQUEST = /item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט/i;
+// The request with its lead-in ("ותן לי את", "and show me the"), so only the rest of the message remains.
+const ITEM_DETAILS_REQUEST_PHRASE = /(?:\s*(?:,|ו)?\s*(?:אני\s+)?(?:(?:רוצה|אפשר)\s+)?(?:(?:תן|תני|תנו|תציג|תציגי|הצג|הציגי|תראה|תראי|לראות|להציג)\s+)?(?:לי\s+)?(?:את\s+)?|\s*(?:,|and\b)?\s*(?:(?:please\s+)?(?:show|give|send)\s+(?:me\s+)?)?(?:the\s+|my\s+)?)(?:item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט)/i;
 
 export function getPendingSellerEvidenceItemId(): string | undefined {
   return typeof sessionStorage === 'undefined'
@@ -227,7 +231,11 @@ export async function connectSellerLevels(
     if (!input) throw new Error('יש להזין הודעה לפני השליחה.');
 
     const { profileId, sessionId } = await getSellerMessageIds();
-    if (onDraftReady && /item details|more details|פרטי\s+(?:ה)?פריט|פרטים\s+על\s+(?:ה)?פריט/i.test(input)) {
+    if (await continueSellerCatalogReview(input, { profileId, sessionId }, onUpdate)) return;
+    if (onDraftReady && ITEM_DETAILS_REQUEST.test(input)) {
+      // "כן יש חריטה מאחורה ותן לי פרטי הפריט": save the answer first, then show the details.
+      const content = input.replace(ITEM_DETAILS_REQUEST_PHRASE, ' ').replace(/[\s,.!]+$/, '').trim();
+      if (content.replace(/[^\p{L}\p{N}]+/gu, '').length >= 3) await connectSellerLevels(content, onUpdate);
       const draft = await getCurrentSellerDraft();
       if (!draft) throw new Error(i18n.language.startsWith('he') ? 'עדיין אין פריט שמור בשיחה הזו.' : 'There is no saved item in this conversation yet.');
       await sendSellerMessage(i18n.language.startsWith('he') ? 'פרטי הפריט שלך:' : 'Your item details:', onUpdate);
@@ -312,11 +320,9 @@ export async function connectSellerLevels(
         });
         return;
       }
-      // The catalog text is saved on the item; it is shown only when the seller asks to see or edit it.
+      // Show only the drafted text and ask whether to save or update it; it is saved on the item after approval.
       if (functionCall.functionToRun === 'getSellerCatalogDraft') {
-        await sendSellerMessage(language === 'he'
-          ? 'ניסחתי טיוטת תיאור לקטלוג ושמרתי אותה בפרטי הפריט. אפשר לבקש לראות אותה או לערוך אותה.'
-          : 'I drafted a catalog description and saved it in your item details. You can ask to see or edit it.', onUpdate);
+        await startSellerCatalogReview(sessionId, language, workflowResult.result, onUpdate);
         return;
       }
       const kinds: Record<string, 'catalog' | 'valuation'> = {

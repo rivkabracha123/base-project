@@ -17,6 +17,31 @@ const EXPLICIT_REQUEST_ONLY = new Set([
   'createSellerLeadDraft', 'createSellerLead', 'submitFinalSellerLead',
 ]);
 
+// An axis word, or a number with a length unit: the answer is a measurement.
+const MEASUREMENT_ANSWER = /קוטר|רוחב|גובה|אורך|עומק|משקל|מידות|\b(?:diameter|width|height|length|depth|weight|dimensions?)\b|\d\s*(?:ס["״']?מ|מ["״']?מ|סנטימטר|מילימטר|אינץ|cm\b|mm\b|in\b|inch)/i;
+
+const AXIS_WORDS: Record<string, RegExp> = {
+  height: /גובה|גבוה|\b(?:height|tall|high)\b/i,
+  width: /רוחב|רחב|\b(?:width|wide)\b/i,
+  length: /אורך|ארוך|\b(?:length|long)\b/i,
+  depth: /עומק|עמוק|\b(?:depth|deep)\b/i,
+  diameter: /קוטר|\bdiameter\b/i,
+  weight: /משקל|שוקל|גרם|ק["״]ג|\b(?:weight|weighs|grams?|kg)\b/i,
+};
+
+// The model names an axis for "20 ס״מ" on its own ("length" for a watch). Keep only what the seller said:
+// drop an unstated axis that repeats a stated one, and call a lone unstated measurement "size".
+function withStatedAxes<T extends { label: string; value: number; unit: string }>(values: T[], sellerText: string): T[] {
+  const stated = (entry: T) => AXIS_WORDS[entry.label.toLowerCase()]?.test(sellerText) ?? true;
+  const unstated = values.filter(entry => !stated(entry));
+  return values.flatMap((entry) => {
+    if (stated(entry)) return [entry];
+    if (values.some(other => stated(other) && other.value === entry.value && other.unit === entry.unit)) return [];
+    // Two or more unstated values ("80 על 70") keep the width × height convention of guidedDimensions.
+    return unstated.length === 1 ? [{ ...entry, label: 'size' }] : [entry];
+  });
+}
+
 // The combined history still holds the unitless "80*70" after the seller answered "ס״מ" in a later turn.
 // Ask for the unit only when the latest message brings new measurements; otherwise keep the saved ones.
 function currentDimensions(
@@ -178,6 +203,8 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     if (itemField && ['condition', 'markings', 'signature', 'provenance'].includes(itemField)
       && !isActionRequest
       && !/\b(?:condition|markings|signature|provenance)\b|\u05de\u05e6\u05d1|\u05e1\u05d9\u05de\u05d5\u05e0|\u05d7\u05ea\u05d9\u05de\u05d4|\u05de\u05e7\u05d5\u05e8/i.test(answer)
+      // "\u05d4\u05d5\u05d0 \u05d1\u05e7\u05d5\u05d8\u05e8 20" answers a measurement, not the markings question that was asked.
+      && !MEASUREMENT_ANSWER.test(answer)
       && answer && !/^(?:yes|\u05db\u05df)[.!\s]*$/i.test(answer)
       && !answer.includes('?') && !/^(?:what|why|how|\u05de\u05d4|\u05dc\u05de\u05d4)\s/i.test(answer)) {
       currentFacts[itemField] = answer;
@@ -336,6 +363,12 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     }
     if (!structuredAnswer.item.dimensions?.values.length && dimensions?.values.length) {
       structuredAnswer.item.dimensions = dimensions;
+    }
+    if (structuredAnswer.item.dimensions?.values.length) {
+      structuredAnswer.item.dimensions = {
+        ...structuredAnswer.item.dimensions,
+        values: withStatedAxes(structuredAnswer.item.dimensions.values, combinedInput),
+      };
     }
     const missingFields = mapAiFactsToIntakeFields(structuredAnswer.missingFacts)
       .filter(field => (field !== 'dimensions' || !structuredAnswer.item.dimensions?.values.length)

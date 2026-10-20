@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { connectSellerLevels, getPendingSellerEvidenceItemId, sendSellerMessage } from './connect-seller-levels';
 import type { SellerUpdate } from '../chat/chat-types';
 import i18n from '../i18n';
+import { resetSellerCatalogReview } from './seller-catalog-review';
 
 vi.mock('./connect-seller-correction', () => ({
   getCurrentSellerDraft: vi.fn(),
@@ -46,18 +47,21 @@ describe('connectSellerLevels', () => {
     expect(correctSellerDraftField).toHaveBeenCalledWith('title', { en: 'כתב יד עתיק למכירה' });
     expect(onDraftReady).toHaveBeenCalledWith(updatedDraft);
   });
-  it('confirms the catalog draft without showing its text until the seller asks for it', async () => {
+  it('shows only the drafted description text, then asks whether to save or update it', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(currentProfile), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ functionCall: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 'session-1' } } }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { title: 'Manuscript', he: 'טיוטה', en: 'Saved catalog facts' } }), { status: 200 })));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { title: 'Manuscript', he: 'טיוטה', en: 'Drafted catalog text' } }), { status: 200 })));
     const callback = vi.fn();
-    await connectSellerLevels('Write a catalog description', callback);
-    expect(callback).toHaveBeenCalledTimes(1);
-    const update = callback.mock.calls[0]![0];
-    expect(update.action).toBeUndefined();
-    expect(update.text).not.toContain('Saved catalog facts');
-    expect(update.text).toMatch(/ניסחתי טיוטת תיאור לקטלוג|I drafted a catalog description/);
+    try {
+      await connectSellerLevels('Write a catalog description', callback);
+      expect(callback).toHaveBeenCalledTimes(2);
+      const [shown, question] = callback.mock.calls.map((call) => call[0]);
+      expect(shown).toEqual({ speaker: 'system', text: expect.stringMatching(/^(?:טיוטה|Drafted catalog text)$/) });
+      expect(question.text).toMatch(/לשמור את התיאור בפרטי הפריט, או לעדכן אותו\?|save this description to your item details, or update it\?/);
+    } finally {
+      resetSellerCatalogReview();
+    }
   });
   it('shows the editable enquiry draft as an action card without requesting contact details yet', async () => {
     vi.stubGlobal('fetch', vi.fn()

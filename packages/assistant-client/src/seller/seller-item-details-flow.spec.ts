@@ -3,6 +3,7 @@ import type { SellerItemDraft } from '@monabid/shared';
 import { connectSellerLevels } from './connect-seller-levels';
 import { getCurrentSellerDraft } from './connect-seller-correction';
 import i18n from '../i18n';
+import { resetSellerCatalogReview } from './seller-catalog-review';
 
 vi.mock('./seller-ids', () => ({ getSellerMessageIds: vi.fn(async () => ({ profileId: 'p', sessionId: 's' })) }));
 vi.mock('./connect-seller-correction', () => ({ getCurrentSellerDraft: vi.fn() }));
@@ -27,11 +28,28 @@ describe('saved seller item details', () => {
       if (functionName === 'calculateSellerValuation') {
         expect(update).toHaveBeenCalledWith(expect.objectContaining({ action: expect.objectContaining({ kind: 'valuation' }) }));
       } else {
-        // The catalog text stays in the item details until the seller asks to see it.
-        expect(update).toHaveBeenCalledWith({ speaker: 'system', text: expect.stringMatching(/ניסחתי טיוטת תיאור לקטלוג|I drafted a catalog description/) });
+        // The drafted text itself is shown, followed by the save-or-update question.
+        expect(update).toHaveBeenCalledWith({ speaker: 'system', text: expect.stringMatching(/^(?:טיוטה|Draft)$/) });
       }
+    } finally { vi.unstubAllGlobals(); resetSellerCatalogReview(); }
+  });
+  it.each([
+    ['כן יש חריטה מאחורה ותן לי פרטי הפריט', 'כן יש חריטה מאחורה'],
+    ['תציג לי את פרטי הפריט', null],
+  ])('saves the rest of "%s" before showing the item details', async (message, sent) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ requiredMissingFields: [], missingFields: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const draft = { item: { title: 'שעון יד' } } as SellerItemDraft;
+    vi.mocked(getCurrentSellerDraft).mockResolvedValue(draft);
+    const showDraft = vi.fn();
+    try {
+      await connectSellerLevels(message, vi.fn(), showDraft);
+      const bodies = fetchMock.mock.calls.map(call => JSON.parse(call[1].body).input);
+      expect(bodies).toEqual(sent ? [sent] : []);
+      expect(showDraft).toHaveBeenCalledWith(draft);
     } finally { vi.unstubAllGlobals(); }
   });
+
   it('displays general auction advice without asking intake questions or showing the draft', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       ai: { isRelevant: true, generalInformation: true, summary: 'A reserve is a minimum sale price.', recommendation: 'The item may remain unsold below it.', nextAction: 'Check the auction terms.' },

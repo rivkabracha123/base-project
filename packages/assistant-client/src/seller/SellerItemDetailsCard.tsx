@@ -23,9 +23,13 @@ function measurementLabel(label: string, language: 'he' | 'en'): string {
     width: { he: 'רוחב', en: 'width' },
     height: { he: 'גובה', en: 'height' },
     depth: { he: 'עומק', en: 'depth' },
+    length: { he: 'אורך', en: 'length' },
+    diameter: { he: 'קוטר', en: 'diameter' },
+    weight: { he: 'משקל', en: 'weight' },
+    size: { he: 'מידה', en: 'size' },
     'ring size': { he: 'מידת טבעת', en: 'ring size' },
   };
-  return labels[label.trim().toLowerCase()]?.[language] ?? label;
+  return labels[label.trim().toLowerCase().replace(/_/g, ' ')]?.[language] ?? label;
 }
 
 function dimensionsText(item: Item, language: 'he' | 'en'): string {

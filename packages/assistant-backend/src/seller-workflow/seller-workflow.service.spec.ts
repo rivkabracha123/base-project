@@ -71,7 +71,35 @@ describe('SellerWorkflowService', () => {
     expect(prompt).toContain('80 × 70 cm');
     expect(prompt).not.toContain('Not yet confirmed');
     expect(result.result).toEqual({ title: 'כתב יד הלכות', he: 'כתב יד הלכתי על קלף, 80 × 70 ס״מ, במצב טוב.', en: '', generatedByAi: true });
-    expect(drafts.correctDraft).toHaveBeenCalledWith(profileId, 's1', 'description', { he: 'כתב יד הלכתי על קלף, 80 × 70 ס״מ, במצב טוב.' });
+    // The chat saves the description only after the seller approves it.
+    expect(drafts.correctDraft).not.toHaveBeenCalled();
+  });
+
+  it('revises the shown description by the seller\'s request without saving it', async () => {
+    const item = { id: 'i', category: 'rare_books', title: 'כתב יד', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'טוב' };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const p4 = { generateSellerText: jest.fn().mockResolvedValue('כתב יד קצר על קלף.') };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never,
+      drafts as never, undefined, undefined, p4 as never);
+    const result = await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft',
+      object: { sessionId: 's1', language: 'he', previous: 'כתב יד מרהיב על קלף, ברוחב 20 ס״מ, במצב טוב.', revision: 'תקצר' } } });
+    const prompt: string = p4.generateSellerText.mock.calls[0][0].prompt;
+    expect(prompt).toContain('כתב יד מרהיב על קלף, ברוחב 20 ס״מ, במצב טוב.');
+    expect(prompt).toContain('תקצר');
+    expect(result.result).toEqual({ title: 'כתב יד', he: 'כתב יד קצר על קלף.', en: '', generatedByAi: true, revised: true });
+    expect(drafts.correctDraft).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a full replacement text written by the seller', 'כתב יד עברי על קלף, כתוב בדיו חומה, במצב טוב מאוד.', 'כתב יד עברי על קלף, כתוב בדיו חומה, במצב טוב מאוד.', true],
+    ['a short instruction it cannot apply', 'תקצר', 'התיאור הקודם.', false],
+  ])('without AI, a revision uses %s', async (_case, revision, expected, revised) => {
+    const item = { id: 'i', category: 'rare_books', title: 'כתב יד', dimensions: { values: [{ label: 'width', value: 20, unit: 'cm' }] }, condition: 'טוב' };
+    const drafts = { getDraft: jest.fn().mockResolvedValue({ draft: { item, evidence: [] } }), correctDraft: jest.fn() };
+    const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
+    const result = await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft',
+      object: { sessionId: 's1', language: 'he', previous: 'התיאור הקודם.', revision } } });
+    expect(result.result).toMatchObject({ he: expected, generatedByAi: false, revised });
   });
 
   it.each([
@@ -96,8 +124,7 @@ describe('SellerWorkflowService', () => {
     const connected = new SellerWorkflowService(sellerIntakeAi as never, leads as never, uploads as never, drafts as never);
     expect((await connected.execute({ profileId, structuredAnswer: { functionToRun: 'getSellerCatalogDraft', object: { sessionId: 's1' } } })).result)
       .toEqual({ title: 'Manuscript', he: 'Manuscript. מידות: 20 cm. מצב: Good.', en: '', generatedByAi: false });
-    // The chat only confirms the draft, so the template is saved where the seller will view it.
-    expect(drafts.correctDraft).toHaveBeenCalledWith(profileId, 's1', 'description', { he: 'Manuscript. מידות: 20 cm. מצב: Good.' });
+    expect(drafts.correctDraft).not.toHaveBeenCalled();
     const preview = await connected.execute({
       profileId,
       structuredAnswer: { functionToRun: 'getSellerEnquiryPreview', object: { sessionId: 's1', language: 'en' } },

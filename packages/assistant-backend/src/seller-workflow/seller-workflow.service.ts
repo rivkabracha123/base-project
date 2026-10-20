@@ -212,7 +212,17 @@ export class SellerWorkflowService {
         const sessionId = requiredString(action.object, 'sessionId');
         const item = saved.draft.item;
         if (action.functionToRun === 'getSellerCatalogDraft') {
-          const prompt = [
+          // Nothing is saved here: the chat shows the text and saves it only after the seller approves it.
+          const revision = optionalString(action.object, 'revision');
+          const previous = optionalString(action.object, 'previous');
+          const prompt = revision && previous ? [
+            'Revise this auction-catalog description according to the seller\'s request.',
+            'If the request is itself a complete description, return it as the new description, correcting only spelling.',
+            'Keep it a single paragraph. Add only facts the seller states in the request or that appear in the item facts; never add value, rarity, date, maker or authenticity claims on your own.',
+            `Current description:\n${previous}`,
+            `Seller's request:\n${revision}`,
+            JSON.stringify(sellerCatalogFacts(item)),
+          ].join('\n\n') : [
             // This is the short description line in the item details; the auction-house enquiry is the longer text.
             'Write a short auction-catalog description of this item: two or three sentences, about 40 to 60 words, as a single paragraph.',
             'Write it as a polished catalog entry, not a list of facts: open with an evocative phrase about what the item is, then weave its material, format, dimensions and condition into flowing, elegant prose.',
@@ -222,14 +232,17 @@ export class SellerWorkflowService {
           ].join('\n\n');
           const generated = await this.generateSellerText(prompt, language, sessionId);
           const description = generated && withoutMissingFactSentences(generated);
-          // Fill the item's description field so the details card, enquiry and staff dashboard show it.
-          // The template is saved too: the chat only confirms the draft, and the seller views it in the details card.
-          await this.drafts.correctDraft(profileId, sessionId, 'description', { [language]: description ?? sellerCatalogTemplate(item, language) });
+          // Without AI a revision can still be applied when the seller wrote the whole new text.
+          const fallback = revision && previous
+            ? (revision.length >= 40 ? revision : previous)
+            : sellerCatalogTemplate(item, language);
+          const text = description ?? fallback;
           return {
             title: item.title,
-            he: language === 'he' ? description ?? sellerCatalogTemplate(item, 'he') : '',
-            en: language === 'en' ? description ?? sellerCatalogTemplate(item, 'en') : '',
+            he: language === 'he' ? text : '',
+            en: language === 'en' ? text : '',
             generatedByAi: description !== null,
+            ...(revision && previous ? { revised: text !== previous } : {}),
           };
         }
         // Same stated facts as the catalog: the saved catalogDraft is a "not confirmed" checklist the model would copy.

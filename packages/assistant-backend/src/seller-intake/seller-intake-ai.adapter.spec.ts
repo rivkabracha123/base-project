@@ -632,3 +632,39 @@ describe('SellerIntakeAiAdapter', () => {
     expect(result.item.title).toBe('כתב יד עתיק');
   });
 });
+
+// A watch conversation as gpt-4o-mini answered it on 2026-10-20.
+describe('SellerIntakeAiAdapter measurements in a watch conversation', () => {
+  const watch = (item: SellerHandoffContract['item'], missingFacts: string[]) => ({
+    provider: 'real', mode: 'real', isRelevant: true, error: null, summary: 'ok', nextAction: 'ok',
+    structuredAnswer: { ...handoff, language: 'he', category: 'watches', item: { title: 'שעון יד', ...item }, missingFacts },
+  });
+
+  it('keeps a diameter answer out of the field that was asked about and does not invent an axis', async () => {
+    const generate = jest.fn()
+      // "20 סמ" names no axis; the model called it height.
+      .mockResolvedValueOnce(watch({ dimensions: { values: [{ label: 'height', value: 20, unit: 'cm' }] } }, ['condition']))
+      // It then kept its invented height next to the stated diameter.
+      .mockResolvedValueOnce(watch({ dimensions: { values: [
+        { label: 'height', value: 20, unit: 'cm' }, { label: 'diameter', value: 20, unit: 'cm' }] } }, ['condition']));
+    const adapter = new SellerIntakeAiAdapter(new SellerIntakeAiMock(new SellerIntakeService()), { generateSellerExtract: generate } as never);
+
+    const sized = await adapter.analyze('אני רוצה למכור שעון יד, 20 סמ', 'watch-session', 'he');
+    expect(sized.item.dimensions.values).toEqual([{ label: 'size', value: 20, unit: 'cm' }]);
+    expect(sized.nextQuestion?.field).toBe('condition');
+
+    // The answer is a measurement, so it must not become the condition that was asked about.
+    const answered = await adapter.analyze('הוא בקוטר 20', 'watch-session', 'he');
+    expect(answered.item.dimensions.values).toEqual([{ label: 'diameter', value: 20, unit: 'cm' }]);
+    expect(answered.item.condition ?? '').not.toContain('קוטר');
+    expect(answered.nextQuestion?.field).toBe('condition');
+  });
+
+  it('keeps width and height for an unlabelled pair', async () => {
+    const generate = jest.fn().mockResolvedValue(watch({ condition: 'טוב', dimensions: { values: [
+      { label: 'width', value: 80, unit: 'cm' }, { label: 'height', value: 70, unit: 'cm' }] } }, []));
+    const adapter = new SellerIntakeAiAdapter(new SellerIntakeAiMock(new SellerIntakeService()), { generateSellerExtract: generate } as never);
+    const result = await adapter.analyze('תמונה 80 על 70 ס"מ במצב טוב', 'pair-session', 'he');
+    expect(result.item.dimensions.values.map(entry => entry.label)).toEqual(['width', 'height']);
+  });
+});

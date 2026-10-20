@@ -212,9 +212,14 @@ export function SellerChat() {
           }
           addMessage(update);
         });
-        if (draftShown.current) {
-          const draft = await getCurrentSellerDraft();
-          if (draft) showItemDraft(draft);
+        // A photo alone gets an answer too; the item details are not shown again after an upload.
+        if (!text.trim()) {
+          const hasItem = draftShown.current || Boolean(await getCurrentSellerDraft().catch(() => null));
+          addMessage({ speaker: 'system', text: hasItem
+            ? (language === 'he' ? 'קיבלתי את התמונה וצירפתי אותה לפריט. אפשר להמשיך לספר על הפריט.'
+              : 'I received the photo and attached it to your item. You can keep telling me about the item.')
+            : (language === 'he' ? 'קיבלתי את התמונה ושמרתי אותה. כדי להמשיך, אפשר לכתוב מה הפריט: סוג, מידות ומצב.'
+              : 'I received the photo and saved it. To continue, please write what the item is: type, dimensions and condition.') });
         }
       } catch {
         showError('photo-upload-failed');

@@ -61,6 +61,25 @@ function renderChatWithError() {
 }
 
 describe('SellerChat', () => {
+  it.each([
+    ['without an item yet', null, 'I received the photo and saved it. To continue, please write what the item is: type, dimensions and condition.'],
+    ['for an existing item', { item: { title: 'Manuscript' } }, 'I received the photo and attached it to your item. You can keep telling me about the item.'],
+  ])('answers a photo sent without text %s, without showing the item details again', async (_case, draft, reply) => {
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+    vi.spyOn(sellerCorrection, 'getCurrentSellerDraft').mockResolvedValue(draft as never);
+    vi.mocked(connectSellerPhotos).mockResolvedValue(undefined);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], 'item.jpg', { type: 'image/jpeg' })] } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText(reply)).toBeInTheDocument();
+    expect(connectSellerPhotos).toHaveBeenCalledTimes(1);
+    expect(connectSellerLevels).not.toHaveBeenCalled();
+    expect(screen.queryByText('My item details')).not.toBeInTheDocument();
+  });
+
   it('automatically shows the editable draft after answering the final required question', async () => {
     await i18n.changeLanguage('en');
     vi.mocked(connectSellerLevels).mockImplementation(async (_input, update, ready) => {
