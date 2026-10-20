@@ -150,15 +150,24 @@ export function StaffOperationsDashboard() {
             <button type="button" className="mb-4 rounded-lg border border-[#ead9b8] bg-white px-4 py-2 font-semibold text-stone-800 shadow-sm" aria-expanded={filtersOpen} aria-controls="lead-filters" onClick={() => setFiltersOpen((isOpen) => !isOpen)}>
               {t('dashboard.filters')}
             </button>
-            {filtersOpen ? <LeadFiltersForm leads={query.data} filters={filters} language={i18n.language} onChange={setFilters} /> : null}
-            {filteredLeads.length === 0 ? <EmptyState title={t('dashboard.filteredEmpty')} /> : <ul className="grid gap-4" aria-label={t('dashboard.leads')}>{filteredLeads.map((lead) => <li key={lead.id}><button type="button" className="w-full rounded-xl border border-[#ead9b8] bg-white p-5 text-start shadow-sm" onClick={() => setSelectedLead(lead)} aria-pressed={visibleSelectedLead?.id === lead.id}><LeadSummary lead={lead} /></button></li>)}</ul>}
+            {filtersOpen ? <LeadFiltersForm leads={query.data} filters={filters} language={i18n.language} onChange={setFilters} onClear={() => setFilters(emptyLeadFilters)} /> : null}
+            {filteredLeads.length === 0 ? <EmptyState title={t('dashboard.filteredEmpty')} /> : <ul className="grid gap-4" aria-label={t('dashboard.leads')}>{filteredLeads.map((lead) => {
+              const isSelected = visibleSelectedLead?.id === lead.id;
+              return <li key={lead.id}>
+                <button type="button" className={`w-full border border-[#ead9b8] bg-white p-5 text-start shadow-sm ${isSelected ? 'rounded-t-xl rounded-b-none border-b-0' : 'rounded-xl'}`} onClick={() => setSelectedLead((current) => current?.id === lead.id ? null : lead)} aria-pressed={isSelected} aria-expanded={isSelected} aria-controls={isSelected ? `lead-detail-${lead.id}` : undefined}>
+                  <LeadSummary lead={lead} />
+                </button>
+                {isSelected ? <div id={`lead-detail-${lead.id}`}>
+                  {detailQuery.isPending ? <LoadingState label={t('dashboard.loading')} /> : null}
+                  {detailQuery.isError && isMissingLeadError(detailQuery.error) ? <EmptyState title={t('dashboard.missingLead')} /> : null}
+                  {detailQuery.isError && !isMissingLeadError(detailQuery.error) ? <ErrorState title={t('dashboard.error')} retryLabel={t('dashboard.retry')} onRetry={() => void detailQuery.refetch()} /> : null}
+                  {detailQuery.data?.type === 'buyer' ? <BuyerLeadDetail detail={detailQuery.data} embedded /> : null}
+                  {detailQuery.data?.type === 'seller' ? <SellerLeadDetail detail={detailQuery.data} embedded /> : null}
+                  {detailQuery.data ? <StaffPipelinePanel leadId={lead.id} /> : null}
+                </div> : null}
+              </li>;
+            })}</ul>}
           </> : null}
-          {visibleSelectedLead && detailQuery.isPending ? <LoadingState label={t('dashboard.loading')} /> : null}
-          {visibleSelectedLead && detailQuery.isError && isMissingLeadError(detailQuery.error) ? <EmptyState title={t('dashboard.missingLead')} /> : null}
-          {visibleSelectedLead && detailQuery.isError && !isMissingLeadError(detailQuery.error) ? <ErrorState title={t('dashboard.error')} retryLabel={t('dashboard.retry')} onRetry={() => void detailQuery.refetch()} /> : null}
-          {visibleSelectedLead && detailQuery.data?.type === 'buyer' ? <BuyerLeadDetail detail={detailQuery.data} /> : null}
-          {visibleSelectedLead && detailQuery.data?.type === 'seller' ? <SellerLeadDetail detail={detailQuery.data} /> : null}
-          {visibleSelectedLead && detailQuery.data ? <StaffPipelinePanel leadId={visibleSelectedLead.id} /> : null}
         </div>
       </section>
     </PageShell>
@@ -209,7 +218,7 @@ function StaffPipelinePanel({ leadId }: { leadId: string }) {
     event.currentTarget.reset();
   };
 
-  return <article className="mt-8 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm">
+  return <article className="mt-4 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm">
     <h2 className="text-xl font-semibold text-stone-950">{t('dashboard.pipeline')}</h2>
     <p className="mt-2 text-stone-700">{t('dashboard.status')}: {displayTerm(pipeline.status, i18n.language)}</p>
     <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={(event) => {
@@ -267,11 +276,12 @@ function leadMatchesFilters(lead: StaffLead, filters: LeadFilters): boolean {
     && (!filters.to || date <= filters.to);
 }
 
-function LeadFiltersForm({ leads, filters, language, onChange }: {
+function LeadFiltersForm({ leads, filters, language, onChange, onClear }: {
   leads: StaffLead[];
   filters: LeadFilters;
   language: string;
   onChange: (filters: LeadFilters) => void;
+  onClear: () => void;
 }) {
   const { t } = useTranslation();
   const statuses = [...new Set(leads.map((lead) => lead.status))];
@@ -280,6 +290,9 @@ function LeadFiltersForm({ leads, filters, language, onChange }: {
 
   return <fieldset id="lead-filters" className="mb-6 grid gap-4 rounded-xl border border-[#ead9b8] bg-white p-5 sm:grid-cols-2 lg:grid-cols-5">
     <legend className="px-1 font-semibold text-stone-950">{t('dashboard.filters')}</legend>
+    <button type="button" className="justify-self-start rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-800 shadow-sm" onClick={onClear}>
+      {t('dashboard.clearFilters')}
+    </button>
     <label className="grid gap-1 text-sm font-medium text-stone-700" htmlFor="lead-type-filter">{t('dashboard.filterLeadType')}
       <select id="lead-type-filter" className="rounded border border-[#ead9b8] bg-white p-2 font-normal" value={filters.type} onChange={(event) => update('type', event.target.value as LeadFilters['type'])}>
         <option value="">{t('dashboard.allLeadTypes')}</option>
@@ -329,10 +342,10 @@ function LeadSummary({ lead }: { lead: StaffLead }) {
   );
 }
 
-function BuyerLeadDetail({ detail }: { detail: StaffBuyerLeadDetail }) {
+function BuyerLeadDetail({ detail, embedded = false }: { detail: StaffBuyerLeadDetail; embedded?: boolean }) {
   const { i18n, t } = useTranslation();
   const followUpKey = detail.contact.followUpStatus === 'ready' ? 'dashboard.ready' : detail.contact.followUpStatus === 'consent_required' ? 'dashboard.consentRequired' : 'dashboard.contactMissing';
-  return <article className="mt-8 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold text-stone-950">{t('dashboard.criteria')}</h2><DetailFields fields={detail.criteria} language={i18n.language} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.hardConstraints')}</h3><HardConstraints constraints={detail.hardConstraints} language={i18n.language} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.results')}</h3><SimpleItems items={detail.results.map((result) => `${result.id} · ${t(`dashboard.${result.group}`)}`)} />{detail.unmatchedDemand ? <section className="mt-5 text-stone-700"><p>{t('dashboard.unmatchedDemand')}: {displayTerm(detail.unmatchedDemand.reason, i18n.language)}</p><DetailFields fields={detail.unmatchedDemand.originalCriteria} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.contact')}</h3><p className="mt-2 text-stone-700">{t(followUpKey)}</p>{detail.contact.followUpStatus === 'ready' ? <div className="mt-2 text-stone-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}</article>;
+  return <article className={embedded ? 'rounded-b-xl border border-t-0 border-[#ead9b8] bg-[#fffcf7] p-5 shadow-sm' : 'mt-4 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm'}><h2 className="text-xl font-semibold text-stone-950">{t('dashboard.criteria')}</h2><DetailFields fields={detail.criteria} language={i18n.language} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.hardConstraints')}</h3><HardConstraints constraints={detail.hardConstraints} language={i18n.language} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.results')}</h3><SimpleItems items={detail.results.map((result) => `${result.id} · ${t(`dashboard.${result.group}`)}`)} />{detail.unmatchedDemand ? <section className="mt-5 text-stone-700"><p>{t('dashboard.unmatchedDemand')}: {displayTerm(detail.unmatchedDemand.reason, i18n.language)}</p><DetailFields fields={detail.unmatchedDemand.originalCriteria} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.contact')}</h3><p className="mt-2 text-stone-700">{t(followUpKey)}</p>{detail.contact.followUpStatus === 'ready' ? <div className="mt-2 text-stone-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}</article>;
 }
 
 function describeConstraint(constraint: BuyerHardConstraint, language: string, t: (key: string, options?: Record<string, unknown>) => string): string {
@@ -360,16 +373,16 @@ function HardConstraints({ constraints, language }: { constraints: BuyerHardCons
 }
 function DetailFields({ fields, language }: { fields: Record<string, unknown>; language: string }) { return <dl className="mt-2 space-y-1 text-stone-700">{Object.entries(fields).map(([key, value]) => <div key={key} className="flex flex-wrap gap-2"><dt className="font-medium">{displayTerm(key, language)}:</dt><dd>{displayValue(value, language)}</dd></div>)}</dl>; }
 
-function SellerLeadDetail({ detail }: { detail: StaffSellerLeadDetail }) {
+function SellerLeadDetail({ detail, embedded = false }: { detail: StaffSellerLeadDetail; embedded?: boolean }) {
   const { i18n, t } = useTranslation();
   const canShowContact = detail.contact.serviceConsentGranted;
   const locale = i18n.language.startsWith('he') ? 'he-IL' : 'en-US';
-  return <article className="mt-8 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold text-stone-950">{t('dashboard.sellerItem')}</h2>{detail.item ? <DetailFields fields={detail.item} language={i18n.language} /> : <p className="mt-2 text-stone-700">{t('dashboard.unavailable')}</p>}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.evidence')}</h3><SimpleItems items={detail.evidence.map(({ id, type }) => `${id} • ${displayTerm(type, i18n.language)}`)} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.comparables')}</h3><SimpleItems items={detail.comparables.map(({ id, source }) => `${id}${source ? ` • ${displayTerm(source.label, i18n.language)}` : ''}`)} /><SellerValuation valuation={detail.valuation} language={i18n.language} />{detail.catalogDraft ? <section className="mt-5"><h3 className="font-semibold text-stone-950">{t('dashboard.catalogDraft')}</h3><DetailFields fields={detail.catalogDraft} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.contact')}</h3><p className="mt-2 text-stone-700">{canShowContact ? t('dashboard.ready') : t('dashboard.consentRequired')}</p>{canShowContact ? <div className="mt-2 text-stone-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.history')}</h3><SimpleItems items={detail.history.map(({ at, event, actor }) => `${new Date(at).toLocaleString(locale)} • ${displayTerm(event, i18n.language)} • ${displayTerm(actor, i18n.language)}`)} /></article>;
+  return <article className={embedded ? 'rounded-b-xl border border-t-0 border-[#ead9b8] bg-[#fffcf7] p-5 shadow-sm' : 'mt-4 rounded-xl border border-[#ead9b8] bg-white p-5 shadow-sm'}><h2 className="text-xl font-semibold text-stone-950">{t('dashboard.sellerItem')}</h2>{detail.item ? <DetailFields fields={detail.item} language={i18n.language} /> : <p className="mt-2 text-stone-700">{t('dashboard.unavailable')}</p>}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.evidence')}</h3><SimpleItems items={detail.evidence.map(({ id, type }) => `${id} • ${displayTerm(type, i18n.language)}`)} /><h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.comparables')}</h3><SimpleItems items={detail.comparables.map(({ id, source }) => `${id}${source ? ` • ${displayTerm(source.label, i18n.language)}` : ''}`)} /><SellerValuation valuation={detail.valuation} language={i18n.language} />{detail.catalogDraft ? <section className="mt-5"><h3 className="font-semibold text-stone-950">{t('dashboard.catalogDraft')}</h3><DetailFields fields={detail.catalogDraft} language={i18n.language} /></section> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.contact')}</h3><p className="mt-2 text-stone-700">{canShowContact ? t('dashboard.ready') : t('dashboard.consentRequired')}</p>{canShowContact ? <div className="mt-2 text-stone-700">{detail.contact.email ? <p>{detail.contact.email}</p> : null}{detail.contact.phone ? <p>{detail.contact.phone}</p> : null}</div> : null}<h3 className="mt-5 font-semibold text-stone-950">{t('dashboard.history')}</h3><SimpleItems items={detail.history.map(({ at, event, actor }) => `${new Date(at).toLocaleString(locale)} • ${displayTerm(event, i18n.language)} • ${displayTerm(actor, i18n.language)}`)} /></article>;
 }
 
 function SellerValuation({ valuation, language }: { valuation: StaffSellerLeadDetail['valuation']; language: string }) {
   const { t } = useTranslation();
-  if (!valuation) return null;
+  if (!valuation) return <section className="mt-5 text-stone-700"><h3 className="font-semibold text-stone-950">{t('dashboard.valuation')}</h3><p>{t('dashboard.valuationPending')}</p></section>;
   if (valuation.status === 'refusal') return <section className="mt-5 text-stone-700"><h3 className="font-semibold text-stone-950">{t('dashboard.valuation')}</h3><p>{t('dashboard.refusal')}: {valuation.reason ? displayTerm(valuation.reason, language) : t('dashboard.unavailable')}</p></section>;
   const range = valuation.valuationRange;
   return <section className="mt-5 text-stone-700"><h3 className="font-semibold text-stone-950">{t('dashboard.valuation')}</h3>{range ? <p>{formatMoney(range.min, range.currency, language)}–{formatMoney(range.max, range.currency, language)}</p> : <p>{t('dashboard.unavailable')}</p>}{valuation.confidence ? <p>{language.startsWith('he') ? 'רמת ביטחון' : 'Confidence'}: {displayTerm(valuation.confidence.level, language)}{valuation.confidence.explanation ? ` — ${replaceCurrencyCodes(valuation.confidence.explanation)}` : ''}</p> : null}</section>;

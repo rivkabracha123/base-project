@@ -33,7 +33,8 @@ const lotDetailsPattern = /פרטי הפריט|פרטים על הפריט|פרט
 const searchPattern = /מחפש|מחפשת|לחפש|חפש|חפשי|מצא|תמצא|search|find|עד \$?\d|עד [\d,]+/i;
 
 export function routeBuyerIntent(prompt: string, context: RouterContext = {}): IntentRoute {
-  const normalizedPrompt = prompt.trim();
+  // Route on the buyer's latest words only; earlier assistant text ("7 previous sales found") must not pick the action.
+  const normalizedPrompt = (prompt.split('Latest buyer message:\n').at(-1) ?? prompt).trim();
   const language = context.language ?? 'he';
   if (/גרף|(?:איך|כיצד).*(?:מחירים|המחירים).*(?:השתנו|משתנים)|\b(?:graphs?|charts?|price trends?)\b|\u05de\u05d2\u05de\u05ea?\s+\u05de\u05d7\u05d9\u05e8\u05d9\u05dd|\u05de\u05d2\u05de\u05d5\u05ea\s+\u05de\u05d7\u05d9\u05e8\u05d9\u05dd/i.test(normalizedPrompt)) {
     const missingFields = context.lots?.length ? [] : ['lots'];
@@ -91,7 +92,7 @@ export function routeBuyerIntent(prompt: string, context: RouterContext = {}): I
       arguments: {
         ...(context.selectedLot ? { selectedLot: context.selectedLot } : {}),
         ...(!hasSelectedLot && category ? { category } : {}),
-        ...(/מכירות\s+דומות|similar sales/i.test(normalizedPrompt) ? { status: 'sold' } : {}),
+        ...(/מכירות\s+דומות|נמכר|בעבר|similar sales|\bsold\b|\bpast\b/i.test(normalizedPrompt) ? { status: 'sold' } : {}),
         language,
       },
     };

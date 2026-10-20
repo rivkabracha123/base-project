@@ -51,6 +51,7 @@ function claimText(payload: SubmitSellerLeadDto): string {
   return [
     payload.catalogDraft.he,
     payload.catalogDraft.en,
+    payload.enquiryText ?? '',
     payload.item.title,
     payload.valuation.reason ?? '',
   ].join(' ');
@@ -211,6 +212,10 @@ export class SellerLeadsService {
    * Week 4 stepwise APIs stay for house-choice and contract tests.
    */
   async completeEnquiry(payload: CompleteSellerEnquiryDto, sessionId: string): Promise<SellerLeadEntity> {
+    const generalEnquiry = payload.generalEnquiry === true;
+    if (generalEnquiry === Boolean(payload.houseId)) {
+      throw new BadRequestException('Choose a house or explicitly submit a general internal enquiry');
+    }
     const enquiry = await this.applyP3Profile(
       {
         profileId: payload.profileId ?? 'profile-synthetic-seller-1',
@@ -220,14 +225,16 @@ export class SellerLeadsService {
       sessionId,
     );
     const lead = await this.draft(sessionId, enquiry);
-    const ranking = this.rankHouses({
-      category: payload.item.category,
-      geography: payload.geography,
-      preferredLanguage: payload.preferredLanguage,
-    });
-    await this.attachRanking(sessionId, lead.id, ranking);
-    await this.saveSellerChoice(sessionId, lead.id, payload.houseId);
-    return this.submitFinal(lead.id, payload);
+    if (!generalEnquiry) {
+      const ranking = this.rankHouses({
+        category: payload.item.category,
+        geography: payload.geography,
+        preferredLanguage: payload.preferredLanguage,
+      });
+      await this.attachRanking(sessionId, lead.id, ranking);
+      await this.saveSellerChoice(sessionId, lead.id, payload.houseId!);
+    }
+    return this.submitFinal(lead.id, payload, generalEnquiry);
   }
 
   /** S5 Week 3: write the ranking onto the lead without touching sellerChoice. */
@@ -292,7 +299,7 @@ export class SellerLeadsService {
    * S5 Week 5: attach the S1 catalog draft and S4 valuation, then mark the internal lead submitted.
    * Does not email, call, or otherwise contact an auction house.
    */
-  async submitFinal(leadId: string, payload: SubmitSellerLeadDto): Promise<SellerLeadEntity> {
+  async submitFinal(leadId: string, payload: SubmitSellerLeadDto, allowNoHouseChoice = false): Promise<SellerLeadEntity> {
     const lead = await this.requireLead(leadId);
 
     if (lead.status === 'submitted') {
@@ -301,7 +308,7 @@ export class SellerLeadsService {
     if (!hasRequiredContact(lead)) {
       throw new BadRequestException('Lead requires a name and email or phone');
     }
-    if (!lead.sellerChoice) {
+    if (!lead.sellerChoice && !allowNoHouseChoice) {
       throw new BadRequestException('Save a seller house choice before creating the final lead');
     }
     if (UNSUPPORTED_CLAIM.test(claimText(payload))) {
@@ -309,12 +316,13 @@ export class SellerLeadsService {
     }
 
     const previousRecommendationId = lead.recommendation?.recommendation?.house.id;
-    const previousChoiceId = lead.sellerChoice.houseId;
+    const previousChoiceId = lead.sellerChoice?.houseId;
 
     lead.catalogDraft = payload.catalogDraft;
     lead.item = payload.item;
     lead.evidence = payload.evidence;
     lead.valuation = toStoredValuation(payload.valuation);
+    if (payload.enquiryText !== undefined) lead.enquiryText = payload.enquiryText;
     lead.comparables = payload.comparables ?? lead.comparables;
     lead.status = 'submitted';
     lead.history = [...(lead.history ?? []), historyEvent('submitted', 'seller')];
@@ -325,7 +333,7 @@ export class SellerLeadsService {
     if (saved.recommendation?.recommendation?.house.id !== previousRecommendationId) {
       throw new Error('Final lead must not overwrite the stored recommendation');
     }
-    if (saved.sellerChoice?.houseId !== previousChoiceId) {
+    if (previousChoiceId && saved.sellerChoice?.houseId !== previousChoiceId) {
       throw new Error('Final lead must not overwrite the stored seller choice');
     }
 

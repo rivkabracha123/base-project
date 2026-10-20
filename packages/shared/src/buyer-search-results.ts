@@ -57,6 +57,31 @@ export interface DemandSummary {
   relaxedFields?: RelaxableField[];
 }
 
+/** Buyer criteria fields a later search can change compared with the original request. */
+export type DemandChangedField =
+  | 'categories'
+  | 'creators'
+  | 'periods'
+  | 'media'
+  | 'keywords'
+  | 'geography'
+  | 'auctionHouseIds'
+  | 'dateRange'
+  | 'price';
+
+/** The buyer's latest search after the original no-result: what changed or was approved to drop, and whether it found lots. */
+export interface DemandExpansion {
+  searchRequest: BuyerSearchRequest;
+  // Criteria fields whose values differ from the original request.
+  changedFields: DemandChangedField[];
+  // Filters the buyer approved dropping for this search, if any.
+  relaxedFields?: RelaxableField[];
+  searchedAt: string;
+  outcome: 'results' | 'no_results';
+  // Number of lots found; present only when outcome is 'results'.
+  resultCount?: number;
+}
+
 /** Dashboard-safe unmatched buyer demand view for the staff dashboard. */
 export interface BuyerUnmatchedDemandDashboardView {
   id: string;
@@ -64,10 +89,13 @@ export interface BuyerUnmatchedDemandDashboardView {
   status: string;
   createdAt: string;
   unmatchedDemand: {
+    // The buyer's original request: the first search that found nothing.
     searchRequest: BuyerSearchRequest;
     reason: 'no_results';
     searchedAt: string;
     demandSummary: DemandSummary;
+    // The buyer's latest later search, when there is one; staff see the original request alongside it.
+    expansion?: DemandExpansion;
   };
 }
 

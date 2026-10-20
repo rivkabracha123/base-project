@@ -25,6 +25,7 @@ export interface SellerLeadSummary {
   item: SellerLeadItem | null;
   evidence: SellerLeadEvidence[] | null;
   valuation: SellerLeadValuation | null;
+  enquiryText: string | null;
   status: SellerLeadStatus;
   history: SellerLeadHistoryEvent[];
   createdAt: string;
@@ -41,6 +42,7 @@ export function toSellerLeadSummary(lead: SellerLeadEntity): SellerLeadSummary {
     item: lead.item ?? null,
     evidence: lead.evidence ?? null,
     valuation: lead.valuation ?? null,
+    enquiryText: lead.enquiryText ?? null,
     status: lead.status ?? 'draft',
     history: lead.history ?? [],
     createdAt: lead.createdAt.toISOString(),

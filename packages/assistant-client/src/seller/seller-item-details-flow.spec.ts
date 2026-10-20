@@ -22,7 +22,8 @@ describe('saved seller item details', () => {
     try {
       await connectSellerLevels('אני רוצה הערכת שווי', update);
       expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toEqual({ profileId: 'p',
-        structuredAnswer: { functionToRun: functionName, object: { sessionId: 's' } } });
+        structuredAnswer: { functionToRun: functionName, object: functionName === 'getSellerCatalogDraft'
+          ? { sessionId: 's', language: expect.stringMatching(/^(?:he|en)$/) } : { sessionId: 's' } } });
       expect(update).toHaveBeenCalledWith(expect.objectContaining({ action: expect.objectContaining({ kind: functionName === 'calculateSellerValuation' ? 'valuation' : 'catalog' }) }));
     } finally { vi.unstubAllGlobals(); }
   });

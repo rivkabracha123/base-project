@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { IsArray, IsEnum, IsOptional, IsString, IsUUID, MinLength, ValidateNested } from 'class-validator';
 
 class AiGenerateLotRefDto {
   @IsString()
@@ -42,6 +42,17 @@ export class GenerateAiRequestDto {
   @ValidateNested({ each: true })
   @Type(() => AiGenerateLotRefDto)
   lots?: AiGenerateLotRefDto[];
+}
+
+/** Free-text writing request (catalog description, enquiry letter). */
+export class GenerateAiTextRequestDto {
+  @IsString()
+  @MinLength(1)
+  prompt!: string;
+
+  @IsOptional()
+  @IsEnum(['he', 'en'])
+  language?: 'he' | 'en';
 }
 
 //shape buyer answer that the AI get

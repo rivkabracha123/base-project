@@ -14,7 +14,7 @@ import {
 import { BuyerChatSystemMessage } from './buyer-chat-messages';
 import { buildMissingFields, detectBuyerLanguage, parseCriteriaFromAiResponse } from './buyer-criteria';
 import { BuyerCriteriaService } from './buyer-criteria.service';
-import { getBuyerCriteriaSession } from './buyer-criteria-session.store';
+import { getBuyerCriteriaSession, type BuyerConversationContextMessage } from './buyer-criteria-session.store';
 import type { OpenBuyerConversationRequest } from './buyer-conversation.dto';
 import { sellerComparisonCategory } from '../seller-intake/seller-item-readiness';
 import { isGeneralAuctionQuestion } from '../ai/off-topic';
@@ -81,9 +81,18 @@ export class BuyerP4BridgeService {
     prompt: string,
     language: 'he' | 'en',
     context?: P4BuyerAiContext,
+    conversationHistory: BuyerConversationContextMessage[] = [],
   ): Promise<P4AiGenerateResponse> {
+    const recentHistory = conversationHistory
+      .slice(-12)
+      .map((message) => `${message.speaker === 'buyer' ? 'Buyer' : 'Assistant'}: ${message.text.replace(/\s+/g, ' ').trim().slice(0, 600)}`)
+      .filter((message) => !message.endsWith(':'))
+      .join('\n');
+    const contextualPrompt = recentHistory
+      ? `Conversation so far:\n${recentHistory}\n\nLatest buyer message:\n${prompt.trim()}`
+      : prompt.trim();
     const ai = await this.generateWithGuidedFallback(
-      mergeBuyerContextIntoShilatRequest(prompt.trim(), language, context),
+      mergeBuyerContextIntoShilatRequest(contextualPrompt, language, context),
     );
     this.routeHouseRanking(prompt, language, ai, context?.sessionId, context);
     return ai;

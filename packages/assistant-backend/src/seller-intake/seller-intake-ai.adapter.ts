@@ -15,6 +15,10 @@ function requestedReadAction(input: string, category: string, language: 'he' | '
   if (/^(?:list my saved enquiries|\u05d4\u05e6\u05d2 \u05d0\u05ea \u05d4\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea \u05e9\u05dc\u05d9)[.!?\s]*$/i.test(input)) {
     return { functionToRun: 'listSellerLeads', object: {} };
   }
+  const requestedAction = requestedSellerComparison(input);
+  if (requestedAction && requestedAction !== 'getSellerHouseRecommendation') {
+    return { functionToRun: requestedAction, object: {} };
+  }
   if (/auction houses?|(?:\u05d1\u05d9\u05ea|\u05d1\u05ea\u05d9)\s+\u05de\u05db\u05d9\u05e8\u05d5\u05ea/i.test(input)
     && /recommend|suitable|find|show|which|where|difference|looking for|איפה|כדאי|הבדל|\u05de\u05d5\u05de\u05dc[\u05e6\u05e5]|\u05de\u05ea\u05d0\u05d9\u05dd|\u05e8\u05d5\u05e6\u05d4|\u05de\u05d7\u05e4\u05e9|\u05ea\u05de\u05e6\u05d0|\u05d4\u05e6\u05d2|\u05d0\u05d9\u05d6\u05d4/i.test(input)
     && !/\u05dc\u05d0\s+(?:\u05e8\u05d5\u05e6\u05d4|\u05de\u05e2\u05d5\u05e0\u05d9\u05d9\u05e0)|\b(?:don't|do not)\s+(?:want|show|recommend|find)/i.test(input)
@@ -33,6 +37,15 @@ const FACT_TO_INTAKE_FIELD: Record<string, string> = {
   signatures: 'signatures',
   provenance: 'provenance',
 };
+
+function requestedSellerTitleCorrection(input: string): string | undefined {
+  const match = input.trim().match(
+    /(?:^|[\s,;.!])(?:אני\s+)?(?:רוצה\s+)?(?:לשנות|שנה|תשנה|לעדכן|עדכן|תעדכן|לרשום|רשום|תרשום)\s+(?:לי\s+)?(?:את\s+)?(?:ה)?(?:שם|כותרת)(?:\s+(?:של\s+)?(?:ה)?פריט)?(?:\s+(?:לשם|לכותרת|ל|כ|בתור))?\s*[:\-]?\s*(.+)$/i,
+  ) ?? input.trim().match(
+    /(?:^|[\s,;.!])(?:please\s+)?(?:change|rename|update)\s+(?:the\s+)?(?:item\s+)?(?:name|title)(?:\s+of\s+(?:the\s+)?item)?(?:\s+(?:to|as))?\s+(.+)$/i,
+  );
+  return match?.[1]?.trim().replace(/^[\s"'״׳]+|[\s"'״׳]+$/g, '') || undefined;
+}
 
 export function mapAiFactsToIntakeFields(facts: string[]): string[] {
   const mapped = facts
@@ -56,7 +69,10 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     if (!result.item.category.trim() || result.item.category === 'unknown') requiredMissingFields.push('category');
     if (!result.item.dimensions.values.length) requiredMissingFields.push('dimensions');
     if (!hasSellerCondition(result.item.condition)) requiredMissingFields.push('condition');
-    const functionCall = requiredMissingFields.length && result.functionCall?.functionToRun === 'rankSellerHouses'
+    const functionCall = requiredMissingFields.length
+      && ['rankSellerHouses', 'getSellerEnquiryPreview', 'searchSellerComparables', 'getSellerComparableHistory',
+        'getSellerPriceTrend', 'getSellerItemDetails', 'getSellerCatalogDraft', 'getSellerProvenanceAdvice',
+        'getSellerHouseRecommendation', 'calculateSellerValuation'].includes(result.functionCall?.functionToRun ?? '')
       ? null : result.functionCall;
     const missingFields = [...new Set([
       ...(result.missingFields ?? []),
@@ -69,11 +85,19 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     const unansweredRequiredFields = requiredMissingFields.filter(
       (field) => !result.skippedFields?.includes(field),
     );
+    const asksForDimensionsAndCondition =
+      unansweredRequiredFields.includes('dimensions') && unansweredRequiredFields.includes('condition');
     return { ...result, requiredMissingFields, missingFields, functionCall,
       nextQuestion: functionCall?.functionToRun ? null
         : unansweredRequiredFields.includes('category')
-          ? { field: 'category', he: '\u05d0\u05d9\u05d6\u05d4 \u05e1\u05d5\u05d2 \u05e4\u05e8\u05d9\u05d8 \u05d1\u05e8\u05e6\u05d5\u05e0\u05da \u05dc\u05de\u05db\u05d5\u05e8?', en: 'What type of item would you like to sell?' }
-          : this.intake.nextQuestionForAiFields(unansweredFields) };
+          ? { field: 'category', he: 'איזה סוג פריט מדובר?', en: 'What kind of item would you like to sell?' }
+          : asksForDimensionsAndCondition
+            ? {
+                field: 'dimensions',
+                he: 'כדי להכין טיוטה, מה המידות ומה מצב הפריט? אפשר לענות על שניהם יחד.',
+                en: 'To prepare a draft, what are its dimensions and condition? You can share both together.',
+              }
+            : this.intake.nextQuestionForAiFields(unansweredRequiredFields) };
   }
 
   private skippedFieldsStillMissing(result: SellerIntakeAiResult, skippedFields: string[]): string[] {
@@ -94,17 +118,20 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
 
   restoreSession(sessionId: string, draft: SellerItemDraft): void {
     if (this.hasSession(sessionId)) return;
-    const item = draft.item;
+    const item = draft.confirmedFacts.materials
+      ? draft.item
+      : { ...draft.item, materials: [] };
     const facts: Record<string, string> = {};
     for (const key of ['condition', 'markings', 'provenance'] as const) {
       if (item[key]?.trim()) facts[key] = item[key];
     }
     if (item.signatures?.trim()) facts.signature = item.signatures;
+    if (item.title?.trim() && item.title !== `${item.category} from seller intake`) facts.title = item.title;
     const missingFields = ['dimensions', 'condition', 'marks', 'signatures', 'provenance'].filter(field =>
       field === 'dimensions' ? !item.dimensions.values.length
         : !facts[field === 'marks' ? 'markings' : field === 'signatures' ? 'signature' : field]);
     const result = this.applyRequiredFieldPolicy({
-      ...draft, provider: 'fixture-mock', missingFields,
+      ...draft, item, provider: 'fixture-mock', missingFields,
       nextQuestion: this.intake.nextQuestionForAiFields(missingFields), structuredAnswer: null,
       ai: { provider: null, mode: null, isRelevant: true, error: null, aiMissingFields: missingFields },
     });
@@ -114,16 +141,32 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       dimensions: item.dimensions, facts, skippedFields, nextField: restored.nextQuestion?.field, result: restored });
   }
 
-  async analyze(input: string, sessionId?: string): Promise<SellerIntakeAiResult> {
+  async analyze(input: string, sessionId?: string, preferredLanguage?: 'he' | 'en'): Promise<SellerIntakeAiResult> {
     const previous = sessionId ? this.sessions.get(sessionId) : undefined;
-    const language = /[\u0590-\u05FF]/.test(input) ? 'he' : 'en';
+    const language = preferredLanguage ?? (/[\u0590-\u05FF]/.test(input) ? 'he' : 'en');
     if (previous?.result) {
       const comparison = requestedSellerComparison(input);
       if (comparison) return this.applyRequiredFieldPolicy({ ...previous.result,
-        functionCall: comparison === 'getSellerHouseRecommendation'
-          ? requestedReadAction(input, previous.result.item.category, language) : null });
+        functionCall: requestedReadAction(input, previous.result.item.category, language) });
       const action = requestedReadAction(input, previous.result.item.category, language);
       if (action) return this.applyRequiredFieldPolicy({ ...previous.result, functionCall: action });
+      const correctedTitle = requestedSellerTitleCorrection(input);
+      if (correctedTitle && sessionId) {
+        const facts = { ...previous.facts, title: correctedTitle };
+        const result = this.applyRequiredFieldPolicy({
+          ...previous.result,
+          item: { ...previous.result.item, title: correctedTitle },
+          functionCall: null,
+          ai: { ...previous.result.ai, summary: language === 'he' ? 'שם הפריט עודכן.' : 'The item name was updated.' },
+        });
+        this.sessions.set(sessionId, {
+          ...previous,
+          facts,
+          nextField: result.nextQuestion?.field,
+          result,
+        });
+        return result;
+      }
     }
     const facts = { ...previous?.facts };
     const currentFacts: Record<string, string> = {};
@@ -147,6 +190,10 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       return result;
     }
     const isActionRequest = !!requestedSellerComparison(answer) || /valuation|apprais(?:al|e)|estimate(?:d)? (?:value|price)|הערכת?\s+שווי|auction houses?|saved enquiries|\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea|\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea/i.test(answer);
+    const statedCondition = answer.match(/\b(?:excellent|good|fair|poor|damaged|bad)\s+condition\b|מצב\s+(?:טוב|מצוין|סביר|ירוד|פגום)/i)?.[0];
+    if (statedCondition && !isActionRequest) {
+      currentFacts.condition = statedCondition.replace(/^[a-z]/i, firstLetter => firstLetter.toUpperCase());
+    }
     if (itemField && ['condition', 'markings', 'signature', 'provenance'].includes(itemField)
       && !isActionRequest
       && !/\b(?:condition|markings|signature|provenance)\b|\u05de\u05e6\u05d1|\u05e1\u05d9\u05de\u05d5\u05e0|\u05d7\u05ea\u05d9\u05de\u05d4|\u05de\u05e7\u05d5\u05e8/i.test(answer)
@@ -188,7 +235,8 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
               error: 'General auction information is unavailable because the AI provider failed.',
               summary: language === 'he' ? 'זו שאלה על מכירות פומביות, אבל שירות ה־AI אינו זמין כרגע. לא אוכל לענות עליה באופן אמין כרגע.' : 'This is an auction question, but the AI service is unavailable. I cannot answer it reliably right now.' } };
         }
-        const parsedDimensions = isActionRequest ? undefined : guidedDimensions(combinedInput);
+        const unitHint = previous?.nextField === 'dimensions' ? answer : undefined;
+        const parsedDimensions = isActionRequest ? undefined : guidedDimensions(combinedInput, unitHint);
         if (parsedDimensions?.values.length) dimensions = { values: parsedDimensions.values };
         if (!isActionRequest) {
           const fieldPatterns: Record<string, RegExp> = {
@@ -235,7 +283,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       }
       throw error;
     }
-    if (response.isRelevant === false) {
+    if (response.isRelevant === false && !isGeneralAuctionQuestion(input)) {
       const preserved = previous?.result ?? this.intake.analyze('');
       return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
         ai: { provider: response.provider, mode: response.mode, isRelevant: false, error: response.error,
@@ -248,16 +296,49 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
             : 'Continue with the details you already shared, or describe another item you want to buy or sell.',
         } };
     }
-    const structuredAnswer: SellerHandoffContract = response.structuredAnswer;
+    if (response.isRelevant === false && isGeneralAuctionQuestion(input)) {
+      const preserved = previous?.result ?? this.intake.analyze('');
+      return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
+        ai: { provider: response.provider, mode: response.mode, isRelevant: true, error: response.error,
+            generalInformation: true, aiMissingFields: preserved.missingFields ?? [],
+            summary: language === 'he'
+              ? 'זו שאלה כללית על מכירות פומביות. אין לי כרגע מידע מאומת כדי לענות עליה במדויק, אבל אפשר לשאול אותי על תהליך המכירה ועל בתי מכירות.'
+              : 'That is a general auction question. I do not have verified information to answer it accurately right now, but I can help explain the auction process and auction houses.',
+        } };
+    }
+    const structuredAnswer: SellerHandoffContract = {
+      ...response.structuredAnswer,
+      item: {
+        ...response.structuredAnswer.item,
+        ...(response.structuredAnswer.item.dimensions
+          ? {
+              dimensions: {
+                ...response.structuredAnswer.item.dimensions,
+                values: [...response.structuredAnswer.item.dimensions.values],
+              },
+            }
+          : {}),
+      },
+    };
     if (structuredAnswer.intent === 'general_information' || isGeneralAuctionQuestion(input)) {
       const preserved = previous?.result ?? this.intake.analyze('');
+      // "I have an old manuscript, should I sell it?" reads as general advice to the AI, but it still names
+      // the item. Keep that wording so later turns do not ask for the category again.
+      const describesItem = !isGeneralAuctionQuestion(input)
+        && (sellerComparisonCategory(structuredAnswer.category, input) !== 'unknown'
+          || this.intake.analyze(input).item.category !== 'unknown');
+      if (sessionId && describesItem) {
+        this.sessions.set(sessionId, { ...previous, input: combinedInput, dimensions, facts,
+          skippedFields: previous?.skippedFields ?? [] });
+      }
       return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
         ai: { provider: response.provider, mode: response.mode, isRelevant: true, error: response.error,
           generalInformation: true, aiMissingFields: preserved.missingFields ?? [],
           summary: response.summary, recommendation: response.recommendation, nextAction: response.nextAction } };
     }
+    const genericCategory = /^(?:unknown|item|object|other|general|פריט|לא ידוע)$/i.test(structuredAnswer.category.trim());
     structuredAnswer.category = sellerComparisonCategory(structuredAnswer.category, `${combinedInput}\n${structuredAnswer.item.title ?? ''}`);
-    if (structuredAnswer.category === 'unknown') {
+    if (genericCategory || structuredAnswer.category === 'unknown') {
       const previousCategory = previous?.result?.item.category;
       structuredAnswer.category = previousCategory && previousCategory !== 'unknown'
         ? previousCategory : this.intake.analyze(combinedInput).item.category;
@@ -270,6 +351,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       const value = structuredAnswer.item[key];
       if (value?.trim()) facts[key] = value;
     }
+    if (facts.title) structuredAnswer.item.title = facts.title;
     if (!structuredAnswer.item.dimensions?.values.length && dimensions?.values.length) {
       structuredAnswer.item.dimensions = dimensions;
     }
@@ -279,6 +361,14 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         && (field !== 'signatures' || !structuredAnswer.item.signature?.trim())
         && (field !== 'condition' || !structuredAnswer.item.condition?.trim())
         && (field !== 'provenance' || !structuredAnswer.item.provenance?.trim()));
+    const unitHint = previous?.nextField === 'dimensions' ? answer : undefined;
+    const explicitDimensions = guidedDimensions(combinedInput, unitHint);
+    if (explicitDimensions?.needsUnit) {
+      structuredAnswer.item.dimensions = { values: [] };
+      dimensions = undefined;
+    } else if (explicitDimensions?.values.length) {
+      structuredAnswer.item.dimensions = { values: explicitDimensions.values };
+    }
     const missingFields = [...aiMissingFields];
     const item = structuredAnswer.item;
     if (!item.dimensions?.values.length) missingFields.push('dimensions');
@@ -308,6 +398,13 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     });
     const skippedFields = this.skippedFieldsStillMissing(result, previous?.skippedFields ?? []);
     const resultWithSkips = this.applyRequiredFieldPolicy({ ...result, skippedFields });
+    if (explicitDimensions?.needsUnit && resultWithSkips.nextQuestion?.field === 'dimensions') {
+      resultWithSkips.nextQuestion = {
+        field: 'dimensions',
+        he: 'באיזו יחידה המידות — ס״מ, מ״מ או אינץ׳?',
+        en: 'What unit are the measurements in — cm, mm, or inches?',
+      };
+    }
     if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: structuredAnswer.item.dimensions,
       nextField: resultWithSkips.nextQuestion?.field, facts, skippedFields, result: resultWithSkips });
     return resultWithSkips;

@@ -12,24 +12,24 @@ const REQUIRED_SELLER_DETAILS = [
 
 const MISSING_SELLER_QUESTION_COPY = {
   dimensions: {
-    he: 'מהן מידות הפריט?',
-    en: 'What are the item dimensions?',
+    he: 'מה המידות? למשל 80×70 ס״מ.',
+    en: 'What are the dimensions? For example, 80 × 70 cm.',
   },
   condition: {
-    he: 'מה מצב הפריט? אנא תארו פגמים, תיקונים או סימני בלאי.',
-    en: 'What is the condition of the item? Please describe defects, repairs, or wear.',
+    he: 'איך מצב הפריט? יש פגמים או סימני בלאי שכדאי לציין?',
+    en: 'How is its condition? Any defects or signs of wear worth noting?',
   },
   marks: {
-    he: 'האם יש על הפריט סימנים, חותמות או כיתובים?',
-    en: 'Are there any marks, stamps, or inscriptions on the item?',
+    he: 'יש סימונים, חותמות או כיתוב שכדאי לציין?',
+    en: 'Any marks, stamps, or inscriptions worth noting?',
   },
   signatures: {
-    he: 'האם הפריט חתום? אם כן, היכן נמצאת החתימה ומה כתוב בה?',
-    en: 'Is the item signed? If so, where is the signature and what does it say?',
+    he: 'יש חתימה על הפריט? אם כן, איפה?',
+    en: 'Is it signed? If so, where?',
   },
   provenance: {
-    he: 'מה ידוע על מקור הפריט וההיסטוריה שלו?',
-    en: 'What is known about the item\'s provenance and history?',
+    he: 'ידוע לך משהו על המקור או ההיסטוריה של הפריט?',
+    en: "Do you know anything about the item's origin or history?",
   },
 } as const;
 
@@ -78,8 +78,12 @@ export class SellerIntakeService {
     const confirmedFacts: SellerItemDraft['confirmedFacts'] = {};
     const item = {
       ...fixture.item,
-      title: extraction.item.title ?? `${extraction.category} from seller intake`,
+      title: extraction.item.title ?? this.draftTitleFromInput(input, extraction.category, { values: dimensions }),
+      titleTranslations: extraction.item.title
+        ? undefined
+        : this.draftTitleTranslations(extraction.category, { values: dimensions }),
       category: extraction.category,
+      materials: [],
       dimensions: { values: dimensions },
       condition: extraction.item.condition,
       markings: extraction.item.markings,
@@ -188,6 +192,7 @@ export class SellerIntakeService {
     const item = {
       ...fixture.item,
       title: this.draftTitleFromInput(input, reviewState.category, extractedDimensions),
+      titleTranslations: this.draftTitleTranslations(reviewState.category, extractedDimensions),
       category: reviewState.category,
       materials: reviewState.materials,
       dimensions: {
@@ -692,6 +697,9 @@ export class SellerIntakeService {
       if (!confirmedFieldNames.has(fact.field)) uncertainFactsByField.set(fact.field, fact);
     }
 
+    // A written description (by the seller or the AI catalog writer) must survive later chat turns.
+    const descriptionWritten = (previous.revisionHistory ?? []).some((revision) => revision.changes.includes('description'));
+
     return {
       ...incoming,
       id: previous.id,
@@ -699,6 +707,7 @@ export class SellerIntakeService {
         ...incoming.item,
         ...confirmedItemValues,
         ...pendingCorrectionItemValues,
+        ...(descriptionWritten ? { description: previous.item.description } : {}),
         id: previous.item.id,
         catalogDraft: this.buildCatalogDraft(confirmedFacts),
         evidenceIds: previous.item.evidenceIds,
@@ -732,14 +741,37 @@ export class SellerIntakeService {
     category: string,
     dimensions?: SellerItemDraft['item']['dimensions'],
   ): string {
+    const isHebrew = /[\u0590-\u05FF]/.test(input);
     const size = dimensions?.values.length
       ? dimensions.values.map(({ label, value, unit }) => `${label} ${value} ${unit}`).join(', ')
       : null;
-    if (category === 'paintings' && size) return `Painting ${size}`;
-    if (category === 'paintings') return 'Painting from seller intake';
-    if (category === 'rare_books') return 'Rare Hebrew book from seller intake';
+    if (category === 'paintings' && size) return `${isHebrew ? 'ציור' : 'Painting'} ${size}`;
+    if (category === 'paintings') return isHebrew ? 'ציור' : 'Painting';
+    if (category === 'rare_books') return isHebrew ? 'כתב יד או ספר נדיר' : 'Rare Hebrew book';
     const trimmed = input.trim().replace(/\s+/g, ' ');
-    return trimmed.slice(0, 80) || 'Seller intake draft';
+    return trimmed.slice(0, 80) || (isHebrew ? 'טיוטת פריט' : 'Item draft');
+  }
+
+  private draftTitleTranslations(
+    category: string,
+    dimensions?: SellerItemDraft['item']['dimensions'],
+  ): SellerItemDraft['item']['titleTranslations'] {
+    if (category === 'rare_books') {
+      return { he: 'כתב יד או ספר נדיר', en: 'Rare Hebrew book' };
+    }
+    if (category === 'paintings') {
+      const englishSize = dimensions?.values
+        .map(({ label, value, unit }) => `${label} ${value} ${unit}`)
+        .join(', ');
+      const hebrewSize = dimensions?.values
+        .map(({ label, value, unit }) => `${label === 'width' ? 'רוחב' : label === 'height' ? 'גובה' : label === 'depth' ? 'עומק' : label} ${value} ${unit}`)
+        .join(', ');
+      return {
+        he: `ציור${hebrewSize ? ` ${hebrewSize}` : ''}`,
+        en: `Painting${englishSize ? ` ${englishSize}` : ''}`,
+      };
+    }
+    return undefined;
   }
 
   // בונה תיאור קטלוג מעובדות מאושרות בלבד ומציין במפורש פרטים שטרם אושרו.

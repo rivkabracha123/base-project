@@ -6,9 +6,29 @@ type BuyerCriteriaSessionRecord = {
   criteria: BuyerCriteria;
   conversation: BuyerCriteriaConversation;
   history: BuyerChatHistoryEntry[];
+  chatContext: BuyerConversationContextMessage[];
 };
 
+export type BuyerConversationContextMessage = { speaker: 'buyer' | 'assistant'; text: string };
+
 const sessions = new Map<string, BuyerCriteriaSessionRecord>();
+
+export function appendBuyerConversationContext(
+  sessionId: string,
+  message: BuyerConversationContextMessage,
+): void {
+  const existing = sessions.get(sessionId);
+  if (!existing) throw new Error(`Unknown buyer criteria session: ${sessionId}`);
+  sessions.set(sessionId, {
+    ...existing,
+    chatContext: [...existing.chatContext, message].slice(-24),
+  });
+}
+
+export function getBuyerConversationContext(sessionId: string): BuyerConversationContextMessage[] {
+  const existing = sessions.get(sessionId);
+  return existing ? [...existing.chatContext] : [];
+}
 
 export function appendBuyerCriteriaHistory(
   sessionId: string,
@@ -35,6 +55,7 @@ export function createBuyerCriteriaSession(
     criteria: response.criteria,
     conversation: response.conversation,
     history: [],
+    chatContext: [],
   });
   const systemMessage = appendBuyerCriteriaHistory(sessionId, {
     id: randomUUID(),
@@ -61,6 +82,7 @@ export function saveSessionAfterClarification(
     criteria: response.criteria,
     conversation: response.conversation,
     history: existing.history,
+    chatContext: existing.chatContext,
   });
 
   if (response.conversation.nextQuestion.trim().length === 0) {
@@ -74,7 +96,7 @@ export function saveSessionAfterClarification(
   }) as BuyerChatHistoryEntry & { speaker: 'system' };
 }
 
-export function getBuyerCriteriaSessionSnapshot(sessionId: string): BuyerCriteriaSessionRecord {
+export function getBuyerCriteriaSessionSnapshot(sessionId: string): Omit<BuyerCriteriaSessionRecord, 'chatContext'> {
   const existing = sessions.get(sessionId);
   if (!existing) {
     throw new Error(`Unknown buyer criteria session: ${sessionId}`);

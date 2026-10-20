@@ -1,5 +1,6 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
-import { submitSellerLeadSchema } from '@monabid/shared';
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { submitSellerLeadSchema, type SellerItemDraft } from '@monabid/shared';
+import { P4AiGenerateClient } from '../ai/p4-ai-generate.client';
 import { SELLER_INTAKE_AI_PROVIDER, type SellerIntakeAiProvider } from '../seller-intake/seller-intake-ai.provider';
 import { SellerLeadsService } from '../seller-leads/seller-leads.service';
 import { toSellerLeadDashboardDetail } from '../seller-leads/seller-lead-dashboard';
@@ -21,6 +22,63 @@ const SELLER_FUNCTIONS = new Set<SellerFunctionName>([
   'listSellerLeads', 'getSellerLead', 'listEvidence', 'uploadEvidence',
   'getEvidenceFile', 'reorderEvidence', 'deleteEvidence',
 ]);
+
+type SellerDraftItem = SellerItemDraft['item'];
+
+const NOT_STATED = /^(?:not yet confirmed|no markings reported|no signature reported)$/i;
+
+function statedFact(value: string | undefined): string | undefined {
+  const text = value?.trim();
+  return text && !NOT_STATED.test(text) ? text : undefined;
+}
+
+function formatDimensions(item: SellerDraftItem): string {
+  const values = item.dimensions?.values ?? [];
+  const unit = values[0]?.unit;
+  if (!unit) return '';
+  return values.every((entry) => entry.unit === unit)
+    ? `${values.map((entry) => entry.value).join(' × ')} ${unit}`
+    : values.map((entry) => `${entry.value} ${entry.unit}`).join(' × ');
+}
+
+// Only what the seller actually said; the model must not see placeholders it could repeat.
+function sellerCatalogFacts(item: SellerDraftItem) {
+  return Object.fromEntries(Object.entries({
+    title: item.title,
+    category: item.category,
+    description: item.description?.he || item.description?.en,
+    materials: item.materials?.length ? item.materials.join(', ') : undefined,
+    dimensions: formatDimensions(item) || undefined,
+    condition: statedFact(item.condition),
+    markings: statedFact(item.markings),
+    signature: statedFact(item.signatures),
+    provenance: statedFact(item.provenance),
+  }).filter(([, value]) => value));
+}
+
+// A catalog entry lists what is known; the model still sometimes adds "no markings were provided".
+const MISSING_FACT_SENTENCE = /^(?:אין|לא (?:צוינו|סופקו|נמסרו))\s.*(?:פרטים|מידע|סימונים|חתימ|מקור)|\bno (?:specific |further |additional )?(?:details|information|markings|signatures?|provenance)\b|\b(?:is|are|were) not (?:provided|known|specified)\b/i;
+
+function withoutMissingFactSentences(text: string): string {
+  return text.split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim().split(/(?<=[.!?])\s+/)
+      .filter((sentence) => !MISSING_FACT_SENTENCE.test(sentence.trim()))
+      .join(' '))
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+function sellerCatalogTemplate(item: SellerDraftItem, language: 'he' | 'en'): string {
+  const dimensions = formatDimensions(item);
+  const parts = language === 'he'
+    ? [item.title, dimensions && `מידות: ${dimensions}`, statedFact(item.condition) && `מצב: ${item.condition}`,
+      statedFact(item.markings) && `סימונים: ${item.markings}`, statedFact(item.signatures) && `חתימה: ${item.signatures}`,
+      statedFact(item.provenance) && `מקור: ${item.provenance}`]
+    : [item.title, dimensions && `Dimensions: ${dimensions}`, statedFact(item.condition) && `Condition: ${item.condition}`,
+      statedFact(item.markings) && `Markings: ${item.markings}`, statedFact(item.signatures) && `Signature: ${item.signatures}`,
+      statedFact(item.provenance) && `Provenance: ${item.provenance}`];
+  return parts.filter(Boolean).join('. ') + '.';
+}
 
 function requiredString(object: Record<string, unknown>, field: string): string {
   const value = object[field];
@@ -46,7 +104,19 @@ export class SellerWorkflowService {
     @Optional() private readonly drafts?: SellerIntakeDraftsService,
     @Optional() private readonly itemValuation?: ItemValuationService,
     @Optional() private readonly comparables?: ComparablesService,
+    @Optional() private readonly p4?: P4AiGenerateClient,
   ) {}
+
+  // AI prose for the seller, or null so the caller uses its template (fixture mode or provider outage).
+  private async generateSellerText(prompt: string, language: 'he' | 'en', sessionId: string): Promise<string | null> {
+    if (!this.p4) return null;
+    try {
+      return await this.p4.generateSellerText({ prompt, language, sessionId });
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) return null;
+      throw error;
+    }
+  }
 
   async execute(
     request: SellerWorkflowRequest,
@@ -101,7 +171,9 @@ export class SellerWorkflowService {
         if (!sellerItemReady(item)) {
           throw new BadRequestException('Seller actions require category, dimensions and condition');
         }
-        if (action.functionToRun === 'getSellerItemDetails') return { item, evidence: saved.draft.evidence };
+        // Until a description is written, item.description holds the raw chat text and should not be shown as one.
+        if (action.functionToRun === 'getSellerItemDetails') return { item, evidence: saved.draft.evidence,
+          descriptionWritten: (saved.draft.revisionHistory ?? []).some((revision) => revision.changes.includes('description')) };
         if (!this.comparables) throw new BadRequestException('Seller comparison service is unavailable');
         const category = sellerComparisonCategory(item.category, `${item.title}\n${item.description?.he ?? ''}\n${item.description?.en ?? ''}`);
         const criteria = { category, ...(saved.draft.confirmedFacts.materials?.length ? { materials: saved.draft.confirmedFacts.materials } : {}) };
@@ -125,8 +197,50 @@ export class SellerWorkflowService {
           he: 'תיעוד אמין של מקור הפריט עשוי לסייע בבדיקת הזיהוי והאותנטיות. אי אפשר לקבוע בכמה ישתנה השווי בלי לבדוק את התיעוד ואת הפריט. ההערכה הקיימת אינה כוללת תוספת שווי משוערת עבור תיעוד שלא נבדק.',
           en: 'Reliable provenance can help verify identity and authenticity. Its effect on value requires reviewing the documents and the item. The current valuation does not add an assumed premium for unverified provenance.',
         } };
-        if (action.functionToRun === 'getSellerCatalogDraft') return { title: saved.draft.item.title, ...saved.draft.item.catalogDraft };
-        return { draft: saved.draft, ranking: this.sellerLeads.rankHouses({ category: saved.draft.item.category }) };
+        const language = optionalString(action.object, 'language') === 'en' ? 'en' : 'he';
+        const sessionId = requiredString(action.object, 'sessionId');
+        const item = saved.draft.item;
+        if (action.functionToRun === 'getSellerCatalogDraft') {
+          const prompt = [
+            'Write a professional auction-catalog description of this item in two or three flowing paragraphs.',
+            'Use rich, elegant and precise catalog language: open with what the item is, then weave the facts below into a fluent description of its material, format, dimensions and condition.',
+            'Elaborate only through wording, never through new facts: no claims about value, rarity, importance, date, era, maker, or authenticity that are not in the facts.',
+            JSON.stringify(sellerCatalogFacts(item)),
+          ].join('\n\n');
+          const generated = await this.generateSellerText(prompt, language, sessionId);
+          const description = generated && withoutMissingFactSentences(generated);
+          // Fill the item's description field so the details card, enquiry and staff dashboard show it.
+          if (description) await this.drafts.correctDraft(profileId, sessionId, 'description', { [language]: description });
+          return {
+            title: item.title,
+            he: language === 'he' ? description ?? sellerCatalogTemplate(item, 'he') : '',
+            en: language === 'en' ? description ?? sellerCatalogTemplate(item, 'en') : '',
+            generatedByAi: description !== null,
+          };
+        }
+        // Same stated facts as the catalog: the saved catalogDraft is a "not confirmed" checklist the model would copy.
+        const facts = sellerCatalogFacts(item);
+        const prompt = [
+          'Write a concise, polished and respectful seller enquiry in the requested language.',
+          'The text should include a brief catalog-style description and a courteous request for the recipient to review the item for possible sale.',
+          'Do not name a specific auction house. Do not invent or infer facts, condition, attribution, provenance, authenticity, value, or acceptance.',
+          'Use only the supplied item facts. Return only the finished message as plain text, with no markdown or form fields.',
+          JSON.stringify(facts),
+        ].join('\n\n');
+        let enquiryText = await this.generateSellerText(prompt, language, sessionId);
+        const generatedByAi = enquiryText !== null;
+        if (!enquiryText) {
+          // The template already opens with the title.
+          const description = sellerCatalogTemplate(item, language);
+          enquiryText = language === 'he'
+            ? `שלום רב,\n\nאשמח לקבל את חוות דעתכם בנוגע לאפשרות להציע את הפריט הבא למכירה:\n${description}\n\nאודה לכם אם תוכלו לעיין בפרטים ולעדכן אם הפריט עשוי להתאים. אשמח למסור מידע נוסף לפי הצורך.\n\nתודה רבה.`
+            : `Hello,\n\nI would appreciate your opinion on whether the following item may be suitable for sale:\n${description}\n\nPlease review the details and let me know whether the item may be a fit. I would be happy to provide further information if needed.\n\nThank you.`;
+        }
+        return {
+          draft: saved.draft,
+          enquiryText,
+          generatedByAi,
+        };
       }
       case 'calculateSellerValuation': {
         if (!this.drafts || !this.itemValuation) throw new BadRequestException('Seller valuation is unavailable');
@@ -300,6 +414,7 @@ export class SellerWorkflowService {
     return {
       ...this.safeLeadSummary(lead),
       catalogDraft: lead.catalogDraft,
+      enquiryText: lead.enquiryText,
       evidence: (lead.evidence ?? []).map(({ id, type }) => ({ id, type })),
       valuation: lead.valuation,
     };

@@ -161,6 +161,24 @@ describe('seller lead schema', () => {
     expect(AppDataSource.options.migrations).toContain(AddSellerLeadDashboard1788220800004);
   });
 
+  it('registers the internal enquiry text migration and adds the editable draft column', async () => {
+    const { databaseOptions } = await import('../app.module');
+    const { default: AppDataSource } = await import('./data-source');
+    const { AddSellerEnquiryText1788220800007 } = await import('./1788220800007-add-seller-enquiry-text');
+
+    expect(databaseOptions(config).migrations).toContain(AddSellerEnquiryText1788220800007);
+    expect(AppDataSource.options.migrations).toContain(AddSellerEnquiryText1788220800007);
+
+    const queries: string[] = [];
+    const queryRunner = { query: async (sql: string) => { queries.push(sql); } } as unknown as QueryRunner;
+    const migration = new AddSellerEnquiryText1788220800007();
+    await migration.up(queryRunner);
+    expect(queries[0]).toContain('ADD COLUMN "enquiry_text" text');
+    queries.length = 0;
+    await migration.down(queryRunner);
+    expect(queries[0]).toContain('DROP COLUMN "enquiry_text"');
+  });
+
   it('adds and drops comparables, service consent, and updated_at', async () => {
     const { AddSellerLeadDashboard1788220800004 } = await import(
       './1788220800004-add-seller-lead-dashboard'

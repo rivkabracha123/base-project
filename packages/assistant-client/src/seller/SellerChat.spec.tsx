@@ -1,10 +1,12 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../app/query-client';
 import { SellerChat } from './SellerChat';
 import { connectSellerLevels } from './connect-seller-levels';
 import { connectSellerPhotos } from './connect-seller-photos';
+import * as appApi from '../app/api';
+import * as sellerCorrection from './connect-seller-correction';
 import { mockConversation } from './mock-conversation';
 import i18n from '../i18n';
 
@@ -21,10 +23,16 @@ vi.mock('./connect-seller-levels', () => ({
 // חיבור התמונות של S1 מזויף: ההעלאה בפועל באחריות S1, והבדיקות כאן בודקות רק מה שהצ'אט מוסר ומציג.
 vi.mock('./connect-seller-photos', () => ({ connectSellerPhotos: vi.fn() }));
 
+beforeEach(() => {
+  URL.createObjectURL = vi.fn(() => 'blob:pending-photo');
+  URL.revokeObjectURL = vi.fn();
+});
+
 afterEach(async () => {
   vi.mocked(connectSellerLevels).mockReset();
   vi.mocked(connectSellerPhotos).mockReset();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   await i18n.changeLanguage('en');
 });
 
@@ -175,6 +183,18 @@ describe('SellerChat', () => {
     expect(sent.closest('li')).toHaveAttribute('data-speaker', 'seller');
   });
 
+  it('shows a similar-items progress status while the seller search is running', async () => {
+    await i18n.changeLanguage('en');
+    vi.mocked(connectSellerLevels).mockImplementation(() => new Promise(() => {}));
+    renderChat([]);
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Find similar items' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Looking for similar items…');
+  });
+
   it('sends the message when the seller presses Enter in the input', async () => {
     renderChat(mockConversation.en);
     await screen.findByText('I have an antique watch I want to sell');
@@ -226,6 +246,93 @@ describe('SellerChat', () => {
     expect(update.closest('li')).toHaveAttribute('data-speaker', 'system');
   });
 
+  it('continues an enquiry through ordinary chat messages instead of a styled contact form', async () => {
+    await i18n.changeLanguage('en');
+    vi.mocked(connectSellerLevels).mockImplementation(async (_message, onUpdate) => {
+      await onUpdate({ speaker: 'system', text: 'I prepared an editable enquiry draft:', action: {
+        kind: 'enquiry',
+        draft: {
+          evidence: [],
+          item: {
+            id: 'item-1', category: 'rare_books', title: 'Manuscript', evidenceIds: [],
+            description: { he: 'כתב יד', en: 'Manuscript' }, materials: [],
+            dimensions: { values: [] }, source: 'seller-intake',
+            catalogDraft: { he: 'טיוטה', en: 'Draft' },
+          },
+        },
+        enquiryText: 'Dear Sir or Madam, please review this manuscript.',
+        generatedByAi: true,
+      } });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'I want to create an enquiry' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByRole('textbox', { name: 'Enquiry text' })).toHaveValue('Dear Sir or Madam, please review this manuscript.');
+    expect(screen.queryByText(/please send your name and contact details/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /name/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with internal Monabid enquiry/i }));
+    expect(await screen.findByText(/please send your name and contact details/i)).toBeInTheDocument();
+    fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'Dana Levy' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    expect(await screen.findByText(/What phone number or email address can we use/i)).toBeInTheDocument();
+  });
+
+  it('saves a chat-provided name and email as a general internal enquiry', async () => {
+    await i18n.changeLanguage('en');
+    vi.spyOn(appApi, 'grantP3ServiceConsent').mockResolvedValue({ id: 'profile-1', serviceConsent: true } as never);
+    vi.spyOn(appApi, 'completeSellerEnquiry').mockResolvedValue({ id: 'lead-1' } as never);
+    vi.spyOn(sellerCorrection, 'getCurrentSellerDraft').mockResolvedValue({
+      language: { preferred: 'en' },
+      item: {
+        id: 'item-1', category: 'rare_books', title: 'Manuscript',
+        evidenceIds: [], catalogDraft: { he: 'כתב יד', en: 'Manuscript' },
+      },
+      evidence: [],
+    } as never);
+    vi.mocked(connectSellerLevels).mockImplementation(async (_message, onUpdate) => {
+      await onUpdate({ speaker: 'system', text: 'I prepared an editable enquiry draft:', action: {
+        kind: 'enquiry',
+        draft: {
+          evidence: [],
+          item: {
+            id: 'item-1', category: 'rare_books', title: 'Manuscript', evidenceIds: [],
+            description: { he: 'כתב יד', en: 'Manuscript' }, materials: [],
+            dimensions: { values: [] }, source: 'seller-intake',
+            catalogDraft: { he: 'טיוטה', en: 'Draft' },
+          },
+        },
+        enquiryText: 'Please review this manuscript.',
+        generatedByAi: true,
+      } });
+    });
+    renderChat(mockConversation.en);
+    await screen.findByText('I have an antique watch I want to sell');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Create an enquiry' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByRole('textbox', { name: 'Enquiry text' });
+    fireEvent.click(screen.getByRole('button', { name: /continue with internal Monabid enquiry/i }));
+
+    fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'Dana Levy' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByText(/What phone number or email address can we use/i);
+
+    fireEvent.change(screen.getAllByRole('textbox').at(-1)!, { target: { value: 'dana@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText(/Your enquiry was opened successfully/i)).toBeInTheDocument();
+    expect(appApi.completeSellerEnquiry).toHaveBeenCalledWith(expect.objectContaining({
+      generalEnquiry: true,
+      enquiryText: 'Please review this manuscript.',
+      contact: { preferredName: 'Dana Levy', email: 'dana@example.com' },
+      profileId: 'profile-1',
+    }));
+  });
+
   // Reference to an uploaded photo, in the shape the evidence API returns after an upload.
   const photoOf = (fileId: string, originalName: string) => ({
     fileId,
@@ -240,13 +347,16 @@ describe('SellerChat', () => {
 
   const jpeg = (name: string) => new File(['pixels'], name, { type: 'image/jpeg' });
 
-  // בודק שהמוכר יכול לבחור כמה תמונות יחד, ושכולן נמסרות ל-S1 בקריאה אחת (העלאה אחת = פריט אחד).
+  // בודק שהמוכר יכול לבחור כמה תמונות יחד, ושכולן נמסרות ל-S1 בקריאה אחת רק בלחיצה על שלח.
   it('hands all the chosen photos to S1 in a single call', async () => {
     renderChat(mockConversation.en);
     await screen.findByText('I have an antique watch I want to sell');
 
     const files = [jpeg('front.jpg'), jpeg('back.jpg')];
     fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files } });
+    expect(connectSellerPhotos).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
     await waitFor(() => expect(connectSellerPhotos).toHaveBeenCalledTimes(1));
     expect(vi.mocked(connectSellerPhotos).mock.calls[0]![0]).toEqual(files);
@@ -261,6 +371,7 @@ describe('SellerChat', () => {
     await screen.findByText('I have an antique watch I want to sell');
 
     fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [jpeg('front.jpg'), jpeg('back.jpg')] } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
     const front = await screen.findByRole('img', { name: 'front.jpg' });
     const back = await screen.findByRole('img', { name: 'back.jpg' });
@@ -288,6 +399,7 @@ describe('SellerChat', () => {
     await screen.findByText('I have an antique watch I want to sell');
 
     fireEvent.change(screen.getByLabelText(/attach a photo/i), { target: { files: [jpeg('vase.jpg')] } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
     const error = await screen.findByText('Something went wrong. Please try again.');
     expect(error.closest('li')).toHaveAttribute('data-speaker', 'error');

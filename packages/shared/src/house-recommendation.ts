@@ -156,6 +156,7 @@ export const sellerLeadSummarySchema = z.object({
   item: sellerLeadItemSchema.nullable(),
   evidence: z.array(sellerLeadEvidenceSchema).nullable(),
   valuation: sellerLeadValuationSchema.nullable(),
+  enquiryText: z.string().max(8000).nullable().optional(),
   status: sellerLeadStatusSchema,
   history: z.array(sellerLeadHistoryEventSchema),
   createdAt: z.string().datetime(),
@@ -172,6 +173,7 @@ export const submitSellerLeadSchema = z.object({
   item: sellerLeadItemSchema,
   evidence: z.array(sellerLeadEvidenceSchema).min(1),
   valuation: sellerLeadValuationSchema,
+  enquiryText: z.string().trim().min(1).max(8000).optional(),
   comparables: z.array(sellerLeadComparableRefSchema).optional(),
 });
 
@@ -189,6 +191,7 @@ export const sellerLeadDashboardDetailSchema = z.object({
   evidence: z.array(sellerLeadEvidenceSchema),
   comparables: z.array(sellerLeadComparableRefSchema),
   valuation: sellerLeadValuationSchema.nullable(),
+  enquiryText: z.string().max(8000).nullable().optional(),
   recommendation: rankedHouseSchema.nullable(),
   alternatives: z.array(rankedHouseSchema),
   sellerChoice: sellerChoiceSchema.nullable(),
