@@ -24,6 +24,7 @@ describe('LotsServiceSearchClient', () => {
 
   it.each<[string, SearchRequest['filters'], string[]]>([
     ['a negative budget', { price: { min: -100, max: 500 } }, ['filters.price.min']],
+    ['an inverted budget', { price: { min: 1500, max: 900, currency: 'USD' } }, ['filters.price.max']],
     ['a non-ISO currency', { price: { max: 500, currency: '$' } }, ['filters.price.currency']],
     ['an impossible date', { dateRange: { from: '2025-13-40' } }, ['filters.dateRange.from']],
     ['a date with a time', { dateRange: { to: '2025-01-01T10:00:00Z' } }, ['filters.dateRange.to']],
@@ -46,14 +47,5 @@ describe('LotsServiceSearchClient', () => {
 
     expect(error.message).toContain('filters.price.min');
     expect(error.message).not.toContain('987654');
-  });
-
-  it('leaves an inverted budget to the lots search unchanged rather than repairing it', async () => {
-    const { lots, search } = fakeLots();
-    const filters = { price: { min: 1500, max: 900, currency: 'USD' } };
-
-    await new LotsServiceSearchClient(lots).search({ query: '', language: 'en', filters });
-
-    expect(search).toHaveBeenCalledWith(expect.objectContaining({ filters }));
   });
 });
