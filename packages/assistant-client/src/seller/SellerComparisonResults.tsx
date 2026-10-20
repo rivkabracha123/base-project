@@ -22,7 +22,6 @@ export function SellerComparisonResults({ result, language }: { result: SellerCo
   }
   const money = (amount: number, currency: string) => new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
   return <div className="mt-3 min-w-0 space-y-3">
-    <p className="text-sm">{he ? '\u05d4\u05e9\u05d5\u05d5\u05d0\u05d4 \u05dc\u05e4\u05e8\u05d9\u05d8\u05d9\u05dd \u05d3\u05d5\u05de\u05d9\u05dd, \u05dc\u05d0 \u05d4\u05d9\u05e1\u05d8\u05d5\u05e8\u05d9\u05d9\u05ea \u05d4\u05e4\u05e8\u05d9\u05d8 \u05e9\u05dc\u05da \u05d5\u05dc\u05d0 \u05d4\u05e2\u05e8\u05db\u05ea \u05e9\u05d5\u05d5\u05d9.' : 'Similar-item comparison, not your item\'s sale history or a valuation.'}</p>
     <p className="text-xs text-neutral-600">{he ? '\u05e7\u05e8\u05d9\u05d8\u05e8\u05d9\u05d5\u05e0\u05d9\u05dd' : 'Criteria'}: {result.criteria.category}{result.criteria.materials?.length ? ` / ${result.criteria.materials.join(', ')}` : ''}</p>
     {result.mode === 'trend' && lots.some(lot => lot.source.provider === 'synthetic-development-demo') && <strong className="block text-red-800">{he ? '\u05e0\u05ea\u05d5\u05e0\u05d9 \u05d4\u05d3\u05d2\u05de\u05d4 \u05d1\u05dc\u05d1\u05d3' : 'DEMO data only'}</strong>}
     {lots.length === 0 && <p role="status">{he ? '\u05dc\u05d0 \u05e0\u05de\u05e6\u05d0\u05d5 \u05ea\u05d5\u05e6\u05d0\u05d5\u05ea \u05de\u05ea\u05d0\u05d9\u05de\u05d5\u05ea.' : 'No matching records were found.'}</p>}

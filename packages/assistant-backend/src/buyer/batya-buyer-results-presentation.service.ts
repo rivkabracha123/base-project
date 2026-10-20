@@ -8,7 +8,7 @@ import type {
 } from './buyer-results-presentation.port';
 import { BuyerSearchExecutionService } from './buyer-search-execution.service';
 import type { BuyerSearchProgress } from './buyer-search.orchestrator';
-import { archiveStepText, searchingStepText, unfilteredStepText, upcomingStepText } from './buyer-search-steps';
+import { searchingStepText, unfilteredStepText, upcomingStepText } from './buyer-search-steps';
 import { LotsService } from '../lots/lots.service';
 import type { PresentPriceTrendInput, PresentPriceTrendResult, PriceTrendPoint } from './buyer-results-presentation.port';
 
@@ -82,10 +82,7 @@ export class BatyaBuyerResultsPresentationService implements BuyerResultsPresent
     if (groups.length > 0) {
       onUpdate({ type: 'progress', text: upcomingStepText(current.length, criteria.language) });
     }
-    // Past sales are kept as price evidence rather than cards; the buyer is still told the archive was checked.
-    if (historical.length > 0) {
-      onUpdate({ type: 'progress', text: archiveStepText(historical.length, criteria.language) });
-    }
+    // Past sales stay price evidence; the similar-items search reports only upcoming lots. Past sales have their own request.
     if (groups.length === 0) {
       onUpdate({ type: 'unmatched', text: historical.length > 0 ? NO_UPCOMING_TEXT[criteria.language] : UNMATCHED_TEXT[criteria.language] });
       return { groups, outcome };

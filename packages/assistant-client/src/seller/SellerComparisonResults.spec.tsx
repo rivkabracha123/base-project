@@ -136,7 +136,7 @@ describe('seller comparison results', () => {
     expect(screen.getAllByRole('img')).toHaveLength(2);
     expect(screen.getByRole('img', { name: 'Similar-item sale prices (USD)' }).querySelector('polyline')).toHaveAttribute('points');
     expect(screen.getByText('DEMO data only')).toBeInTheDocument();
-    expect(screen.getByText(/not your item's sale history/)).toBeInTheDocument();
+    expect(screen.queryByText(/not your item's sale history/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(screen.queryByText(sold.description.en)).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Similar-item sale prices (USD)' })).toHaveAttribute('direction', 'ltr');

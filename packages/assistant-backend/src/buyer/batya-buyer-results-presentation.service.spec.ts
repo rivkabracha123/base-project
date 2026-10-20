@@ -37,7 +37,7 @@ describe('BatyaBuyerResultsPresentationService', () => {
     expect(updates.some((update) => update.type === 'result_cards')).toBe(true);
   });
 
-  it('tells the buyer each search step: searching, upcoming lots found, then the archive check', async () => {
+  it('tells the buyer each search step: searching, then upcoming lots found, without an archive line', async () => {
     const service = new BatyaBuyerResultsPresentationService(
       new BuyerSearchExecutionService(new FixtureLotsSearchClient()),
       {} as LotsService,
@@ -56,12 +56,11 @@ describe('BatyaBuyerResultsPresentationService', () => {
     });
 
     if (result.outcome.kind !== 'results') throw new Error('expected results');
-    const { current, historical } = result.outcome.results;
+    const { current } = result.outcome.results;
     expect(updates).toEqual([
       { type: 'loading', text: 'מחפש…' },
       { type: 'progress', text: 'שימו לב: לא ניתן לסנן לפי תקופה, לכן התוצאות לא הוגבלו לפי זה.' },
       { type: 'progress', text: `נמצאו ${current.length} פריטים דומים במכירות הקרובות` },
-      { type: 'progress', text: `נמצאו ${historical.length} פריטים דומים בארכיון מכירות קודמות` },
       expect.objectContaining({ type: 'result_cards' }),
     ]);
   });

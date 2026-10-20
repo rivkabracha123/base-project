@@ -53,7 +53,8 @@ describe('buyer reuse of seller functions', () => {
     const updates: BuyerChatUpdate[] = [];
     await executor.execute(response('searchLots', true, 'search_similar_lots', {}), { ...context, p4Context: { selectedLot: { id: anchor.id } } }, updates);
     expect(comparisons.findComparables).toHaveBeenCalledWith({ category: anchor.category });
-    expect(updates).toEqual([{ speaker: 'result-group', title: 'Similar items by category', lots: [similar] }]);
+    expect(updates).toEqual([{ speaker: 'system', text: 'Searching…' }, { speaker: 'results-found', text: 'Found 1 similar lots in upcoming sales' },
+      { speaker: 'result-group', title: 'Similar items by category', lots: [similar] }]);
   });
   it('keeps similar lots inside the saved buyer budget', async () => {
     const anchor = findBuyerFixtureLot('lot-history-upcoming-001')!;
@@ -65,13 +66,15 @@ describe('buyer reuse of seller functions', () => {
     ] });
     const updates: BuyerChatUpdate[] = [];
     await executor.execute(response('searchLots', true, 'search_similar_lots', { category: anchor.category, status: 'sold' }), context, updates);
-    expect(updates).toEqual([{ speaker: 'result-group', title: 'Similar items by category', lots: [inBudget] }]);
+    // Past sales get the same step lines as the lots search.
+    expect(updates).toEqual([{ speaker: 'system', text: 'Searching…' }, { speaker: 'results-found', text: 'Found 1 similar lots in the past sales archive' },
+      { speaker: 'result-group', title: 'Similar items by category', lots: [inBudget] }]);
   });
   it('uses the latest saved buyer category without any seller draft or profile', async () => {
     comparisons.findComparables.mockResolvedValue({ included: [], excluded: [] });
     const updates: BuyerChatUpdate[] = [];
     await executor.execute(response('searchLots', true, 'search_similar_lots'), context, updates);
     expect(comparisons.findComparables).toHaveBeenCalledWith({ category: 'rings' });
-    expect(updates[0]).toMatchObject({ speaker: 'no-results' });
+    expect(updates).toEqual([{ speaker: 'system', text: 'Searching…' }, expect.objectContaining({ speaker: 'no-results' })]);
   });
 });
