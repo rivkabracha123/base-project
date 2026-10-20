@@ -28,7 +28,7 @@ Consumers, owned by B2 and S1: `src/buyer/buyer-p4-bridge.service.ts` (`generate
 
 ## Configuration
 
-All variables are read server-side by `ConfigService` and validated at boot in `src/config/environment.ts`. Values in the process environment take precedence over `packages/assistant-backend/.env`. The backend reads them only at start, so **restart the backend after changing them** (`nest start --watch` restarts on source changes, not on `.env` changes).
+All variables are read server-side by `ConfigService`; all except `AI_TIMEOUT_MS` are validated at boot in `src/config/environment.ts`. Values in the process environment take precedence over `packages/assistant-backend/.env`. The backend reads them only at start, so **restart the backend after changing them** (`nest start --watch` restarts on source changes, not on `.env` changes).
 
 | Variable | Default | Used by | Meaning |
 |---|---|---|---|
@@ -36,7 +36,7 @@ All variables are read server-side by `ConfigService` and validated at boot in `
 | `AI_BASE_URL` | none (example: `https://api.openai.com/v1`) | `ai.service.ts` | OpenAI-compatible base URL. The backend posts to `<AI_BASE_URL>/chat/completions`. |
 | `AI_MODEL_NAME` | none (example: `gpt-4o-mini`) | `ai.service.ts` | Model identifier selected by the project owner. |
 | `AI_API_KEY` | none | `ai.service.ts`, `p4-ai-generate.client.ts` | Provider key, sent as `Authorization: Bearer`. Server-side only. |
-| `AI_TIMEOUT_MS` | `20000` | `ai.service.ts` | How long one provider call may take before it is aborted (minimum 1000). See [Limits](#limits-and-retry-behavior). |
+| `AI_TIMEOUT_MS` | `20000` | `ai.service.ts` | How long one provider call may take before it is aborted, in milliseconds. Not validated at boot: a missing, zero, negative or non-numeric value falls back to the default. See [Limits](#limits-and-retry-behavior). |
 | `AI_GENERATE_URL` | none (example: `http://localhost:3001/api/ai/generate`) | `p4-ai-generate.client.ts` | Where B2 and S1 send messages. `generate-text` is derived from it by replacing the trailing `/generate`. |
 | `AI_GENERATE_API_KEY` | none | `p4-ai-generate.client.ts` | Bearer token for `AI_GENERATE_URL`. When unset, `AI_API_KEY` is sent instead (see [Known limits](#known-limits)). |
 | `AI_ANONYMOUS_SESSION_ID` | none | `p4-ai-generate.client.ts` | Session header used when B2/S1 have no session id. Falls back to `buyer-b2-dev-session` / `seller-dev-session`. |

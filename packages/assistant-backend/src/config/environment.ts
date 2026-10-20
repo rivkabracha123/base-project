@@ -9,7 +9,6 @@ export const environmentSchema = Joi.object({
   AI_BASE_URL: Joi.string().uri().allow('').optional(),
   AI_MODEL_NAME: Joi.string().allow('').optional(),
   AI_API_KEY: Joi.string().allow('').optional(),
-  AI_TIMEOUT_MS: Joi.number().integer().min(1000).optional(),
   FIXTURE_SET: Joi.string().valid('default').default('default'),
   LOCAL_STORAGE_PATH: Joi.string().min(1).default('../../.local-storage'),
   LOG_LEVEL: Joi.string().valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent').default('info'),
