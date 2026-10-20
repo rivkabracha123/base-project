@@ -57,7 +57,7 @@ describe('AppHeader language control', () => {
     expect(screen.getByRole('link', { name: resources.he.translation.navigation.dashboard })).toHaveAttribute('href', '/staff-operations');
   });
 
-  it('keeps the selected language when saving the preference fails', async () => {
+  it('keeps the selected language without a misleading error when saving the preference fails', async () => {
     vi.mocked(updateProfileLanguage).mockRejectedValue(new Error('Unavailable'));
     render(
       <QueryClientProvider client={createQueryClient()}>
@@ -65,10 +65,11 @@ describe('AppHeader language control', () => {
       </QueryClientProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: resources.he.translation.language }));
-    await screen.findByRole('alert');
+    await waitFor(() => expect(i18n.language).toBe('en'));
     expect(i18n.language).toBe('en');
     expect(document.documentElement.lang).toBe('en');
     expect(document.documentElement.dir).toBe('ltr');
     expect(screen.getByRole('button', { name: resources.en.translation.language })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

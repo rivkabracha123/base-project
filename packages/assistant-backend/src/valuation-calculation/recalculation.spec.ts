@@ -6,9 +6,17 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Repository } from 'typeorm';
-import { auctionLotSchema, type AuctionLot } from '@monabid/shared';
+import {
+  auctionLotSchema,
+  leadHandoffFromS1Draft,
+  sellerItemFromS1Draft,
+  type AuctionLot,
+} from '@monabid/shared';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { ComparablesService } from '../comparables/comparables.service';
+import { createDeterministicSellerItemDraft } from '../seller-intake/seller-intake-ai.mock';
+import { SellerIntakeService } from '../seller-intake/seller-intake.service';
+import { toSellerLeadValuationSnapshot } from './dashboard-valuation';
 import { InvalidItemValuationRequestError, ItemValuationService } from './item-valuation.service';
 import { ValuationCalculationService } from './valuation-calculation.service';
 
@@ -46,6 +54,61 @@ const OIL_CANVAS = ['oil', 'canvas'];
 const withoutReportId = <T extends { reportId: string }>(report: T) => ({ ...report, reportId: undefined });
 
 describe('recalculation after corrections', () => {
+  it('carries only seller-confirmed corrected facts from S1 through S3/S4 into the S5 lead handoff', async () => {
+    const intake = new SellerIntakeService();
+    const initiallyConfirmed = intake.confirmSellerFacts(
+      createDeterministicSellerItemDraft(),
+      ['materials'],
+    );
+    const { service } = setup([...oil([800, 1000, 1200]), watercolor]);
+    const originalItem = sellerItemFromS1Draft(initiallyConfirmed);
+    const before = await service.calculateFromItem({
+      itemId: initiallyConfirmed.item.id,
+      itemVersion: initiallyConfirmed.revisionHistory.at(-1)!.revisionId,
+      item: originalItem,
+    });
+
+    const corrected = intake.applySellerDraftCorrection(
+      initiallyConfirmed,
+      'materials',
+      ['watercolor', 'paper'],
+    );
+    const unconfirmedItem = sellerItemFromS1Draft(corrected);
+    expect(unconfirmedItem).toEqual({ category: 'paintings' });
+    const beforeSellerConfirmation = await service.calculateFromItem({
+      itemId: corrected.item.id,
+      itemVersion: corrected.revisionHistory.at(-1)!.revisionId,
+      item: unconfirmedItem,
+    });
+    expect(before.status).toBe('supported');
+    expect(beforeSellerConfirmation.status).toBe('supported');
+    expect(beforeSellerConfirmation.comparableCount).toBe(4);
+
+    const confirmedCorrection = intake.confirmSellerFacts(corrected, ['materials']);
+    const confirmedItem = sellerItemFromS1Draft(confirmedCorrection);
+    expect(confirmedItem.materials).toEqual(['watercolor', 'paper']);
+    const after = await service.calculateFromItem({
+      itemId: confirmedCorrection.item.id,
+      itemVersion: confirmedCorrection.revisionHistory.at(-1)!.revisionId,
+      item: confirmedItem,
+    });
+    expect(after).toMatchObject({
+      status: 'refusal',
+      reason: 'insufficient_comparable_sales',
+      comparableCount: 1,
+    });
+    expect(after).not.toHaveProperty('valuationRange');
+
+    const finalS5Payload = leadHandoffFromS1Draft(
+      confirmedCorrection,
+      toSellerLeadValuationSnapshot(after).dashboard,
+    );
+    expect(finalS5Payload.item.category).toBe('paintings');
+    expect(finalS5Payload.valuation.status).toBe('refusal');
+    expect(finalS5Payload.item).not.toHaveProperty('materials');
+    expect(JSON.stringify(finalS5Payload)).not.toMatch(/Maya|email|phone|uncertain/i);
+  });
+
   it('produces a new report linked to the exact corrected item version', async () => {
     const { service } = setup([...oil([800, 1000, 1200]), watercolor]);
 

@@ -36,6 +36,22 @@ import draftEnquiryFixture from '../../../../fixtures/demo-scenarios/seller-draf
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api';
 const anonymousSessionStorageKey = 'anonymousSessionId';
+const localStorageCleanupSessionKey = 'monabid.localStorageCleanupDone';
+
+export function clearLocalStorageExceptAnonymousSessionId(): void {
+  const sessionId = localStorage.getItem(anonymousSessionStorageKey);
+  localStorage.clear();
+  if (sessionId) {
+    localStorage.setItem(anonymousSessionStorageKey, sessionId);
+  }
+}
+
+export function clearLocalStorageOnNewTabSession(): void {
+  if (sessionStorage.getItem(localStorageCleanupSessionKey)) return;
+  clearLocalStorageExceptAnonymousSessionId();
+  sessionStorage.setItem(localStorageCleanupSessionKey, 'true');
+}
+
 export interface UpdateCurrentProfileInput {
   preferredName?: string;
   grammaticalForm?: 'masculine' | 'feminine' | 'neutral' | 'unspecified';
@@ -71,6 +87,53 @@ export function getAnonymousSessionId(): string {
   localStorage.setItem(anonymousSessionStorageKey, newSessionId);
   return newSessionId;
 }
+
+/**
+ * Sends the latest chat snapshot (including image references) to the backend.
+ * The conversation ID and version counter are kept in localStorage under storageKey.
+ * שולחת לשרת את תמונת המצב העדכנית של השיחה (כולל הפניות לתמונות).
+ * מזהה השיחה ומונה הגרסאות נשמרים ב-localStorage תחת storageKey.
+ */
+export async function syncChatSnapshot(
+  storageKey: string,
+  messages: unknown[],
+  role: 'buyer' | 'seller',
+  language: 'he' | 'en',
+  completed = false,
+): Promise<void> {
+  const conversationIdKey = `${storageKey}.conversationId`;
+  let conversationId = localStorage.getItem(conversationIdKey);
+  if (!conversationId) {
+    conversationId = crypto.randomUUID();
+    localStorage.setItem(conversationIdKey, conversationId);
+  }
+
+  const versionKey = `${storageKey}.snapshotVersion`;
+  const previousVersion = Number(localStorage.getItem(versionKey) ?? '0');
+  if (!Number.isSafeInteger(previousVersion) || previousVersion < 0) {
+    throw new Error(`Invalid snapshot version for key "${versionKey}"`);
+  }
+
+  const version = previousVersion + 1;
+  localStorage.setItem(versionKey, String(version));
+
+  const response = await fetch(
+    `${apiBaseUrl}/chat/conversations/${encodeURIComponent(conversationId)}/snapshot`,
+    {
+      method: 'PUT',
+      headers: {
+        ...profileHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role, language, messages, version, completed }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Chat snapshot save failed with status ${response.status}`);
+  }
+}
+
 function profileHeaders(): HeadersInit {
   // The backend uses this identifier to find only this browser's profile.
   return { 'x-anonymous-session-id': getAnonymousSessionId() };

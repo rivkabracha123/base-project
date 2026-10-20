@@ -104,7 +104,7 @@ export function mapAiFactsToIntakeFields(facts: string[]): string[] {
 // P4 extracts the seller facts; S1 only stores and presents the result.
 @Injectable()
 export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
-  private readonly sessions = new Map<string, { input: string; dimensions: SellerHandoffContract['item']['dimensions']; nextField?: string; facts?: Record<string, string>; result?: SellerIntakeAiResult }>();
+  private readonly sessions = new Map<string, { input: string; dimensions: SellerHandoffContract['item']['dimensions']; nextField?: string; facts?: Record<string, string>; skippedFields: string[]; result?: SellerIntakeAiResult }>();
   constructor(
     private readonly intake: SellerIntakeAiMock,
     private readonly p4: P4AiGenerateClient,
@@ -121,11 +121,22 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         'getSellerPriceTrend', 'getSellerItemDetails', 'getSellerCatalogDraft', 'getSellerProvenanceAdvice',
         'getSellerHouseRecommendation', 'calculateSellerValuation'].includes(result.functionCall?.functionToRun ?? '')
       ? null : result.functionCall;
+    const missingFields = [...new Set([
+      ...(result.missingFields ?? []),
+      ...requiredMissingFields,
+      ...(result.skippedFields ?? []),
+    ])];
+    const unansweredFields = missingFields.filter(
+      (field) => !result.skippedFields?.includes(field),
+    );
+    const unansweredRequiredFields = requiredMissingFields.filter(
+      (field) => !result.skippedFields?.includes(field),
+    );
     const asksForDimensionsAndCondition =
-      requiredMissingFields.includes('dimensions') && requiredMissingFields.includes('condition');
-    return { ...result, requiredMissingFields, functionCall,
+      unansweredRequiredFields.includes('dimensions') && unansweredRequiredFields.includes('condition');
+    return { ...result, requiredMissingFields, missingFields, functionCall,
       nextQuestion: functionCall?.functionToRun ? null
-        : requiredMissingFields.includes('category')
+        : unansweredRequiredFields.includes('category')
           ? { field: 'category', he: 'איזה סוג פריט מדובר?', en: 'What kind of item would you like to sell?' }
           : asksForDimensionsAndCondition
             ? {
@@ -133,7 +144,19 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
                 he: 'כדי להכין טיוטה, מה המידות ומה מצב הפריט? אפשר לענות על שניהם יחד.',
                 en: 'To prepare a draft, what are its dimensions and condition? You can share both together.',
               }
-            : this.intake.nextQuestionForAiFields(requiredMissingFields) };
+            : this.intake.nextQuestionForAiFields(unansweredRequiredFields) };
+  }
+
+  private skippedFieldsStillMissing(result: SellerIntakeAiResult, skippedFields: string[]): string[] {
+    const hasValue: Record<string, boolean> = {
+      category: result.item.category !== 'unknown',
+      dimensions: result.item.dimensions.values.length > 0,
+      condition: Boolean(result.item.condition?.trim()),
+      marks: Boolean(result.item.markings?.trim()),
+      signatures: Boolean(result.item.signatures?.trim()),
+      provenance: Boolean(result.item.provenance?.trim()),
+    };
+    return skippedFields.filter((field) => !hasValue[field]);
   }
 
   hasSession(sessionId: string): boolean {
@@ -159,8 +182,10 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
       nextQuestion: this.intake.nextQuestionForAiFields(missingFields), structuredAnswer: null,
       ai: { provider: null, mode: null, isRelevant: true, error: null, aiMissingFields: missingFields },
     });
+    const skippedFields = draft.skippedFields ?? [];
+    const restored = this.applyRequiredFieldPolicy({ ...result, skippedFields });
     this.sessions.set(sessionId, { input: item.description.he || item.description.en,
-      dimensions: item.dimensions, facts, nextField: result.nextQuestion?.field, result });
+      dimensions: item.dimensions, facts, skippedFields, nextField: restored.nextQuestion?.field, result: restored });
   }
 
   async analyze(input: string, sessionId?: string, preferredLanguage?: 'he' | 'en'): Promise<SellerIntakeAiResult> {
@@ -195,6 +220,22 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     const field = previous?.nextField;
     const itemField = field === 'marks' ? 'markings' : field === 'signatures' ? 'signature' : field;
     const answer = input.trim();
+    if (previous && field && this.isSkipResponse(answer)) {
+      const skippedFields = [...new Set([...previous.skippedFields, field])];
+      const result = this.applyRequiredFieldPolicy({
+        ...previous.result!,
+        skippedFields,
+      });
+      if (sessionId) {
+        this.sessions.set(sessionId, {
+          ...previous,
+          skippedFields,
+          nextField: result.nextQuestion?.field,
+          result,
+        });
+      }
+      return result;
+    }
     const isActionRequest = !!requestedSellerComparison(answer) || /valuation|apprais(?:al|e)|estimate(?:d)? (?:value|price)|הערכת?\s+שווי|auction houses?|saved enquiries|\u05d1\u05ea\u05d9 \u05de\u05db\u05d9\u05e8\u05d5\u05ea|\u05e4\u05e0\u05d9\u05d5\u05ea \u05d4\u05e9\u05de\u05d5\u05e8\u05d5\u05ea/i.test(answer);
     const statedCondition = answer.match(/\b(?:excellent|good|fair|poor|damaged|bad)\s+condition\b|מצב\s+(?:טוב|מצוין|סביר|ירוד|פגום)/i)?.[0];
     if (statedCondition && !isActionRequest) {
@@ -268,7 +309,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
           !facts[missing === 'marks' ? 'markings' : missing === 'signatures' ? 'signature' : missing]);
         guided.missingFields = remaining;
         guided.nextQuestion = this.intake.nextQuestionForAiFields(remaining);
-        const result = this.applyRequiredFieldPolicy({
+        let result = this.applyRequiredFieldPolicy({
           ...guided,
           functionCall: requestedReadAction(input, guided.item.category, language),
           ai: {
@@ -277,6 +318,8 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
             error: 'Real AI is temporarily unavailable; guided seller intake was used.',
           },
         });
+        const skippedFields = this.skippedFieldsStillMissing(result, previous?.skippedFields ?? []);
+        result = this.applyRequiredFieldPolicy({ ...result, skippedFields });
         if (parsedDimensions?.needsUnit && result.nextQuestion?.field === 'dimensions') {
           result.nextQuestion = {
             field: 'dimensions',
@@ -284,7 +327,7 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
             en: 'What unit are those measurements in — cm, mm, or inches?',
           };
         }
-        if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: result.item.dimensions, nextField: result.nextQuestion?.field, facts, result });
+        if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: result.item.dimensions, nextField: result.nextQuestion?.field, facts, skippedFields, result });
         return result;
       }
       throw error;
@@ -334,7 +377,8 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         && (sellerComparisonCategory(structuredAnswer.category, input) !== 'unknown'
           || this.intake.analyze(input).item.category !== 'unknown');
       if (sessionId && describesItem) {
-        this.sessions.set(sessionId, { ...previous, input: combinedInput, dimensions, facts });
+        this.sessions.set(sessionId, { ...previous, input: combinedInput, dimensions, facts,
+          skippedFields: previous?.skippedFields ?? [] });
       }
       return { ...preserved, nextQuestion: null, functionCall: null, structuredAnswer: null,
         ai: { provider: response.provider, mode: response.mode, isRelevant: true, error: response.error,
@@ -370,20 +414,12 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         values: withStatedAxes(structuredAnswer.item.dimensions.values, combinedInput),
       };
     }
-    const missingFields = mapAiFactsToIntakeFields(structuredAnswer.missingFacts)
+    const aiMissingFields = mapAiFactsToIntakeFields(structuredAnswer.missingFacts)
       .filter(field => (field !== 'dimensions' || !structuredAnswer.item.dimensions?.values.length)
         && (field !== 'marks' || !structuredAnswer.item.markings?.trim())
         && (field !== 'signatures' || !structuredAnswer.item.signature?.trim())
         && (field !== 'condition' || !structuredAnswer.item.condition?.trim())
         && (field !== 'provenance' || !structuredAnswer.item.provenance?.trim()));
-    if (missingFields.length === 0) {
-      const item = structuredAnswer.item;
-      if (!item.dimensions?.values.length) missingFields.push('dimensions');
-      if (!item.condition?.trim()) missingFields.push('condition');
-      if (!item.markings?.trim()) missingFields.push('marks');
-      if (!item.signature?.trim()) missingFields.push('signatures');
-      if (!item.provenance?.trim()) missingFields.push('provenance');
-    }
     const unitHint = previous?.nextField === 'dimensions' ? answer : undefined;
     const explicitDimensions = currentDimensions(combinedInput, contextualInput, unitHint, dimensions);
     if (explicitDimensions?.needsUnit) {
@@ -392,12 +428,20 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
     } else if (explicitDimensions?.values.length) {
       structuredAnswer.item.dimensions = { values: explicitDimensions.values };
     }
+    const missingFields = [...aiMissingFields];
+    const item = structuredAnswer.item;
+    if (!item.dimensions?.values.length) missingFields.push('dimensions');
+    if (!item.condition?.trim()) missingFields.push('condition');
+    if (!item.markings?.trim()) missingFields.push('marks');
+    if (!item.signature?.trim()) missingFields.push('signatures');
+    if (!item.provenance?.trim()) missingFields.push('provenance');
+    const uniqueMissingFields = [...new Set(missingFields)];
     const draft = this.intake.createDraftFromAiExtraction(combinedInput, structuredAnswer);
     const result = this.applyRequiredFieldPolicy({
       ...draft,
       provider: 'fixture-mock' as const,
-      missingFields,
-      nextQuestion: this.intake.nextQuestionForAiFields(missingFields),
+      missingFields: uniqueMissingFields,
+      nextQuestion: this.intake.nextQuestionForAiFields(uniqueMissingFields),
       structuredAnswer,
       functionCall: requestedReadAction(input, structuredAnswer.category, language)
         ?? (EXPLICIT_REQUEST_ONLY.has(response.functionCall?.functionToRun ?? '') ? null : response.functionCall ?? null),
@@ -406,22 +450,28 @@ export class SellerIntakeAiAdapter implements SellerIntakeAiProvider {
         mode: response.mode,
         isRelevant: response.isRelevant,
         error: response.error,
-        aiMissingFields: missingFields,
+        aiMissingFields,
         summary: response.summary,
         nextAction: response.nextAction,
       },
     });
-    if (explicitDimensions?.needsUnit && result.nextQuestion?.field === 'dimensions') {
-      result.nextQuestion = {
+    const skippedFields = this.skippedFieldsStillMissing(result, previous?.skippedFields ?? []);
+    const resultWithSkips = this.applyRequiredFieldPolicy({ ...result, skippedFields });
+    if (explicitDimensions?.needsUnit && resultWithSkips.nextQuestion?.field === 'dimensions') {
+      resultWithSkips.nextQuestion = {
         field: 'dimensions',
         he: 'באיזו יחידה המידות — ס״מ, מ״מ או אינץ׳?',
         en: 'What unit are the measurements in — cm, mm, or inches?',
       };
       // The model tends to assume a unit ("80x70 ס״מ") in its own text; show only the unit question.
-      result.ai = { ...result.ai, summary: '', recommendation: '', nextAction: '' };
+      resultWithSkips.ai = { ...resultWithSkips.ai, summary: '', recommendation: '', nextAction: '' };
     }
     if (sessionId) this.sessions.set(sessionId, { input: combinedInput, dimensions: structuredAnswer.item.dimensions,
-      nextField: result.nextQuestion?.field, facts, result });
-    return result;
+      nextField: resultWithSkips.nextQuestion?.field, facts, skippedFields, result: resultWithSkips });
+    return resultWithSkips;
+  }
+
+  private isSkipResponse(input: string): boolean {
+    return /^(?:skip|pass|not sure|prefer not to say|דלג|דלגי|דלגו|לא יודע|לא יודעת|לא בטוח|לא בטוחה|מעדיף לא לומר|מעדיפה לא לומר)[.!,\s]*$/i.test(input);
   }
 }
