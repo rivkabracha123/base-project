@@ -1,9 +1,50 @@
 {
   "id": "buyer-search-named-lot",
-  "description": "Buyer search <-> lots search contract for one named lot. Named fixture: the single real committed lot lot-kestenbaum-54554-121421 from fixtures/auction-data/lots.json, embedded once below (shared by every scenario) so this fixture does not depend on the size of the auction dataset. For each scenario, the buyer search builds `expectedRequest` from `criteria` via criteriaToSearchRequest() and sends it to LotsService.search(); the lots search is expected to return the shared `expectedResponse` for that lot in every case. `canonical-english-category` sends the plain canonical token; `hebrew-category-alias` sends the same category as a Hebrew alias to prove alias resolution returns the same lot, not just a direct token match. Creators are sent as `filters.creators`, not in `query`; the lots search resolves creator names to canonical tokens. Known limitation, documented not hidden: the named lot carries no `creator` value and the lots search ANDs every filter together, so a creator filter excludes it until the auction data populates the field.",
+  "description": "Buyer search <-> lots search contract for one named lot. Named fixture: the real committed lot lot-kestenbaum-54554-121421 from fixtures/auction-data/lots.json, embedded below as it is in the frozen auction data (with creator, period, medium, geography and itemKey) so this fixture does not depend on the size of the auction dataset. The same request also returns lot-kestenbaum-2026-spring-12, an upcoming lot by the same creator whose estimate band (1500-2500) overlaps the 1000-1500 budget, so the response holds two lots: the upcoming one first (most recent sale date), then the named sold lot. For each scenario, the buyer search builds `expectedRequest` from `criteria` via criteriaToSearchRequest() and sends it to LotsService.search(). `canonical-english-category` sends the plain canonical token; `hebrew-category-alias` sends the same category as a Hebrew alias to prove alias resolution returns the same lots. Creators are sent as `filters.creators`, not in `query`; the lots search resolves creator names to canonical tokens. `expectedExplainedResponse` is the canonical scenario's response; each scenario's `expectedMatchReasons` lists the reasons per lot, where the category reason names the category as it was sent. Measured against Postgres seeded with the 16 frozen lots.",
   "namedLotId": "lot-kestenbaum-54554-121421",
   "expectedResponse": {
     "data": [
+      {
+        "id": "lot-kestenbaum-2026-spring-12",
+        "source": {
+          "provider": "bidspirit-snapshot",
+          "recordId": "kestenbaum-2026-spring-12",
+          "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/60001?lang=en",
+          "retrievedAt": "2026-02-01T00:00:00.000Z"
+        },
+        "auctionHouse": {
+          "id": "house-kestenbaum",
+          "name": "Kestenbaum & Company"
+        },
+        "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+        "lotNumber": "12",
+        "title": {
+          "en": "Commentary on the Latter Prophets by Yitzhak Abrabanel",
+          "he": "פירוש על נביאים אחרונים מאת יצחק אברבנאל"
+        },
+        "description": {
+          "en": "A rare Hebrew printed volume with later manuscript annotations.",
+          "he": "כרך עברי נדיר עם הגהות בכתב יד מאוחר."
+        },
+        "category": "rare_books",
+        "itemKey": "latter_prophets_commentary_example",
+        "creator": "yitzhak_abrabanel",
+        "period": "16th_century",
+        "medium": "printed_book",
+        "geography": "italy",
+        "saleDate": "2026-05-14",
+        "status": "upcoming",
+        "estimate": {
+          "low": {
+            "amount": 1500,
+            "currency": "USD"
+          },
+          "high": {
+            "amount": 2500,
+            "currency": "USD"
+          }
+        }
+      },
       {
         "id": "lot-kestenbaum-54554-121421",
         "source": {
@@ -12,7 +53,10 @@
           "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
           "retrievedAt": "2025-08-21T00:00:00.000Z"
         },
-        "auctionHouse": { "id": "house-kestenbaum", "name": "Kestenbaum & Company" },
+        "auctionHouse": {
+          "id": "house-kestenbaum",
+          "name": "Kestenbaum & Company"
+        },
         "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
         "lotNumber": "1",
         "title": {
@@ -24,22 +68,93 @@
           "he": "ספר פילוסופיה עברי נדיר."
         },
         "category": "rare_books",
+        "itemKey": "atereth_zekeinim_example",
+        "creator": "yitzhak_abrabanel",
+        "period": "16th_century",
+        "medium": "printed_book",
+        "geography": "italy",
         "saleDate": "2025-01-23",
         "status": "sold",
         "estimate": {
-          "low": { "amount": 800, "currency": "USD" },
-          "high": { "amount": 1200, "currency": "USD" }
+          "low": {
+            "amount": 800,
+            "currency": "USD"
+          },
+          "high": {
+            "amount": 1200,
+            "currency": "USD"
+          }
         },
-        "realizedPrice": { "amount": 1200, "currency": "USD" }
+        "realizedPrice": {
+          "amount": 1200,
+          "currency": "USD"
+        }
       }
     ],
-    "total": 1,
+    "total": 2,
     "page": 1,
     "limit": 10,
     "totalPages": 1
   },
   "expectedExplainedResponse": {
     "data": [
+      {
+        "lot": {
+          "id": "lot-kestenbaum-2026-spring-12",
+          "source": {
+            "provider": "bidspirit-snapshot",
+            "recordId": "kestenbaum-2026-spring-12",
+            "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/60001?lang=en",
+            "retrievedAt": "2026-02-01T00:00:00.000Z"
+          },
+          "auctionHouse": {
+            "id": "house-kestenbaum",
+            "name": "Kestenbaum & Company"
+          },
+          "auctionTitle": "Fine Judaica: Printed Books, Manuscripts & Ceremonial Art",
+          "lotNumber": "12",
+          "title": {
+            "en": "Commentary on the Latter Prophets by Yitzhak Abrabanel",
+            "he": "פירוש על נביאים אחרונים מאת יצחק אברבנאל"
+          },
+          "description": {
+            "en": "A rare Hebrew printed volume with later manuscript annotations.",
+            "he": "כרך עברי נדיר עם הגהות בכתב יד מאוחר."
+          },
+          "category": "rare_books",
+          "itemKey": "latter_prophets_commentary_example",
+          "creator": "yitzhak_abrabanel",
+          "period": "16th_century",
+          "medium": "printed_book",
+          "geography": "italy",
+          "saleDate": "2026-05-14",
+          "status": "upcoming",
+          "estimate": {
+            "low": {
+              "amount": 1500,
+              "currency": "USD"
+            },
+            "high": {
+              "amount": 2500,
+              "currency": "USD"
+            }
+          }
+        },
+        "matchReasons": [
+          {
+            "field": "categories",
+            "detail": "rare_books"
+          },
+          {
+            "field": "creators",
+            "detail": "Yitzhak Abrabanel"
+          },
+          {
+            "field": "price",
+            "detail": "estimate"
+          }
+        ]
+      },
       {
         "lot": {
           "id": "lot-kestenbaum-54554-121421",
@@ -49,7 +164,10 @@
             "url": "https://il.bidspirit.com/ui/catalog/auction/kestenbaum/54554?lang=en",
             "retrievedAt": "2025-08-21T00:00:00.000Z"
           },
-          "auctionHouse": { "id": "house-kestenbaum", "name": "Kestenbaum & Company" },
+          "auctionHouse": {
+            "id": "house-kestenbaum",
+            "name": "Kestenbaum & Company"
+          },
           "auctionTitle": "Rare Hebrew Printed Books, Manuscripts & Important American Judaica",
           "lotNumber": "1",
           "title": {
@@ -61,18 +179,45 @@
             "he": "ספר פילוסופיה עברי נדיר."
           },
           "category": "rare_books",
+          "itemKey": "atereth_zekeinim_example",
+          "creator": "yitzhak_abrabanel",
+          "period": "16th_century",
+          "medium": "printed_book",
+          "geography": "italy",
           "saleDate": "2025-01-23",
           "status": "sold",
           "estimate": {
-            "low": { "amount": 800, "currency": "USD" },
-            "high": { "amount": 1200, "currency": "USD" }
+            "low": {
+              "amount": 800,
+              "currency": "USD"
+            },
+            "high": {
+              "amount": 1200,
+              "currency": "USD"
+            }
           },
-          "realizedPrice": { "amount": 1200, "currency": "USD" }
+          "realizedPrice": {
+            "amount": 1200,
+            "currency": "USD"
+          }
         },
-        "matchReasons": []
+        "matchReasons": [
+          {
+            "field": "categories",
+            "detail": "rare_books"
+          },
+          {
+            "field": "creators",
+            "detail": "Yitzhak Abrabanel"
+          },
+          {
+            "field": "price",
+            "detail": "realized"
+          }
+        ]
       }
     ],
-    "total": 1,
+    "total": 2,
     "page": 1,
     "limit": 10,
     "totalPages": 1
@@ -81,14 +226,22 @@
     {
       "name": "canonical-english-category",
       "criteria": {
-        "categories": ["rare_books"],
-        "creators": ["Yitzhak Abrabanel"],
+        "categories": [
+          "rare_books"
+        ],
+        "creators": [
+          "Yitzhak Abrabanel"
+        ],
         "periods": [],
         "media": [],
         "keywords": [],
         "geography": [],
         "auctionHouseIds": [],
-        "price": { "min": 1000, "max": 1500, "currency": "USD" },
+        "price": {
+          "min": 1000,
+          "max": 1500,
+          "currency": "USD"
+        },
         "language": "en",
         "hardConstraints": []
       },
@@ -97,23 +250,69 @@
         "query": "",
         "language": "en",
         "filters": {
-          "creators": ["Yitzhak Abrabanel"],
-          "categories": ["rare_books"],
-          "price": { "min": 1000, "max": 1500, "currency": "USD" }
+          "creators": [
+            "Yitzhak Abrabanel"
+          ],
+          "categories": [
+            "rare_books"
+          ],
+          "price": {
+            "min": 1000,
+            "max": 1500,
+            "currency": "USD"
+          }
         }
+      },
+      "expectedMatchReasons": {
+        "lot-kestenbaum-2026-spring-12": [
+          {
+            "field": "categories",
+            "detail": "rare_books"
+          },
+          {
+            "field": "creators",
+            "detail": "Yitzhak Abrabanel"
+          },
+          {
+            "field": "price",
+            "detail": "estimate"
+          }
+        ],
+        "lot-kestenbaum-54554-121421": [
+          {
+            "field": "categories",
+            "detail": "rare_books"
+          },
+          {
+            "field": "creators",
+            "detail": "Yitzhak Abrabanel"
+          },
+          {
+            "field": "price",
+            "detail": "realized"
+          }
+        ]
       }
     },
     {
       "name": "hebrew-category-alias",
       "criteria": {
-        "categories": ["ספרים נדירים"],
-        "creators": ["Yitzhak Abrabanel"],
+        "categories": [
+          "ספרים נדירים"
+        ],
+        "creators": [
+          "Yitzhak Abrabanel"
+        ],
         "periods": [],
         "media": [],
         "keywords": [],
         "geography": [],
         "auctionHouseIds": [],
-        "price": { "min": 1000, "max": 1500, "currency": "USD" },
+        "price": {
+          "min": 1000,
+          "max": 1500,
+          "currency": "USD"
+        },
         "language": "en",
         "hardConstraints": []
       },
@@ -122,10 +321,48 @@
         "query": "",
         "language": "en",
         "filters": {
-          "creators": ["Yitzhak Abrabanel"],
-          "categories": ["ספרים נדירים"],
-          "price": { "min": 1000, "max": 1500, "currency": "USD" }
+          "creators": [
+            "Yitzhak Abrabanel"
+          ],
+          "categories": [
+            "ספרים נדירים"
+          ],
+          "price": {
+            "min": 1000,
+            "max": 1500,
+            "currency": "USD"
+          }
         }
+      },
+      "expectedMatchReasons": {
+        "lot-kestenbaum-2026-spring-12": [
+          {
+            "field": "categories",
+            "detail": "ספרים נדירים"
+          },
+          {
+            "field": "creators",
+            "detail": "Yitzhak Abrabanel"
+          },
+          {
+            "field": "price",
+            "detail": "estimate"
+          }
+        ],
+        "lot-kestenbaum-54554-121421": [
+          {
+            "field": "categories",
+            "detail": "ספרים נדירים"
+          },
+          {
+            "field": "creators",
+            "detail": "Yitzhak Abrabanel"
+          },
+          {
+            "field": "price",
+            "detail": "realized"
+          }
+        ]
       }
     }
   ]
