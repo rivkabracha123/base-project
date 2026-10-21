@@ -28,7 +28,7 @@ const lead = {
 };
 
 for (const scenario of contract.scenarios) {
-  it(`sends "${scenario.name}" criteria to the real LotsService and gets the named lot back (${contract.namedLotId})`, async () => {
+  it(`sends "${scenario.name}" criteria to the real LotsService and gets the named lot back with the other matching lot (${contract.namedLotId})`, async () => {
     const entities = contract.expectedExplainedResponse.data.map((entry) => ({ payload: entry.lot }));
     const queryBuilder = {
       andWhere: jest.fn().mockReturnThis(),
@@ -65,7 +65,8 @@ for (const scenario of contract.scenarios) {
     const handedOffIds = [...outcome.results.current, ...outcome.results.historical].map(
       (entry) => entry.lot.id,
     );
-    expect(handedOffIds).toEqual([contract.namedLotId]);
+    expect(handedOffIds).toContain(contract.namedLotId);
+    expect(handedOffIds).toEqual(contract.expectedExplainedResponse.data.map((entry) => entry.lot.id));
 
     // The Hebrew-alias scenario must still resolve through the real alias table,
     // not just pass because the mock ignores the query.

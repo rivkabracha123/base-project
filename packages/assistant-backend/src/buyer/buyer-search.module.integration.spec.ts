@@ -20,11 +20,12 @@ import { InvalidLotsSearchRequestError } from './lots-service-search.client';
 const contract = JSON.parse(
   readFileSync(resolve(__dirname, '../../../../fixtures/demo-scenarios/buyer-search-named-lot.json'), 'utf8'),
 ) as {
+  namedLotId: string;
   expectedExplainedResponse: { data: Array<{ lot: AuctionLot }> };
   scenarios: Array<{ name: string; criteria: BuyerCriteria }>;
 };
 
-const namedLot = contract.expectedExplainedResponse.data[0]!.lot;
+const namedLot = contract.expectedExplainedResponse.data.find((entry) => entry.lot.id === contract.namedLotId)!.lot;
 const scenario = contract.scenarios.find((entry) => entry.name === 'canonical-english-category')!;
 
 // Fake auction_lots repository returning the given lots for any query.

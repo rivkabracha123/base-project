@@ -35,7 +35,7 @@ for (const scenario of contract.scenarios) {
       );
     });
 
-    it('consumes the paginated lots response and hands the named lot to results', async () => {
+    it('consumes the paginated lots response and hands the named lot to results with the other matching lot', async () => {
       const lotsSearch = { search: jest.fn().mockResolvedValue(contract.expectedExplainedResponse) };
       const orchestrator = new BuyerSearchOrchestrator(lotsSearch);
 
@@ -51,7 +51,8 @@ for (const scenario of contract.scenarios) {
       const groupedLotIds = [...outcome.results.current, ...outcome.results.historical].map(
         (entry) => entry.lot.id,
       );
-      expect(groupedLotIds).toEqual([contract.namedLotId]);
+      expect(groupedLotIds).toContain(contract.namedLotId);
+      expect(groupedLotIds).toEqual(contract.expectedExplainedResponse.data.map((entry) => entry.lot.id));
       // Match reasons are the lots search's own, passed through unchanged.
       expect([...outcome.results.current, ...outcome.results.historical]).toEqual(
         contract.expectedExplainedResponse.data,

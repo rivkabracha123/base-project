@@ -21,7 +21,7 @@ const contract = JSON.parse(
   scenarios: Array<{ name: string; criteria: BuyerCriteria; language: 'en' | 'he' }>;
 };
 
-const namedLot = contract.expectedExplainedResponse.data[0]!.lot;
+const namedLot = contract.expectedExplainedResponse.data.find((entry) => entry.lot.id === contract.namedLotId)!.lot;
 const namedPrice = namedLot.realizedPrice!.amount;
 const approvedAt = '2026-10-06T10:00:00.000Z';
 
