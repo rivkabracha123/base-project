@@ -1,9 +1,17 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { type AuctionLot, validateAuctionLotFixture } from '@monabid/shared';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
 import { LotsModule } from './lots.module';
+
+// The real frozen demo fixture (W7) — used to prove the history endpoint works
+// on the actual data handed off to consumers, not just on hand-picked examples.
+const frozenFixture = JSON.parse(
+  readFileSync(resolve(__dirname, '../../../../fixtures/auction-data/lots.json'), 'utf8'),
+);
 
 // A single canonical lot, matching the committed fixture shape.
 const lot: AuctionLot = {
@@ -39,6 +47,7 @@ describe('Lots API (integration)', () => {
     setParameters: jest.fn().mockReturnThis(),
     getRawAndEntities: jest.fn().mockResolvedValue({ entities: [{ payload: lot }], raw: [] }),
     getCount: jest.fn().mockResolvedValue(1),
+    getMany: jest.fn().mockResolvedValue([]),
   };
   const repository = {
     createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
@@ -174,6 +183,45 @@ describe('Lots API (integration)', () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual([{ lot: minimalRecord, matchReasons: [] }]);
+  });
+
+  it('keeps at least one sold, priced record in every frozen itemKey cluster', () => {
+    const { records } = validateAuctionLotFixture(frozenFixture);
+
+    const clusters = new Map<string, AuctionLot[]>();
+    for (const record of records) {
+      if (!record.itemKey) continue;
+      const group = clusters.get(record.itemKey) ?? [];
+      group.push(record);
+      clusters.set(record.itemKey, group);
+    }
+
+    expect(clusters.size).toBeGreaterThan(0); // sanity: there are real clusters to check
+
+    for (const [, group] of clusters) {
+      const hasSoldRecord = group.some((candidate) => candidate.status === 'sold' && candidate.realizedPrice);
+      expect(hasSoldRecord).toBe(true); // every history-enabled item has at least one usable sale
+    }
+  });
+
+  it('serves real chronological sale history for a frozen itemKey cluster', async () => {
+    const { records } = validateAuctionLotFixture(frozenFixture);
+    const itemKey = 'atereth_zekeinim_example';
+
+    const expectedHistory = records
+      .filter((record) => record.itemKey === itemKey && record.status === 'sold' && record.realizedPrice)
+      .sort((a, b) => a.saleDate.localeCompare(b.saleDate));
+
+    expect(expectedHistory.length).toBeGreaterThan(1); // sanity: a real cluster, not a fluke
+
+    queryBuilder.getMany.mockResolvedValueOnce(expectedHistory.map((payload) => ({ payload })));
+
+    const response = await fetch(`${baseUrl}/api/lots/history/${itemKey}`);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.map((historyLot: AuctionLot) => historyLot.id)).toEqual(expectedHistory.map((historyLot) => historyLot.id));
+    expect(body.every((historyLot: AuctionLot) => historyLot.status === 'sold')).toBe(true);
   });
 
   it('answers a database failure with a 500 that leaks no internal detail', async () => {
