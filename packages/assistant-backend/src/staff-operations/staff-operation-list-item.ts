@@ -7,4 +7,6 @@ export interface StaffOperationListItem {
   category?: string;
   requestDetails: string;
   createdAt: Date;
+  /** False when this Buyer-owned record has no staff CRM pipeline to update. */
+  pipelineAvailable?: boolean;
 }

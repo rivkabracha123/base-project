@@ -58,6 +58,37 @@ describe('StaffOperationsService', () => {
     await expect(service.findAll()).resolves.toEqual([expect.objectContaining({ category: 'rare_hebrew_manuscript' })]);
   });
 
+  it('lists Buyer-owned unmatched demand instead of a legacy buyer row when the live source supports listing', async () => {
+    const repository = {
+      find: jest.fn().mockResolvedValue([
+        {
+          id: 'legacy-buyer', type: 'buyer', clientName: 'Do not show', status: 'new',
+          requestDetails: 'Do not show', createdAt: new Date('2026-10-19T09:00:00.000Z'), payload: { contact: { email: 'private@example.test' } },
+        },
+        {
+          id: 'seller-lead', type: 'seller', clientName: 'Seller', status: 'reviewing',
+          requestDetails: 'Seller request', createdAt: new Date('2026-10-20T09:00:00.000Z'), payload: {},
+        },
+      ]),
+    };
+    const buyerLeadDashboardSource = {
+      getBuyerLead: jest.fn(),
+      listBuyerLeads: jest.fn().mockResolvedValue([{
+        id: 'real-demand', type: 'buyer', status: 'new', clientName: 'Anonymous Demand',
+        requestDetails: 'No matching result for the buyer request.', category: 'rare_books',
+        createdAt: new Date('2026-10-21T09:00:00.000Z'), outcome: { kind: 'unmatched', view: {} },
+        contact: { preferredName: null, email: null, phone: null, followUpStatus: 'contact_missing', serviceConsent: { granted: false } },
+      }]),
+    };
+    const service = createService(repository, buyerLeadDashboardSource);
+
+    await expect(service.findAll()).resolves.toEqual([
+      expect.objectContaining({ id: 'real-demand', clientName: 'Anonymous Demand', category: 'rare_books' }),
+      expect.objectContaining({ id: 'seller-lead', type: 'seller' }),
+    ]);
+    expect(buyerLeadDashboardSource.listBuyerLeads).toHaveBeenCalledWith();
+  });
+
   it('persists an approved status change, next action, and short activity note', async () => {
     const lead = {
       id: 'pipeline-lead', type: 'buyer', clientName: 'Synthetic Buyer', status: 'new',
@@ -247,13 +278,39 @@ describe('StaffOperationsService', () => {
     });
   });
 
-  it('does not query the buyer source for an unknown staff lead', async () => {
+  it('gets an unmatched demand directly from the Buyer-owned source without a legacy staff row', async () => {
+    const buyerLeadDashboardSource = {
+      getBuyerLead: jest.fn().mockResolvedValue({
+        id: 'real-demand-001', type: 'buyer', status: 'new',
+        outcome: {
+          kind: 'unmatched',
+          view: {
+            unmatchedDemand: {
+              reason: 'no_results',
+              searchRequest: { criteria: { categories: ['rare_books'] }, hardConstraints: [] },
+            },
+          },
+        },
+        contact: { preferredName: null, email: null, phone: null, followUpStatus: 'contact_missing', serviceConsent: { granted: false } },
+      }),
+    };
+    const repository = { findOneBy: jest.fn().mockResolvedValue(undefined) };
+    const service = createService(repository, buyerLeadDashboardSource);
+
+    await expect(service.getBuyerLeadDetail('real-demand-001')).resolves.toMatchObject({
+      id: 'real-demand-001', type: 'buyer', status: 'new',
+      criteria: { categories: ['rare_books'] }, results: [],
+      contact: { email: null, phone: null, serviceConsent: { granted: false } },
+    });
+  });
+
+  it('rejects an unknown buyer lead after the Buyer source has no matching demand', async () => {
     const buyerLeadDashboardSource = { getBuyerLead: jest.fn() };
     const repository = { findOneBy: jest.fn().mockResolvedValue(undefined) };
     const service = createService(repository, buyerLeadDashboardSource);
 
     await expect(service.getBuyerLeadDetail('unknown-lead')).rejects.toThrow('Buyer lead not found');
-    expect(buyerLeadDashboardSource.getBuyerLead).not.toHaveBeenCalled();
+    expect(buyerLeadDashboardSource.getBuyerLead).toHaveBeenCalledWith('unknown-lead');
   });
 
   it('maps a supported seller lead from the dashboard source without private fields', async () => {

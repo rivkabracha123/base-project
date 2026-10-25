@@ -50,8 +50,19 @@ export interface DashboardBuyerLeadSourceRecord {
   contact: DashboardBuyerLeadContact;
 }
 
+/** A safe summary for rendering an anonymous Buyer-owned demand in the staff list. */
+export interface DashboardBuyerLeadListRecord extends DashboardBuyerLeadSourceRecord {
+  clientName: string;
+  requestDetails: string;
+  category?: string;
+  createdAt: Date;
+  pipelineAvailable?: boolean;
+}
+
 export interface BuyerLeadDashboardSource {
   getBuyerLead(leadId: string): Promise<DashboardBuyerLeadSourceRecord | undefined>;
+  /** Optional while older deterministic sources are phased out. */
+  listBuyerLeads?(): Promise<DashboardBuyerLeadListRecord[]>;
 }
 
 export const BUYER_LEAD_DASHBOARD_SOURCE = Symbol('BUYER_LEAD_DASHBOARD_SOURCE');

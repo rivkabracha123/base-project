@@ -47,25 +47,24 @@ export class StaffOperationsService {
 
   async findAll(): Promise<StaffOperationListItem[]> {
     const leads = await this.staffOpRepository.find({ order: { createdAt: 'DESC' } });
+    const buyerLeads = await this.buyerLeadDashboardSource.listBuyerLeads?.();
 
-    // Do not expose private domain data through the dashboard.
-    return leads.map(({ id, type, clientName, status, requestDetails, createdAt, payload }) => {
-      const category = this.findSafeCategory(payload) ?? legacySyntheticLeadCategories[id];
-      return {
-        id,
-        type,
-        clientName,
-        status,
-        ...(category ? { category } : {}),
-        requestDetails,
-        createdAt,
-      };
-    });
+    // A live Buyer source owns all buyer rows. Retaining legacy buyer entities
+    // alongside it would show stale synthetic leads and could expose stale data.
+    const repositoryLeads = buyerLeads ? leads.filter((lead) => lead.type === 'seller') : leads;
+    const safeRepositoryLeads = repositoryLeads.map((lead) => this.toSafeListItem(lead));
+    const safeBuyerLeads = buyerLeads?.map(({ id, type, clientName, status, category, requestDetails, createdAt, pipelineAvailable }) => ({
+      id, type, clientName, status, ...(category ? { category } : {}), requestDetails, createdAt,
+      ...(pipelineAvailable === false ? { pipelineAvailable: false } : {}),
+    })) ?? [];
+
+    return [...safeBuyerLeads, ...safeRepositoryLeads]
+      .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
   }
 
   async getBuyerLeadDetail(leadId: string): Promise<StaffBuyerLeadDetail> {
     const staffLead = await this.staffOpRepository.findOneBy({ id: leadId });
-    if (!staffLead || staffLead.type !== 'buyer') throw new NotFoundException('Buyer lead not found');
+    if (staffLead && staffLead.type !== 'buyer') throw new NotFoundException('Buyer lead not found');
 
     const lead = await this.buyerLeadDashboardSource.getBuyerLead(leadId);
     if (!lead) throw new NotFoundException('Buyer lead not found');
@@ -73,9 +72,9 @@ export class StaffOperationsService {
     const contact = this.limitContactToServiceConsent(lead.contact);
     if (lead.outcome.kind === 'results') {
       return {
-        id: staffLead.id,
+        id: lead.id ?? staffLead?.id ?? leadId,
         type: 'buyer',
-        status: staffLead.status,
+        status: lead.status ?? staffLead?.status ?? 'new',
         criteria: lead.outcome.searchRequest.criteria,
         hardConstraints: lead.outcome.searchRequest.hardConstraints,
         results: [
@@ -89,9 +88,9 @@ export class StaffOperationsService {
 
     const demand = lead.outcome.view.unmatchedDemand;
     return {
-      id: staffLead.id,
+      id: lead.id ?? staffLead?.id ?? leadId,
       type: 'buyer',
-      status: staffLead.status,
+      status: lead.status ?? staffLead?.status ?? 'new',
       criteria: demand.searchRequest.criteria,
       hardConstraints: demand.searchRequest.hardConstraints,
       results: [],
@@ -105,11 +104,9 @@ export class StaffOperationsService {
 
   async getLeadDetail(leadId: string): Promise<StaffBuyerLeadDetail | StaffSellerLeadDetail> {
     const staffLead = await this.staffOpRepository.findOneBy({ id: leadId });
-    if (!staffLead) throw new NotFoundException('Staff lead not found');
-
-    return staffLead.type === 'buyer'
-      ? this.getBuyerLeadDetail(leadId)
-      : this.getSellerLeadDetail(leadId);
+    return staffLead?.type === 'seller'
+      ? this.getSellerLeadDetail(leadId)
+      : this.getBuyerLeadDetail(leadId);
   }
 
   async getSellerLeadDetail(leadId: string): Promise<StaffSellerLeadDetail> {
@@ -190,6 +187,19 @@ export class StaffOperationsService {
   }
 
   /** Category is safe list metadata; never expose the rest of the opaque payload. */
+  private toSafeListItem({ id, type, clientName, status, requestDetails, createdAt, payload }: StaffOperationEntity): StaffOperationListItem {
+    const category = this.findSafeCategory(payload) ?? legacySyntheticLeadCategories[id];
+    return {
+      id,
+      type,
+      clientName,
+      status,
+      ...(category ? { category } : {}),
+      requestDetails,
+      createdAt,
+    };
+  }
+
   private findSafeCategory(payload: Record<string, unknown>): string | undefined {
     const asRecord = (value: unknown): Record<string, unknown> | undefined => (
       typeof value === 'object' && value !== null && !Array.isArray(value)

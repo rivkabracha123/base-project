@@ -7,6 +7,8 @@ export interface StaffLead {
   category?: string;
   requestDetails: string;
   createdAt: string;
+  /** Buyer demand records without a staff CRM row are read-only. */
+  pipelineAvailable?: boolean;
 }
 
 export type StaffPipelineStatus = 'new' | 'reviewing' | 'contacted' | 'qualified' | 'item_found' | 'negotiating' | 'won' | 'lost' | 'closed';

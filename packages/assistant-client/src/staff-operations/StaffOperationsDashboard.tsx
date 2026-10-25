@@ -139,7 +139,7 @@ export function StaffOperationsDashboard() {
   return (
     <PageShell>
       <section aria-labelledby="staff-operations-heading">
-        <p className="text-sm font-semibold text-[#b08948]">{t('dashboard.synthetic')}</p>
+        <p className="text-sm font-semibold text-[#b08948]">{t('dashboard.leads')}</p>
         <h1 id="staff-operations-heading" className="mt-2 text-3xl font-bold tracking-tight text-stone-950">{t('dashboard.title')}</h1>
         <p className="mt-3 text-stone-600">{t('dashboard.intro')}</p>
         <div className="mt-8">
@@ -163,7 +163,7 @@ export function StaffOperationsDashboard() {
                   {detailQuery.isError && !isMissingLeadError(detailQuery.error) ? <ErrorState title={t('dashboard.error')} retryLabel={t('dashboard.retry')} onRetry={() => void detailQuery.refetch()} /> : null}
                   {detailQuery.data?.type === 'buyer' ? <BuyerLeadDetail detail={detailQuery.data} embedded /> : null}
                   {detailQuery.data?.type === 'seller' ? <SellerLeadDetail detail={detailQuery.data} embedded /> : null}
-                  {detailQuery.data ? <StaffPipelinePanel leadId={lead.id} /> : null}
+                  {(detailQuery.data || lead.type === 'seller') && lead.pipelineAvailable !== false ? <StaffPipelinePanel leadId={lead.id} /> : null}
                 </div> : null}
               </li>;
             })}</ul>}

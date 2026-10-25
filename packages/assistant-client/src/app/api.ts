@@ -204,6 +204,18 @@ const staffLeadListSchema = z.array(z.object({
   category: z.string().min(1).optional(),
   requestDetails: z.string().min(1),
   createdAt: z.string().datetime(),
+  pipelineAvailable: z.boolean().optional(),
+}));
+
+// S5-owned dashboard projection. It deliberately contains no profile or
+// contact fields, and its UUID can be passed to the frozen seller-detail API.
+const sellerDashboardListSchema = z.array(z.object({
+  id: z.string().uuid(),
+  status: z.enum(['draft', 'submitted']),
+  title: z.string().min(1).nullable(),
+  category: z.string().min(1).nullable(),
+  createdAt: z.string().datetime(),
+  summary: z.string().min(1).max(280),
 }));
 
 const staffPipelineStatusSchema = z.enum(['new', 'reviewing', 'contacted', 'qualified', 'item_found', 'negotiating', 'won', 'lost', 'closed']);
@@ -454,7 +466,32 @@ export async function getSampleLot(language: string, signal?: AbortSignal): Prom
 export async function getStaffOperationLeads(signal?: AbortSignal): Promise<StaffLead[]> {
   const response = await fetch(`${apiBaseUrl}/staff-operations/leads`, { signal });
   if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-  return staffLeadListSchema.parse(await response.json());
+  const staffLeads = staffLeadListSchema.parse(await response.json());
+
+  // S5 is the owner of SellerLead UUIDs. Until its dashboard endpoint is
+  // deployed everywhere, retain the older staff rows instead of breaking the
+  // entire dashboard list.
+  try {
+    const sellerResponse = await fetch(`${apiBaseUrl}/seller-leads/dashboard`, { signal });
+    if (!sellerResponse.ok) return staffLeads;
+    const sellerLeads = sellerDashboardListSchema.parse(await sellerResponse.json()).map((lead): StaffLead => ({
+      id: lead.id,
+      type: 'seller',
+      clientName: 'Anonymous Seller',
+      status: lead.status,
+      ...(lead.category ? { category: lead.category } : {}),
+      requestDetails: lead.summary,
+      createdAt: lead.createdAt,
+      pipelineAvailable: false,
+    }));
+    return [...staffLeads.filter((lead) => lead.type !== 'seller'), ...sellerLeads]
+      .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+  } catch {
+    // The Seller dashboard route is deployed independently. A missing or
+    // incompatible response must not hide Buyer demand or the legacy seller
+    // rows while the handoff is rolling out.
+    return staffLeads;
+  }
 }
 
 export async function getStaffLeadPipeline(leadId: string, signal?: AbortSignal): Promise<StaffLeadPipeline> {

@@ -61,6 +61,15 @@ describe('StaffOperationsDashboard', () => {
     expect(screen.getByText('מוכר')).toBeInTheDocument();
   });
 
+  it('uses a neutral bilingual dashboard eyebrow instead of claiming all data is synthetic', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(leads), { status: 200 })));
+
+    renderDashboard();
+
+    expect(await screen.findByText(resources.he.translation.dashboard.leads)).toBeInTheDocument();
+    expect(screen.queryByText(resources.he.translation.dashboard.synthetic)).not.toBeInTheDocument();
+  });
+
   it('localizes the unmatched-demand demonstration card in Hebrew', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([{
       id: 'anonymous-demand',
@@ -609,6 +618,55 @@ describe('StaffOperationsDashboard Week 5 filters', () => {
 });
 
 describe('StaffOperationsDashboard Week 5 manual pipeline', () => {
+  it('keeps the manual pipeline available when a legacy seller detail cannot be loaded', async () => {
+    const lead = {
+      id: 'legacy-seller', type: 'seller' as const, clientName: 'Legacy Seller', status: 'reviewing',
+      requestDetails: 'Legacy request.', createdAt: '2026-10-25T09:00:00.000Z',
+    };
+    const pipeline = {
+      status: 'reviewing', nextAction: null,
+      statusHistory: [{ at: '2026-10-25T09:00:00.000Z', from: null, to: 'reviewing' }], activityNotes: [],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/seller-leads/legacy-seller')) return Promise.resolve(new Response(null, { status: 400 }));
+      if (url.endsWith('/legacy-seller/pipeline')) return Promise.resolve(new Response(JSON.stringify(pipeline), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify([lead]), { status: 200 }));
+    }));
+
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('button', { name: /Legacy Seller/ }));
+
+    expect(await screen.findByRole('heading', { name: resources.he.translation.dashboard.pipeline })).toBeInTheDocument();
+  });
+
+  it('does not request a CRM pipeline for a read-only Buyer demand', async () => {
+    const lead = {
+      id: 'read-only-demand', type: 'buyer' as const, clientName: 'Read-only Buyer Demand', status: 'new',
+      requestDetails: 'No matching result.', createdAt: '2026-10-21T10:00:00.000Z', pipelineAvailable: false,
+    };
+    const detail = {
+      id: 'read-only-demand', type: 'buyer', status: 'new', criteria: {}, hardConstraints: [], results: [],
+      unmatchedDemand: { reason: 'no_results', originalCriteria: {} },
+      contact: { preferredName: null, email: null, phone: null, followUpStatus: 'contact_missing', serviceConsent: { granted: false } },
+    };
+    const fetchMock = vi.fn().mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/staff-operations/leads/read-only-demand')) {
+        return Promise.resolve(new Response(JSON.stringify(detail), { status: 200 }));
+      }
+      if (url.includes('/pipeline')) return Promise.resolve(new Response(null, { status: 500 }));
+      return Promise.resolve(new Response(JSON.stringify([lead]), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('button', { name: /Read-only Buyer Demand/ }));
+
+    await screen.findByRole('heading', { name: resources.he.translation.dashboard.criteria });
+    expect(fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.includes('/pipeline'))).toBe(false);
+  });
+
   it('shows the next action and saves an approved status change for the selected lead', async () => {
     const lead = {
       id: 'pipeline-buyer', type: 'buyer', clientName: 'קונה לדוגמה', status: 'new',
