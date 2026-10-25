@@ -10,17 +10,33 @@ import {
   IsString,
   Matches,
   Min,
+  ValidateBy,
   ValidateIf,
   ValidateNested,
+  ValidationArguments,
 } from 'class-validator';
 
 // `@IsISO8601` rejects impossible dates; `@Matches` rejects any time component.
 const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Rejects a price window whose lower bound is above its upper bound, instead of
+// guessing which one the buyer meant.
+const MinNotAboveMax = () =>
+  ValidateBy({
+    name: 'minNotAboveMax',
+    validator: {
+      validate: (max: unknown, args?: ValidationArguments) => {
+        const min = (args?.object as { min?: unknown }).min;
+        return typeof max !== 'number' || typeof min !== 'number' || min <= max;
+      },
+      defaultMessage: () => 'min must not be greater than max',
+    },
+  });
+
 /**
- * Inclusive price window in a single currency. There is no currency conversion,
- * so a lot priced in another currency falls outside this filter. `currency` must
- * be a canonical ISO 4217 code; anything else is rejected rather than guessed.
+ * Inclusive price window. Amounts are compared as-is: `currency` must be a
+ * canonical ISO 4217 code (anything else is rejected rather than guessed), but it
+ * is not used to convert amounts or to exclude lots priced in another currency.
  */
 export class PriceRangeDto {
   @ValidateIf((_, value) => value !== undefined)
@@ -31,6 +47,7 @@ export class PriceRangeDto {
   @ValidateIf((_, value) => value !== undefined)
   @IsNumber()
   @Min(0)
+  @MinNotAboveMax()
   max?: number;
 
   @ValidateIf((_, value) => value !== undefined)

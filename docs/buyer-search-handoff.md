@@ -43,7 +43,7 @@ Callers of the search, owned by other parts of the buyer flow: `buyer-search-exe
 | `periods` | `filters.periods` | Only `19th`, `19th century` or a 4-digit year convert (`1890` becomes `19th century`); anything else is not sent. |
 | `geography`, `media` | `filters.*` | English values only; a Hebrew value is not sent. |
 | `dateRange` | `filters.dateRange` | Sent as given; the lots search rejects an impossible date. |
-| `price` | `filters.price` | Sent exactly as given, including an inverted range. Never widened, never dropped without approval. |
+| `price` | `filters.price` | Sent exactly as given. Never widened, never dropped without approval. An inverted range (min above max) is rejected by the lots search's validation, so the search ends in an error and no demand is recorded. |
 
 The lots search matches the budget on a lot's realized price when it has one, whatever its status. A lot without a realized price (including upcoming and withdrawn lots) matches when its estimate band overlaps the budget. A lot with neither is excluded whenever a budget is sent. Amounts are compared as-is, without currency conversion.
 
@@ -128,7 +128,7 @@ Add an entry to `fixtures/demo-scenarios/buyer-search-strict-constraints.json` w
 - **Approval is not wired from the chat yet.** The orchestrator accepts `approvedRelaxations` and returns `relaxationOptions`, but the live chat path (`buyer-search-execution.service.ts` called by the result cards) does not pass approvals, so a buyer cannot yet approve dropping a filter from the chat. No consumer works around this; the budget is simply always sent.
 - **Live demand is recorded in memory.** The chat path constructs its orchestrator with the default in-process store, so demand from the chat is lost on restart. The database-backed orchestrator is registered in `buyer.module.ts` but no caller injects it yet.
 - **The staff dashboard does not read recorded demand yet.** `staff-operations.module.ts` serves buyer leads from `FixtureBuyerLeadDashboardSource`. The view shape it should read is `BuyerUnmatchedDemandDashboardView`, available from `UnmatchedDemandDbStore.list()` / `get(leadId)`.
-- **One creator in the committed data.** In the current data only `lot-kestenbaum-2026-spring-12` carries a `creator` (`yitzhak_abrabanel`); other creator filters return nothing. This depends on the data version and changes once the frozen auction data is merged.
+- **One creator in the committed data.** In the frozen auction data seven lots carry a `creator`, all `yitzhak_abrabanel`; a filter on any other creator returns nothing until the data adds one.
 - **Lot status is taken as stored.** Grouping uses `status`, not the sale date, so an `upcoming` lot whose sale date has passed is still shown as current.
 - **No currency conversion.** Budgets and prices are compared as plain amounts.
 - **50-lot cap.** Only the first page of 50 is fetched; there is no pagination through the buyer search.

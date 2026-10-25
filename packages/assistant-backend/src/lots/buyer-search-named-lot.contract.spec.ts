@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { AuctionLot, PaginatedResult } from '@monabid/shared';
+import type { AuctionLot, MatchReason, PaginatedResult } from '@monabid/shared';
 import type { Repository } from 'typeorm';
 import { AuctionLotEntity } from '../database/auction-lot.entity';
-import type { LotSearchResult } from './lot-match';
 import type { LotSearchDto } from './lot-search.dto';
 import { LotsService } from './lots.service';
 
@@ -13,13 +12,24 @@ const contract = JSON.parse(
 ) as {
   namedLotId: string;
   expectedResponse: PaginatedResult<AuctionLot>;
-  expectedExplainedResponse: LotSearchResult;
-  scenarios: Array<{ name: string; expectedRequest: LotSearchDto }>;
+  scenarios: Array<{
+    name: string;
+    expectedRequest: LotSearchDto;
+    expectedMatchReasons: Record<string, MatchReason[]>;
+  }>;
 };
 
 for (const scenario of contract.scenarios) {
-  it(`returns the shared expectedResponse for scenario "${scenario.name}" (named fixture: ${contract.namedLotId})`, async () => {
+  it(`returns the shared lots with the scenario's match reasons for "${scenario.name}" (named fixture: ${contract.namedLotId})`, async () => {
     const entities = contract.expectedResponse.data.map((payload) => ({ payload }));
+    // One raw row per lot, as the SQL selects it: each list filter carries a
+    // single value (position 0), and the price matched on the realized price
+    // when the lot has one, otherwise on its estimate.
+    const raw = contract.expectedResponse.data.map((lot) => ({
+      categories_position: 0,
+      creators_position: 0,
+      price_basis: lot.realizedPrice ? 'realized' : 'estimate',
+    }));
     const queryBuilder = {
       andWhere: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
@@ -28,7 +38,7 @@ for (const scenario of contract.scenarios) {
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       setParameters: jest.fn().mockReturnThis(),
-      getRawAndEntities: jest.fn().mockResolvedValue({ entities, raw: [] }),
+      getRawAndEntities: jest.fn().mockResolvedValue({ entities, raw }),
       getCount: jest.fn().mockResolvedValue(contract.expectedResponse.total),
     };
     const repository = {
@@ -37,7 +47,13 @@ for (const scenario of contract.scenarios) {
 
     const result = await new LotsService(repository).search(scenario.expectedRequest);
 
-    expect(result).toEqual(contract.expectedExplainedResponse);
+    expect(result).toEqual({
+      ...contract.expectedResponse,
+      data: contract.expectedResponse.data.map((lot) => ({
+        lot,
+        matchReasons: scenario.expectedMatchReasons[lot.id],
+      })),
+    });
     // Both scenarios name the same lot's category (one canonical, one a Hebrew
     // alias) and must resolve to the identical query.
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(

@@ -43,7 +43,7 @@ Measured against four lots copied from the committed auction data (three sold, o
 | `strict-creator-upcoming-lot` | category + creator | results | `…2026-spring-12` (current) |
 | `hebrew-creator-budget-overlaps-estimate` | Hebrew creator alias + price 2000–3000 | results, matched by estimate | `…2026-spring-12` (current) |
 | `creator-budget-below-estimate-no-result` | category + creator + price 900–1300 | unmatched, demand recorded | none |
-| `inverted-budget-sent-unchanged` | price min 1500 > max 900, unchanged | unmatched, demand recorded | none |
+| `invalid-inverted-budget` | price min 1500 > max 900, unchanged | error on `filters.price.max`, no demand | none |
 | `invalid-negative-budget` | rejected before the lots search | error `filters.price.min`, no demand | none |
 | `invalid-sale-date` | rejected before the lots search | error `filters.dateRange.from`, no demand | none |
 | `nothing-searchable` | nothing sent | insufficient criteria, no demand | none |
@@ -55,7 +55,7 @@ Measured against four lots copied from the committed auction data (three sold, o
 | Typed criteria map to the lots search | Every fixture scenario asserts the exact `SearchRequest` sent. |
 | Budgets and strict filters survive refinement | Five-turn refinement test: budget tightened, another filter added, budget dropped once with approval, then sent again. The criteria returned always equal the criteria given. |
 | No budget relaxation without permission | Across all scenarios, the sent budget equals the given budget unless `price` was approved. Approving another filter keeps the budget (`other-filter-approved-budget-kept`). |
-| Invalid input | Negative budget, non-ISO currency, impossible date and date-with-time are rejected by the lots search's own DTO rules before any query (`lots-service-search.client.spec.ts`). An inverted budget is valid input and is sent unchanged, never "repaired" into a wider range. |
+| Invalid input | Negative budget, inverted budget (min above max), non-ISO currency, impossible date and date-with-time are rejected by the lots search's own DTO rules before any query (`lots-service-search.client.spec.ts`). An inverted budget is never "repaired" into a wider range. |
 | Missing data | Whitespace-only keywords and a period or place the lots search cannot read are not sent; with nothing left, no search runs and no demand is recorded. |
 | Deterministic behavior and ranking | Each scenario run twice gives identical requests, outcomes and progress. The order in which the buyer approved filters does not change the request. The hand-off keeps the lots search's order (newest sale, then lot id) and never re-ranks or adds lots. Ranking itself is owned and tested by the lots search. |
 | Service failure | A lots database failure, a malformed lots response, a rejected request and a failed demand save each report the `error` progress stage, rethrow, and record no false demand. |
